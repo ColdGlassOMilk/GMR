@@ -15,87 +15,76 @@ A hot-reloadable game engine using mruby and raylib. Write your game logic in Ru
 
 ## Quick Start
 
-### Windows (MSYS2/MinGW64)
+# GMR Quick Start Guide
 
-#### 1. Install MSYS2
+Get up and running in minutes!
 
-Download and install from https://www.msys2.org/ (default path: `C:\msys64`)
+## Windows Setup
 
-#### 2. Install Dependencies
+### Prerequisites
 
-Open **"MSYS2 MINGW64"** from the Start menu (not MSYS2 MSYS!) and run:
+1. **Install MSYS2** from https://www.msys2.org/
+   - Download and run the installer
+   - Use default path: `C:\msys64`
+   - Complete the installation
+
+That's it! The setup script handles everything else.
+
+### Setup & Build
+
+**Option A: Double-click (easiest)**
+
+1. Double-click `setup.bat`
+2. Wait for setup to complete (~5 minutes native, ~15 min with web)
+3. Double-click `build.bat` to build
+4. Run `gmr.exe`
+
+**Option B: Command line**
+
+1. Open "MSYS2 MinGW64" from Start menu
+2. Navigate to the GMR folder:
+   ```bash
+   cd /c/path/to/gmr
+   ```
+3. Run setup:
+   ```bash
+   ./setup.sh              # Full setup (native + web)
+   ./setup.sh --native-only  # Faster! Skip web/Emscripten setup
+   ```
+4. Build and run:
+   ```bash
+   ./build.sh run
+   ```
+
+## Build Commands
 
 ```bash
-# Update package database
-pacman -Syu
+./build.sh debug       # Debug build (default)
+./build.sh release     # Optimized release build
+./build.sh web         # WebAssembly build
+./build.sh all         # Build everything
+./build.sh clean       # Remove build files
 
-# If terminal closes, reopen MSYS2 MINGW64 and run:
-pacman -Su
-
-# Install all dependencies
-pacman -S \
-    mingw-w64-x86_64-gcc \
-    mingw-w64-x86_64-gdb \
-    mingw-w64-x86_64-cmake \
-    mingw-w64-x86_64-make \
-    mingw-w64-x86_64-raylib \
-    mingw-w64-x86_64-glfw \
-    git \
-    ruby \
-    bison
+./build.sh run         # Build debug & run
+./build.sh run-release # Build release & run
+./build.sh serve       # Build web & start server
 ```
 
-#### 3. Build mruby (not available in pacman)
-
-```bash
-# Clone mruby
-cd ~
-git clone https://github.com/mruby/mruby.git
-cd mruby
-
-# Build
-./minirake
-
-# Install to MinGW64
-cp build/host/lib/libmruby.a /mingw64/lib/
-cp -r include/* /mingw64/include/
-```
-
-#### 4. Add MinGW64 to Windows PATH
-
-1. Press `Win + R`, type `sysdm.cpl`, press Enter
-2. Click **Advanced** tab → **Environment Variables**
-3. Under **System variables**, find `Path`, click **Edit**
-4. Click **New**, add: `C:\msys64\mingw64\bin`
-5. Click **OK** on all dialogs
-6. **Restart any open terminals/VS Code**
-
-#### 5. Verify Installation
-
-Open a **new** Command Prompt or PowerShell:
-
+Or on Windows, use `build.bat`:
 ```cmd
-g++ --version
-cmake --version
-mingw32-make --version
+build.bat debug
+build.bat release
+build.bat run
 ```
 
-All three should show version information.
+## Web Builds
 
-#### 6. Build GMR
+For web builds, first load the Emscripten environment:
 
 ```bash
-# Clone or extract GMR
-cd /path/to/gmr
-
-# Configure
-cmake -B build -G "MinGW Makefiles"
-
-# Build
-cmake --build build
-
-# Run
-./gmr.exe
+source env.sh
+./build.sh web
+./build.sh serve      # Opens http://localhost:8080/gmr.html
 ```
 
 ### Linux (Ubuntu/Debian)
@@ -148,6 +137,29 @@ cmake --build build
 ./gmr
 ```
 
+## Making Your Game
+
+Edit `scripts/main.rb` - changes auto-reload while the game is running!
+
+```ruby
+def init
+  set_window_title("My Game")
+  $x = 400
+  $y = 300
+end
+
+def update(dt)
+  $x += 100 * dt if key_down?(262)  # Right arrow
+  $x -= 100 * dt if key_down?(263)  # Left arrow
+end
+
+def draw
+  clear_screen(20, 20, 40)
+  set_color(255, 100, 100)
+  draw_circle($x.to_i, $y.to_i, 30)
+end
+```
+
 ## VS Code Setup (Recommended)
 
 ### Required Extensions
@@ -185,39 +197,6 @@ gmr/
 │   └── main.rb                 # Entry point (edit this!)
 ├── .vscode/                    # VS Code configuration
 └── build/                      # Build output (generated)
-```
-
-## Writing Games
-
-Edit `scripts/main.rb` - changes are detected and reloaded automatically!
-
-```ruby
-def init
-  # Called once at startup
-  set_window_title("My Game")
-  $player_x = screen_width / 2
-  $player_y = screen_height / 2
-end
-
-def update(dt)
-  # Called every frame, dt = delta time in seconds
-  speed = 200 * dt
-  $player_x -= speed if key_down?(263)  # LEFT
-  $player_x += speed if key_down?(262)  # RIGHT
-  $player_y -= speed if key_down?(265)  # UP
-  $player_y += speed if key_down?(264)  # DOWN
-end
-
-def draw
-  # Called every frame
-  clear_screen(20, 20, 30)
-  
-  set_color(255, 100, 100)
-  draw_circle($player_x.to_i, $player_y.to_i, 20)
-  
-  set_color(255, 255, 255)
-  draw_text("Arrow keys to move", 10, 10, 20)
-end
 ```
 
 ## Ruby API Reference
