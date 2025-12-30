@@ -10,11 +10,13 @@ MOUSE_LEFT = 0
 MOUSE_RIGHT = 1
 
 def init
-  width = 1280
-  height = 720
-  set_virtual_resolution(width, height)
-  set_window_size(width, height)
-  toggle_fullscreen
+  # width = 1280
+  # height = 720
+  # set_virtual_resolution(width, height)
+  # set_window_size(width, height)
+  # toggle_fullscreen
+  
+  set_window_title "GMR Demo"
 
   $width = screen_width
   $height = screen_height
