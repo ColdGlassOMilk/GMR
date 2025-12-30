@@ -2,6 +2,8 @@
 
 A hot-reloadable game engine using mruby and raylib. Write your game logic in Ruby, see changes instantly without recompiling.
 
+![Demo Screenshot](gmr_ss.png)
+
 ## Features
 
 - **Hot Reload**: Edit Ruby scripts and see changes instantly

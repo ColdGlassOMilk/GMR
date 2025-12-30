@@ -20,6 +20,7 @@ set(SOURCES
     src/bindings/audio.cpp
     src/bindings/window.cpp
     src/bindings/util.cpp
+    src/bindings/console.cpp
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
 )

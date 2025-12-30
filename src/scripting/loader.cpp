@@ -5,6 +5,7 @@
 #include "gmr/bindings/audio.hpp"
 #include "gmr/bindings/window.hpp"
 #include "gmr/bindings/util.hpp"
+#include "gmr/bindings/console.hpp"
 #include <mruby/compile.h>
 #include <cstdio>
 #include <algorithm>
@@ -30,6 +31,7 @@ void Loader::register_all_bindings() {
     bindings::register_audio(mrb_);
     bindings::register_window(mrb_);
     bindings::register_util(mrb_);
+    bindings::register_console(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {
