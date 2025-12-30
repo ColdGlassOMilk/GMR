@@ -2,6 +2,7 @@
 # Build output
 # -------------------------------------------------
 /build/
+/build-web/
 /cmake-build-*/
 /out/
 /bin/
@@ -17,6 +18,15 @@
 *.a
 *.so
 *.dylib
+
+# -------------------------------------------------
+# Web build output
+# -------------------------------------------------
+*.wasm
+*.data
+# Don't ignore shell.html in web/ folder, only build outputs
+/build-web/*.html
+/build-web/*.js
 
 # -------------------------------------------------
 # CMake
@@ -43,7 +53,7 @@ install_manifest.txt
 # -------------------------------------------------
 # IDE / editor files
 # -------------------------------------------------
-.vscode/
+# .vscode/
 .idea/
 *.user
 *.suo
@@ -69,3 +79,10 @@ Desktop.ini
 *.tmp
 *.swp
 *~
+
+# -------------------------------------------------
+# Local library builds (optional)
+# -------------------------------------------------
+/libs/
+/deps/
+/bin/
