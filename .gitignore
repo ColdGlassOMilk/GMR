@@ -86,3 +86,4 @@ Desktop.ini
 /libs/
 /deps/
 /bin/
+**/env.sh
