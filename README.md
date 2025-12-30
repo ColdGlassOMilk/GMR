@@ -1,6 +1,8 @@
-# GMR - Games Made with Ruby
+# <img src="./logo.png" height="75" align="middle" /> GMR - Games Made with Ruby!
 
 A hot-reloadable game engine using mruby and raylib. Write your game logic in Ruby, see changes instantly without recompiling.
+
+[Check out the live Demo on itch.io!](https://coldglassomilk.itch.io/gmr)
 
 ![Demo Screenshot](gmr_ss.png)
 
