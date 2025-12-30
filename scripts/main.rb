@@ -17,6 +17,11 @@ def init
   # toggle_fullscreen
   
   set_window_title "GMR Demo"
+  set_window_size(1280, 720)
+  set_virtual_resolution(1280, 720)
+
+  set_filter_bilinear
+  # set_filter_point
 
   $width = screen_width
   $height = screen_height
@@ -120,6 +125,9 @@ def hue_to_rgb(h, s = 1.0, v = 1.0)
 end
 
 def update(dt)
+  $width = screen_width
+  $height = screen_height
+
   unless $stars && $particles && $rings && $text_particles && $attractor
     init
     return
@@ -390,9 +398,9 @@ def draw
   draw_text("FPS: #{get_fps}", 10, 10, 16)
   draw_text("Particles: #{$particles.length}", 10, 30, 16)
   
-  # set_color([150, 150, 150, 180])
-  # draw_text("Left click: ATTRACT | Right click: REPEL | Space: Spawn more", 10, $height - 50, 14)
-  # draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Connections | R: Reset", 10, $height - 30, 14)
+  set_color([150, 150, 150, 180])
+  draw_text("Left click: ATTRACT | Right click: REPEL | Space: Spawn more", 10, $height - 50, 14)
+  draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Connections | R: Reset", 10, $height - 30, 14)
   
   # Title
   # title = "Particle Playground"
