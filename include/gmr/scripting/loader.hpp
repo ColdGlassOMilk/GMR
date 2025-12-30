@@ -3,10 +3,13 @@
 
 #include <mruby.h>
 #include <string>
-#include <ctime>
+#include <set>
+#include <filesystem>
 
 namespace gmr {
 namespace scripting {
+
+namespace fs = std::filesystem;
 
 class Loader {
 public:
@@ -26,12 +29,15 @@ private:
     ~Loader();
     
     void register_all_bindings();
-    void load_directory(const std::string& dir_path);
-    time_t get_newest_mod_time(const std::string& dir_path);
+    void load_directory(const fs::path& dir_path);
+    void load_file(const fs::path& path);
+    fs::file_time_type get_newest_mod_time(const fs::path& dir_path);
     
     mrb_state* mrb_ = nullptr;
-    std::string script_dir_;
-    time_t last_mod_time_ = 0;
+    fs::path script_dir_;
+    std::set<fs::path> loaded_files_;  // Track loaded files to prevent double-loading
+    fs::file_time_type last_mod_time_;
+    double last_check_time_ = 0;  // Throttle reload checks
 };
 
 } // namespace scripting
