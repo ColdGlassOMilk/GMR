@@ -165,6 +165,7 @@ void Loader::load(const std::string& script_dir) {
 }
 
 void Loader::reload_if_changed() {
+#if defined(DEBUG)  // Only enable hot reload in debug builds
     double now = GetTime();
     if (now - last_check_time_ < 0.5) {
         return;
@@ -181,6 +182,11 @@ void Loader::reload_if_changed() {
             pending_mod_time_ = newest;
         }
     }
+#else
+    // Hot reload disabled in release or web builds
+    (void)last_check_time_; // suppress unused variable warning
+    (void)pending_mod_time_;
+#endif
 }
 
 } // namespace scripting

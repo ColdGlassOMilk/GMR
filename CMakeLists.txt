@@ -183,6 +183,7 @@ elseif(WIN32)
         -static
         -static-libgcc
         -static-libstdc++
+        $<$<CONFIG:Release>:-mwindows>
     )
 
 elseif(APPLE)
@@ -218,11 +219,19 @@ else()
 endif()
 
 # Compiler warnings
+# if(MSVC)
+#     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+# elseif(NOT PLATFORM_WEB)
+#     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+# endif()
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-elseif(NOT PLATFORM_WEB)
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+    # Disable unused local variable warning (C4101)
+    target_compile_options(${PROJECT_NAME} PRIVATE /wd4101)
+else()
+    # Disable unused variable warning for GCC/Clang
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-variable)
 endif()
+
 
 # Debug/Release flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
