@@ -1,79 +1,79 @@
 [
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\main.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\main.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\main.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\main.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/main.cpp",
   "output": "CMakeFiles/gmr.dir/src/main.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\state.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\state.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\state.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\state.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/state.cpp",
   "output": "CMakeFiles/gmr.dir/src/state.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\resources\\texture_manager.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\resources\\texture_manager.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\resources\\texture_manager.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\resources\\texture_manager.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/resources/texture_manager.cpp",
   "output": "CMakeFiles/gmr.dir/src/resources/texture_manager.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\resources\\sound_manager.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\resources\\sound_manager.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\resources\\sound_manager.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\resources\\sound_manager.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/resources/sound_manager.cpp",
   "output": "CMakeFiles/gmr.dir/src/resources/sound_manager.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\binding_helpers.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\binding_helpers.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\binding_helpers.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\binding_helpers.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/binding_helpers.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/binding_helpers.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\graphics.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\graphics.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\graphics.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\graphics.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/graphics.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/graphics.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\input.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\input.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\input.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\input.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/input.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/input.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\audio.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\audio.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\audio.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\audio.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/audio.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/audio.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\window.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\window.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\window.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\window.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/window.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/window.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\util.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\util.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\util.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\util.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/util.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/util.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\console.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\console.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\bindings\\console.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\bindings\\console.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/bindings/console.cpp",
   "output": "CMakeFiles/gmr.dir/src/bindings/console.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\scripting\\loader.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\scripting\\loader.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\scripting\\loader.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\scripting\\loader.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/scripting/loader.cpp",
   "output": "CMakeFiles/gmr.dir/src/scripting/loader.cpp.obj"
 },
 {
   "directory": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/build",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\scripting\\helpers.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\scripting\\helpers.cpp\"",
+  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -DDEBUG @CMakeFiles/gmr.dir/includes_CXX.rsp -g -std=gnu++17 -Wall -Wextra -IC:/msys64/mingw64/include -o CMakeFiles\\gmr.dir\\src\\scripting\\helpers.cpp.obj -c \"C:\\Users\\nick.brabant\\OneDrive - NewWave Group North America\\Documents\\Personal\\gmr\\src\\scripting\\helpers.cpp\"",
   "file": "C:/Users/nick.brabant/OneDrive - NewWave Group North America/Documents/Personal/gmr/src/scripting/helpers.cpp",
   "output": "CMakeFiles/gmr.dir/src/scripting/helpers.cpp.obj"
 }
