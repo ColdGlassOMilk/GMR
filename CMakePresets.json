@@ -12,25 +12,27 @@
         {
             "name": "windows-debug",
             "displayName": "Windows Debug",
-            "description": "Debug build for Windows with MinGW",
-            "generator": "MinGW Makefiles",
+            "description": "Debug build for Windows with Ninja",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+                "CMAKE_MAKE_PROGRAM": "C:/msys64/mingw64/bin/ninja.exe"
             }
         },
         {
             "name": "windows-release",
             "displayName": "Windows Release",
-            "description": "Release build for Windows with MinGW",
-            "generator": "MinGW Makefiles",
+            "description": "Release build for Windows with Ninja",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
-                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+                "CMAKE_MAKE_PROGRAM": "C:/msys64/mingw64/bin/ninja.exe"
             }
         },
         {
