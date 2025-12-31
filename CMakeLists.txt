@@ -156,34 +156,35 @@ if(PLATFORM_WEB)
     message(STATUS "  Output: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gmr.html")
     
 elseif(WIN32)
-    # ===========================================
-    # Windows with MinGW
-    # ===========================================
-    list(APPEND CMAKE_PREFIX_PATH "C:/msys64/mingw64")
-    
-    find_package(raylib CONFIG REQUIRED)
-    
-    target_include_directories(${PROJECT_NAME} PRIVATE C:/msys64/mingw64/include)
-    target_link_directories(${PROJECT_NAME} PRIVATE C:/msys64/mingw64/lib)
-    
+    set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/libs/raylib-native")
+    set(MINGW_ROOT "C:/msys64/mingw64")
+
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${RAYLIB_ROOT}/include
+        ${MINGW_ROOT}/include
+    )
+
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        raylib
-        mruby
+        ${RAYLIB_ROOT}/lib/libraylib.a
+        ${MINGW_ROOT}/lib/libmruby.a
+
+        winmm
+        gdi32
+        user32
+        shell32
+        advapi32
+        ole32
+        uuid
+        opengl32
         ws2_32
     )
-    
-    # Static linking for standalone executable
+
     target_link_options(${PROJECT_NAME} PRIVATE
         -static
         -static-libgcc
         -static-libstdc++
     )
-    
-    # Hide console window in release builds
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
-    endif()
-    
+
 elseif(APPLE)
     # ===========================================
     # macOS

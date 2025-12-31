@@ -208,9 +208,9 @@ if [[ "$SKIP_PACMAN" == false && "$IS_LINUX" != true ]]; then
         mingw-w64-x86_64-gdb
         mingw-w64-x86_64-cmake
         mingw-w64-x86_64-ninja
-        mingw-w64-x86_64-raylib
+        # mingw-w64-x86_64-raylib
         mingw-w64-x86_64-mruby
-        mingw-w64-x86_64-glfw
+        # mingw-w64-x86_64-glfw
         git
         ruby
         bison
@@ -232,6 +232,48 @@ elif [[ "$IS_LINUX" == true ]]; then
 else
     log_info "Skipping pacman packages (--skip-pacman)"
 fi
+
+# ==============================================================================
+# Build raylib for Windows (STATIC, EMBEDDED GLFW)
+# ==============================================================================
+
+if [[ "$IS_LINUX" == false ]]; then
+    log_step "Building raylib for Windows (static)..."
+
+    RAYLIB_DIR="$DEPS_DIR/raylib"
+    RAYLIB_NATIVE_DIR="$LIBS_DIR/raylib-native"
+
+    if [[ -d "$RAYLIB_DIR" ]]; then
+        log_info "raylib directory exists, pulling latest..."
+        cd "$RAYLIB_DIR"
+        git pull || true
+    else
+        log_info "Cloning raylib..."
+        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
+        cd "$RAYLIB_DIR"
+    fi
+
+    rm -rf build-native
+    mkdir build-native
+    cd build-native
+
+    log_info "Configuring raylib (static, embedded GLFW)..."
+    cmake .. -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DUSE_EXTERNAL_GLFW=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DCMAKE_INSTALL_PREFIX="$RAYLIB_NATIVE_DIR"
+
+    log_info "Building raylib..."
+    ninja
+
+    log_info "Installing raylib..."
+    ninja install
+
+    log_success "raylib native static built and installed"
+fi
+
 
 # ==============================================================================
 # Build mruby from source (Linux only - Windows uses pacman)
