@@ -32,16 +32,7 @@ That's it! The setup script handles everything else.
 
 ### Setup & Build
 
-**Option A: Double-click (easiest)**
-
-1. Double-click `setup.bat`
-2. Wait for setup to complete (~5 minutes native, ~15 min with web)
-3. Double-click `build.bat` to build
-4. Run `gmr.exe`
-
-**Option B: Command line**
-
-1. Open "MSYS2 MinGW64" from Start menu
+1. Open "MSYS2 MinGW64" from Start menu (Or open VS Code -> Ctrl+` -> + New MinGW Session)
 2. Navigate to the GMR folder:
    ```bash
    cd /c/path/to/gmr
@@ -374,3 +365,4 @@ cmake -B build -G "MinGW Makefiles" \
 ## License
 
 MIT
+
