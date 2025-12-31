@@ -11,62 +11,46 @@
         },
         {
             "name": "windows-debug",
-            "displayName": "Windows Debug (MinGW)",
+            "displayName": "Windows Debug",
             "description": "Debug build for Windows with MinGW",
-            "inherits": "default",
             "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
             }
         },
         {
             "name": "windows-release",
-            "displayName": "Windows Release (MinGW)",
+            "displayName": "Windows Release",
             "description": "Release build for Windows with MinGW",
-            "inherits": "default",
             "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe"
             }
         },
         {
             "name": "linux-debug",
             "displayName": "Linux Debug",
             "description": "Debug build for Linux",
-            "inherits": "default",
             "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
             }
         },
         {
             "name": "linux-release",
             "displayName": "Linux Release",
             "description": "Release build for Linux",
-            "inherits": "default",
             "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Linux"
             }
         },
         {
