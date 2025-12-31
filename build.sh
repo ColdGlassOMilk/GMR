@@ -103,11 +103,11 @@ build_native_debug() {
     cd build
     
     if [[ "$PLATFORM" == "mingw" ]]; then
-        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Debug
-        mingw32-make -j$NPROC $VERBOSE
+        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe
+        ninja -j$NPROC $VERBOSE
     else
-        cmake .. -DCMAKE_BUILD_TYPE=Debug
-        make -j$NPROC $VERBOSE
+        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Debug
+        ninja -j$NPROC $VERBOSE
     fi
     
     cd ..
@@ -125,11 +125,11 @@ build_native_release() {
     cd build
     
     if [[ "$PLATFORM" == "mingw" ]]; then
-        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-        mingw32-make -j$NPROC $VERBOSE
+        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe
+        ninja -j$NPROC $VERBOSE
     else
-        cmake .. -DCMAKE_BUILD_TYPE=Release
-        make -j$NPROC $VERBOSE
+        cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+        ninja -j$NPROC $VERBOSE
     fi
     
     cd ..
