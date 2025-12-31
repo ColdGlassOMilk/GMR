@@ -207,7 +207,7 @@ if [[ "$SKIP_PACMAN" == false && "$IS_LINUX" != true ]]; then
         mingw-w64-x86_64-gcc
         mingw-w64-x86_64-gdb
         mingw-w64-x86_64-cmake
-        mingw-w64-x86_64-make
+        mingw-w64-x86_64-ninja
         mingw-w64-x86_64-raylib
         mingw-w64-x86_64-mruby
         mingw-w64-x86_64-glfw
@@ -622,4 +622,5 @@ echo "    ./gmr              # or gmr.exe on Windows"
 echo ""
 echo -e "  ${BLUE}Edit your game:${NC}"
 echo "    Edit scripts/main.rb - changes hot-reload automatically!"
+
 echo ""
