@@ -15,5 +15,13 @@
         }
     },
     // Set a default terminal that won't break CMake builds
-    "terminal.integrated.defaultProfile.windows": "PowerShell"
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "cmake.cmakePath": "C:/msys64/mingw64/bin/cmake.exe",
+    "cmake.generator": "MinGW Makefiles",
+    "cmake.configureArgs": [
+        "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/mingw32-make.exe"
+    ],
+    "cmake.environment": {
+        "PATH": "C:/msys64/mingw64/bin;${env:PATH}"
+    }
 }
