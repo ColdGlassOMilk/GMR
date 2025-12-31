@@ -14,12 +14,13 @@
             }
         }
     },
-    // Set a default terminal that won't break CMake builds
+
+    // Keep PowerShell as default for CMake Tools
     "terminal.integrated.defaultProfile.windows": "PowerShell",
     "cmake.cmakePath": "C:/msys64/mingw64/bin/cmake.exe",
-    "cmake.generator": "MinGW Makefiles",
+    "cmake.generator": "Ninja",
     "cmake.configureArgs": [
-        "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/mingw32-make.exe"
+        "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
     ],
     "cmake.environment": {
         "PATH": "C:/msys64/mingw64/bin;${env:PATH}"
