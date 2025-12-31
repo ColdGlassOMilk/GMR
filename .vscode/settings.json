@@ -1,0 +1,19 @@
+{
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        },
+        "MSYS2 MinGW 64-bit": {
+            "path": "C:/msys64/usr/bin/bash.exe",
+            "args": ["--login", "-i"],
+            "icon": "terminal-bash",
+            "env": {
+                "MSYSTEM": "MINGW64",
+                "CHERE_INVOKING": "1",
+                "PATH": "C:/msys64/mingw64/bin;C:/msys64/usr/bin;${env:PATH}"
+            }
+        }
+    },
+    // Set a default terminal that won't break CMake builds
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
+}
