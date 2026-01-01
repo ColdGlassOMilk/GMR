@@ -160,12 +160,12 @@ build_web() {
     
     # Check for web libraries
     if [[ -z "$RAYLIB_WEB_PATH" ]]; then
-        export RAYLIB_WEB_PATH="$SCRIPT_DIR/libs/raylib-web"
+        export RAYLIB_WEB_PATH="$SCRIPT_DIR/deps/raylib/web"
     fi
     if [[ -z "$MRUBY_WEB_PATH" ]]; then
-        export MRUBY_WEB_PATH="$SCRIPT_DIR/libs/mruby-web"
+        export MRUBY_WEB_PATH="$SCRIPT_DIR/deps/mruby/web"
     fi
-    
+
     if [[ ! -f "$RAYLIB_WEB_PATH/lib/libraylib.a" ]]; then
         error "raylib-web not found at $RAYLIB_WEB_PATH. Run setup.sh first."
     fi

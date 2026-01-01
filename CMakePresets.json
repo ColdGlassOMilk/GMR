@@ -59,13 +59,15 @@
             "name": "web-release",
             "displayName": "Web/Emscripten Release",
             "description": "WebAssembly release build using Emscripten",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build-web",
             "toolchainFile": "${sourceDir}/deps/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "PLATFORM": "Web",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "RAYLIB_WEB_PATH": "${sourceDir}/deps/raylib/web",
+                "MRUBY_WEB_PATH": "${sourceDir}/deps/mruby/web"
             }
         }
     ],

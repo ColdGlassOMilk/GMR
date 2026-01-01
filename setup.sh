@@ -26,7 +26,6 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPS_DIR="$SCRIPT_DIR/deps"
-LIBS_DIR="$SCRIPT_DIR/libs"
 
 # Parse arguments
 SKIP_PACMAN=false
@@ -161,7 +160,6 @@ fi
 if [[ "$CLEAN" == true ]]; then
     log_step "Cleaning previous setup..."
     rm -rf "$DEPS_DIR"
-    rm -rf "$LIBS_DIR"
     rm -rf "$SCRIPT_DIR/build"
     rm -rf "$SCRIPT_DIR/build-web"
     log_success "Cleaned"
@@ -169,7 +167,6 @@ fi
 
 # Create directories
 mkdir -p "$DEPS_DIR"
-mkdir -p "$LIBS_DIR"
 
 # ==============================================================================
 # Install System Packages
@@ -221,7 +218,7 @@ if [[ "$SKIP_PACMAN" == false && "$IS_LINUX" != true ]]; then
     log_info "Installing: ${PACKAGES[*]}"
     pacman -S --noconfirm --needed --disable-download-timeout "${PACKAGES[@]}"
     
-    log_success "System packages installed (including raylib and mruby)"
+    log_success "System packages installed"
 elif [[ "$IS_LINUX" == true ]]; then
     log_step "Installing system packages via apt..."
     sudo apt update
@@ -240,17 +237,16 @@ fi
 if [[ "$IS_LINUX" == false ]]; then
     log_step "Building raylib for Windows (static)..."
 
-    RAYLIB_DIR="$DEPS_DIR/raylib"
-    RAYLIB_NATIVE_DIR="$LIBS_DIR/raylib-native"
+    RAYLIB_SRC_DIR="$DEPS_DIR/raylib/source"
+    RAYLIB_NATIVE_DIR="$DEPS_DIR/raylib/native"
 
-    if [[ -d "$RAYLIB_DIR" ]]; then
-        log_info "raylib directory exists, pulling latest..."
-        cd "$RAYLIB_DIR"
-        git pull || true
+    if [[ -d "$RAYLIB_SRC_DIR" ]]; then
+        log_info "raylib directory exists, using existing source..."
+        cd "$RAYLIB_SRC_DIR"
     else
         log_info "Cloning raylib..."
-        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
-        cd "$RAYLIB_DIR"
+        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_SRC_DIR"
+        cd "$RAYLIB_SRC_DIR"
     fi
 
     rm -rf build-native
@@ -271,7 +267,7 @@ if [[ "$IS_LINUX" == false ]]; then
     log_info "Installing raylib..."
     ninja install
 
-    log_success "raylib native static built and installed"
+    log_success "raylib native static built and installed to $RAYLIB_NATIVE_DIR"
 fi
 
 
@@ -392,27 +388,26 @@ if [[ "$SKIP_WEB" == false ]]; then
     # ===========================================================================
     # Build raylib for Web
     # ===========================================================================
-    
+
     log_step "Building raylib for Web..."
-    
-    RAYLIB_DIR="$DEPS_DIR/raylib"
-    RAYLIB_WEB_DIR="$LIBS_DIR/raylib-web"
-    
-    if [[ -d "$RAYLIB_DIR" ]]; then
-        log_info "raylib directory exists, pulling latest..."
-        cd "$RAYLIB_DIR"
-        git pull || true
+
+    RAYLIB_SRC_DIR="$DEPS_DIR/raylib/source"
+    RAYLIB_WEB_DIR="$DEPS_DIR/raylib/web"
+
+    if [[ -d "$RAYLIB_SRC_DIR" ]]; then
+        log_info "raylib directory exists, using existing source..."
+        cd "$RAYLIB_SRC_DIR"
     else
         log_info "Cloning raylib..."
-        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
-        cd "$RAYLIB_DIR"
+        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_SRC_DIR"
+        cd "$RAYLIB_SRC_DIR"
     fi
-    
+
     # Build for web
     rm -rf build-web
     mkdir -p build-web
     cd build-web
-    
+
     log_info "Configuring raylib for Emscripten..."
     emcmake cmake .. \
         -DCMAKE_BUILD_TYPE=Release \
@@ -424,36 +419,36 @@ if [[ "$SKIP_WEB" == false ]]; then
         -DCMAKE_AR=emar \
         -DCMAKE_RANLIB=emranlib
 
-    
+
     log_info "Building raylib..."
     emmake make -j"$(nproc)"
 
-    
+
     log_info "Installing raylib to $RAYLIB_WEB_DIR..."
     emmake make install
-    
-    log_success "raylib for Web built and installed"
+
+    log_success "raylib for Web built and installed to $RAYLIB_WEB_DIR"
     
     # ===========================================================================
     # Build mruby for Web
     # ===========================================================================
     
     log_step "Building mruby for Web..."
-    
-    MRUBY_DIR="$DEPS_DIR/mruby"
-    MRUBY_WEB_DIR="$LIBS_DIR/mruby-web"
-    
+
+    MRUBY_SRC_DIR="$DEPS_DIR/mruby/source"
+    MRUBY_WEB_DIR="$DEPS_DIR/mruby/web"
+
     # Clone mruby if not present (on Windows we use pacman for native, but need source for web)
-    if [[ ! -d "$MRUBY_DIR" ]]; then
+    if [[ ! -d "$MRUBY_SRC_DIR" ]]; then
         log_info "Cloning mruby for web build..."
-        git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_DIR"
+        git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_SRC_DIR"
     fi
-    
-    cd "$MRUBY_DIR"
-    
+
+    cd "$MRUBY_SRC_DIR"
+
     # Clean emscripten build directory
     rm -rf build/emscripten
-    
+
     # Create Emscripten build config (minimal - no IO needed for GMR)
     cat > build_config/emscripten.rb << 'MRUBY_CONFIG'
 MRuby::CrossBuild.new('emscripten') do |conf|
@@ -599,8 +594,8 @@ else
     echo -e "${RED}NOT FOUND${NC}"
 fi
 
-echo -n "  raylib: "
-if [[ -f /mingw64/lib/libraylib.a ]] || [[ -f /usr/local/lib/libraylib.a ]]; then
+echo -n "  raylib-native: "
+if [[ -f "$DEPS_DIR/raylib/native/lib/libraylib.a" ]]; then
     echo -e "${GREEN}installed${NC}"
 else
     echo -e "${RED}NOT FOUND${NC}"
@@ -620,16 +615,16 @@ if [[ "$SKIP_WEB" == false ]]; then
     else
         echo -e "${YELLOW}available after: source env.sh${NC}"
     fi
-    
+
     echo -n "  raylib-web: "
-    if [[ -f "$LIBS_DIR/raylib-web/lib/libraylib.a" ]]; then
+    if [[ -f "$DEPS_DIR/raylib/web/lib/libraylib.a" ]]; then
         echo -e "${GREEN}installed${NC}"
     else
         echo -e "${RED}NOT FOUND${NC}"
     fi
-    
+
     echo -n "  mruby-web: "
-    if [[ -f "$LIBS_DIR/mruby-web/lib/libmruby.a" ]]; then
+    if [[ -f "$DEPS_DIR/mruby/web/lib/libmruby.a" ]]; then
         echo -e "${GREEN}installed${NC}"
     else
         echo -e "${RED}NOT FOUND${NC}"

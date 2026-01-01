@@ -4,8 +4,6 @@ A hot-reloadable game engine using mruby and raylib. Write your game logic in Ru
 
 [Check out the live Demo on itch.io!](https://coldglassomilk.itch.io/gmr)
 
-![Demo Screenshot](gmr_ss.png)
-
 ## Features
 
 - **Hot Reload**: Edit Ruby scripts and see changes instantly

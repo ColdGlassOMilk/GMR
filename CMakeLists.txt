@@ -70,13 +70,13 @@ if(PLATFORM_WEB)
     if(DEFINED ENV{RAYLIB_WEB_PATH})
         set(RAYLIB_WEB_PATH $ENV{RAYLIB_WEB_PATH})
     else()
-        set(RAYLIB_WEB_PATH "${CMAKE_SOURCE_DIR}/libs/raylib-web")
+        set(RAYLIB_WEB_PATH "${CMAKE_SOURCE_DIR}/deps/raylib/web")
     endif()
-    
+
     if(DEFINED ENV{MRUBY_WEB_PATH})
         set(MRUBY_WEB_PATH $ENV{MRUBY_WEB_PATH})
     else()
-        set(MRUBY_WEB_PATH "${CMAKE_SOURCE_DIR}/libs/mruby-web")
+        set(MRUBY_WEB_PATH "${CMAKE_SOURCE_DIR}/deps/mruby/web")
     endif()
     
     # Include paths for web libraries
@@ -164,7 +164,7 @@ if(PLATFORM_WEB)
     message(STATUS "  Output: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/gmr.html")
     
 elseif(WIN32)
-    set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/libs/raylib-native")
+    set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
     set(MINGW_ROOT "C:/msys64/mingw64")
 
     target_include_directories(${PROJECT_NAME} PRIVATE
