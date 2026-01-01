@@ -31,6 +31,8 @@ private:
     void register_all_bindings();
     void load_directory(const fs::path& dir_path);
     void load_file(const fs::path& path);
+    void load_from_bytecode();
+    void load_bytecode(const char* path, const uint8_t* bytecode);
 
     /* Raw filesystem timestamp (no conversion, no truncation) */
     using ScriptTime = fs::file_time_type;

@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Include script compilation utilities
+include(cmake/CompileScripts.cmake)
+
 # Detect Emscripten
 if(EMSCRIPTEN OR PLATFORM STREQUAL "Web")
     set(PLATFORM_WEB TRUE)
@@ -42,7 +45,10 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/generated
+)
 
 # Platform-specific setup
 if(PLATFORM_WEB)
@@ -110,6 +116,7 @@ if(PLATFORM_WEB)
     #     "-sFORCE_FILESYSTEM=1"
     #     "--preload-file=${CMAKE_SOURCE_DIR}/scripts@/scripts"
     # )
+    # Emscripten linker flags
     target_link_options(${PROJECT_NAME} PRIVATE
         -Os
         -sUSE_GLFW=3
@@ -121,9 +128,10 @@ if(PLATFORM_WEB)
         -sTOTAL_MEMORY=67108864
         -sASYNCIFY
         -sASYNCIFY_STACK_SIZE=65536
-        -sFORCE_FILESYSTEM=1
-        "--preload-file=${CMAKE_SOURCE_DIR}/scripts@/scripts"
     )
+
+    # Note: Scripts are compiled into bytecode and embedded in WASM
+    # No need to preload script files for web builds
 
     
     # Add custom shell if it exists
@@ -238,6 +246,24 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
+endif()
+
+# Compile Ruby scripts to bytecode for Release builds and Web builds
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR PLATFORM_WEB)
+    message(STATUS "Enabling compiled script bytecode")
+    set(COMPILED_SCRIPTS_HEADER "${CMAKE_BINARY_DIR}/generated/gmr/scripting/compiled_scripts.hpp")
+
+    # Compile scripts and generate header
+    compile_ruby_scripts(
+        ${PROJECT_NAME}
+        "${CMAKE_SOURCE_DIR}/scripts"
+        "${COMPILED_SCRIPTS_HEADER}"
+    )
+
+    # Enable compiled scripts flag
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_USE_COMPILED_SCRIPTS)
+else()
+    message(STATUS "Using runtime script loading (debug mode)")
 endif()
 
 # Copy scripts folder to output (for native builds only - web uses preload)

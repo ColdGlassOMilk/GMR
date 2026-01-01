@@ -7,9 +7,15 @@
 #include "gmr/bindings/util.hpp"
 #include "gmr/bindings/console.hpp"
 #include <mruby/compile.h>
+#include <mruby/irep.h>
 #include <cstdio>
 #include <algorithm>
 #include "raylib.h"
+
+// Include compiled scripts only in release builds
+#if !defined(DEBUG) && defined(GMR_USE_COMPILED_SCRIPTS)
+#include "gmr/scripting/compiled_scripts.hpp"
+#endif
 
 namespace gmr {
 namespace scripting {
@@ -117,6 +123,52 @@ Loader::ScriptTime Loader::get_newest_mod_time(const fs::path& dir_path) {
     return newest;
 }
 
+void Loader::load_bytecode(const char* path, const uint8_t* bytecode) {
+    printf("  Loading: %s (compiled)\n", path);
+
+    mrb_load_irep(mrb_, bytecode);
+
+    if (mrb_->exc) {
+        mrb_print_error(mrb_);
+        mrb_->exc = nullptr;
+    }
+}
+
+void Loader::load_from_bytecode() {
+#if !defined(DEBUG) && defined(GMR_USE_COMPILED_SCRIPTS)
+    printf("--- Loading compiled scripts ---\n");
+
+    // Load all scripts except main.rb first
+    for (size_t i = 0; i < compiled_scripts::SCRIPT_COUNT; ++i) {
+        const auto& script = compiled_scripts::SCRIPTS[i];
+        std::string path_str(script.path);
+
+        // Skip main.rb for now
+        if (path_str.find("main.rb") != std::string::npos) {
+            continue;
+        }
+
+        load_bytecode(script.path, script.bytecode);
+    }
+
+    // Load main.rb last
+    for (size_t i = 0; i < compiled_scripts::SCRIPT_COUNT; ++i) {
+        const auto& script = compiled_scripts::SCRIPTS[i];
+        std::string path_str(script.path);
+
+        if (path_str.find("main.rb") != std::string::npos) {
+            printf("  Loading: %s (entry point, compiled)\n", script.path);
+            load_bytecode(script.path, script.bytecode);
+            break;
+        }
+    }
+
+    printf("--- Loaded %zu compiled script(s) ---\n", compiled_scripts::SCRIPT_COUNT);
+#else
+    fprintf(stderr, "Compiled scripts not available in this build\n");
+#endif
+}
+
 void Loader::load(const std::string& script_dir) {
     if (mrb_) {
         mrb_close(mrb_);
@@ -134,6 +186,11 @@ void Loader::load(const std::string& script_dir) {
     script_dir_ = script_dir;
     register_all_bindings();
 
+#if !defined(DEBUG) && defined(GMR_USE_COMPILED_SCRIPTS)
+    // Release build: use compiled bytecode
+    load_from_bytecode();
+#else
+    // Debug build: load from files for hot reload
     printf("--- Loading scripts from '%s' ---\n", script_dir.c_str());
 
     load_directory(script_dir_);
@@ -156,6 +213,7 @@ void Loader::load(const std::string& script_dir) {
     }
 
     printf("--- Loaded %zu script(s) ---\n", loaded_files_.size());
+#endif
 
     safe_call(mrb_, "init");
 
