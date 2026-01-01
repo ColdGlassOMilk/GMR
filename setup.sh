@@ -8,9 +8,12 @@
 # Usage: ./setup.sh [options]
 #   --native-only    Skip web/Emscripten setup (faster, native dev only)
 #   --skip-web       Same as --native-only
+#   --web-only       Only setup web/Emscripten (skip native build)
+#   --skip-native    Same as --web-only
 #   --skip-pacman    Skip pacman package installation (Windows)
 #   --clean          Clean everything and start fresh
 #   --fix-ssl        Fix SSL certificate issues (run if you get SSL errors)
+#   --verbose        Show all command output (default: quiet)
 #   --help           Show this help
 #
 
@@ -26,27 +29,49 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPS_DIR="$SCRIPT_DIR/deps"
-LIBS_DIR="$SCRIPT_DIR/libs"
 
 # Parse arguments
 SKIP_PACMAN=false
 SKIP_WEB=false
+SKIP_NATIVE=false
 CLEAN=false
 FIX_SSL=false
+VERBOSE=false
 
 for arg in "$@"; do
     case $arg in
         --skip-pacman)    SKIP_PACMAN=true ;;
         --skip-web)       SKIP_WEB=true ;;
         --native-only)    SKIP_WEB=true ;;
+        --web-only)       SKIP_NATIVE=true ;;
+        --skip-native)    SKIP_NATIVE=true ;;
         --clean)          CLEAN=true ;;
         --fix-ssl)        FIX_SSL=true ;;
+        --verbose|-v)     VERBOSE=true ;;
         --help)
-            head -19 "$0" | tail -13
+            head -22 "$0" | tail -16
             exit 0
             ;;
     esac
 done
+
+# Output redirection based on verbose flag
+if [[ "$VERBOSE" == true ]]; then
+    OUT=/dev/stdout
+    ERR=/dev/stderr
+else
+    OUT=/dev/null
+    ERR=/dev/null
+fi
+
+# Run command quietly unless verbose
+run_quiet() {
+    if [[ "$VERBOSE" == true ]]; then
+        "$@"
+    else
+        "$@" > /dev/null 2>&1
+    fi
+}
 
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -93,29 +118,29 @@ check_command() {
 
 fix_ssl_certificates() {
     log_step "Fixing SSL certificates..."
-    
+
     log_info "Reinitializing pacman keyring..."
     rm -rf /etc/pacman.d/gnupg
-    pacman-key --init
-    pacman-key --populate msys2
-    
+    run_quiet pacman-key --init
+    run_quiet pacman-key --populate msys2
+
     log_info "Updating time (SSL errors can be caused by wrong system time)..."
     # Sync time if ntpdate is available
     if check_command ntpdate; then
-        ntpdate -u time.windows.com 2>/dev/null || true
+        run_quiet ntpdate -u time.windows.com || true
     fi
-    
+
     log_info "Updating CA certificates..."
     # Try to download and install ca-certificates manually if needed
-    pacman -Sy --noconfirm ca-certificates msys2-keyring 2>/dev/null || {
+    run_quiet pacman -Sy --noconfirm ca-certificates msys2-keyring || {
         log_warn "Trying alternative method..."
         # Force refresh
-        pacman -Syy --noconfirm 2>/dev/null || true
+        run_quiet pacman -Syy --noconfirm || true
     }
-    
+
     log_info "Updating core packages..."
-    pacman -S --noconfirm --needed pacman pacman-mirrors msys2-runtime 2>/dev/null || true
-    
+    run_quiet pacman -S --noconfirm --needed pacman pacman-mirrors msys2-runtime || true
+
     log_success "SSL fix complete. Please restart your MSYS2 terminal and run setup again."
 }
 
@@ -130,6 +155,12 @@ fi
 # ==============================================================================
 
 log_step "Detecting environment..."
+
+# Ensure MSYS2 tools (like pacman) are in PATH
+# MinGW64 shell may not include /usr/bin by default on fresh installs
+if [[ -d "/usr/bin" ]] && [[ ":$PATH:" != *":/usr/bin:"* ]]; then
+    export PATH="/usr/bin:$PATH"
+fi
 
 # Check if running in MSYS2/MinGW
 if [[ -z "$MSYSTEM" ]]; then
@@ -161,7 +192,6 @@ fi
 if [[ "$CLEAN" == true ]]; then
     log_step "Cleaning previous setup..."
     rm -rf "$DEPS_DIR"
-    rm -rf "$LIBS_DIR"
     rm -rf "$SCRIPT_DIR/build"
     rm -rf "$SCRIPT_DIR/build-web"
     log_success "Cleaned"
@@ -169,7 +199,6 @@ fi
 
 # Create directories
 mkdir -p "$DEPS_DIR"
-mkdir -p "$LIBS_DIR"
 
 # ==============================================================================
 # Install System Packages
@@ -177,31 +206,34 @@ mkdir -p "$LIBS_DIR"
 
 if [[ "$SKIP_PACMAN" == false && "$IS_LINUX" != true ]]; then
     log_step "Installing system packages via pacman..."
-    
+
     # Fix SSL certificate issues (common on fresh MSYS2 installs)
     log_info "Updating SSL certificates and keyring..."
-    
+
     # First, try to update ca-certificates and keyring
     # Use --disable-download-timeout in case of slow connections
-    pacman -Sy --noconfirm --disable-download-timeout ca-certificates 2>/dev/null || {
+    run_quiet pacman -Sy --noconfirm --disable-download-timeout ca-certificates || {
         log_warn "Certificate update failed, trying keyring refresh..."
-        
+
         # Initialize and populate pacman keyring
-        pacman-key --init 2>/dev/null || true
-        pacman-key --populate msys2 2>/dev/null || true
-        pacman-key --refresh-keys 2>/dev/null || true
-        
+        run_quiet pacman-key --init || true
+        run_quiet pacman-key --populate msys2 || true
+        run_quiet pacman-key --refresh-keys || true
+
         # Update pacman mirrorlist and certificates
-        pacman -Sy --noconfirm --disable-download-timeout pacman-mirrors 2>/dev/null || true
-        pacman -S --noconfirm --disable-download-timeout ca-certificates 2>/dev/null || true
+        run_quiet pacman -Sy --noconfirm --disable-download-timeout pacman-mirrors || true
+        run_quiet pacman -S --noconfirm --disable-download-timeout ca-certificates || true
     }
-    
+
     # Full system update (helps resolve many package issues)
     log_info "Updating package database..."
-    pacman -Syu --noconfirm --disable-download-timeout || {
-        log_warn "Full update had issues, continuing anyway..."
-    }
-    
+    if ! run_quiet pacman -Syu --noconfirm --disable-download-timeout; then
+        log_warn "Full update had issues, trying without system upgrade..."
+        run_quiet pacman -Sy --noconfirm --disable-download-timeout || {
+            log_warn "Database update failed, continuing anyway..."
+        }
+    fi
+
     # Install packages - including mruby from pacman!
     PACKAGES=(
         mingw-w64-x86_64-gcc
@@ -217,15 +249,21 @@ if [[ "$SKIP_PACMAN" == false && "$IS_LINUX" != true ]]; then
         unzip
         tar
     )
-    
-    log_info "Installing: ${PACKAGES[*]}"
-    pacman -S --noconfirm --needed --disable-download-timeout "${PACKAGES[@]}"
-    
-    log_success "System packages installed (including raylib and mruby)"
+
+    log_info "Installing packages..."
+    if ! run_quiet pacman -S --noconfirm --needed --disable-download-timeout "${PACKAGES[@]}"; then
+        log_warn "Some packages may have failed. Re-running with output..."
+        pacman -S --noconfirm --needed --disable-download-timeout "${PACKAGES[@]}" || {
+            log_error "Package installation failed. Try running with --verbose or --skip-pacman"
+            exit 1
+        }
+    fi
+
+    log_success "System packages installed"
 elif [[ "$IS_LINUX" == true ]]; then
     log_step "Installing system packages via apt..."
-    sudo apt update
-    sudo apt install -y build-essential cmake git ruby bison unzip \
+    run_quiet sudo apt update
+    run_quiet sudo apt install -y build-essential cmake git ruby bison unzip \
         libasound2-dev libx11-dev libxrandr-dev libxi-dev \
         libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
     log_success "System packages installed"
@@ -237,41 +275,47 @@ fi
 # Build raylib for Windows (STATIC, EMBEDDED GLFW)
 # ==============================================================================
 
-if [[ "$IS_LINUX" == false ]]; then
-    log_step "Building raylib for Windows (static)..."
+if [[ "$IS_LINUX" == false && "$SKIP_NATIVE" == false ]]; then
+    RAYLIB_SRC_DIR="$DEPS_DIR/raylib/source"
+    RAYLIB_NATIVE_DIR="$DEPS_DIR/raylib/native"
 
-    RAYLIB_DIR="$DEPS_DIR/raylib"
-    RAYLIB_NATIVE_DIR="$LIBS_DIR/raylib-native"
-
-    if [[ -d "$RAYLIB_DIR" ]]; then
-        log_info "raylib directory exists, pulling latest..."
-        cd "$RAYLIB_DIR"
-        git pull || true
+    if [[ -f "$RAYLIB_NATIVE_DIR/lib/libraylib.a" ]]; then
+        log_step "raylib for Windows already built (skipping)"
+        log_info "To rebuild, delete: $RAYLIB_NATIVE_DIR"
     else
-        log_info "Cloning raylib..."
-        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
-        cd "$RAYLIB_DIR"
+        log_step "Building raylib for Windows (static)..."
+
+        if [[ -d "$RAYLIB_SRC_DIR" ]]; then
+            log_info "Using existing raylib source..."
+            cd "$RAYLIB_SRC_DIR"
+        else
+            log_info "Cloning raylib..."
+            run_quiet git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_SRC_DIR"
+            cd "$RAYLIB_SRC_DIR"
+        fi
+
+        rm -rf build-native
+        mkdir build-native
+        cd build-native
+
+        log_info "Configuring..."
+        run_quiet cmake .. -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DUSE_EXTERNAL_GLFW=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RAYLIB_NATIVE_DIR"
+
+        log_info "Building..."
+        run_quiet ninja
+
+        log_info "Installing..."
+        run_quiet ninja install
+
+        log_success "raylib native built"
     fi
-
-    rm -rf build-native
-    mkdir build-native
-    cd build-native
-
-    log_info "Configuring raylib (static, embedded GLFW)..."
-    cmake .. -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DUSE_EXTERNAL_GLFW=OFF \
-        -DBUILD_EXAMPLES=OFF \
-        -DCMAKE_INSTALL_PREFIX="$RAYLIB_NATIVE_DIR"
-
-    log_info "Building raylib..."
-    ninja
-
-    log_info "Installing raylib..."
-    ninja install
-
-    log_success "raylib native static built and installed"
+elif [[ "$SKIP_NATIVE" == true && "$IS_LINUX" == false ]]; then
+    log_info "Skipping native raylib build (--web-only)"
 fi
 
 
@@ -279,29 +323,29 @@ fi
 # Build mruby from source (Linux only - Windows uses pacman)
 # ==============================================================================
 
-if [[ "$IS_LINUX" == true ]]; then
+if [[ "$IS_LINUX" == true && "$SKIP_NATIVE" == false ]]; then
     log_step "Building mruby (native) for Linux..."
-    
+
     MRUBY_DIR="$DEPS_DIR/mruby"
-    
+
     if [[ -d "$MRUBY_DIR" ]]; then
-        log_info "mruby directory exists, pulling latest..."
+        log_info "Using existing mruby source..."
         cd "$MRUBY_DIR"
-        git pull || true
+        run_quiet git pull || true
     else
         log_info "Cloning mruby..."
-        git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_DIR"
+        run_quiet git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_DIR"
         cd "$MRUBY_DIR"
     fi
-    
-    log_info "Building mruby..."
+
+    log_info "Building..."
     rm -rf build
-    rake -j$(nproc)
-    
-    sudo cp build/host/lib/libmruby.a /usr/local/lib/
-    sudo cp -r include/* /usr/local/include/
-    
-    log_success "mruby (native) built and installed"
+    run_quiet rake -j$(nproc)
+
+    run_quiet sudo cp build/host/lib/libmruby.a /usr/local/lib/
+    run_quiet sudo cp -r include/* /usr/local/include/
+
+    log_success "mruby native built"
 fi
 
 # ==============================================================================
@@ -310,31 +354,31 @@ fi
 
 if [[ "$SKIP_WEB" == false ]]; then
     log_step "Setting up Emscripten SDK..."
-    
+
     EMSDK_DIR="$DEPS_DIR/emsdk"
     EMSCRIPTEN_PATH="$EMSDK_DIR/upstream/emscripten"
-    
+
     # Install emsdk if needed
     if [[ ! -d "$EMSDK_DIR" ]]; then
         log_info "Cloning emsdk..."
-        git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+        run_quiet git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
     fi
-    
+
     cd "$EMSDK_DIR"
-    
+
     # Install emscripten if not present
     if [[ ! -d "$EMSCRIPTEN_PATH" ]]; then
-        log_info "Installing latest Emscripten..."
-        ./emsdk install latest
-        ./emsdk activate latest
+        log_info "Installing Emscripten (this takes a while)..."
+        run_quiet ./emsdk install latest
+        run_quiet ./emsdk activate latest
     else
         log_info "Emscripten already installed"
     fi
-    
+
     # Set up environment
     export EMSDK="$EMSDK_DIR"
     export PATH="$EMSCRIPTEN_PATH:$PATH"
-    
+
     # Add node to PATH
     if [[ -d "$EMSDK_DIR/node" ]]; then
         NODE_BIN=$(find "$EMSDK_DIR/node" -type d -name "bin" 2>/dev/null | head -1)
@@ -342,15 +386,14 @@ if [[ "$SKIP_WEB" == false ]]; then
             export PATH="$NODE_BIN:$PATH"
         fi
     fi
-    
+
     # Source emsdk_env.sh for any additional variables
     source "$EMSDK_DIR/emsdk_env.sh" 2>/dev/null || true
-    
+
     # ALWAYS create wrapper scripts (handles paths with spaces reliably)
-    # This is necessary because PATH with spaces doesn't work well in MSYS2
-    log_info "Creating Emscripten wrapper scripts..."
+    log_info "Creating wrapper scripts..."
     mkdir -p "$SCRIPT_DIR/bin"
-    
+
     for tool in emcc em++ emcmake emmake emar emranlib emconfig emrun emsize; do
         TOOL_PATH=""
         if [[ -f "$EMSCRIPTEN_PATH/$tool" ]]; then
@@ -358,26 +401,26 @@ if [[ "$SKIP_WEB" == false ]]; then
         elif [[ -f "$EMSCRIPTEN_PATH/$tool.py" ]]; then
             TOOL_PATH="$EMSCRIPTEN_PATH/$tool.py"
         fi
-        
+
         if [[ -n "$TOOL_PATH" ]]; then
             echo '#!/bin/bash' > "$SCRIPT_DIR/bin/$tool"
             echo "\"$TOOL_PATH\" \"\$@\"" >> "$SCRIPT_DIR/bin/$tool"
             chmod +x "$SCRIPT_DIR/bin/$tool"
         fi
     done
-    
+
     # Add our wrapper bin to PATH FIRST (so it takes precedence)
     export PATH="$SCRIPT_DIR/bin:$PATH"
-    
-    log_success "Created wrapper scripts in $SCRIPT_DIR/bin"
-    
+
+    log_success "Emscripten SDK ready"
+
     # Verify tools work
     if ! emcc --version &> /dev/null; then
         log_error "emcc not working"
         log_info "Check $SCRIPT_DIR/bin/emcc"
         exit 1
     fi
-    
+
     if ! "$SCRIPT_DIR/bin/emcmake" --help &> /dev/null 2>&1; then
         # emcmake doesn't have --help that returns 0, check if file exists
         if [[ ! -x "$SCRIPT_DIR/bin/emcmake" ]]; then
@@ -386,76 +429,79 @@ if [[ "$SKIP_WEB" == false ]]; then
         fi
     fi
     
-    log_success "Emscripten SDK ready"
-    log_info "emcc: $(emcc --version | head -1)"
-    
     # ===========================================================================
     # Build raylib for Web
     # ===========================================================================
-    
-    log_step "Building raylib for Web..."
-    
-    RAYLIB_DIR="$DEPS_DIR/raylib"
-    RAYLIB_WEB_DIR="$LIBS_DIR/raylib-web"
-    
-    if [[ -d "$RAYLIB_DIR" ]]; then
-        log_info "raylib directory exists, pulling latest..."
-        cd "$RAYLIB_DIR"
-        git pull || true
+
+    RAYLIB_SRC_DIR="$DEPS_DIR/raylib/source"
+    RAYLIB_WEB_DIR="$DEPS_DIR/raylib/web"
+
+    if [[ -f "$RAYLIB_WEB_DIR/lib/libraylib.a" ]]; then
+        log_step "raylib for Web already built (skipping)"
+        log_info "To rebuild, delete: $RAYLIB_WEB_DIR"
     else
-        log_info "Cloning raylib..."
-        git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_DIR"
-        cd "$RAYLIB_DIR"
+        log_step "Building raylib for Web..."
+
+        if [[ -d "$RAYLIB_SRC_DIR" ]]; then
+            log_info "Using existing raylib source..."
+            cd "$RAYLIB_SRC_DIR"
+        else
+            log_info "Cloning raylib..."
+            run_quiet git clone --depth 1 https://github.com/raysan5/raylib.git "$RAYLIB_SRC_DIR"
+            cd "$RAYLIB_SRC_DIR"
+        fi
+
+        # Build for web
+        rm -rf build-web
+        mkdir -p build-web
+        cd build-web
+
+        log_info "Configuring..."
+        run_quiet emcmake cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPLATFORM=Web \
+            -DBUILD_EXAMPLES=OFF \
+            -DCMAKE_INSTALL_PREFIX="$RAYLIB_WEB_DIR" \
+            -DCMAKE_C_COMPILER=emcc \
+            -DCMAKE_CXX_COMPILER=em++ \
+            -DCMAKE_AR=emar \
+            -DCMAKE_RANLIB=emranlib
+
+        log_info "Building..."
+        run_quiet emmake make -j"$(nproc)"
+
+        log_info "Installing..."
+        run_quiet emmake make install
+
+        log_success "raylib web built"
     fi
-    
-    # Build for web
-    rm -rf build-web
-    mkdir -p build-web
-    cd build-web
-    
-    log_info "Configuring raylib for Emscripten..."
-    emcmake cmake .. \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DPLATFORM=Web \
-        -DBUILD_EXAMPLES=OFF \
-        -DCMAKE_INSTALL_PREFIX="$RAYLIB_WEB_DIR" \
-        -DCMAKE_C_COMPILER=emcc \
-        -DCMAKE_CXX_COMPILER=em++ \
-        -DCMAKE_AR=emar \
-        -DCMAKE_RANLIB=emranlib
-
-    
-    log_info "Building raylib..."
-    emmake make -j"$(nproc)"
-
-    
-    log_info "Installing raylib to $RAYLIB_WEB_DIR..."
-    emmake make install
-    
-    log_success "raylib for Web built and installed"
     
     # ===========================================================================
     # Build mruby for Web
     # ===========================================================================
-    
-    log_step "Building mruby for Web..."
-    
-    MRUBY_DIR="$DEPS_DIR/mruby"
-    MRUBY_WEB_DIR="$LIBS_DIR/mruby-web"
-    
-    # Clone mruby if not present (on Windows we use pacman for native, but need source for web)
-    if [[ ! -d "$MRUBY_DIR" ]]; then
-        log_info "Cloning mruby for web build..."
-        git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_DIR"
-    fi
-    
-    cd "$MRUBY_DIR"
-    
-    # Clean emscripten build directory
-    rm -rf build/emscripten
-    
-    # Create Emscripten build config (minimal - no IO needed for GMR)
-    cat > build_config/emscripten.rb << 'MRUBY_CONFIG'
+
+    MRUBY_SRC_DIR="$DEPS_DIR/mruby/source"
+    MRUBY_WEB_DIR="$DEPS_DIR/mruby/web"
+
+    if [[ -f "$MRUBY_WEB_DIR/lib/libmruby.a" ]]; then
+        log_step "mruby for Web already built (skipping)"
+        log_info "To rebuild, delete: $MRUBY_WEB_DIR"
+    else
+        log_step "Building mruby for Web..."
+
+        # Clone mruby if not present (on Windows we use pacman for native, but need source for web)
+        if [[ ! -d "$MRUBY_SRC_DIR" ]]; then
+            log_info "Cloning mruby..."
+            run_quiet git clone --depth 1 https://github.com/mruby/mruby.git "$MRUBY_SRC_DIR"
+        fi
+
+        cd "$MRUBY_SRC_DIR"
+
+        # Clean emscripten build directory
+        rm -rf build/emscripten
+
+        # Create Emscripten build config (minimal - no IO needed for GMR)
+        cat > build_config/emscripten.rb << 'MRUBY_CONFIG'
 MRuby::CrossBuild.new('emscripten') do |conf|
   toolchain :clang
 
@@ -504,25 +550,34 @@ MRuby::CrossBuild.new('emscripten') do |conf|
   conf.gem core: 'mruby-toplevel-ext'
 end
 MRUBY_CONFIG
-    
-    log_info "Building mruby for Emscripten..."
-    MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake clean || true
-    MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake
-    
-    # Copy to libs directory
-    mkdir -p "$MRUBY_WEB_DIR/lib"
-    mkdir -p "$MRUBY_WEB_DIR/include"
-    cp build/emscripten/lib/libmruby.a "$MRUBY_WEB_DIR/lib/"
-    cp -r include/* "$MRUBY_WEB_DIR/include/"
-    
-    log_success "mruby for Web built and installed"
-    
+
+        log_info "Building..."
+        MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake clean > /dev/null 2>&1 || true
+        if [[ "$VERBOSE" == true ]]; then
+            MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake
+        else
+            if ! MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake > /dev/null 2>&1; then
+                log_error "mruby build failed. Re-running with output:"
+                MRUBY_CONFIG="$(pwd)/build_config/emscripten.rb" rake
+                exit 1
+            fi
+        fi
+
+        # Copy to libs directory
+        mkdir -p "$MRUBY_WEB_DIR/lib"
+        mkdir -p "$MRUBY_WEB_DIR/include"
+        cp build/emscripten/lib/libmruby.a "$MRUBY_WEB_DIR/lib/"
+        cp -r include/* "$MRUBY_WEB_DIR/include/"
+
+        log_success "mruby web built"
+    fi
+
     # ===========================================================================
     # Create environment setup script
     # ===========================================================================
-    
-    log_step "Creating environment setup script..."
-    
+
+    log_info "Creating env.sh..."
+
     # Create env.sh with properly escaped paths
     cat > "$SCRIPT_DIR/env.sh" << 'ENVSCRIPT_START'
 #!/bin/bash
@@ -572,8 +627,7 @@ fi
 ENVSCRIPT_END
     
     chmod +x "$SCRIPT_DIR/env.sh"
-    log_success "Created env.sh"
-    
+
 else
     log_info "Skipping web setup (--skip-web)"
 fi
@@ -584,33 +638,35 @@ fi
 
 log_step "Verifying installation..."
 
-# Check native tools
-echo -n "  g++: "
-if check_command g++; then
-    echo -e "${GREEN}$(g++ --version | head -1)${NC}"
-else
-    echo -e "${RED}NOT FOUND${NC}"
-fi
+# Check native tools (skip if --web-only)
+if [[ "$SKIP_NATIVE" == false ]]; then
+    echo -n "  g++: "
+    if check_command g++; then
+        echo -e "${GREEN}$(g++ --version | head -1)${NC}"
+    else
+        echo -e "${RED}NOT FOUND${NC}"
+    fi
 
-echo -n "  cmake: "
-if check_command cmake; then
-    echo -e "${GREEN}$(cmake --version | head -1)${NC}"
-else
-    echo -e "${RED}NOT FOUND${NC}"
-fi
+    echo -n "  cmake: "
+    if check_command cmake; then
+        echo -e "${GREEN}$(cmake --version | head -1)${NC}"
+    else
+        echo -e "${RED}NOT FOUND${NC}"
+    fi
 
-echo -n "  raylib: "
-if [[ -f /mingw64/lib/libraylib.a ]] || [[ -f /usr/local/lib/libraylib.a ]]; then
-    echo -e "${GREEN}installed${NC}"
-else
-    echo -e "${RED}NOT FOUND${NC}"
-fi
+    echo -n "  raylib-native: "
+    if [[ -f "$DEPS_DIR/raylib/native/lib/libraylib.a" ]]; then
+        echo -e "${GREEN}installed${NC}"
+    else
+        echo -e "${RED}NOT FOUND${NC}"
+    fi
 
-echo -n "  mruby: "
-if [[ -f /mingw64/lib/libmruby.a ]] || [[ -f /usr/local/lib/libmruby.a ]] || [[ -f /mingw64/lib/libmruby_core.a ]]; then
-    echo -e "${GREEN}installed${NC}"
-else
-    echo -e "${RED}NOT FOUND${NC}"
+    echo -n "  mruby: "
+    if [[ -f /mingw64/lib/libmruby.a ]] || [[ -f /usr/local/lib/libmruby.a ]] || [[ -f /mingw64/lib/libmruby_core.a ]]; then
+        echo -e "${GREEN}installed${NC}"
+    else
+        echo -e "${RED}NOT FOUND${NC}"
+    fi
 fi
 
 if [[ "$SKIP_WEB" == false ]]; then
@@ -620,16 +676,16 @@ if [[ "$SKIP_WEB" == false ]]; then
     else
         echo -e "${YELLOW}available after: source env.sh${NC}"
     fi
-    
+
     echo -n "  raylib-web: "
-    if [[ -f "$LIBS_DIR/raylib-web/lib/libraylib.a" ]]; then
+    if [[ -f "$DEPS_DIR/raylib/web/lib/libraylib.a" ]]; then
         echo -e "${GREEN}installed${NC}"
     else
         echo -e "${RED}NOT FOUND${NC}"
     fi
-    
+
     echo -n "  mruby-web: "
-    if [[ -f "$LIBS_DIR/mruby-web/lib/libmruby.a" ]]; then
+    if [[ -f "$DEPS_DIR/mruby/web/lib/libmruby.a" ]]; then
         echo -e "${GREEN}installed${NC}"
     else
         echo -e "${RED}NOT FOUND${NC}"
@@ -647,10 +703,13 @@ echo "╚═══════════════════════�
 echo -e "${NC}"
 
 echo -e "Next steps:\n"
-echo -e "  ${BLUE}Native builds (Debug/Release):${NC}"
-echo "    ./build.sh debug"
-echo "    ./build.sh release"
-echo ""
+
+if [[ "$SKIP_NATIVE" == false ]]; then
+    echo -e "  ${BLUE}Native builds (Debug/Release):${NC}"
+    echo "    ./build.sh debug"
+    echo "    ./build.sh release"
+    echo ""
+fi
 
 if [[ "$SKIP_WEB" == false ]]; then
     echo -e "  ${BLUE}Web build:${NC}"
@@ -659,8 +718,10 @@ if [[ "$SKIP_WEB" == false ]]; then
     echo ""
 fi
 
-echo -e "  ${BLUE}Run the game:${NC}"
-echo "    ./gmr              # or gmr.exe on Windows"
+if [[ "$SKIP_NATIVE" == false ]]; then
+    echo -e "  ${BLUE}Run the game:${NC}"
+    echo "    ./gmr              # or gmr.exe on Windows"
+fi
 echo ""
 echo -e "  ${BLUE}Edit your game:${NC}"
 echo "    Edit scripts/main.rb - changes hot-reload automatically!"

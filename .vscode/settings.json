@@ -14,15 +14,10 @@
             }
         }
     },
-
-    // Keep PowerShell as default for CMake Tools
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.defaultProfile.windows": "MSYS2 MinGW 64-bit",
     "cmake.cmakePath": "C:/msys64/mingw64/bin/cmake.exe",
-    "cmake.generator": "Ninja",
-    "cmake.configureArgs": [
-        "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
-    ],
     "cmake.environment": {
-        "PATH": "C:/msys64/mingw64/bin;${env:PATH}"
+        "MSYSTEM": "MINGW64",
+        "PATH": "C:/msys64/mingw64/bin;C:/msys64/usr/bin;${env:PATH}"
     }
 }

@@ -138,14 +138,14 @@ build_native_release() {
 
 build_web() {
     log "Building for WEB..."
-    
+
     # Check for Emscripten
     if ! command -v emcc &> /dev/null; then
         # First check if wrapper scripts exist
         if [[ -d "$SCRIPT_DIR/bin" && -f "$SCRIPT_DIR/bin/emcc" ]]; then
             export PATH="$SCRIPT_DIR/bin:$PATH"
         fi
-        
+
         # If still not found, try to source env.sh
         if ! command -v emcc &> /dev/null && [[ -f "$SCRIPT_DIR/env.sh" ]]; then
             echo -e "${YELLOW}  Loading Emscripten environment...${NC}"
@@ -160,12 +160,12 @@ build_web() {
     
     # Check for web libraries
     if [[ -z "$RAYLIB_WEB_PATH" ]]; then
-        export RAYLIB_WEB_PATH="$SCRIPT_DIR/libs/raylib-web"
+        export RAYLIB_WEB_PATH="$SCRIPT_DIR/deps/raylib/web"
     fi
     if [[ -z "$MRUBY_WEB_PATH" ]]; then
-        export MRUBY_WEB_PATH="$SCRIPT_DIR/libs/mruby-web"
+        export MRUBY_WEB_PATH="$SCRIPT_DIR/deps/mruby/web"
     fi
-    
+
     if [[ ! -f "$RAYLIB_WEB_PATH/lib/libraylib.a" ]]; then
         error "raylib-web not found at $RAYLIB_WEB_PATH. Run setup.sh first."
     fi

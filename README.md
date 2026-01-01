@@ -1,218 +1,146 @@
-# <img src="logo.png" height="75" align="middle" /> GMR - Games Made with Ruby!
+# <img src="logo.png" height="75" align="middle" /> GMR - Games Made with Ruby
 
-A hot-reloadable game engine using mruby and raylib. Write your game logic in Ruby, see changes instantly without recompiling.
+**A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++.** Build games with hot-reloading Ruby scripts powered by mruby and raylib, deploy natively to Windows/Linux/macOS or compile to WebAssembly for the browser.
 
 [Check out the live Demo on itch.io!](https://coldglassomilk.itch.io/gmr)
 
-![Demo Screenshot](gmr_ss.png)
+> **⚠️ Early Stage Project:** GMR is in active development and not production-ready. The API bindings are currently MVP-level (graphics, input, audio basics), and advanced features like networking, physics, and extended audio are not yet implemented. That said, it's stable enough for experimentation, game jams, and small projects. Contributions welcome!
 
 ## Features
 
-- **Hot Reload**: Edit Ruby scripts and see changes instantly
-- **Handle-based Resources**: Safe resource management - Ruby never touches raw pointers
-- **Virtual Resolution**: Render at retro resolutions, scale up automatically with letterboxing
-- **Cross-platform**: Windows, Linux, macOS
+- **🔥 Hot Reload** - Edit Ruby scripts and see changes instantly without recompiling or restarting
+- **💻 Live REPL** - Built-in developer console for executing Ruby code in real-time while your game runs
+- **🎮 Full Game Engine** - Graphics, audio, input, resource management - everything you need
+- **🌐 Web & Native** - Deploy as native executables or compile to WebAssembly for browser play
+- **🛡️ Memory Safe** - Handle-based resources mean Ruby never touches raw pointers
+- **⚡ Fast** - mruby compiles Ruby to bytecode, raylib provides hardware-accelerated rendering
+- **📦 Cross-platform** - Windows, Linux, macOS support out of the box
+- **🎯 Simple API** - Clean, intuitive Ruby API designed for rapid game development
+- **🔧 Modern Tooling** - CMake presets, VSCode integration, batch/shell scripts
 
 ## Quick Start
 
-# GMR Quick Start Guide
+### Windows
 
-Get up and running in minutes!
+1. **Install [MSYS2](https://www.msys2.org/)** (default path: `C:\msys64`)
 
-## Windows Setup
-
-### Prerequisites
-
-1. **Install MSYS2** from https://www.msys2.org/
-   - Download and run the installer
-   - Use default path: `C:\msys64`
-   - Complete the installation
-
-That's it! The setup script handles everything else.
-
-### Setup & Build
-
-1. Open "MSYS2 MinGW64" from Start menu (Or open VS Code -> Ctrl+` -> + New MinGW Session)
-2. Navigate to the GMR folder:
+2. **Open MSYS2 MinGW64** terminal and run:
    ```bash
    cd /c/path/to/gmr
-   ```
-3. Run setup:
-   ```bash
    ./setup.sh              # Full setup (native + web)
-   ./setup.sh --native-only  # Faster! Skip web/Emscripten setup
-   ```
-4. Build and run:
-   ```bash
-   ./build.sh run
+   ./build.sh run          # Build and run!
    ```
 
-## Build Commands
-
-```bash
-./build.sh debug       # Debug build (default)
-./build.sh release     # Optimized release build
-./build.sh web         # WebAssembly build
-./build.sh all         # Build everything
-./build.sh clean       # Remove build files
-
-./build.sh run         # Build debug & run
-./build.sh run-release # Build release & run
-./build.sh serve       # Build web & start server
-```
-
-Or on Windows, use `build.bat`:
-```cmd
-build.bat debug
-build.bat release
-build.bat run
-```
-
-## Web Builds
-
-For web builds, first load the Emscripten environment:
-
-```bash
-source env.sh
-./build.sh web
-./build.sh serve      # Opens http://localhost:8080/gmr.html
-```
+3. **Edit `scripts/main.rb`** - changes reload automatically while running!
 
 ### Linux (Ubuntu/Debian)
 
 ```bash
-# Install build tools
-sudo apt update
-sudo apt install build-essential cmake git ruby bison
-
-# Install raylib dependencies
-sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev \
-    libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
-
-# Build raylib from source
-git clone https://github.com/raysan5/raylib.git
-cd raylib && mkdir build && cd build
-cmake -DBUILD_SHARED_LIBS=OFF ..
-make -j$(nproc)
-sudo make install
-cd ../..
-
-# Build mruby from source
-git clone https://github.com/mruby/mruby.git
-cd mruby
-make -j$(nproc)
-sudo cp build/host/lib/libmruby.a /usr/local/lib/
-sudo cp -r include/* /usr/local/include/
-cd ..
-
-# Build GMR
 cd gmr
-cmake -B build
-cmake --build build
-./gmr
+./setup.sh              # Automated setup
+./build.sh run          # Build and run
 ```
 
 ### macOS
 
 ```bash
-# Install Homebrew if needed
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install dependencies
 brew install cmake raylib mruby
-
-# Build GMR
 cd gmr
-cmake -B build
-cmake --build build
+cmake -B build && cmake --build build
 ./gmr
 ```
 
-## Making Your Game
+## Build Options
 
-Edit `scripts/main.rb` - changes auto-reload while the game is running!
+```bash
+./setup.sh              # Full setup (native + web)
+./setup.sh --native-only   # Skip web/Emscripten (faster)
+./setup.sh --web-only      # Only web libraries
+
+./build.sh debug        # Debug build
+./build.sh release      # Optimized release
+./build.sh web          # WebAssembly build
+./build.sh run          # Build and run debug
+./build.sh serve        # Build web & start server
+
+# Or use CMake presets directly:
+cmake --preset windows-release && cmake --build build
+cmake --preset web-release && cmake --build build-web
+```
+
+## Making Your First Game
+
+Edit `scripts/main.rb`:
 
 ```ruby
 def init
-  set_window_title("My Game")
-  $x = 400
-  $y = 300
+  set_window_title("My Awesome Game")
+  set_virtual_resolution(320, 240)  # Retro pixel-perfect rendering
+  $player_x = 160
+  $player_y = 120
+  $speed = 100
 end
 
 def update(dt)
-  $x += 100 * dt if key_down?(262)  # Right arrow
-  $x -= 100 * dt if key_down?(263)  # Left arrow
+  # Movement
+  $player_x += $speed * dt if key_down?(262)  # Right
+  $player_x -= $speed * dt if key_down?(263)  # Left
+  $player_y -= $speed * dt if key_down?(265)  # Up
+  $player_y += $speed * dt if key_down?(264)  # Down
 end
 
 def draw
   clear_screen(20, 20, 40)
-  set_color(255, 100, 100)
-  draw_circle($x.to_i, $y.to_i, 30)
+
+  # Draw player
+  set_color(100, 200, 255)
+  draw_circle($player_x.to_i, $player_y.to_i, 8)
+
+  # Draw UI
+  set_color(255, 255, 255)
+  draw_text("FPS: #{get_fps}", 10, 10, 20)
 end
 ```
 
-## VS Code Setup (Recommended)
+Save the file and watch it reload instantly!
 
-### Required Extensions
+### Live REPL / Dev Console
 
-- **C/C++** (Microsoft) - IntelliSense and debugging
-- **CMake Tools** (Microsoft) - CMake integration
+Press **`** (backtick/tilde key) to open the developer console while your game is running. You can execute Ruby code in real-time:
 
-### Opening the Project
-
-1. Open VS Code
-2. File → Open Folder → Select the `gmr` folder
-3. CMake Tools will prompt to configure - select **"MinGW Makefiles"** and your compiler
-
-### Building
-
-- **Ctrl+Shift+B** - Build (default task)
-- **F5** - Debug
-- **Status bar** (bottom) - Click to select Debug/Release, build, etc.
-
-## Project Structure
-
-```
-gmr/
-├── CMakeLists.txt              # Build configuration
-├── CMakePresets.json           # Build presets
-├── include/gmr/                # C++ headers
-│   ├── types.hpp               # Core types (Color, Vec2, handles)
-│   ├── state.hpp               # Global state
-│   ├── engine.hpp              # Master include
-│   ├── resources/              # Resource managers
-│   ├── bindings/               # mruby bindings
-│   └── scripting/              # Script loading
-├── src/                        # C++ implementation
-├── scripts/                    # Ruby game code
-│   └── main.rb                 # Entry point (edit this!)
-├── .vscode/                    # VS Code configuration
-└── build/                      # Build output (generated)
+```ruby
+# Try these in the console:
+$speed = 200              # Make the player move faster
+$player_x = 160          # Teleport player to center
+puts "Speed: #{$speed}"  # Print to console
+quit                     # Exit the game
 ```
 
-## Ruby API Reference
+This is perfect for tweaking values, debugging, and experimenting without reloading. Any global variables or functions defined in your scripts are accessible!
 
-### Lifecycle
+## API Reference
+
+### Lifecycle Hooks
 
 ```ruby
 def init          # Called once at startup
-def update(dt)    # Called every frame (dt = seconds since last frame)
-def draw          # Called every frame
+def update(dt)    # Called every frame (dt = delta time in seconds)
+def draw          # Called every frame for rendering
 ```
 
-### Graphics
+### Graphics - Drawing
 
 ```ruby
-# Colors
-set_color(r, g, b)              # Set drawing color (0-255)
-set_color(r, g, b, a)           # With alpha
-set_color([r, g, b])            # Array form
-set_alpha(a)                    # Set alpha only
+# Screen
+clear_screen                    # Clear with background color
+clear_screen(r, g, b)           # Clear with specific color
 set_clear_color(r, g, b)        # Set background color
 
-# Screen
-clear_screen                    # Clear with set_clear_color
-clear_screen(r, g, b)           # Clear with specific color
+# Colors
+set_color(r, g, b)              # RGB (0-255)
+set_color(r, g, b, a)           # RGBA
+set_color([r, g, b])            # Array form
+set_alpha(a)                    # Set alpha only
 
 # Shapes
 draw_rect(x, y, width, height)
@@ -234,13 +162,14 @@ draw_text(text, x, y, font_size)
 measure_text(text, font_size)   # Returns width in pixels
 ```
 
-### Textures
+### Graphics - Textures
 
 ```ruby
-tex = load_texture("path/to/image.png")
+tex = load_texture("assets/sprite.png")
 draw_texture(tex, x, y)
 draw_texture_ex(tex, x, y, rotation, scale)
-draw_texture_pro(tex, src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w, dst_h, rotation)
+draw_texture_pro(tex, src_x, src_y, src_w, src_h,
+                 dst_x, dst_y, dst_w, dst_h, rotation)
 texture_width(tex)
 texture_height(tex)
 ```
@@ -255,13 +184,13 @@ get_key_pressed         # Get last key pressed (or nil)
 get_char_pressed        # Get last character pressed (or nil)
 ```
 
-**Common Key Codes:**
+**Key Codes:**
 | Key | Code | Key | Code |
 |-----|------|-----|------|
 | LEFT | 263 | RIGHT | 262 |
 | UP | 265 | DOWN | 264 |
 | SPACE | 32 | ENTER | 257 |
-| ESCAPE | 256 | TAB | 258 |
+| ESC | 256 | TAB | 258 |
 | A-Z | 65-90 | 0-9 | 48-57 |
 | F1-F12 | 290-301 | | |
 
@@ -279,13 +208,13 @@ mouse_wheel                 # Wheel movement this frame
 ### Audio
 
 ```ruby
-sound = load_sound("path/to/sound.wav")
+sound = load_sound("assets/jump.wav")
 play_sound(sound)
 stop_sound(sound)
 set_sound_volume(sound, volume)  # 0.0 to 1.0
 ```
 
-### Window
+### Window & Display
 
 ```ruby
 screen_width                # Current screen width
@@ -311,10 +240,11 @@ get_delta_time              # Time since last frame (seconds)
 
 ### Virtual Resolution
 
-Render at a fixed low resolution, automatically scaled up:
+Render at a fixed low resolution, automatically scaled up with pixel-perfect letterboxing:
 
 ```ruby
-set_virtual_resolution(320, 240)    # Retro!
+set_virtual_resolution(320, 240)    # Retro 4:3
+set_virtual_resolution(320, 180)    # Retro 16:9
 clear_virtual_resolution            # Back to native
 virtual_resolution?                 # Is it enabled?
 set_filter_point                    # Crisp pixels (default)
@@ -329,40 +259,85 @@ random_float                # Random float [0.0, 1.0)
 quit                        # Exit the game
 ```
 
+## VSCode Integration
+
+### Recommended Extensions
+- **C/C++** (Microsoft) - IntelliSense and debugging
+- **CMake Tools** (Microsoft) - Build system integration
+
+### Usage
+1. Open folder in VSCode
+2. **Ctrl+Shift+B** - Build
+3. **Ctrl+Shift+P** → "Tasks: Run Task" → "Run: Debug" / "Serve: Web"
+4. Edit `scripts/main.rb` and save to hot-reload
+
+## Advanced Topics
+
+### Bytecode Compilation
+
+Release and web builds automatically compile Ruby scripts to bytecode for faster startup and smaller size:
+
+```bash
+./build.sh release      # Compiles scripts to bytecode
+./build.sh web          # Web builds always use bytecode
+```
+
+Debug builds load scripts from disk for hot-reloading.
+
+### Project Organization
+
+```
+gmr/
+├── scripts/            # Your game code (Ruby)
+│   └── main.rb        # Entry point
+├── assets/            # Images, sounds, etc.
+├── src/               # Engine C++ code
+├── include/gmr/       # Engine headers
+├── CMakeLists.txt     # Build configuration
+├── CMakePresets.json  # Build presets
+└── deps/              # Dependencies (built by setup.sh)
+    ├── raylib/
+    └── mruby/
+```
+
 ## Troubleshooting
 
-### "cmake is not recognized" / "g++ is not recognized"
+**"cmake is not recognized"**
+- Add `C:\msys64\mingw64\bin` to Windows PATH
+- Restart terminal/VSCode
 
-- Make sure `C:\msys64\mingw64\bin` is in your Windows PATH
-- Restart your terminal/VS Code after adding to PATH
+**"cannot find -lmruby" or "mruby.h: No such file"**
+- Run `./setup.sh` to install dependencies
 
-### "cannot find -lmruby"
+**Scripts not hot-reloading**
+- Only works in debug builds (not release/web)
+- Make sure file is saved
+- Check console for Ruby syntax errors
 
-mruby isn't installed. Follow the "Build mruby" steps above.
-
-### "mruby.h: No such file"
-
-mruby headers aren't installed. Make sure you ran:
-```bash
-cp -r include/* /mingw64/include/
-```
-
-### CMake can't find compiler
-
-Specify it explicitly:
-```bash
-cmake -B build -G "MinGW Makefiles" \
-    -DCMAKE_C_COMPILER=C:/msys64/mingw64/bin/gcc.exe \
-    -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe
-```
-
-### Scripts not reloading
-
-- Make sure you're editing files in the `scripts/` folder
-- Check the console for Ruby errors
-- File must be saved (not just modified)
+**Web build fails**
+- Run `source env.sh` before building
+- Or use `./build.sh web` which sources it automatically
 
 ## License
 
-MIT
+MIT License - completely free and open source, no royalties, no restrictions.
 
+Copyright (c) 2025 GMR Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
