@@ -418,7 +418,7 @@ if [[ "$SKIP_WEB" == false ]]; then
         -DCMAKE_BUILD_TYPE=Release \
         -DPLATFORM=Web \
         -DBUILD_EXAMPLES=OFF \
-        -DCMAKE_INSTALL_PREFIX="$(printf '%q' "$RAYLIB_WEB_DIR")" \
+        -DCMAKE_INSTALL_PREFIX="$RAYLIB_WEB_DIR" \
         -DCMAKE_C_COMPILER=emcc \
         -DCMAKE_CXX_COMPILER=em++ \
         -DCMAKE_AR=emar \
