@@ -1,0 +1,168 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build: Debug",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "cmake --preset windows-debug && cmake --build build --parallel"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Build: Release",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "cmake --preset windows-release && cmake --build build --parallel"
+            ],
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Build: Web",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "source env.sh && cmake --preset web-release && cmake --build build-web --parallel"
+            ],
+            "group": "build",
+            "problemMatcher": "$gcc",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Run: Debug",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "./gmr.exe"
+            ],
+            "dependsOn": "Build: Debug",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "Run: Release",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "./gmr.exe"
+            ],
+            "dependsOn": "Build: Release",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true
+            }
+        },
+        {
+            "label": "Serve: Web",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "cd build-web && echo 'Web server starting at http://localhost:8080/gmr.html' && echo 'Press Ctrl+C to stop' && python3 -m http.server 8080 || python -m SimpleHTTPServer 8080"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^$",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^.*starting.*$",
+                    "endsPattern": "^.*Serving HTTP.*$"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": false
+            }
+        },
+        {
+            "label": "Build and Serve: Web",
+            "dependsOn": [
+                "Build: Web",
+                "Serve: Web"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Clean: All",
+            "type": "shell",
+            "command": "C:/msys64/msys2_shell.cmd",
+            "args": [
+                "-mingw64",
+                "-defterm",
+                "-no-start",
+                "-here",
+                "-c",
+                "rm -rf build build-web gmr.exe"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ]
+}

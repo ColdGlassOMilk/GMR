@@ -57,9 +57,8 @@ function(compile_ruby_scripts TARGET_NAME SCRIPT_DIR OUTPUT_HEADER)
         string(REPLACE "\\" "_" SYMBOL_NAME "${SYMBOL_NAME}")
         string(REPLACE "." "_" SYMBOL_NAME "${SYMBOL_NAME}")
 
-        # Output files
+        # Output file
         set(C_FILE "${BYTECODE_DIR}/${SYMBOL_NAME}_raw.c")
-        set(CPP_FILE "${BYTECODE_DIR}/${SYMBOL_NAME}.cpp")
 
         # Add custom command to compile Ruby to C bytecode
         add_custom_command(
@@ -70,17 +69,9 @@ function(compile_ruby_scripts TARGET_NAME SCRIPT_DIR OUTPUT_HEADER)
             VERBATIM
         )
 
-        # Create a C++ file that just includes the C file
-        # This is simpler and more portable than setting source properties
-        add_custom_command(
-            OUTPUT "${CPP_FILE}"
-            COMMAND ${CMAKE_COMMAND} -E echo "// Wrapper for ${REL_PATH}" > ${CPP_FILE}
-            COMMAND ${CMAKE_COMMAND} -E echo "#include \"${SYMBOL_NAME}_raw.c\"" >> ${CPP_FILE}
-            DEPENDS "${C_FILE}"
-            VERBATIM
-        )
-
-        list(APPEND BYTECODE_C_FILES "${CPP_FILE}")
+        # Add the generated C file directly - mrbc output is valid C that compiles with C++
+        set_source_files_properties("${C_FILE}" PROPERTIES GENERATED TRUE LANGUAGE CXX)
+        list(APPEND BYTECODE_C_FILES "${C_FILE}")
     endforeach()
 
     # Generate header file that declares all bytecode arrays

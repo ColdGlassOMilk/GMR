@@ -138,14 +138,14 @@ build_native_release() {
 
 build_web() {
     log "Building for WEB..."
-    
+
     # Check for Emscripten
     if ! command -v emcc &> /dev/null; then
         # First check if wrapper scripts exist
         if [[ -d "$SCRIPT_DIR/bin" && -f "$SCRIPT_DIR/bin/emcc" ]]; then
             export PATH="$SCRIPT_DIR/bin:$PATH"
         fi
-        
+
         # If still not found, try to source env.sh
         if ! command -v emcc &> /dev/null && [[ -f "$SCRIPT_DIR/env.sh" ]]; then
             echo -e "${YELLOW}  Loading Emscripten environment...${NC}"
