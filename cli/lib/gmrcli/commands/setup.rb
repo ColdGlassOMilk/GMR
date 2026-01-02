@@ -26,6 +26,7 @@ module Gmrcli
 
         unless skip_native?
           install_system_packages unless options[:skip_pacman]
+          build_mruby_native
           build_raylib_native
         end
 
@@ -180,12 +181,125 @@ module Gmrcli
           mingw-w64-x86_64-gdb
           mingw-w64-x86_64-cmake
           mingw-w64-x86_64-ninja
-          mingw-w64-x86_64-mruby
           git
           bison
           unzip
           tar
         ]
+      end
+
+      # === Build mruby Native ===
+
+      def build_mruby_native
+        src_dir = File.join(Platform.deps_dir, "mruby", "source")
+        install_dir = File.join(Platform.deps_dir, "mruby", "native")
+
+        if File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+          UI.step "mruby native already built (skipping)"
+          UI.info "To rebuild: delete #{install_dir}"
+          return
+        end
+
+        UI.step "Building mruby (native)..."
+
+        # Clone if needed (might already exist from web build)
+        unless Dir.exist?(src_dir)
+          UI.spinner("Cloning mruby") do
+            Shell.git_clone("https://github.com/mruby/mruby.git", src_dir, verbose: verbose?)
+          end
+        end
+
+        # Clean previous build
+        FileUtils.rm_rf(File.join(src_dir, "build", "native"))
+
+        # Create build config for native
+        create_mruby_native_config(src_dir)
+
+        config_path = File.join(src_dir, "build_config", "native.rb")
+
+        begin
+          UI.spinner("Compiling mruby for native") do
+            Shell.run!(
+              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              chdir: src_dir,
+              verbose: verbose?
+            )
+          end
+        rescue CommandError
+          UI.warn "Build failed, retrying with clean..."
+          Shell.run("MRUBY_CONFIG=\"#{config_path}\" rake clean", chdir: src_dir)
+          UI.spinner("Retrying mruby build") do
+            Shell.run!(
+              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              chdir: src_dir,
+              verbose: true
+            )
+          end
+        end
+
+        # Install
+        UI.spinner("Installing") do
+          FileUtils.mkdir_p(File.join(install_dir, "lib"))
+          FileUtils.mkdir_p(File.join(install_dir, "include"))
+          FileUtils.cp(
+            File.join(src_dir, "build", "native", "lib", "libmruby.a"),
+            File.join(install_dir, "lib")
+          )
+          FileUtils.cp_r(
+            Dir[File.join(src_dir, "include", "*")],
+            File.join(install_dir, "include")
+          )
+        end
+
+        UI.success "mruby native built"
+      end
+
+      def create_mruby_native_config(src_dir)
+        config_content = <<~RUBY
+          MRuby::Build.new('native') do |conf|
+            toolchain :gcc
+
+            conf.cc do |cc|
+              cc.flags = %w(-O2)
+            end
+
+            conf.cxx do |cxx|
+              cxx.flags = %w(-O2)
+            end
+
+            # mrbc compiler - required for compiling Ruby source to bytecode
+            conf.gem core: 'mruby-bin-mrbc'
+
+            # Core gems for native build
+            conf.gem core: 'mruby-compiler'
+            conf.gem core: 'mruby-error'
+            conf.gem core: 'mruby-eval'
+            conf.gem core: 'mruby-metaprog'
+            conf.gem core: 'mruby-sprintf'
+            conf.gem core: 'mruby-math'
+            conf.gem core: 'mruby-time'
+            conf.gem core: 'mruby-string-ext'
+            conf.gem core: 'mruby-array-ext'
+            conf.gem core: 'mruby-hash-ext'
+            conf.gem core: 'mruby-numeric-ext'
+            conf.gem core: 'mruby-proc-ext'
+            conf.gem core: 'mruby-symbol-ext'
+            conf.gem core: 'mruby-random'
+            conf.gem core: 'mruby-object-ext'
+            conf.gem core: 'mruby-kernel-ext'
+            conf.gem core: 'mruby-class-ext'
+            conf.gem core: 'mruby-enum-ext'
+            conf.gem core: 'mruby-struct'
+            conf.gem core: 'mruby-range-ext'
+            conf.gem core: 'mruby-fiber'
+            conf.gem core: 'mruby-enumerator'
+            conf.gem core: 'mruby-compar-ext'
+            conf.gem core: 'mruby-toplevel-ext'
+          end
+        RUBY
+
+        FileUtils.mkdir_p(File.join(src_dir, "build_config"))
+        File.write(File.join(src_dir, "build_config", "native.rb"), config_content)
       end
 
       # === Build raylib Native ===
@@ -224,8 +338,10 @@ module Gmrcli
           "-DCMAKE_INSTALL_PREFIX=\"#{install_dir}\""
         ]
 
-        if Platform.mingw64?
-          cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
+        # Use ninja from PATH (works with both MSYS2 and custom toolchains)
+        if Platform.mingw64? && Platform.command_exists?("ninja")
+          ninja_path = Platform.command_path("ninja")
+          cmake_args << "-DCMAKE_MAKE_PROGRAM=\"#{ninja_path}\"" if ninja_path
         end
 
         UI.spinner("Configuring") do
@@ -328,8 +444,10 @@ module Gmrcli
 
         cmake_args = "-DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web " \
                      "-DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX=\"#{install_dir}\" -G Ninja"
-        if Platform.mingw64?
-          cmake_args += " -DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
+        # Use ninja from PATH (works with both MSYS2 and custom toolchains)
+        if Platform.mingw64? && Platform.command_exists?("ninja")
+          ninja_path = Platform.command_path("ninja")
+          cmake_args += " -DCMAKE_MAKE_PROGRAM=\"#{ninja_path}\"" if ninja_path
         end
 
         UI.spinner("Configuring") do
@@ -578,11 +696,8 @@ module Gmrcli
       end
 
       def mruby_native_path
-        if Platform.mingw64?
-          "/mingw64/lib/libmruby.a"
-        else
-          "/usr/local/lib/libmruby.a"
-        end
+        # Use locally built mruby from deps directory
+        File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")
       end
 
       # === Completion ===

@@ -137,6 +137,7 @@ if(PLATFORM_WEB)
     # No need to preload script files for web builds
 
     # Preload assets folder for web builds (textures, sounds, etc.)
+    # Mount at /assets - the engine's resolve_asset_path() handles platform differences
     if(EXISTS "${CMAKE_SOURCE_DIR}/game/assets")
         target_link_options(${PROJECT_NAME} PRIVATE
             "--preload-file=${CMAKE_SOURCE_DIR}/game/assets@/assets"
@@ -174,16 +175,16 @@ if(PLATFORM_WEB)
     
 elseif(WIN32)
     set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
-    set(MINGW_ROOT "C:/msys64/mingw64")
+    set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
 
     target_include_directories(${PROJECT_NAME} PRIVATE
         ${RAYLIB_ROOT}/include
-        ${MINGW_ROOT}/include
+        ${MRUBY_ROOT}/include
     )
 
     target_link_libraries(${PROJECT_NAME} PRIVATE
         ${RAYLIB_ROOT}/lib/libraylib.a
-        ${MINGW_ROOT}/lib/libmruby.a
+        ${MRUBY_ROOT}/lib/libmruby.a
 
         winmm
         gdi32

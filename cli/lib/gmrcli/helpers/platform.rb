@@ -68,6 +68,9 @@ module Gmrcli
 
       # System paths
       def mingw_root
+        # Check for custom MINGW_PREFIX first (set by GMRuby IDE or custom toolchains)
+        return ENV["MINGW_PREFIX"] if ENV["MINGW_PREFIX"] && Dir.exist?(ENV["MINGW_PREFIX"])
+        # Default MSYS2 location
         "C:/msys64/mingw64"
       end
 

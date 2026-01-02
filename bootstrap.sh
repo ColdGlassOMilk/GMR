@@ -5,10 +5,24 @@
 # This minimal script installs Ruby and the gmrcli CLI tool.
 # After running this, use 'gmrcli' for all other operations.
 #
-# Usage: ./bootstrap.sh
+# Usage: ./bootstrap.sh [--skip-setup]
+#
+# Options:
+#   --skip-setup    Skip the interactive setup prompt (useful for IDE automation)
 #
 
 set -e
+
+# Parse arguments
+SKIP_SETUP=false
+for arg in "$@"; do
+    case $arg in
+        --skip-setup)
+            SKIP_SETUP=true
+            shift
+            ;;
+    esac
+done
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -170,21 +184,25 @@ echo ""
 echo -e "  ${GREEN}source ~/.bashrc${NC}"
 echo ""
 
-# Ask if user wants to run setup now
-echo -e -n "Would you like to run ${BLUE}gmrcli setup${NC} now? [Y/n] "
-read -r response
-response=${response:-Y}
+# Ask if user wants to run setup now (skip if --skip-setup was passed)
+if $SKIP_SETUP; then
+    echo -e "${DIM}Skipping setup (--skip-setup flag)${NC}"
+else
+    echo -e -n "Would you like to run ${BLUE}gmrcli setup${NC} now? [Y/n] "
+    read -r response
+    response=${response:-Y}
 
-if [[ "$response" =~ ^[Yy]$ ]]; then
-    echo ""
-    echo -e -n "Run full setup or native-only (faster)? [${GREEN}f${NC}ull/${GREEN}n${NC}ative-only] "
-    read -r setup_type
-    setup_type=${setup_type:-f}
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo -e -n "Run full setup or native-only (faster)? [${GREEN}f${NC}ull/${GREEN}n${NC}ative-only] "
+        read -r setup_type
+        setup_type=${setup_type:-f}
 
-    echo ""
-    if [[ "$setup_type" =~ ^[Nn]$ ]]; then
-        exec gmrcli setup --native-only
-    else
-        exec gmrcli setup
+        echo ""
+        if [[ "$setup_type" =~ ^[Nn]$ ]]; then
+            exec gmrcli setup --native-only
+        else
+            exec gmrcli setup
+        fi
     fi
 fi

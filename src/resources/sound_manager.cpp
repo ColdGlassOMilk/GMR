@@ -1,4 +1,5 @@
 #include "gmr/resources/sound_manager.hpp"
+#include "gmr/paths.hpp"
 
 namespace gmr {
 
@@ -8,7 +9,8 @@ SoundManager& SoundManager::instance() {
 }
 
 std::optional<Sound> SoundManager::load_resource(const std::string& path) {
-    Sound sound = LoadSound(path.c_str());
+    std::string resolved = resolve_asset_path(path);
+    Sound sound = LoadSound(resolved.c_str());
     if (sound.frameCount == 0) {
         return std::nullopt;
     }

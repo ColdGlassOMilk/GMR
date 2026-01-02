@@ -1,4 +1,5 @@
 #include "gmr/resources/texture_manager.hpp"
+#include "gmr/paths.hpp"
 
 namespace gmr {
 
@@ -8,7 +9,8 @@ TextureManager& TextureManager::instance() {
 }
 
 std::optional<Texture2D> TextureManager::load_resource(const std::string& path) {
-    Texture2D texture = LoadTexture(path.c_str());
+    std::string resolved = resolve_asset_path(path);
+    Texture2D texture = LoadTexture(resolved.c_str());
     if (texture.id == 0) {
         return std::nullopt;
     }
