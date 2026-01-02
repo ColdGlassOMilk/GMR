@@ -70,10 +70,15 @@ def init
   $show_connections = true
   $show_debug_info = true   # Toggle debug info panel
 
-  # Load logo texture
-  $logo = load_texture("assets/logo.png")
-  $logo_width = texture_width($logo)
-  $logo_height = texture_height($logo)
+  # Load logo texture (may fail on some platforms)
+  begin
+    $logo = load_texture("assets/logo.png")
+    $logo_width = texture_width($logo)
+    $logo_height = texture_height($logo)
+  rescue
+    $logo = nil
+    puts "Warning: Could not load logo texture"
+  end
 
   # Player controlled attractor/repulsor (world coordinates)
   $attractor = {

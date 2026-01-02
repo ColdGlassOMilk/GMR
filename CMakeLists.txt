@@ -136,7 +136,13 @@ if(PLATFORM_WEB)
     # Note: Scripts are compiled into bytecode and embedded in WASM
     # No need to preload script files for web builds
 
-    
+    # Preload assets folder for web builds (textures, sounds, etc.)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+        target_link_options(${PROJECT_NAME} PRIVATE
+            "--preload-file=${CMAKE_SOURCE_DIR}/assets@/assets"
+        )
+    endif()
+
     # Add custom shell if it exists
     # if(EXISTS ${SHELL_FILE})
     #     list(APPEND WEB_LINK_FLAGS "--shell-file=${SHELL_FILE}")
