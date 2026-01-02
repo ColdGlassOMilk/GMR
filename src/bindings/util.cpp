@@ -4,6 +4,27 @@
 #include "rlgl.h"
 #include <cstdlib>
 
+// OpenGL constants for glGetString (avoid including gl.h due to raylib conflicts)
+#if !defined(PLATFORM_WEB)
+    #define GL_VENDOR                     0x1F00
+    #define GL_RENDERER                   0x1F01
+    #define GL_VERSION                    0x1F02
+    #define GL_SHADING_LANGUAGE_VERSION   0x8B8C
+
+    typedef const unsigned char* (*GlGetStringFunc)(unsigned int name);
+    static GlGetStringFunc glGetStringPtr = nullptr;
+
+    static const char* getGLString(unsigned int name) {
+        if (!glGetStringPtr) {
+            glGetStringPtr = (GlGetStringFunc)rlGetProcAddress("glGetString");
+        }
+        if (glGetStringPtr) {
+            return reinterpret_cast<const char*>(glGetStringPtr(name));
+        }
+        return nullptr;
+    }
+#endif
+
 namespace gmr {
 namespace bindings {
 
@@ -63,7 +84,7 @@ static mrb_value mrb_raylib_version(mrb_state* mrb, mrb_value) {
 // GPU info functions (using OpenGL queries via rlgl)
 static mrb_value mrb_gpu_vendor(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
-    const char* vendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    const char* vendor = getGLString(GL_VENDOR);
     if (vendor) {
         return mrb_str_new_cstr(mrb, vendor);
     }
@@ -73,7 +94,7 @@ static mrb_value mrb_gpu_vendor(mrb_state* mrb, mrb_value) {
 
 static mrb_value mrb_gpu_renderer(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
-    const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    const char* renderer = getGLString(GL_RENDERER);
     if (renderer) {
         return mrb_str_new_cstr(mrb, renderer);
     }
@@ -83,7 +104,7 @@ static mrb_value mrb_gpu_renderer(mrb_state* mrb, mrb_value) {
 
 static mrb_value mrb_gl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
-    const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    const char* version = getGLString(GL_VERSION);
     if (version) {
         return mrb_str_new_cstr(mrb, version);
     }
@@ -93,7 +114,7 @@ static mrb_value mrb_gl_version(mrb_state* mrb, mrb_value) {
 
 static mrb_value mrb_glsl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
-    const char* version = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    const char* version = getGLString(GL_SHADING_LANGUAGE_VERSION);
     if (version) {
         return mrb_str_new_cstr(mrb, version);
     }

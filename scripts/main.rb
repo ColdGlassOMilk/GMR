@@ -18,8 +18,8 @@ def init
   # toggle_fullscreen
 
   set_window_title "GMR Demo"
-  set_window_size(1280, 720)
-  set_virtual_resolution(1280, 720)
+  set_window_size(960, 640)
+  set_virtual_resolution(960, 640)
 
   set_filter_bilinear
   # set_filter_point
@@ -396,24 +396,24 @@ def draw
   $text_particles.each do |tp|
     alpha = (tp[:life] * 255).to_i
     set_color([255, 255, 255, alpha])
-    draw_text(tp[:text], tp[:x].to_i - 20, tp[:y].to_i, 20)
+    draw_text(tp[:text], tp[:x].to_i - 20, tp[:y].to_i, 22)
   end
   
   # UI
   set_color([255, 255, 255, 200])
-  draw_text("FPS: #{get_fps}", 10, 10, 16)
-  draw_text("Particles: #{$particles.length}", 10, 30, 16)
+  draw_text("FPS: #{get_fps}", 10, 10, 18)
+  draw_text("Particles: #{$particles.length}", 10, 32, 18)
 
-  # Debug info panel
+  # Debug info panel (top-right)
   if $show_debug_info
-    panel_x = $width - 280
+    panel_x = $width - 260
     panel_y = 10
-    line_height = 18
-    font_size = 14
+    line_height = 20
+    font_size = 16
 
     # Semi-transparent background
     set_color([0, 0, 0, 180])
-    draw_rect(panel_x - 10, panel_y - 5, 280, 160)
+    draw_rect(panel_x - 10, panel_y - 5, 260, 175)
 
     # Header
     set_color([100, 200, 255])
@@ -423,7 +423,7 @@ def draw
     set_color([200, 200, 200])
     draw_text("Platform: #{build_platform}", panel_x, panel_y + line_height, font_size)
     draw_text("Build: #{build_type}", panel_x, panel_y + line_height * 2, font_size)
-    draw_text("Compiled Scripts: #{compiled_scripts? ? 'Yes' : 'No'}", panel_x, panel_y + line_height * 3, font_size)
+    draw_text("Scripts: #{compiled_scripts? ? 'Compiled' : 'Interpreted'}", panel_x, panel_y + line_height * 3, font_size)
     draw_text("Raylib: #{raylib_version}", panel_x, panel_y + line_height * 4, font_size)
 
     # GPU Header
@@ -434,14 +434,15 @@ def draw
     set_color([200, 200, 200])
     # Truncate long GPU strings
     renderer = gpu_renderer
-    renderer = renderer[0...30] + "..." if renderer.length > 33
+    renderer = renderer[0...25] + "..." if renderer.length > 28
     draw_text("GPU: #{renderer}", panel_x, panel_y + line_height * 6 + 5, font_size)
     draw_text("GL: #{gl_version}", panel_x, panel_y + line_height * 7 + 5, font_size)
   end
 
-  set_color([150, 150, 150, 180])
-  draw_text("Left click: ATTRACT | Right click: REPEL | Space: Spawn more", 10, $height - 50, 14)
-  draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Connections | R: Reset | D: Debug", 10, $height - 30, 14)
+  # Instructions (bottom-left) - always visible
+  set_color([180, 180, 180, 220])
+  draw_text("LMB: Attract | RMB: Repel | Space: Spawn", 10, $height - 52, 16)
+  draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Lines | R: Reset | D: Debug", 10, $height - 30, 16)
   
   # Title
   # title = "Particle Playground"
