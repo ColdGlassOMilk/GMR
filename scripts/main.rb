@@ -134,50 +134,56 @@ def update(dt)
     init
     return
   end
-  
+
+  # Clamp dt to prevent huge jumps when window loses focus
+  dt = [dt, 0.1].min
+
   $time += dt
-  
-  # Update attractor position (follows mouse)
-  $attractor[:x] = mouse_x
-  $attractor[:y] = mouse_y
-  
-  # Left click = attract, right click = repel
-  if mouse_down?(MOUSE_LEFT)
-    $attractor[:mode] = :attract
-  elsif mouse_down?(MOUSE_RIGHT)
-    $attractor[:mode] = :repel
-  end
-  
-  mouse_active = mouse_down?(MOUSE_LEFT) || mouse_down?(MOUSE_RIGHT)
-  
-  # Spawn particles on middle click or space
-  if key_pressed?(KEY_SPACE)
-    spawn_particle_burst(mouse_x, mouse_y, 25)
-    spawn_text_particle(mouse_x, mouse_y, "+25")
-  end
-  
-  if key_pressed?(KEY_G)
-    $gravity_enabled = !$gravity_enabled
-    spawn_text_particle($width / 2, 50, $gravity_enabled ? "Gravity ON" : "Gravity OFF")
-  end
-  
-  if key_pressed?(KEY_C)
-    $show_connections = !$show_connections
-  end
-  
-  if key_pressed?(KEY_R)
-    $particles.clear
-    spawn_particle_burst($width / 2, $height / 2, 40)
-    spawn_text_particle($width / 2, $height / 2, "Reset!")
+
+  # Only process game input when console is closed
+  unless console_open?
+    # Update attractor position (follows mouse)
+    $attractor[:x] = mouse_x
+    $attractor[:y] = mouse_y
+
+    # Left click = attract, right click = repel
+    if mouse_down?(MOUSE_LEFT)
+      $attractor[:mode] = :attract
+    elsif mouse_down?(MOUSE_RIGHT)
+      $attractor[:mode] = :repel
+    end
+
+    # Spawn particles on middle click or space
+    if key_pressed?(KEY_SPACE)
+      spawn_particle_burst(mouse_x, mouse_y, 25)
+      spawn_text_particle(mouse_x, mouse_y, "+25")
+    end
+
+    if key_pressed?(KEY_G)
+      $gravity_enabled = !$gravity_enabled
+      spawn_text_particle($width / 2, 50, $gravity_enabled ? "Gravity ON" : "Gravity OFF")
+    end
+
+    if key_pressed?(KEY_C)
+      $show_connections = !$show_connections
+    end
+
+    if key_pressed?(KEY_R)
+      $particles.clear
+      spawn_particle_burst($width / 2, $height / 2, 40)
+      spawn_text_particle($width / 2, $height / 2, "Reset!")
+    end
+
+    if key_pressed?(KEY_F)
+      toggle_fullscreen
+    end
+
+    if key_pressed?(KEY_D)
+      $show_debug_info = !$show_debug_info
+    end
   end
 
-  if key_pressed?(KEY_F)
-    toggle_fullscreen
-  end
-
-  if key_pressed?(KEY_D)
-    $show_debug_info = !$show_debug_info
-  end
+  mouse_active = !console_open? && (mouse_down?(MOUSE_LEFT) || mouse_down?(MOUSE_RIGHT))
   
   # Update stars (parallax)
   $stars.each do |star|
@@ -279,35 +285,35 @@ def draw
   clear_screen([8, 8, 20])
   
   # Draw starfield
-  # $stars.each do |star|
-  #   b = star[:brightness]
-  #   set_color([b, b, (b * 0.9).to_i])
-  #   size = star[:z] > 2 ? 2 : 1
-  #   draw_rect(star[:x].to_i, star[:y].to_i, size, size)
-  # end
-  
+  $stars.each do |star|
+    b = star[:brightness]
+    set_color([b, b, (b * 0.9).to_i])
+    size = star[:z] > 2 ? 2 : 1
+    draw_rect(star[:x].to_i, star[:y].to_i, size, size)
+  end
+
   # Draw orbital rings
-  # cx, cy = $width / 2, $height / 2
-  # $rings.each do |ring|
-  #   rgb = hue_to_rgb(ring[:hue] + $time * 30, 0.7, 0.8)
-  #   set_color(rgb)
-    
-  #   ring[:segments].times do |i|
-  #     angle = (i.to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
-  #     next_angle = ((i + 1).to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
-      
-  #     x1 = cx + Math.cos(angle) * ring[:radius]
-  #     y1 = cy + Math.sin(angle) * ring[:radius]
-  #     x2 = cx + Math.cos(next_angle) * ring[:radius]
-  #     y2 = cy + Math.sin(next_angle) * ring[:radius]
-      
-  #     if i % 2 == 0
-  #       draw_line_thick(x1, y1, x2, y2, 2)
-  #     end
-      
-  #     draw_circle(x1.to_i, y1.to_i, 3)
-  #   end
-  # end
+  cx, cy = $width / 2, $height / 2
+  $rings.each do |ring|
+    rgb = hue_to_rgb(ring[:hue] + $time * 30, 0.7, 0.8)
+    set_color(rgb)
+
+    ring[:segments].times do |i|
+      angle = (i.to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
+      next_angle = ((i + 1).to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
+
+      x1 = cx + Math.cos(angle) * ring[:radius]
+      y1 = cy + Math.sin(angle) * ring[:radius]
+      x2 = cx + Math.cos(next_angle) * ring[:radius]
+      y2 = cy + Math.sin(next_angle) * ring[:radius]
+
+      if i % 2 == 0
+        draw_line_thick(x1, y1, x2, y2, 2)
+      end
+
+      draw_circle(x1.to_i, y1.to_i, 3)
+    end
+  end
   
   # Draw connections between nearby particles
   max_dist = 120
