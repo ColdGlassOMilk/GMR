@@ -16,7 +16,7 @@
 - **⚡ Fast** - mruby compiles Ruby to bytecode, raylib provides hardware-accelerated rendering
 - **📦 Cross-platform** - Windows, Linux, macOS support out of the box
 - **🎯 Simple API** - Clean, intuitive Ruby API designed for rapid game development
-- **🔧 Modern Tooling** - CMake presets, VSCode integration, batch/shell scripts
+- **🔧 Modern Tooling** - `gmrcli` for build/run/release, CMake presets, VSCode integration
 
 ## Quick Start
 
@@ -27,8 +27,9 @@
 2. **Open MSYS2 MinGW64** terminal and run:
    ```bash
    cd /c/path/to/gmr
-   ./setup.sh              # Full setup (native + web)
-   ./build.sh run          # Build and run!
+   ./bootstrap.sh         # Install gmrcli & run setup
+   gmrcli build debug     # Build the engine
+   gmrcli run             # Run the game!
    ```
 
 3. **Edit `scripts/main.rb`** - changes reload automatically while running!
@@ -37,33 +38,50 @@
 
 ```bash
 cd gmr
-./setup.sh              # Automated setup
-./build.sh run          # Build and run
+./bootstrap.sh         # Install gmrcli & run setup
+gmrcli build           # Build
+gmrcli run             # Run
 ```
 
 ### macOS
 
 ```bash
-brew install cmake raylib mruby
 cd gmr
-cmake -B build && cmake --build build
-./gmr
+./bootstrap.sh         # Install gmrcli & run setup
+gmrcli build           # Build
+gmrcli run             # Run
 ```
 
-## Build Options
+## CLI Commands
+
+GMR uses the `gmrcli` tool for all operations:
 
 ```bash
-./setup.sh              # Full setup (native + web)
-./setup.sh --native-only   # Skip web/Emscripten (faster)
-./setup.sh --web-only      # Only web libraries
+# Setup
+gmrcli setup              # Full setup (native + web)
+gmrcli setup --native-only   # Skip web/Emscripten (faster)
+gmrcli setup --web-only      # Only web/Emscripten
+gmrcli setup --clean         # Clean rebuild everything
 
-./build.sh debug        # Debug build
-./build.sh release      # Optimized release
-./build.sh web          # WebAssembly build
-./build.sh run          # Build and run debug
-./build.sh serve        # Build web & start server
+# Build
+gmrcli build debug        # Debug build (hot-reload enabled)
+gmrcli build release      # Optimized release build
+gmrcli build web          # WebAssembly build
+gmrcli build clean        # Remove build artifacts
 
-# Or use CMake presets directly:
+# Run
+gmrcli run                # Run native build
+gmrcli run web            # Start local web server
+
+# Project
+gmrcli new my-game        # Create new game project
+gmrcli info               # Show environment info
+gmrcli help               # Show all commands
+```
+
+### CMake Presets (Alternative)
+
+```bash
 cmake --preset windows-release && cmake --build build
 cmake --preset web-release && cmake --build build-web
 ```
@@ -278,8 +296,8 @@ quit                        # Exit the game
 Release and web builds automatically compile Ruby scripts to bytecode for faster startup and smaller size:
 
 ```bash
-./build.sh release      # Compiles scripts to bytecode
-./build.sh web          # Web builds always use bytecode
+gmrcli build release   # Compiles scripts to bytecode
+gmrcli build web       # Web builds always use bytecode
 ```
 
 Debug builds load scripts from disk for hot-reloading.
@@ -302,12 +320,16 @@ gmr/
 
 ## Troubleshooting
 
+**"gmrcli: command not found"**
+- Run `source ~/.bashrc` to reload your shell
+- Or open a new terminal window
+
 **"cmake is not recognized"**
-- Add `C:\msys64\mingw64\bin` to Windows PATH
-- Restart terminal/VSCode
+- Run `gmrcli setup` to install dependencies
+- Or add `C:\msys64\mingw64\bin` to Windows PATH
 
 **"cannot find -lmruby" or "mruby.h: No such file"**
-- Run `./setup.sh` to install dependencies
+- Run `gmrcli setup` to install dependencies
 
 **Scripts not hot-reloading**
 - Only works in debug builds (not release/web)
@@ -315,8 +337,12 @@ gmr/
 - Check console for Ruby syntax errors
 
 **Web build fails**
-- Run `source env.sh` before building
-- Or use `./build.sh web` which sources it automatically
+- Run `gmrcli setup` to install Emscripten
+- Ensure setup completed without `--native-only`
+
+**Setup taking too long**
+- Use `gmrcli setup --native-only` to skip web/Emscripten
+- Web setup downloads ~1GB and takes 10-20 minutes
 
 ## License
 

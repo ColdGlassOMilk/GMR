@@ -1,0 +1,201 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "thor"
+require_relative "../lib/gmrcli"
+
+module Gmrcli
+  # Main CLI application
+  class CLI < Thor
+    def self.exit_on_failure?
+      true
+    end
+
+    # Override Thor's error handling for prettier output
+    def self.handle_no_command_error(command, has_namespace = $thor_runner)
+      UI.error "Unknown command: #{command}"
+      UI.info "Run 'gmrcli help' for available commands"
+      exit 1
+    end
+
+    class_option :verbose, type: :boolean, default: false, aliases: "-v",
+                           desc: "Show detailed output"
+
+    # === Setup Command ===
+
+    desc "setup", "Set up the GMR development environment"
+    long_desc <<~DESC
+      Installs all dependencies needed for GMR development:
+      - System packages (gcc, cmake, ninja, mruby)
+      - raylib (built from source)
+      - Emscripten SDK (for web builds)
+      - mruby for web (cross-compiled)
+
+      Use --native-only for faster setup if you don't need web builds.
+    DESC
+    option :native_only, type: :boolean, default: false, aliases: "-n",
+                         desc: "Skip web/Emscripten setup (faster)"
+    option :skip_web, type: :boolean, default: false,
+                      desc: "Same as --native-only"
+    option :web_only, type: :boolean, default: false, aliases: "-w",
+                      desc: "Only setup web/Emscripten (skip native)"
+    option :skip_native, type: :boolean, default: false,
+                         desc: "Same as --web-only"
+    option :skip_pacman, type: :boolean, default: false,
+                         desc: "Skip pacman package installation"
+    option :clean, type: :boolean, default: false,
+                   desc: "Clean everything and start fresh"
+    option :fix_ssl, type: :boolean, default: false,
+                     desc: "Fix SSL certificate issues"
+    def setup
+      ErrorHandler.wrap do
+        Commands::Setup.new(options.to_h.transform_keys(&:to_sym)).run
+      end
+    end
+
+    # === Build Command ===
+
+    desc "build [TARGET]", "Build the game"
+    long_desc <<~DESC
+      Build GMR for the specified target:
+        debug    - Native debug build (default)
+        release  - Native release build (optimized, no console)
+        web      - Web/Emscripten build
+        clean    - Remove all build artifacts
+        all      - Build all targets
+    DESC
+    option :rebuild, type: :boolean, default: false, aliases: "-r",
+                     desc: "Clean before building"
+    def build(target = "debug")
+      ErrorHandler.wrap do
+        builder = Commands::Build.new(options.to_h.transform_keys(&:to_sym))
+
+        case target.downcase
+        when "debug"   then builder.debug
+        when "release" then builder.release
+        when "web"     then builder.web
+        when "clean"   then builder.clean
+        when "all"     then builder.all
+        else
+          raise Error.new(
+            "Unknown build target: #{target}",
+            suggestions: ["Available: debug, release, web, clean, all"]
+          )
+        end
+      end
+    end
+
+    # === Start Command ===
+
+    desc "start [TARGET]", "Run the game"
+    long_desc <<~DESC
+      Run GMR with the current project's scripts:
+        native - Run the native executable (default)
+        web    - Start a local web server
+
+      The command looks for scripts/main.rb in the current directory.
+      The GMR executable is found automatically from:
+        1. $GMR_EXE environment variable
+        2. GMR engine directory
+        3. System PATH
+    DESC
+    option :project, type: :string, aliases: "-p",
+                     desc: "Path to project directory"
+    option :port, type: :numeric, default: 8080,
+                  desc: "Port for web server"
+    def start(target = "native")
+      ErrorHandler.wrap do
+        runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
+
+        case target.downcase
+        when "native", "" then runner.native
+        when "web"        then runner.web
+        else
+          raise Error.new(
+            "Unknown run target: #{target}",
+            suggestions: ["Available: native, web"]
+          )
+        end
+      end
+    end
+
+    # Alias 'run' to 'start' for convenience
+    map "run" => :start
+
+    # === New Command ===
+
+    desc "new NAME", "Create a new GMR game project"
+    long_desc <<~DESC
+      Scaffolds a new GMR project with the following structure:
+        NAME/
+          scripts/
+            main.rb       - Main game script
+          assets/
+            sprites/
+            sounds/
+            fonts/
+            music/
+          gmr.json        - Project configuration
+          .gitignore
+
+      Templates:
+        basic  - Starter template with movement example (default)
+        empty  - Minimal template with empty callbacks
+    DESC
+    option :template, type: :string, default: "basic", aliases: "-t",
+                      desc: "Template: basic, empty"
+    def new(name)
+      ErrorHandler.wrap do
+        Commands::New.new(options.to_h.transform_keys(&:to_sym)).project(name)
+      end
+    end
+
+    # === Info Commands ===
+
+    desc "version", "Show gmrcli version"
+    def version
+      puts "gmrcli #{VERSION}"
+      puts "Platform: #{Platform.name}"
+      puts "GMR root: #{Platform.gmr_root}" if Platform.gmr_engine?(Platform.gmr_root)
+    end
+
+    desc "info", "Show environment information"
+    def info
+      UI.banner
+
+      UI.step "Environment"
+      UI.status_line("Platform", Platform.name)
+      UI.status_line("GMR root", Platform.gmr_root)
+      UI.status_line("CPU cores", Platform.nproc.to_s)
+
+      UI.step "Tools"
+      %w[gcc g++ cmake ninja git ruby].each do |tool|
+        if Platform.command_exists?(tool)
+          version = Shell.capture("#{tool} --version")&.lines&.first&.strip
+          UI.status_line(tool, version || "installed", ok: true)
+        else
+          UI.status_line(tool, "not found", ok: false)
+        end
+      end
+
+      UI.step "Dependencies"
+      deps = [
+        ["raylib-native", File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a")],
+        ["raylib-web", File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a")],
+        ["mruby-native", Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"],
+        ["mruby-web", File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a")],
+        ["emsdk", File.join(Platform.deps_dir, "emsdk")]
+      ]
+
+      deps.each do |name, path|
+        UI.status_line(name, File.exist?(path) ? "installed" : "not found", ok: File.exist?(path))
+      end
+    end
+
+    # Make 'start' the default command when no args
+    default_task :start
+  end
+end
+
+# Run the CLI
+Gmrcli::CLI.start(ARGV)

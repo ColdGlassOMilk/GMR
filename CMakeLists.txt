@@ -126,8 +126,11 @@ if(PLATFORM_WEB)
         -sALLOW_MEMORY_GROWTH=1
         -sSTACK_SIZE=1048576
         -sTOTAL_MEMORY=67108864
+        # ASYNCIFY is needed for emscripten_sleep/main loop but is VERY slow to link
         -sASYNCIFY
         -sASYNCIFY_STACK_SIZE=65536
+        # Note: ASYNCIFY_ONLY optimization removed - causes quoting issues with Ninja on Windows
+        # The full ASYNCIFY pass is slower but more reliable across platforms
     )
 
     # Note: Scripts are compiled into bytecode and embedded in WASM
