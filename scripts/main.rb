@@ -10,52 +10,96 @@ KEY_D = 68  # Toggle debug info
 MOUSE_LEFT = 0
 MOUSE_RIGHT = 1
 
-def init
-  # width = 1280
-  # height = 720
-  # set_virtual_resolution(width, height)
-  # set_window_size(width, height)
-  # toggle_fullscreen
+# World dimensions (fixed coordinate system)
+WORLD_WIDTH = 960.0
+WORLD_HEIGHT = 640.0
 
+# Transform from world to screen coordinates
+def world_to_screen_x(wx)
+  (wx - $camera_x) * $scale + $offset_x
+end
+
+def world_to_screen_y(wy)
+  (wy - $camera_y) * $scale + $offset_y
+end
+
+# Transform from screen to world coordinates (for mouse input)
+def screen_to_world_x(sx)
+  (sx - $offset_x) / $scale + $camera_x
+end
+
+def screen_to_world_y(sy)
+  (sy - $offset_y) / $scale + $camera_y
+end
+
+# Scaled size
+def scaled(size)
+  (size * $scale).to_i
+end
+
+def update_camera
+  $screen_width = screen_width
+  $screen_height = screen_height
+
+  # Calculate scale to fit world in screen (fill, not letterbox)
+  scale_x = $screen_width / WORLD_WIDTH
+  scale_y = $screen_height / WORLD_HEIGHT
+  $scale = [scale_x, scale_y].max  # Use max to fill screen (crop edges)
+
+  # Calculate visible world area
+  visible_width = $screen_width / $scale
+  visible_height = $screen_height / $scale
+
+  # Center camera on world center
+  $camera_x = (WORLD_WIDTH - visible_width) / 2
+  $camera_y = (WORLD_HEIGHT - visible_height) / 2
+
+  # Offset to center the view
+  $offset_x = 0
+  $offset_y = 0
+end
+
+def init
   set_window_title "GMR Demo"
   set_window_size(960, 640)
-  set_virtual_resolution(960, 640)
 
-  set_filter_bilinear
-  # set_filter_point
+  update_camera
 
-  $width = screen_width
-  $height = screen_height
   $time = 0.0
   $gravity_enabled = false  # Start with gravity OFF
   $show_connections = true
   $show_debug_info = true   # Toggle debug info panel
-  
-  # Player controlled attractor/repulsor
+
+  # Load logo texture
+  $logo = load_texture("assets/logo.png")
+  $logo_width = texture_width($logo)
+  $logo_height = texture_height($logo)
+
+  # Player controlled attractor/repulsor (world coordinates)
   $attractor = {
-    x: $width / 2.0,
-    y: $height / 2.0,
+    x: WORLD_WIDTH / 2.0,
+    y: WORLD_HEIGHT / 2.0,
     radius: 30,
     strength: 500,
     mode: :attract  # :attract or :repel
   }
-  
-  # Starfield background
+
+  # Starfield background (world coordinates, but extended beyond edges)
   $stars = []
-  300.times do
+  400.times do
     $stars << {
-      x: rand * $width,
-      y: rand * $height,
+      x: rand * WORLD_WIDTH * 1.5 - WORLD_WIDTH * 0.25,
+      y: rand * WORLD_HEIGHT * 1.5 - WORLD_HEIGHT * 0.25,
       z: rand * 3 + 0.5,
       brightness: random_int(100, 255)
     }
   end
-  
-  # Physics particles - start with more!
+
+  # Physics particles (world coordinates)
   $particles = []
-  spawn_particle_burst($width / 2, $height / 2, 40)
-  
-  # Orbital rings
+  spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 40)
+
+  # Orbital rings (world coordinates)
   $rings = []
   5.times do |i|
     $rings << {
@@ -66,13 +110,13 @@ def init
       hue: i * 60
     }
   end
-  
+
   # Floating text particles
   $text_particles = []
-  
+
   # Stats
   $spawn_count = 40
-  
+
   puts "Init complete!"
 end
 
@@ -89,8 +133,7 @@ def spawn_particle_burst(cx, cy, count)
       radius: random_int(4, 12),
       hue: random_int(1, 1),
       life: 1.0,
-      decay: rand * 0.0003 + 0.0001,  # Slower decay - live longer
-      # trail: [],
+      decay: rand * 0.0003 + 0.0001,
       mass: rand * 2 + 1
     }
     $spawn_count = ($spawn_count || 0) + 1
@@ -113,7 +156,7 @@ def hue_to_rgb(h, s = 1.0, v = 1.0)
   c = v * s
   x = c * (1 - ((h / 60.0) % 2 - 1).abs)
   m = v - c
-  
+
   r, g, b = case (h / 60).to_i
     when 0 then [c, x, 0]
     when 1 then [x, c, 0]
@@ -122,29 +165,33 @@ def hue_to_rgb(h, s = 1.0, v = 1.0)
     when 4 then [x, 0, c]
     else        [c, 0, x]
   end
-  
+
   [((r + m) * 255).to_i, ((g + m) * 255).to_i, ((b + m) * 255).to_i]
 end
 
 def update(dt)
-  $width = screen_width
-  $height = screen_height
-
   unless $stars && $particles && $rings && $text_particles && $attractor
     init
     return
   end
+
+  # Update camera/scaling each frame
+  update_camera
 
   # Clamp dt to prevent huge jumps when window loses focus
   dt = [dt, 0.1].min
 
   $time += dt
 
+  # Convert mouse to world coordinates
+  mouse_world_x = screen_to_world_x(mouse_x)
+  mouse_world_y = screen_to_world_y(mouse_y)
+
   # Only process game input when console is closed
   unless console_open?
-    # Update attractor position (follows mouse)
-    $attractor[:x] = mouse_x
-    $attractor[:y] = mouse_y
+    # Update attractor position (in world coordinates)
+    $attractor[:x] = mouse_world_x
+    $attractor[:y] = mouse_world_y
 
     # Left click = attract, right click = repel
     if mouse_down?(MOUSE_LEFT)
@@ -153,15 +200,15 @@ def update(dt)
       $attractor[:mode] = :repel
     end
 
-    # Spawn particles on middle click or space
+    # Spawn particles on space
     if key_pressed?(KEY_SPACE)
-      spawn_particle_burst(mouse_x, mouse_y, 25)
-      spawn_text_particle(mouse_x, mouse_y, "+25")
+      spawn_particle_burst(mouse_world_x, mouse_world_y, 25)
+      spawn_text_particle(mouse_world_x, mouse_world_y, "+25")
     end
 
     if key_pressed?(KEY_G)
       $gravity_enabled = !$gravity_enabled
-      spawn_text_particle($width / 2, 50, $gravity_enabled ? "Gravity ON" : "Gravity OFF")
+      spawn_text_particle(WORLD_WIDTH / 2, 50, $gravity_enabled ? "Gravity ON" : "Gravity OFF")
     end
 
     if key_pressed?(KEY_C)
@@ -170,11 +217,12 @@ def update(dt)
 
     if key_pressed?(KEY_R)
       $particles.clear
-      spawn_particle_burst($width / 2, $height / 2, 40)
-      spawn_text_particle($width / 2, $height / 2, "Reset!")
+      spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 40)
+      spawn_text_particle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "Reset!")
     end
 
-    if key_pressed?(KEY_F)
+    # Fullscreen toggle - disabled on web (handled by shell.html button)
+    if key_pressed?(KEY_F) && build_platform != "web"
       toggle_fullscreen
     end
 
@@ -184,87 +232,82 @@ def update(dt)
   end
 
   mouse_active = !console_open? && (mouse_down?(MOUSE_LEFT) || mouse_down?(MOUSE_RIGHT))
-  
-  # Update stars (parallax)
+
+  # Update stars (parallax) - wrap in extended world space
   $stars.each do |star|
     star[:x] -= star[:z] * dt * 40
-    if star[:x] < 0
-      star[:x] = $width
-      star[:y] = rand * $height
+    if star[:x] < -WORLD_WIDTH * 0.25
+      star[:x] = WORLD_WIDTH * 1.25
+      star[:y] = rand * WORLD_HEIGHT * 1.5 - WORLD_HEIGHT * 0.25
     end
   end
-  
+
   # Update rings
   $rings.each do |ring|
     ring[:rotation] += ring[:speed] * dt
   end
-  
-  # Update particles with physics
+
+  # Update particles with physics (all in world coordinates)
   $particles.each do |p|
-    # p[:trail] ||= []
-    # p[:trail] << { x: p[:x], y: p[:y] }
-    # p[:trail].shift if p[:trail].length > 15
-    
     # Gravity toward bottom (only if enabled)
     if $gravity_enabled
       p[:vy] += 150 * dt
     end
-    
+
     # Attractor/repulsor force
     if mouse_active
       dx = $attractor[:x] - p[:x]
       dy = $attractor[:y] - p[:y]
       dist = Math.sqrt(dx * dx + dy * dy)
       if dist > 15 && dist < 400
-        # Stronger force, and flip sign for repel mode
         strength = $attractor[:mode] == :attract ? 600 : -800
         force = strength / (dist * p[:mass])
         p[:vx] += (dx / dist) * force * dt
         p[:vy] += (dy / dist) * force * dt
       end
     end
-    
+
     # Slight damping
     p[:vx] *= 0.998
     p[:vy] *= 0.998
-    
+
     # Move
     p[:x] += p[:vx] * dt * 60
     p[:y] += p[:vy] * dt * 60
-    
-    # Bounce off walls with wrap option
+
+    # Bounce off world boundaries
     if p[:x] < p[:radius]
       p[:x] = p[:radius]
       p[:vx] = -p[:vx] * 0.9
       p[:hue] = (p[:hue] + 30) % 360
-    elsif p[:x] > $width - p[:radius]
-      p[:x] = $width - p[:radius]
+    elsif p[:x] > WORLD_WIDTH - p[:radius]
+      p[:x] = WORLD_WIDTH - p[:radius]
       p[:vx] = -p[:vx] * 0.9
       p[:hue] = (p[:hue] + 30) % 360
     end
-    
+
     if p[:y] < p[:radius]
       p[:y] = p[:radius]
       p[:vy] = -p[:vy] * 0.9
-    elsif p[:y] > $height - p[:radius]
-      p[:y] = $height - p[:radius]
+    elsif p[:y] > WORLD_HEIGHT - p[:radius]
+      p[:y] = WORLD_HEIGHT - p[:radius]
       p[:vy] = -p[:vy] * 0.9
       p[:hue] = (p[:hue] + 15) % 360
     end
-    
+
     # Decay
     p[:life] -= p[:decay]
     p[:hue] = (p[:hue] + dt * 20) % 360
   end
-  
+
   # Remove dead particles
   $particles.reject! { |p| p[:life] <= 0 }
-  
+
   # Auto-spawn if we're running low
   if $particles.length < 10
-    spawn_particle_burst($width / 2, $height / 2, 15)
+    spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 15)
   end
-  
+
   # Update text particles
   $text_particles.each do |tp|
     tp[:y] += tp[:vy]
@@ -281,40 +324,55 @@ def draw
     draw_text("Initializing...", 10, 10, 20)
     return
   end
-  
+
   clear_screen([8, 8, 20])
-  
-  # Draw starfield
+
+  # Draw logo centered in world (behind everything)
+  if $logo
+    logo_scale = 0.5 * $scale
+    logo_x = world_to_screen_x(WORLD_WIDTH / 2) - ($logo_width * logo_scale / 2)
+    logo_y = world_to_screen_y(WORLD_HEIGHT / 2) - ($logo_height * logo_scale / 2)
+    set_color([255, 255, 255, 40])  # Semi-transparent
+    draw_texture_ex($logo, logo_x, logo_y, 0, logo_scale)
+  end
+
+  # Draw starfield (world coordinates)
   $stars.each do |star|
     b = star[:brightness]
     set_color([b, b, (b * 0.9).to_i])
+    sx = world_to_screen_x(star[:x]).to_i
+    sy = world_to_screen_y(star[:y]).to_i
     size = star[:z] > 2 ? 2 : 1
-    draw_rect(star[:x].to_i, star[:y].to_i, size, size)
+    draw_rect(sx, sy, size, size)
   end
 
-  # Draw orbital rings
-  cx, cy = $width / 2, $height / 2
+  # Draw orbital rings (world coordinates)
+  cx = world_to_screen_x(WORLD_WIDTH / 2)
+  cy = world_to_screen_y(WORLD_HEIGHT / 2)
+
   $rings.each do |ring|
     rgb = hue_to_rgb(ring[:hue] + $time * 30, 0.7, 0.8)
     set_color(rgb)
+
+    scaled_radius = ring[:radius] * $scale
 
     ring[:segments].times do |i|
       angle = (i.to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
       next_angle = ((i + 1).to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
 
-      x1 = cx + Math.cos(angle) * ring[:radius]
-      y1 = cy + Math.sin(angle) * ring[:radius]
-      x2 = cx + Math.cos(next_angle) * ring[:radius]
-      y2 = cy + Math.sin(next_angle) * ring[:radius]
+      x1 = cx + Math.cos(angle) * scaled_radius
+      y1 = cy + Math.sin(angle) * scaled_radius
+      x2 = cx + Math.cos(next_angle) * scaled_radius
+      y2 = cy + Math.sin(next_angle) * scaled_radius
 
       if i % 2 == 0
-        draw_line_thick(x1, y1, x2, y2, 2)
+        draw_line_thick(x1, y1, x2, y2, [2 * $scale, 1].max)
       end
 
-      draw_circle(x1.to_i, y1.to_i, 3)
+      draw_circle(x1.to_i, y1.to_i, [3 * $scale, 2].max.to_i)
     end
   end
-  
+
   # Draw connections between nearby particles
   max_dist = 120
 
@@ -330,133 +388,109 @@ def draw
         if dist < max_dist
           alpha = [[((max_dist - dist) / max_dist.to_f * 255).to_i, 0].max, 255].min
           set_color([120, 200, 255, alpha])
-          draw_line(p1[:x].to_i, p1[:y].to_i, p2[:x].to_i, p2[:y].to_i)
+          draw_line(
+            world_to_screen_x(p1[:x]).to_i, world_to_screen_y(p1[:y]).to_i,
+            world_to_screen_x(p2[:x]).to_i, world_to_screen_y(p2[:y]).to_i
+          )
         end
       end
     end
   end
 
-  
-  # Draw particle trails and particles
+  # Draw particles
   $particles.each do |p|
     rgb = hue_to_rgb(p[:hue], 0.8, 1.0)
-    # trail = p[:trail] || []
-    
-    # trail.each_with_index do |pos, i|
-    #   t = (i + 1).to_f / [trail.length, 1].max
-    #   alpha = (t * p[:life] * 150).to_i
-    #   inner = [rgb[0], rgb[1], rgb[2], alpha]
-    #   outer = [rgb[0] / 3, rgb[1] / 3, rgb[2] / 3, 0]
-      
-    #   trail_radius = (p[:radius] * t * 0.6).to_i
-    #   trail_radius = 2 if trail_radius < 2
-    #   draw_circle_gradient(pos[:x].to_i, pos[:y].to_i, trail_radius, inner, outer)
-    # end
-    
+
+    sx = world_to_screen_x(p[:x]).to_i
+    sy = world_to_screen_y(p[:y]).to_i
+    scaled_radius = (p[:radius] * $scale).to_i
+
     glow_alpha = (p[:life] * 100).to_i
     draw_circle_gradient(
-      p[:x].to_i, p[:y].to_i, p[:radius] + 8,
+      sx, sy, scaled_radius + scaled(8),
       [rgb[0], rgb[1], rgb[2], glow_alpha],
       [rgb[0], rgb[1], rgb[2], 0]
     )
-    
+
     set_color([rgb[0], rgb[1], rgb[2], (p[:life] * 255).to_i])
-    draw_circle(p[:x].to_i, p[:y].to_i, p[:radius])
-    
+    draw_circle(sx, sy, scaled_radius)
+
     set_color([255, 255, 255, (p[:life] * 200).to_i])
-    draw_circle(p[:x].to_i, p[:y].to_i, (p[:radius] * 0.4).to_i)
+    draw_circle(sx, sy, (scaled_radius * 0.4).to_i)
   end
-  
+
   # Draw attractor/repulsor cursor
   mouse_active = mouse_down?(MOUSE_LEFT) || mouse_down?(MOUSE_RIGHT)
-  
+  ax = world_to_screen_x($attractor[:x]).to_i
+  ay = world_to_screen_y($attractor[:y]).to_i
+
   if mouse_active
     pulse = (Math.sin($time * 10) + 1) * 0.5
-    
+
     if $attractor[:mode] == :attract
-      # Blue for attract
       set_color([100, 200, 255, (100 + pulse * 100).to_i])
-      draw_circle_gradient(
-        $attractor[:x].to_i, $attractor[:y].to_i, 25,
-        [150, 220, 255, 150],
-        [100, 180, 255, 0]
-      )
+      draw_circle_gradient(ax, ay, scaled(25), [150, 220, 255, 150], [100, 180, 255, 0])
     else
-      # Red/orange for repel
       set_color([255, 150, 50, (100 + pulse * 100).to_i])
-      draw_circle_gradient(
-        $attractor[:x].to_i, $attractor[:y].to_i, 30,
-        [255, 100, 50, 150],
-        [255, 50, 0, 0]
-      )
+      draw_circle_gradient(ax, ay, scaled(30), [255, 100, 50, 150], [255, 50, 0, 0])
     end
-    
-    draw_circle_lines($attractor[:x].to_i, $attractor[:y].to_i, ($attractor[:radius] + pulse * 10).to_i)
-    draw_circle_lines($attractor[:x].to_i, $attractor[:y].to_i, ($attractor[:radius] * 0.5).to_i)
+
+    draw_circle_lines(ax, ay, scaled($attractor[:radius] + pulse * 10))
+    draw_circle_lines(ax, ay, scaled($attractor[:radius] * 0.5))
   else
     set_color([80, 120, 160, 80])
-    draw_circle_lines($attractor[:x].to_i, $attractor[:y].to_i, 15)
+    draw_circle_lines(ax, ay, scaled(15))
   end
-  
+
   # Draw floating text particles
   $text_particles.each do |tp|
     alpha = (tp[:life] * 255).to_i
     set_color([255, 255, 255, alpha])
-    draw_text(tp[:text], tp[:x].to_i - 20, tp[:y].to_i, 22)
+    sx = world_to_screen_x(tp[:x]).to_i - scaled(30)
+    sy = world_to_screen_y(tp[:y]).to_i
+    draw_text(tp[:text], sx, sy, scaled(32))
   end
-  
-  # UI
-  set_color([255, 255, 255, 200])
-  draw_text("FPS: #{get_fps}", 10, 10, 18)
-  draw_text("Particles: #{$particles.length}", 10, 32, 18)
 
-  # Debug info panel (top-right)
+  # UI (screen coordinates, not world)
+  font_size = 32
+  set_color([255, 255, 255, 200])
+  draw_text("FPS: #{get_fps}", 10, 10, font_size)
+  draw_text("Particles: #{$particles.length}", 10, 46, font_size)
+
+  # Debug info panel (top-right, screen coordinates)
   if $show_debug_info
-    panel_x = $width - 260
+    panel_x = $screen_width - 380
     panel_y = 10
-    line_height = 20
-    font_size = 16
+    line_height = 36
+    debug_font = 28
 
     # Semi-transparent background
     set_color([0, 0, 0, 180])
-    draw_rect(panel_x - 10, panel_y - 5, 260, 175)
+    draw_rect(panel_x - 10, panel_y - 5, 380, 230)
 
     # Header
     set_color([100, 200, 255])
-    draw_text("=== Build Info ===", panel_x, panel_y, font_size)
+    draw_text("=== Build ===", panel_x, panel_y, debug_font)
 
     # Build details
     set_color([200, 200, 200])
-    draw_text("Platform: #{build_platform}", panel_x, panel_y + line_height, font_size)
-    draw_text("Build: #{build_type}", panel_x, panel_y + line_height * 2, font_size)
-    draw_text("Scripts: #{compiled_scripts? ? 'Compiled' : 'Interpreted'}", panel_x, panel_y + line_height * 3, font_size)
-    draw_text("Raylib: #{raylib_version}", panel_x, panel_y + line_height * 4, font_size)
+    draw_text("Platform: #{build_platform}", panel_x, panel_y + line_height, debug_font)
+    draw_text("Build: #{build_type}", panel_x, panel_y + line_height * 2, debug_font)
+    draw_text("Scripts: #{compiled_scripts? ? 'Compiled' : 'Interpreted'}", panel_x, panel_y + line_height * 3, debug_font)
 
-    # GPU Header
+    # GPU info
     set_color([100, 200, 255])
-    draw_text("=== GPU Info ===", panel_x, panel_y + line_height * 5 + 5, font_size)
+    draw_text("=== GPU ===", panel_x, panel_y + line_height * 4 + 10, debug_font)
 
-    # GPU details
     set_color([200, 200, 200])
-    # Truncate long GPU strings
     renderer = gpu_renderer
-    renderer = renderer[0...25] + "..." if renderer.length > 28
-    draw_text("GPU: #{renderer}", panel_x, panel_y + line_height * 6 + 5, font_size)
-    draw_text("GL: #{gl_version}", panel_x, panel_y + line_height * 7 + 5, font_size)
+    renderer = renderer[0...22] + "..." if renderer.length > 25
+    draw_text(renderer, panel_x, panel_y + line_height * 5 + 10, debug_font)
   end
 
-  # Instructions (bottom-left) - always visible
+  # Instructions (bottom-left, screen coordinates)
+  instructions_font = 28
   set_color([180, 180, 180, 220])
-  draw_text("LMB: Attract | RMB: Repel | Space: Spawn", 10, $height - 52, 16)
-  draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Lines | R: Reset | D: Debug", 10, $height - 30, 16)
-  
-  # Title
-  # title = "Particle Playground"
-  # title_width = measure_text(title, 32)
-  # glow_hue = ($time * 60) % 360
-  # rgb = hue_to_rgb(glow_hue, 0.5, 1.0)
-  # set_color([rgb[0], rgb[1], rgb[2], 100])
-  # draw_text(title, ($width - title_width) / 2 + 2, 12, 32)
-  # set_color([255, 255, 255])
-  # draw_text(title, ($width - title_width) / 2, 10, 32)
+  draw_text("LMB: Attract | RMB: Repel | Space: Spawn", 10, $screen_height - 70, instructions_font)
+  draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Lines | R: Reset | D: Debug", 10, $screen_height - 38, instructions_font)
 end

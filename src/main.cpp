@@ -28,16 +28,9 @@ void game_loop(void* arg) {
     double dt = current_time - g_ctx.last_time;
     g_ctx.last_time = current_time;
     
-    // Update window size tracking
-    if (IsWindowResized() && !state.is_fullscreen) {
-        state.windowed_width = GetScreenWidth();
-        state.windowed_height = GetScreenHeight();
-        if (!state.use_virtual_resolution) {
-            state.screen_width = state.windowed_width;
-            state.screen_height = state.windowed_height;
-        }
-    }
-    
+    // Update window size tracking - always check on web since browser can resize canvas
+    gmr::bindings::update_web_screen_size();
+
     // Note: Hot reload is disabled for web builds (no filesystem write access)
     
     if (auto* mrb = loader.mrb()) {
