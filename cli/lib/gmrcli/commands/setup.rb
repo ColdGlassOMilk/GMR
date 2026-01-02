@@ -216,22 +216,25 @@ module Gmrcli
         create_mruby_native_config(src_dir)
 
         config_path = File.join(src_dir, "build_config", "native.rb")
+        build_env = { "MRUBY_CONFIG" => config_path }
 
         begin
           UI.spinner("Compiling mruby for native") do
             Shell.run!(
-              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              "rake",
               chdir: src_dir,
+              env: build_env,
               verbose: verbose?
             )
           end
         rescue CommandError
           UI.warn "Build failed, retrying with clean..."
-          Shell.run("MRUBY_CONFIG=\"#{config_path}\" rake clean", chdir: src_dir)
+          Shell.run("rake clean", chdir: src_dir, env: build_env)
           UI.spinner("Retrying mruby build") do
             Shell.run!(
-              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              "rake",
               chdir: src_dir,
+              env: build_env,
               verbose: true
             )
           end
@@ -497,13 +500,13 @@ module Gmrcli
         # Create build config
         create_mruby_web_config(src_dir)
 
-        env_vars = emscripten_env
         config_path = File.join(src_dir, "build_config", "emscripten.rb")
+        env_vars = emscripten_env.merge({ "MRUBY_CONFIG" => config_path })
 
         begin
           UI.spinner("Compiling mruby for web") do
             Shell.run!(
-              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              "rake",
               chdir: src_dir,
               env: env_vars,
               verbose: verbose?
@@ -511,10 +514,10 @@ module Gmrcli
           end
         rescue CommandError
           UI.warn "Build failed, retrying with clean..."
-          Shell.run("MRUBY_CONFIG=\"#{config_path}\" rake clean", chdir: src_dir, env: env_vars)
+          Shell.run("rake clean", chdir: src_dir, env: env_vars)
           UI.spinner("Retrying mruby build") do
             Shell.run!(
-              "MRUBY_CONFIG=\"#{config_path}\" rake",
+              "rake",
               chdir: src_dir,
               env: env_vars,
               verbose: true
