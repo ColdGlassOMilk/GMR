@@ -119,8 +119,8 @@ int main() {
     InitAudioDevice();
     
     auto& loader = gmr::scripting::Loader::instance();
-    loader.load("scripts");
-    
+    loader.load("game/scripts");
+
     g_ctx.last_time = GetTime();
     
     // Use emscripten_set_main_loop for web
@@ -137,8 +137,8 @@ int main() {
     SetExitKey(0);
     
     auto& loader = gmr::scripting::Loader::instance();
-    loader.load("scripts");
-    
+    loader.load("game/scripts");
+
     double last_time = GetTime();
     
     while (!WindowShouldClose()) {

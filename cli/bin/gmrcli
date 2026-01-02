@@ -93,10 +93,10 @@ module Gmrcli
         native - Run the native executable (default)
         web    - Start a local web server
 
-      The command looks for scripts/main.rb in the current directory.
+      The command looks for game/scripts/main.rb in the current directory.
       The GMR executable is found automatically from:
         1. $GMR_EXE environment variable
-        2. GMR engine directory
+        2. GMR release directory
         3. System PATH
     DESC
     option :project, type: :string, aliases: "-p",
@@ -128,13 +128,14 @@ module Gmrcli
     long_desc <<~DESC
       Scaffolds a new GMR project with the following structure:
         NAME/
-          scripts/
-            main.rb       - Main game script
-          assets/
-            sprites/
-            sounds/
-            fonts/
-            music/
+          game/
+            scripts/
+              main.rb       - Main game script
+            assets/
+              sprites/
+              sounds/
+              fonts/
+              music/
           gmr.json        - Project configuration
           .gitignore
 

@@ -11,7 +11,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "cmake --preset windows-debug && cmake --build build --parallel"
+                "cmake --preset windows-debug && cmake --build build/native --parallel"
             ],
             "group": {
                 "kind": "build",
@@ -33,7 +33,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "cmake --preset windows-release && cmake --build build --parallel"
+                "cmake --preset windows-release && cmake --build build/native --parallel"
             ],
             "group": "build",
             "problemMatcher": "$gcc",
@@ -52,7 +52,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "source env.sh && cmake --preset web-release && cmake --build build-web --parallel"
+                "source env.sh && cmake --preset web-release && cmake --build build/web --parallel"
             ],
             "group": "build",
             "problemMatcher": "$gcc",
@@ -71,7 +71,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "./gmr.exe"
+                "./release/gmr.exe"
             ],
             "dependsOn": "Build: Debug",
             "problemMatcher": [],
@@ -91,7 +91,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "./gmr.exe"
+                "./release/gmr.exe"
             ],
             "dependsOn": "Build: Release",
             "problemMatcher": [],
@@ -111,7 +111,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "cd build-web && echo 'Web server starting at http://localhost:8080/gmr.html' && echo 'Press Ctrl+C to stop' && python3 -m http.server 8080 || python -m SimpleHTTPServer 8080"
+                "cd release/web && echo 'Web server starting at http://localhost:8080/gmr.html' && echo 'Press Ctrl+C to stop' && python3 -m http.server 8080 || python -m SimpleHTTPServer 8080"
             ],
             "isBackground": true,
             "problemMatcher": {
@@ -156,7 +156,7 @@
                 "-no-start",
                 "-here",
                 "-c",
-                "rm -rf build build-web gmr.exe"
+                "rm -rf build release"
             ],
             "problemMatcher": [],
             "presentation": {

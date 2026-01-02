@@ -39,19 +39,14 @@ module Gmrcli
 
         cleaned = []
 
-        [build_dir, web_build_dir].each do |dir|
+        # Clean build and release directories
+        build_root = File.join(Platform.gmr_root, "build")
+        release_root = File.join(Platform.gmr_root, "release")
+
+        [build_root, release_root].each do |dir|
           if Dir.exist?(dir)
             FileUtils.rm_rf(dir)
             cleaned << File.basename(dir)
-          end
-        end
-
-        # Clean executable from root
-        [gmr_exe, "gmr", "gmr.exe"].uniq.each do |exe|
-          path = File.join(Platform.gmr_root, exe)
-          if File.exist?(path)
-            FileUtils.rm(path)
-            cleaned << exe
           end
         end
 
@@ -124,12 +119,12 @@ module Gmrcli
         end
 
         UI.success "#{build_type} build complete!"
-        UI.info "Executable: #{File.join(Platform.gmr_root, gmr_exe)}"
+        UI.info "Executable: #{File.join(release_dir, gmr_exe)}"
       end
 
       def build_cmake_args(build_type)
         args = [
-          "..",
+          "../..",
           "-G Ninja",
           "-DCMAKE_BUILD_TYPE=#{build_type}"
         ]
@@ -190,7 +185,7 @@ module Gmrcli
         # Configure with Ninja generator (same as native builds)
         UI.info "Configuring..."
         cmake_args = [
-          "..",
+          "../..",
           "-G Ninja",
           "-DCMAKE_BUILD_TYPE=Release",
           "-DPLATFORM=Web"
@@ -235,7 +230,7 @@ module Gmrcli
         end
 
         UI.success "Web build complete!"
-        UI.info "Output: #{File.join(web_build_dir, 'gmr.html')}"
+        UI.info "Output: #{File.join(web_release_dir, 'gmr.html')}"
         UI.blank
         UI.info "To test locally:"
         UI.command_hint "gmrcli run web", "Start local server"
@@ -305,11 +300,19 @@ module Gmrcli
       # === Helpers ===
 
       def build_dir
-        File.join(Platform.gmr_root, "build")
+        File.join(Platform.gmr_root, "build", "native")
       end
 
       def web_build_dir
-        File.join(Platform.gmr_root, "build-web")
+        File.join(Platform.gmr_root, "build", "web")
+      end
+
+      def release_dir
+        File.join(Platform.gmr_root, "release")
+      end
+
+      def web_release_dir
+        File.join(Platform.gmr_root, "release", "web")
       end
 
       def gmr_exe

@@ -16,12 +16,12 @@ else()
     set(PLATFORM_WEB FALSE)
 endif()
 
-# Output binary to project root (or build-web for web builds)
+# Output binary to release folder
 if(PLATFORM_WEB)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build-web)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/release/web)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 else()
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/release)
 endif()
 
 # Sources
@@ -137,9 +137,9 @@ if(PLATFORM_WEB)
     # No need to preload script files for web builds
 
     # Preload assets folder for web builds (textures, sounds, etc.)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/game/assets")
         target_link_options(${PROJECT_NAME} PRIVATE
-            "--preload-file=${CMAKE_SOURCE_DIR}/assets@/assets"
+            "--preload-file=${CMAKE_SOURCE_DIR}/game/assets@/assets"
         )
     endif()
 
@@ -265,7 +265,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR PLATFORM_WEB)
     # Compile scripts and generate header
     compile_ruby_scripts(
         ${PROJECT_NAME}
-        "${CMAKE_SOURCE_DIR}/scripts"
+        "${CMAKE_SOURCE_DIR}/game/scripts"
         "${COMPILED_SCRIPTS_HEADER}"
     )
 
@@ -275,13 +275,13 @@ else()
     message(STATUS "Using runtime script loading (debug mode)")
 endif()
 
-# Copy scripts folder to output (for native builds only - web uses preload)
+# Copy game folder to output (for native builds only - web uses preload)
 if(NOT PLATFORM_WEB)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/scripts
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/scripts
-        COMMENT "Copying scripts folder..."
+        ${CMAKE_SOURCE_DIR}/game
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/game
+        COMMENT "Copying game folder..."
     )
 endif()
 

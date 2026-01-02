@@ -1,4 +1,4 @@
-# <img src="assets/logo.png" height="75" align="middle" /> GMR - Games Made with Ruby
+# <img src="game/assets/logo.png" height="75" align="middle" /> GMR - Games Made with Ruby
 
 **A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++.** Build games with hot-reloading Ruby scripts powered by mruby and raylib, deploy natively to Windows/Linux/macOS or compile to WebAssembly for the browser.
 
@@ -16,7 +16,7 @@
 - **⚡ Fast** - mruby compiles Ruby to bytecode, raylib provides hardware-accelerated rendering
 - **📦 Cross-platform** - Windows, Linux, macOS support out of the box
 - **🎯 Simple API** - Clean, intuitive Ruby API designed for rapid game development
-- **🔧 Modern Tooling** - `gmrcli` for build/run/release, CMake presets, VSCode integration
+- **🔧 Modern Tooling** - `gmrcli` utility for build/run/release, CMake presets, VSCode integration
 
 ## Quick Start
 
@@ -26,9 +26,10 @@
 
 2. **Open MSYS2 MinGW64** terminal and run:
    ```bash
-   cd /c/path/to/gmr
+   git clone https://github.com/ColdGlassOMilk/GMR
+   cd GMR
    ./bootstrap.sh         # Install gmrcli & run setup
-   gmrcli build debug     # Build the engine
+   gmrcli build           # Build the engine
    gmrcli run             # Run the game!
    ```
 

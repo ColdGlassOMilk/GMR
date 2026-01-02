@@ -34,7 +34,7 @@ module Gmrcli
 
       # Start a local web server for the web build
       def web
-        web_dir = File.join(Platform.gmr_root, "build-web")
+        web_dir = File.join(Platform.gmr_root, "release", "web")
         html_file = File.join(web_dir, "gmr.html")
 
         unless File.exist?(html_file)
@@ -65,13 +65,13 @@ module Gmrcli
         project_dir = File.expand_path(project_dir)
 
         # Validate it's a GMR project
-        scripts_dir = File.join(project_dir, "scripts")
+        scripts_dir = File.join(project_dir, "game", "scripts")
         main_rb = File.join(scripts_dir, "main.rb")
 
         unless File.exist?(main_rb)
           raise NotAProjectError.new(
             "Not a GMR project: #{project_dir}",
-            details: "Missing scripts/main.rb",
+            details: "Missing game/scripts/main.rb",
             suggestions: [
               "Run 'gmrcli new <name>' to create a new project",
               "Make sure you're in a GMR project directory"
@@ -87,7 +87,7 @@ module Gmrcli
 
         # Search order:
         # 1. GMR_EXE environment variable
-        # 2. GMR engine root directory
+        # 2. GMR release directory
         # 3. System PATH
 
         # Check environment variable
@@ -98,8 +98,8 @@ module Gmrcli
           UI.warn "GMR_EXE set but file not found: #{path}"
         end
 
-        # Check GMR engine root
-        engine_exe = File.join(Platform.gmr_root, exe_name)
+        # Check GMR release directory
+        engine_exe = File.join(Platform.gmr_root, "release", exe_name)
         return engine_exe if File.exist?(engine_exe)
 
         # Check system PATH

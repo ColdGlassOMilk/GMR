@@ -94,11 +94,11 @@ module Gmrcli
         File.join(gmr_root, "bin")
       end
 
-      # Find a GMR project root (has scripts/main.rb)
+      # Find a GMR project root (has game/scripts/main.rb)
       def find_project_root(start_dir = Dir.pwd)
         dir = File.expand_path(start_dir)
         while dir != File.dirname(dir)
-          if File.exist?(File.join(dir, "scripts", "main.rb"))
+          if File.exist?(File.join(dir, "game", "scripts", "main.rb"))
             return dir
           end
           dir = File.dirname(dir)
@@ -108,7 +108,7 @@ module Gmrcli
 
       # Check if directory is a GMR project
       def gmr_project?(dir)
-        File.exist?(File.join(dir, "scripts", "main.rb"))
+        File.exist?(File.join(dir, "game", "scripts", "main.rb"))
       end
 
       # Check if directory is the GMR engine root
@@ -122,8 +122,11 @@ module Gmrcli
         return @command_cache[cmd] if @command_cache&.key?(cmd)
 
         @command_cache ||= {}
-        @command_cache[cmd] = if windows?
-                                system("where #{cmd} >nul 2>&1")
+        # Use /dev/null for MSYS2/MinGW (bash), NUL for native Windows cmd
+        @command_cache[cmd] = if msys2?
+                                system("which #{cmd} >/dev/null 2>&1") || system("where #{cmd} >/dev/null 2>&1")
+                              elsif windows?
+                                system("where #{cmd} >NUL 2>&1")
                               else
                                 system("which #{cmd} >/dev/null 2>&1")
                               end
@@ -132,8 +135,12 @@ module Gmrcli
       def command_path(cmd)
         return nil unless command_exists?(cmd)
 
-        if windows?
-          `where #{cmd} 2>nul`.lines.first&.strip
+        if msys2?
+          # Try which first (for Unix-style tools), then where (for Windows tools)
+          path = `which #{cmd} 2>/dev/null`.strip
+          path.empty? ? `where #{cmd} 2>/dev/null`.lines.first&.strip : path
+        elsif windows?
+          `where #{cmd} 2>NUL`.lines.first&.strip
         else
           `which #{cmd} 2>/dev/null`.strip
         end

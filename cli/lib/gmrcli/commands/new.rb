@@ -51,11 +51,11 @@ module Gmrcli
 
       def create_directories(project_dir)
         dirs = [
-          File.join(project_dir, "scripts"),
-          File.join(project_dir, "assets", "sprites"),
-          File.join(project_dir, "assets", "sounds"),
-          File.join(project_dir, "assets", "fonts"),
-          File.join(project_dir, "assets", "music")
+          File.join(project_dir, "game", "scripts"),
+          File.join(project_dir, "game", "assets", "sprites"),
+          File.join(project_dir, "game", "assets", "sounds"),
+          File.join(project_dir, "game", "assets", "fonts"),
+          File.join(project_dir, "game", "assets", "music")
         ]
 
         dirs.each do |dir|
@@ -65,7 +65,7 @@ module Gmrcli
       end
 
       def create_main_rb(project_dir, name)
-        main_rb = File.join(project_dir, "scripts", "main.rb")
+        main_rb = File.join(project_dir, "game", "scripts", "main.rb")
 
         content = case options[:template]
                   when "empty"
@@ -75,7 +75,7 @@ module Gmrcli
                   end
 
         File.write(main_rb, content)
-        UI.info "Created scripts/main.rb"
+        UI.info "Created game/scripts/main.rb"
       end
 
       def empty_template(name)
@@ -170,12 +170,8 @@ module Gmrcli
         content = <<~GITIGNORE
           # Build artifacts
           /build/
-          /build-web/
+          /release/
           *.exe
-          *.html
-          *.js
-          *.wasm
-          *.data
 
           # Editor files
           .vscode/
@@ -194,8 +190,8 @@ module Gmrcli
       def show_next_steps(name)
         UI.next_steps([
           "cd #{name}",
-          "gmrcli run              # Run your game",
-          "Edit scripts/main.rb     # Start coding!"
+          "gmrcli run                    # Run your game",
+          "Edit game/scripts/main.rb     # Start coding!"
         ])
       end
     end

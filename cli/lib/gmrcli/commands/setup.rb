@@ -609,11 +609,11 @@ module Gmrcli
       # === Helpers ===
 
       def build_dir
-        File.join(Platform.gmr_root, "build")
+        File.join(Platform.gmr_root, "build", "native")
       end
 
       def web_build_dir
-        File.join(Platform.gmr_root, "build-web")
+        File.join(Platform.gmr_root, "build", "web")
       end
 
       def emscripten_env
