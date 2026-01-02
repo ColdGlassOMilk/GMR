@@ -28,36 +28,25 @@ void game_loop(void* arg) {
     double dt = current_time - g_ctx.last_time;
     g_ctx.last_time = current_time;
     
-    // Update window size tracking
-    if (IsWindowResized() && !state.is_fullscreen) {
-        state.windowed_width = GetScreenWidth();
-        state.windowed_height = GetScreenHeight();
-        if (!state.use_virtual_resolution) {
-            state.screen_width = state.windowed_width;
-            state.screen_height = state.windowed_height;
-        }
-    }
-    
+    // Update window size tracking - always check on web since browser can resize canvas
+    gmr::bindings::update_web_screen_size();
+
     // Note: Hot reload is disabled for web builds (no filesystem write access)
     
     if (auto* mrb = loader.mrb()) {
-        // Console update
-        mrb_value console_blocking = mrb_false_value();
+        // Console update (handles its own input)
         mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
         if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
-            console_blocking = mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1, 
-                                           mrb_float_value(mrb, dt));
+            mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
+                        mrb_float_value(mrb, dt));
             if (mrb->exc) {
                 mrb_print_error(mrb);
                 mrb->exc = nullptr;
-                console_blocking = mrb_false_value();
             }
         }
-        
-        // Only update game if console is not blocking input
-        if (!mrb_test(console_blocking)) {
-            gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
-        }
+
+        // Always update game - input context is handled in Ruby
+        gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
         
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
@@ -130,8 +119,8 @@ int main() {
     InitAudioDevice();
     
     auto& loader = gmr::scripting::Loader::instance();
-    loader.load("scripts");
-    
+    loader.load("game/scripts");
+
     g_ctx.last_time = GetTime();
     
     // Use emscripten_set_main_loop for web
@@ -148,8 +137,8 @@ int main() {
     SetExitKey(0);
     
     auto& loader = gmr::scripting::Loader::instance();
-    loader.load("scripts");
-    
+    loader.load("game/scripts");
+
     double last_time = GetTime();
     
     while (!WindowShouldClose()) {
@@ -171,23 +160,19 @@ int main() {
         loader.reload_if_changed();
         
         if (auto* mrb = loader.mrb()) {
-            // Console update - returns true if console is consuming input
-            mrb_value console_blocking = mrb_false_value();
+            // Console update (handles its own input)
             mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
-                console_blocking = mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1, 
-                                               mrb_float_value(mrb, dt));
+                mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
+                            mrb_float_value(mrb, dt));
                 if (mrb->exc) {
                     mrb_print_error(mrb);
                     mrb->exc = nullptr;
-                    console_blocking = mrb_false_value();
                 }
             }
-            
-            // Only update game if console is not blocking input
-            if (!mrb_test(console_blocking)) {
-                gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
-            }
+
+            // Always update game - input context is handled in Ruby
+            gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
             
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
