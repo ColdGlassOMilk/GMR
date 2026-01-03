@@ -42,6 +42,15 @@ module Gmrcli
   # Error handler module for consistent error display
   module ErrorHandler
     def self.handle(error, ui: UI)
+      # In JSON mode, emit error as JSON event
+      if defined?(JsonEmitter) && JsonEmitter.enabled?
+        emit_json_error(error)
+      else
+        emit_human_error(error, ui: ui)
+      end
+    end
+
+    def self.emit_human_error(error, ui: UI)
       case error
       when Gmrcli::Error
         ui.error(error.message)
@@ -53,6 +62,27 @@ module Gmrcli
         ui.error("Unexpected error: #{error.message}")
         ui.info(error.backtrace.first(5).join("\n")) if ENV["GMR_DEBUG"]
       end
+    end
+
+    def self.emit_json_error(error)
+      error_data = {
+        message: error.message,
+        type: error.class.name
+      }
+
+      if error.respond_to?(:details) && error.details
+        error_data[:details] = error.details
+      end
+
+      if error.respond_to?(:suggestions) && error.suggestions&.any?
+        error_data[:suggestions] = error.suggestions
+      end
+
+      if ENV["GMR_DEBUG"] && error.backtrace
+        error_data[:backtrace] = error.backtrace.first(5)
+      end
+
+      JsonEmitter.emit(:error, { error: error_data })
     end
 
     def self.wrap(ui: UI)
