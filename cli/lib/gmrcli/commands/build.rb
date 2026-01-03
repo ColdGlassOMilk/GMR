@@ -242,32 +242,26 @@ module Gmrcli
         env = emscripten_env
 
         # Configure with Ninja generator
-        # Use relative paths from build directory to avoid spaces breaking Emscripten
+        # Use quoted absolute paths - relative paths break with spaces in path names
         run_stage(:configure, "Configuring Build") do
           JsonEmitter.stage_progress(:configure, 10, "Running emcmake", substage: "cmake")
           UI.info "Configuring..."
 
-          # Calculate relative paths from build directory to engine and project
-          # This avoids issues with spaces in absolute paths
+          # Use absolute paths with forward slashes, properly quoted for spaces
           # Normalize all paths to forward slashes for CMake compatibility
-          build_path = web_build_dir.gsub("\\", "/")
-          engine_rel = Pathname.new(engine_dir.gsub("\\", "/"))
-                         .relative_path_from(Pathname.new(build_path))
-                         .to_s.gsub("\\", "/")
-          project_rel = Pathname.new(project_dir.gsub("\\", "/"))
-                          .relative_path_from(Pathname.new(build_path))
-                          .to_s.gsub("\\", "/")
+          engine_path = engine_dir.gsub("\\", "/")
+          project_path = project_dir.gsub("\\", "/")
 
-          UI.info "Build dir: #{build_path}"
-          UI.info "Engine path: #{engine_rel}"
-          UI.info "Project path: #{project_rel}"
+          UI.info "Build dir: #{web_build_dir}"
+          UI.info "Engine path: #{engine_path}"
+          UI.info "Project path: #{project_path}"
 
           cmake_args = [
-            engine_rel,
+            "\"#{engine_path}\"",
             "-G Ninja",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DPLATFORM=Web",
-            "-DGMR_PROJECT_DIR=#{project_rel}"
+            "-DGMR_PROJECT_DIR=\"#{project_path}\""
           ]
 
           # Specify ninja path explicitly to ensure CMake finds it
