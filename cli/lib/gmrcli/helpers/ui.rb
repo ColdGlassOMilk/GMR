@@ -5,25 +5,28 @@ require "tty-spinner"
 
 module Gmrcli
   # UI helpers for consistent, beautiful output
+  # All output is suppressed when JsonEmitter is enabled (--json mode)
   module UI
     class << self
       def pastel
         @pastel ||= Pastel.new(enabled: $stdout.tty?)
       end
 
+      # Check if we're in JSON output mode (suppress human output)
+      def json_mode?
+        defined?(JsonEmitter) && JsonEmitter.enabled?
+      end
+
       # === Banners and Headers ===
 
       def banner
-        # puts pastel.cyan <<~BANNER
-
-        #   +===================================================================+
-        #   |                         GMR Utility                               |
-        #   |                    Games Made with Ruby                           |
-        #   +===================================================================+
-        # BANNER
+        return if json_mode?
+        # Banner output disabled
       end
 
       def header(title)
+        return if json_mode?
+
         width = 67
         padding = (width - title.length - 2) / 2
         line = "=" * width
@@ -37,38 +40,53 @@ module Gmrcli
       # === Log Levels ===
 
       def step(message)
+        return if json_mode?
+
         puts pastel.green("\n> #{message}")
       end
 
       def info(message)
+        return if json_mode?
+
         puts pastel.blue("  i #{message}")
       end
 
       def success(message)
+        return if json_mode?
+
         puts pastel.green("  + #{message}")
       end
 
       def warn(message)
+        return if json_mode?
+
         puts pastel.yellow("  ! #{message}")
       end
 
       def error(message)
+        return if json_mode?
+
         puts pastel.red("  x #{message}")
       end
 
       def debug(message)
+        return if json_mode?
+
         puts pastel.dim("  # #{message}") if ENV["GMR_DEBUG"]
       end
 
       # === Formatted Output ===
 
       def list(items, indent: 4)
+        return if json_mode?
+
         items.each do |item|
           puts "#{' ' * indent}- #{item}"
         end
       end
 
       def table(rows, headers: nil)
+        return if json_mode?
         return if rows.empty?
 
         # Calculate column widths
@@ -92,6 +110,8 @@ module Gmrcli
       end
 
       def status_line(label, value, ok: true)
+        return if json_mode?
+
         status = ok ? pastel.green(value) : pastel.red(value)
         puts "  #{label.ljust(20)} #{status}"
       end
@@ -99,6 +119,15 @@ module Gmrcli
       # === Interactive Elements ===
 
       def spinner(message, success_message: nil, error_message: nil)
+        # In JSON mode, just execute the block without spinner UI
+        if json_mode?
+          begin
+            return yield
+          rescue StandardError
+            raise
+          end
+        end
+
         spin = TTY::Spinner.new(
           "[:spinner] #{message}",
           format: :dots,
@@ -118,18 +147,24 @@ module Gmrcli
       end
 
       def progress(message)
+        # In JSON mode, just execute the block
+        return yield if json_mode?
+
         print pastel.blue("  ... #{message}")
         result = yield
         puts pastel.green(" done")
         result
       rescue StandardError => e
-        puts pastel.red(" failed")
+        puts pastel.red(" failed") unless json_mode?
         raise
       end
 
       # === Confirmation ===
 
       def confirm?(message, default: true)
+        # In JSON mode, always use default (non-interactive)
+        return default if json_mode?
+
         default_hint = default ? "[Y/n]" : "[y/N]"
         print "#{message} #{default_hint} "
 
@@ -142,16 +177,22 @@ module Gmrcli
       # === Spacing ===
 
       def blank
+        return if json_mode?
+
         puts ""
       end
 
       def divider
+        return if json_mode?
+
         puts pastel.dim("  " + "-" * 60)
       end
 
       # === Next Steps ===
 
       def next_steps(steps)
+        return if json_mode?
+
         puts ""
         puts pastel.bold("Next steps:")
         puts ""
@@ -162,6 +203,8 @@ module Gmrcli
       end
 
       def command_hint(command, description = nil)
+        return if json_mode?
+
         hint = "  #{pastel.cyan(command)}"
         hint += "  #{pastel.dim("# #{description}")}" if description
         puts hint

@@ -19,26 +19,66 @@ module Gmrcli
           return
         end
 
+        # Determine target type for JSON output
+        target = determine_target
+        JsonEmitter.setup_start(target)
+
         UI.banner
-        detect_environment
-        clean_if_requested
-        create_directories
+
+        run_stage(:environment, "Environment Detection") { detect_environment }
+        run_stage(:directories, "Directory Setup") { clean_if_requested; create_directories }
 
         unless skip_native?
-          install_system_packages unless options[:skip_pacman]
-          build_mruby_native
-          build_raylib_native
+          unless options[:skip_pacman]
+            run_stage(:packages, "Installing Packages") { install_system_packages }
+          else
+            JsonEmitter.stage_skip(:packages, reason: "Skipped via --skip-pacman")
+          end
+          run_stage(:mruby_native, "Building mruby (native)") { build_mruby_native }
+          run_stage(:raylib_native, "Building raylib (native)") { build_raylib_native }
+        else
+          JsonEmitter.stage_skip(:packages, reason: "Native build skipped")
+          JsonEmitter.stage_skip(:mruby_native, reason: "Native build skipped")
+          JsonEmitter.stage_skip(:raylib_native, reason: "Native build skipped")
         end
 
         unless skip_web?
-          setup_emscripten
-          build_raylib_web
-          build_mruby_web
-          create_env_script
+          run_stage(:emscripten, "Setting up Emscripten") { setup_emscripten }
+          run_stage(:raylib_web, "Building raylib (web)") { build_raylib_web }
+          run_stage(:mruby_web, "Building mruby (web)") { build_mruby_web; create_env_script }
+        else
+          JsonEmitter.stage_skip(:emscripten, reason: "Web build skipped")
+          JsonEmitter.stage_skip(:raylib_web, reason: "Web build skipped")
+          JsonEmitter.stage_skip(:mruby_web, reason: "Web build skipped")
         end
 
-        verify_installation
-        show_completion
+        run_stage(:verification, "Verification") { verify_installation }
+        run_stage(:completion, "Complete") { show_completion }
+
+        JsonEmitter.setup_complete
+      end
+
+      # Run a stage with JSON event tracking
+      def run_stage(stage_id, stage_name)
+        JsonEmitter.stage_start(stage_id, stage_name)
+        yield
+        JsonEmitter.stage_complete(stage_id)
+      rescue StandardError => e
+        error_details = e.respond_to?(:details) ? e.details : nil
+        error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
+        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions)
+        raise
+      end
+
+      # Determine the target type based on options
+      def determine_target
+        if skip_web?
+          :native
+        elsif skip_native?
+          :web
+        else
+          :full
+        end
       end
 
       private
@@ -197,6 +237,7 @@ module Gmrcli
         if File.exist?(File.join(install_dir, "lib", "libmruby.a"))
           UI.step "mruby native already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
+          JsonEmitter.stage_progress(:mruby_native, 100, "Already built", substage: "cached")
           return
         end
 
@@ -204,6 +245,7 @@ module Gmrcli
 
         # Clone if needed (might already exist from web build)
         unless Dir.exist?(src_dir)
+          JsonEmitter.stage_progress(:mruby_native, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning mruby") do
             Shell.git_clone("https://github.com/mruby/mruby.git", src_dir, verbose: verbose?)
           end
@@ -213,12 +255,14 @@ module Gmrcli
         FileUtils.rm_rf(File.join(src_dir, "build", "native"))
 
         # Create build config for native
+        JsonEmitter.stage_progress(:mruby_native, 20, "Creating build config", substage: "configure")
         create_mruby_native_config(src_dir)
 
         config_path = File.join(src_dir, "build_config", "native.rb")
         build_env = { "MRUBY_CONFIG" => config_path }
 
         begin
+          JsonEmitter.stage_progress(:mruby_native, 30, "Compiling", substage: "compile")
           UI.spinner("Compiling mruby for native") do
             Shell.run!(
               "rake",
@@ -229,6 +273,7 @@ module Gmrcli
           end
         rescue CommandError
           UI.warn "Build failed, retrying with clean..."
+          JsonEmitter.stage_progress(:mruby_native, 50, "Retrying build", substage: "retry")
           Shell.run("rake clean", chdir: src_dir, env: build_env)
           UI.spinner("Retrying mruby build") do
             Shell.run!(
@@ -241,6 +286,7 @@ module Gmrcli
         end
 
         # Install
+        JsonEmitter.stage_progress(:mruby_native, 90, "Installing", substage: "install")
         UI.spinner("Installing") do
           FileUtils.mkdir_p(File.join(install_dir, "lib"))
           FileUtils.mkdir_p(File.join(install_dir, "include"))
@@ -314,6 +360,7 @@ module Gmrcli
         if File.exist?(File.join(install_dir, "lib", "libraylib.a"))
           UI.step "raylib native already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
+          JsonEmitter.stage_progress(:raylib_native, 100, "Already built", substage: "cached")
           return
         end
 
@@ -321,6 +368,7 @@ module Gmrcli
 
         # Clone if needed
         unless Dir.exist?(src_dir)
+          JsonEmitter.stage_progress(:raylib_native, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
             Shell.git_clone("https://github.com/raysan5/raylib.git", src_dir, verbose: verbose?)
           end
@@ -347,16 +395,19 @@ module Gmrcli
           cmake_args << "-DCMAKE_MAKE_PROGRAM=\"#{ninja_path}\"" if ninja_path
         end
 
+        JsonEmitter.stage_progress(:raylib_native, 20, "Configuring", substage: "configure")
         UI.spinner("Configuring") do
           Shell.cmake(cmake_args.join(" "), chdir: build_dir, verbose: verbose?)
         end
 
         # Build
+        JsonEmitter.stage_progress(:raylib_native, 40, "Compiling", substage: "compile")
         UI.spinner("Compiling") do
           Shell.ninja("", chdir: build_dir, verbose: verbose?)
         end
 
         # Install
+        JsonEmitter.stage_progress(:raylib_native, 90, "Installing", substage: "install")
         UI.spinner("Installing") do
           Shell.ninja("install", chdir: build_dir, verbose: verbose?)
         end
@@ -374,22 +425,31 @@ module Gmrcli
 
         # Clone emsdk if needed
         unless Dir.exist?(emsdk_dir)
+          JsonEmitter.stage_progress(:emscripten, 10, "Cloning emsdk repository", substage: "clone")
           UI.spinner("Cloning emsdk") do
             Shell.git_clone("https://github.com/emscripten-core/emsdk.git", emsdk_dir, verbose: verbose?)
           end
+        else
+          JsonEmitter.stage_progress(:emscripten, 10, "emsdk already cloned", substage: "clone")
         end
 
         # Install emscripten if needed
         unless Dir.exist?(emscripten_path)
+          JsonEmitter.stage_progress(:emscripten, 30, "Installing Emscripten SDK", substage: "install")
           UI.spinner("Installing Emscripten (this takes a while)") do
             Shell.run!("./emsdk install latest", chdir: emsdk_dir, verbose: verbose?)
+          end
+          JsonEmitter.stage_progress(:emscripten, 70, "Activating Emscripten", substage: "activate")
+          UI.spinner("Activating Emscripten") do
             Shell.run!("./emsdk activate latest", chdir: emsdk_dir, verbose: verbose?)
           end
         else
+          JsonEmitter.stage_progress(:emscripten, 70, "Emscripten already installed", substage: "cached")
           UI.info "Emscripten already installed"
         end
 
         # Create wrapper scripts
+        JsonEmitter.stage_progress(:emscripten, 90, "Creating wrapper scripts", substage: "wrappers")
         UI.spinner("Creating wrapper scripts") do
           create_emscripten_wrappers(emsdk_dir, emscripten_path)
         end
@@ -426,6 +486,7 @@ module Gmrcli
         if File.exist?(File.join(install_dir, "lib", "libraylib.a"))
           UI.step "raylib web already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
+          JsonEmitter.stage_progress(:raylib_web, 100, "Already built", substage: "cached")
           return
         end
 
@@ -433,9 +494,12 @@ module Gmrcli
 
         # Clone if needed (might already exist from native build)
         unless Dir.exist?(src_dir)
+          JsonEmitter.stage_progress(:raylib_web, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
             Shell.git_clone("https://github.com/raysan5/raylib.git", src_dir, verbose: verbose?)
           end
+        else
+          JsonEmitter.stage_progress(:raylib_web, 10, "Source already cloned", substage: "clone")
         end
 
         build_dir = File.join(src_dir, "build-web")
@@ -453,6 +517,7 @@ module Gmrcli
           cmake_args += " -DCMAKE_MAKE_PROGRAM=\"#{ninja_path}\"" if ninja_path
         end
 
+        JsonEmitter.stage_progress(:raylib_web, 20, "Configuring", substage: "configure")
         UI.spinner("Configuring") do
           Shell.run!(
             "emcmake cmake .. #{cmake_args}",
@@ -462,10 +527,12 @@ module Gmrcli
           )
         end
 
+        JsonEmitter.stage_progress(:raylib_web, 40, "Compiling", substage: "compile")
         UI.spinner("Compiling") do
           Shell.run!("ninja", chdir: build_dir, env: env_vars, verbose: verbose?)
         end
 
+        JsonEmitter.stage_progress(:raylib_web, 90, "Installing", substage: "install")
         UI.spinner("Installing") do
           Shell.run!("ninja install", chdir: build_dir, env: env_vars, verbose: verbose?)
         end
@@ -482,6 +549,7 @@ module Gmrcli
         if File.exist?(File.join(install_dir, "lib", "libmruby.a"))
           UI.step "mruby web already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
+          JsonEmitter.stage_progress(:mruby_web, 100, "Already built", substage: "cached")
           return
         end
 
@@ -489,21 +557,26 @@ module Gmrcli
 
         # Clone if needed
         unless Dir.exist?(src_dir)
+          JsonEmitter.stage_progress(:mruby_web, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning mruby") do
             Shell.git_clone("https://github.com/mruby/mruby.git", src_dir, verbose: verbose?)
           end
+        else
+          JsonEmitter.stage_progress(:mruby_web, 10, "Source already cloned", substage: "clone")
         end
 
         # Clean previous build
         FileUtils.rm_rf(File.join(src_dir, "build", "emscripten"))
 
         # Create build config
+        JsonEmitter.stage_progress(:mruby_web, 20, "Creating build config", substage: "configure")
         create_mruby_web_config(src_dir)
 
         config_path = File.join(src_dir, "build_config", "emscripten.rb")
         env_vars = emscripten_env.merge({ "MRUBY_CONFIG" => config_path })
 
         begin
+          JsonEmitter.stage_progress(:mruby_web, 30, "Compiling", substage: "compile")
           UI.spinner("Compiling mruby for web") do
             Shell.run!(
               "rake",
@@ -514,6 +587,7 @@ module Gmrcli
           end
         rescue CommandError
           UI.warn "Build failed, retrying with clean..."
+          JsonEmitter.stage_progress(:mruby_web, 50, "Retrying build", substage: "retry")
           Shell.run("rake clean", chdir: src_dir, env: env_vars)
           UI.spinner("Retrying mruby build") do
             Shell.run!(
@@ -526,6 +600,7 @@ module Gmrcli
         end
 
         # Install
+        JsonEmitter.stage_progress(:mruby_web, 90, "Installing", substage: "install")
         UI.spinner("Installing") do
           FileUtils.mkdir_p(File.join(install_dir, "lib"))
           FileUtils.mkdir_p(File.join(install_dir, "include"))

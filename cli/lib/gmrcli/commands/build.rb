@@ -20,18 +20,24 @@ module Gmrcli
       # === Public Build Methods ===
 
       def debug
+        JsonEmitter.build_start(:debug)
         UI.banner
         build_native("Debug")
+        JsonEmitter.build_complete(output_path: File.join(release_dir, gmr_exe))
       end
 
       def release
+        JsonEmitter.build_start(:release)
         UI.banner
         build_native("Release")
+        JsonEmitter.build_complete(output_path: File.join(release_dir, gmr_exe))
       end
 
       def web
+        JsonEmitter.build_start(:web)
         UI.banner
         build_web
+        JsonEmitter.build_complete(output_path: File.join(web_release_dir, "gmr.html"))
       end
 
       def clean
@@ -70,12 +76,26 @@ module Gmrcli
         options[:verbose]
       end
 
+      # Run a stage with JSON event tracking
+      def run_stage(stage_id, stage_name)
+        JsonEmitter.stage_start(stage_id, stage_name)
+        yield
+        JsonEmitter.stage_complete(stage_id)
+      rescue StandardError => e
+        error_details = e.respond_to?(:details) ? e.details : nil
+        error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
+        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions)
+        raise
+      end
+
       # === Native Build ===
 
       def build_native(build_type)
         UI.step "Building native #{build_type.upcase}..."
 
-        validate_native_environment!
+        run_stage(:validate, "Validating Environment") do
+          validate_native_environment!
+        end
 
         # Clean if rebuild requested
         if options[:rebuild]
@@ -86,40 +106,48 @@ module Gmrcli
         FileUtils.mkdir_p(build_dir)
 
         # Configure
-        UI.info "Configuring..."
-        cmake_args = build_cmake_args(build_type)
+        run_stage(:configure, "Configuring Build") do
+          JsonEmitter.stage_progress(:configure, 10, "Running CMake", substage: "cmake")
+          UI.info "Configuring..."
+          cmake_args = build_cmake_args(build_type)
 
-        begin
-          Shell.cmake(cmake_args.join(" "), chdir: build_dir, verbose: verbose?)
-        rescue CommandError => e
-          raise BuildError.new(
-            "CMake configuration failed",
-            details: e.output,
-            suggestions: [
-              "Check that all dependencies are installed",
-              "Run 'gmrcli setup' if you haven't already",
-              "Run with --verbose for more details"
-            ]
-          )
+          begin
+            Shell.cmake(cmake_args.join(" "), chdir: build_dir, verbose: verbose?)
+          rescue CommandError => e
+            raise BuildError.new(
+              "CMake configuration failed",
+              details: e.output,
+              suggestions: [
+                "Check that all dependencies are installed",
+                "Run 'gmrcli setup' if you haven't already",
+                "Run with --verbose for more details"
+              ]
+            )
+          end
         end
 
         # Build
-        UI.info "Building with #{Platform.nproc} threads..."
-        begin
-          Shell.ninja("", chdir: build_dir, verbose: verbose?)
-        rescue CommandError => e
-          raise BuildError.new(
-            "Compilation failed",
-            details: e.output,
-            suggestions: [
-              "Check the error messages above",
-              "Run with --verbose for full output"
-            ]
-          )
+        run_stage(:compile, "Compiling") do
+          JsonEmitter.stage_progress(:compile, 10, "Starting compilation", substage: "ninja")
+          UI.info "Building with #{Platform.nproc} threads..."
+          begin
+            Shell.ninja("", chdir: build_dir, verbose: verbose?)
+          rescue CommandError => e
+            raise BuildError.new(
+              "Compilation failed",
+              details: e.output,
+              suggestions: [
+                "Check the error messages above",
+                "Run with --verbose for full output"
+              ]
+            )
+          end
         end
 
-        UI.success "#{build_type} build complete!"
-        UI.info "Executable: #{File.join(release_dir, gmr_exe)}"
+        run_stage(:completion, "Complete") do
+          UI.success "#{build_type} build complete!"
+          UI.info "Executable: #{File.join(release_dir, gmr_exe)}"
+        end
       end
 
       def build_cmake_args(build_type)
@@ -175,7 +203,9 @@ module Gmrcli
       def build_web
         UI.step "Building for WEB..."
 
-        validate_web_environment!
+        run_stage(:validate, "Validating Environment") do
+          validate_web_environment!
+        end
 
         # Clean if rebuild requested
         if options[:rebuild]
@@ -188,57 +218,65 @@ module Gmrcli
         env = emscripten_env
 
         # Configure with Ninja generator (same as native builds)
-        UI.info "Configuring..."
-        cmake_args = [
-          "../..",
-          "-G Ninja",
-          "-DCMAKE_BUILD_TYPE=Release",
-          "-DPLATFORM=Web"
-        ]
-        if Platform.mingw64?
-          cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
-        end
+        run_stage(:configure, "Configuring Build") do
+          JsonEmitter.stage_progress(:configure, 10, "Running emcmake", substage: "cmake")
+          UI.info "Configuring..."
+          cmake_args = [
+            "../..",
+            "-G Ninja",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DPLATFORM=Web"
+          ]
+          if Platform.mingw64?
+            cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
+          end
 
-        begin
-          Shell.run!(
-            "emcmake cmake #{cmake_args.join(' ')}",
-            chdir: web_build_dir,
-            env: env,
-            verbose: verbose?
-          )
-        rescue CommandError => e
-          raise BuildError.new(
-            "CMake configuration failed for web build",
-            details: e.output,
-            suggestions: [
-              "Make sure Emscripten is properly set up",
-              "Run 'gmrutil setup' if you haven't already"
-            ]
-          )
+          begin
+            Shell.run!(
+              "emcmake cmake #{cmake_args.join(' ')}",
+              chdir: web_build_dir,
+              env: env,
+              verbose: verbose?
+            )
+          rescue CommandError => e
+            raise BuildError.new(
+              "CMake configuration failed for web build",
+              details: e.output,
+              suggestions: [
+                "Make sure Emscripten is properly set up",
+                "Run 'gmrutil setup' if you haven't already"
+              ]
+            )
+          end
         end
 
         # Build with emmake ninja -j1 (single-threaded to avoid ASYNCIFY hangs on Windows)
-        UI.info "Building (single-threaded for ASYNCIFY compatibility)..."
-        begin
-          Shell.run!(
-            "emmake ninja -j1",
-            chdir: web_build_dir,
-            env: env,
-            verbose: verbose?
-          )
-        rescue CommandError => e
-          raise BuildError.new(
-            "Web compilation failed",
-            details: e.output,
-            suggestions: ["Check the error messages above"]
-          )
+        run_stage(:compile, "Compiling (WASM)") do
+          JsonEmitter.stage_progress(:compile, 10, "Starting WASM compilation", substage: "emcc")
+          UI.info "Building (single-threaded for ASYNCIFY compatibility)..."
+          begin
+            Shell.run!(
+              "emmake ninja -j1",
+              chdir: web_build_dir,
+              env: env,
+              verbose: verbose?
+            )
+          rescue CommandError => e
+            raise BuildError.new(
+              "Web compilation failed",
+              details: e.output,
+              suggestions: ["Check the error messages above"]
+            )
+          end
         end
 
-        UI.success "Web build complete!"
-        UI.info "Output: #{File.join(web_release_dir, 'gmr.html')}"
-        UI.blank
-        UI.info "To test locally:"
-        UI.command_hint "gmrcli run web", "Start local server"
+        run_stage(:completion, "Complete") do
+          UI.success "Web build complete!"
+          UI.info "Output: #{File.join(web_release_dir, 'gmr.html')}"
+          UI.blank
+          UI.info "To test locally:"
+          UI.command_hint "gmrcli run web", "Start local server"
+        end
       end
 
       def validate_web_environment!

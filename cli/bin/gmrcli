@@ -20,6 +20,14 @@ module Gmrcli
 
     class_option :verbose, type: :boolean, default: false, aliases: "-v",
                            desc: "Show detailed output"
+    class_option :json, type: :boolean, default: false,
+                        desc: "Output structured JSON (NDJSON format) instead of human-readable text"
+
+    # Enable JSON mode before any command runs
+    def initialize(*args)
+      super
+      JsonEmitter.enable! if options[:json]
+    end
 
     # === Setup Command ===
 
