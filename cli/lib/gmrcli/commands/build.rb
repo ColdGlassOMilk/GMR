@@ -163,14 +163,16 @@ module Gmrcli
       def build_cmake_args(build_type)
         # Point to the engine's CMakeLists.txt (absolute path)
         # Normalize to forward slashes for CMake compatibility on Windows
+        # Quote paths to handle spaces in directory names
         engine_path = engine_dir.gsub("\\", "/")
+        project_path = project_dir.gsub("\\", "/")
 
         args = [
-          engine_path,
+          "\"#{engine_path}\"",
           "-G Ninja",
           "-DCMAKE_BUILD_TYPE=#{build_type}",
-          # Tell CMake where to find game scripts
-          "-DGMR_PROJECT_DIR=#{project_dir.gsub('\\', '/')}"
+          # Tell CMake where to find game scripts (quote for spaces in path)
+          "-DGMR_PROJECT_DIR=\"#{project_path}\""
         ]
 
         if Platform.mingw64?
@@ -238,13 +240,15 @@ module Gmrcli
           JsonEmitter.stage_progress(:configure, 10, "Running emcmake", substage: "cmake")
           UI.info "Configuring..."
           # Point to the engine's CMakeLists.txt (absolute path)
+          # Quote paths to handle spaces in directory names
           engine_path = engine_dir.gsub("\\", "/")
+          project_path = project_dir.gsub("\\", "/")
           cmake_args = [
-            engine_path,
+            "\"#{engine_path}\"",
             "-G Ninja",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DPLATFORM=Web",
-            "-DGMR_PROJECT_DIR=#{project_dir.gsub('\\', '/')}"
+            "-DGMR_PROJECT_DIR=\"#{project_path}\""
           ]
           if Platform.mingw64?
             cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
