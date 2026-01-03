@@ -271,12 +271,41 @@ gmr/
 ├── assets/            # Images, sounds, etc.
 ├── src/               # Engine C++ code
 ├── include/gmr/       # Engine headers
+├── engine/language/   # Language metadata for IDE integration
 ├── CMakeLists.txt     # Build configuration
 ├── CMakePresets.json  # Build presets
 └── deps/              # Dependencies (built by setup.sh)
     ├── raylib/
     └── mruby/
 ```
+
+### Language Metadata (IDE Integration)
+
+GMR exports machine-readable language metadata for IDE/editor integration. These files enable syntax highlighting and IntelliSense for GMR Ruby scripts:
+
+```
+engine/language/
+├── syntax.json    # Lexical features (keywords, operators, constants)
+├── api.json       # Semantic API (function signatures, params, docs)
+└── version.json   # Engine and language version info
+```
+
+**syntax.json** - Token-level data for syntax highlighting:
+- Ruby keywords and operators
+- GMR module names (`GMR::Graphics`, etc.)
+- Input constants (`KEY_SPACE`, `MOUSE_LEFT`, etc.)
+- Lifecycle hooks (`init`, `update`, `draw`)
+
+**api.json** - Semantic data for IntelliSense/autocomplete:
+- Function signatures with parameter types
+- Return types and documentation
+- Code examples for each function
+
+**version.json** - Compatibility information:
+- Engine version, mruby version, raylib version
+- Schema versions for syntax/api files
+
+These files are pure data (no executable code) and can be consumed by any editor. See the files for the complete JSON schema.
 
 ## Troubleshooting
 

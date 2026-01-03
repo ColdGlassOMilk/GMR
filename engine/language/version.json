@@ -1,0 +1,23 @@
+{
+  "engine": {
+    "name": "GMR",
+    "fullName": "Games Made with Ruby",
+    "version": "0.1.0",
+    "description": "A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++"
+  },
+  "language": {
+    "id": "gmr-ruby",
+    "name": "GMR Ruby",
+    "baseLanguage": "ruby",
+    "mrubyVersion": "3.4.0",
+    "rubyCompatibility": "~3.0"
+  },
+  "runtime": {
+    "raylib": "5.6-dev",
+    "platforms": ["windows", "linux", "macos", "web"]
+  },
+  "schema": {
+    "syntax": "1.0.0",
+    "api": "1.0.0"
+  }
+}

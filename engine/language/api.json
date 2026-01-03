@@ -1,0 +1,744 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "engine": "GMR",
+    "mrubyVersion": "3.4.0",
+    "raylibVersion": "5.6-dev"
+  },
+  "types": {
+    "Color": {
+      "kind": "alias",
+      "type": "Array<Integer>",
+      "description": "RGBA color as [r, g, b] or [r, g, b, a], values 0-255. Alpha defaults to 255 if omitted.",
+      "examples": ["[255, 0, 0]", "[255, 0, 0, 128]"]
+    },
+    "KeyCode": {
+      "kind": "union",
+      "types": ["Integer", "Symbol"],
+      "description": "Key identifier - integer constant (KEY_*) or symbol (:space, :a, :left, etc.)",
+      "symbols": [
+        "space", "escape", "enter", "return", "tab", "backspace", "delete", "insert",
+        "up", "down", "left", "right", "home", "end", "page_up", "page_down",
+        "left_shift", "right_shift", "left_control", "right_control", "left_alt", "right_alt",
+        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+        "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+      ]
+    },
+    "MouseButton": {
+      "kind": "union",
+      "types": ["Integer", "Symbol"],
+      "description": "Mouse button identifier - integer constant (MOUSE_*) or symbol",
+      "symbols": ["left", "right", "middle", "side", "extra", "forward", "back"]
+    },
+    "Texture": {
+      "kind": "class",
+      "module": "GMR::Graphics",
+      "description": "A loaded image texture for drawing sprites and images"
+    },
+    "Sound": {
+      "kind": "class",
+      "module": "GMR::Audio",
+      "description": "A loaded audio clip for playback"
+    }
+  },
+  "modules": {
+    "GMR::Graphics": {
+      "description": "Drawing primitives and texture management",
+      "functions": {
+        "clear": {
+          "signature": "clear(color)",
+          "description": "Clear the screen with a solid color",
+          "params": [
+            {"name": "color", "type": "Color", "description": "The background color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.clear([20, 20, 40])"
+        },
+        "draw_rect": {
+          "signature": "draw_rect(x, y, w, h, color)",
+          "description": "Draw a filled rectangle",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "X position (left edge)"},
+            {"name": "y", "type": "Integer", "description": "Y position (top edge)"},
+            {"name": "w", "type": "Integer", "description": "Width in pixels"},
+            {"name": "h", "type": "Integer", "description": "Height in pixels"},
+            {"name": "color", "type": "Color", "description": "Fill color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])"
+        },
+        "draw_rect_outline": {
+          "signature": "draw_rect_outline(x, y, w, h, color)",
+          "description": "Draw a rectangle outline (not filled)",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "X position (left edge)"},
+            {"name": "y", "type": "Integer", "description": "Y position (top edge)"},
+            {"name": "w", "type": "Integer", "description": "Width in pixels"},
+            {"name": "h", "type": "Integer", "description": "Height in pixels"},
+            {"name": "color", "type": "Color", "description": "Outline color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])"
+        },
+        "draw_rect_rotated": {
+          "signature": "draw_rect_rotated(x, y, w, h, angle, color)",
+          "description": "Draw a filled rectangle rotated around its center",
+          "params": [
+            {"name": "x", "type": "Float", "description": "X position (center)"},
+            {"name": "y", "type": "Float", "description": "Y position (center)"},
+            {"name": "w", "type": "Float", "description": "Width in pixels"},
+            {"name": "h", "type": "Float", "description": "Height in pixels"},
+            {"name": "angle", "type": "Float", "description": "Rotation angle in degrees"},
+            {"name": "color", "type": "Color", "description": "Fill color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_rect_rotated(160, 120, 40, 20, 45.0, [0, 255, 0])"
+        },
+        "draw_line": {
+          "signature": "draw_line(x1, y1, x2, y2, color)",
+          "description": "Draw a line between two points",
+          "params": [
+            {"name": "x1", "type": "Integer", "description": "Start X position"},
+            {"name": "y1", "type": "Integer", "description": "Start Y position"},
+            {"name": "x2", "type": "Integer", "description": "End X position"},
+            {"name": "y2", "type": "Integer", "description": "End Y position"},
+            {"name": "color", "type": "Color", "description": "Line color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])"
+        },
+        "draw_line_thick": {
+          "signature": "draw_line_thick(x1, y1, x2, y2, thickness, color)",
+          "description": "Draw a thick line between two points",
+          "params": [
+            {"name": "x1", "type": "Float", "description": "Start X position"},
+            {"name": "y1", "type": "Float", "description": "Start Y position"},
+            {"name": "x2", "type": "Float", "description": "End X position"},
+            {"name": "y2", "type": "Float", "description": "End Y position"},
+            {"name": "thickness", "type": "Float", "description": "Line thickness in pixels"},
+            {"name": "color", "type": "Color", "description": "Line color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_line_thick(0, 0, 100, 100, 3.0, [255, 200, 100])"
+        },
+        "draw_circle": {
+          "signature": "draw_circle(x, y, radius, color)",
+          "description": "Draw a filled circle",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Center X position"},
+            {"name": "y", "type": "Integer", "description": "Center Y position"},
+            {"name": "radius", "type": "Integer", "description": "Circle radius in pixels"},
+            {"name": "color", "type": "Color", "description": "Fill color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])"
+        },
+        "draw_circle_outline": {
+          "signature": "draw_circle_outline(x, y, radius, color)",
+          "description": "Draw a circle outline",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Center X position"},
+            {"name": "y", "type": "Integer", "description": "Center Y position"},
+            {"name": "radius", "type": "Integer", "description": "Circle radius in pixels"},
+            {"name": "color", "type": "Color", "description": "Outline color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])"
+        },
+        "draw_circle_gradient": {
+          "signature": "draw_circle_gradient(x, y, radius, inner_color, outer_color)",
+          "description": "Draw a circle with a radial gradient from inner to outer color",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Center X position"},
+            {"name": "y", "type": "Integer", "description": "Center Y position"},
+            {"name": "radius", "type": "Integer", "description": "Circle radius in pixels"},
+            {"name": "inner_color", "type": "Color", "description": "Color at center"},
+            {"name": "outer_color", "type": "Color", "description": "Color at edge"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_circle_gradient(160, 120, 50, [255, 255, 255], [255, 0, 0, 0])"
+        },
+        "draw_triangle": {
+          "signature": "draw_triangle(x1, y1, x2, y2, x3, y3, color)",
+          "description": "Draw a filled triangle",
+          "params": [
+            {"name": "x1", "type": "Float", "description": "First vertex X"},
+            {"name": "y1", "type": "Float", "description": "First vertex Y"},
+            {"name": "x2", "type": "Float", "description": "Second vertex X"},
+            {"name": "y2", "type": "Float", "description": "Second vertex Y"},
+            {"name": "x3", "type": "Float", "description": "Third vertex X"},
+            {"name": "y3", "type": "Float", "description": "Third vertex Y"},
+            {"name": "color", "type": "Color", "description": "Fill color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])"
+        },
+        "draw_triangle_outline": {
+          "signature": "draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)",
+          "description": "Draw a triangle outline",
+          "params": [
+            {"name": "x1", "type": "Float", "description": "First vertex X"},
+            {"name": "y1", "type": "Float", "description": "First vertex Y"},
+            {"name": "x2", "type": "Float", "description": "Second vertex X"},
+            {"name": "y2", "type": "Float", "description": "Second vertex Y"},
+            {"name": "x3", "type": "Float", "description": "Third vertex X"},
+            {"name": "y3", "type": "Float", "description": "Third vertex Y"},
+            {"name": "color", "type": "Color", "description": "Outline color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])"
+        },
+        "draw_text": {
+          "signature": "draw_text(text, x, y, size, color)",
+          "description": "Draw text at a position",
+          "params": [
+            {"name": "text", "type": "String", "description": "The text to draw"},
+            {"name": "x", "type": "Integer", "description": "X position (left edge)"},
+            {"name": "y", "type": "Integer", "description": "Y position (top edge)"},
+            {"name": "size", "type": "Integer", "description": "Font size in pixels"},
+            {"name": "color", "type": "Color", "description": "Text color"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, [255, 255, 255])"
+        },
+        "measure_text": {
+          "signature": "measure_text(text, size)",
+          "description": "Measure the width of text in pixels",
+          "params": [
+            {"name": "text", "type": "String", "description": "The text to measure"},
+            {"name": "size", "type": "Integer", "description": "Font size in pixels"}
+          ],
+          "returns": {"type": "Integer", "description": "Width in pixels"},
+          "example": "width = GMR::Graphics.measure_text(\"Hello\", 20)"
+        }
+      }
+    },
+    "GMR::Graphics::Texture": {
+      "kind": "class",
+      "description": "A loaded image texture for drawing sprites and images",
+      "classMethods": {
+        "load": {
+          "signature": "Texture.load(path)",
+          "description": "Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.",
+          "params": [
+            {"name": "path", "type": "String", "description": "Path to the image file (relative to game root)"}
+          ],
+          "returns": {"type": "Texture", "description": "The loaded texture object"},
+          "raises": ["RuntimeError if the file cannot be loaded"],
+          "example": "sprite = GMR::Graphics::Texture.load(\"assets/player.png\")"
+        }
+      },
+      "instanceMethods": {
+        "width": {
+          "signature": "width",
+          "description": "Get the texture width in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Width in pixels"},
+          "example": "puts sprite.width"
+        },
+        "height": {
+          "signature": "height",
+          "description": "Get the texture height in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Height in pixels"},
+          "example": "puts sprite.height"
+        },
+        "draw": {
+          "signature": "draw(x, y, [color])",
+          "description": "Draw the texture at a position, optionally with a color tint",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "X position (left edge)"},
+            {"name": "y", "type": "Integer", "description": "Y position (top edge)"},
+            {"name": "color", "type": "Color", "optional": true, "default": "[255, 255, 255]", "description": "Color tint (multiplied with texture)"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "sprite.draw(100, 100)"
+        },
+        "draw_ex": {
+          "signature": "draw_ex(x, y, rotation, scale, [color])",
+          "description": "Draw the texture with rotation and scaling",
+          "params": [
+            {"name": "x", "type": "Float", "description": "X position"},
+            {"name": "y", "type": "Float", "description": "Y position"},
+            {"name": "rotation", "type": "Float", "description": "Rotation angle in degrees"},
+            {"name": "scale", "type": "Float", "description": "Scale multiplier (1.0 = original size)"},
+            {"name": "color", "type": "Color", "optional": true, "default": "[255, 255, 255]", "description": "Color tint"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "sprite.draw_ex(160, 120, 45.0, 2.0)"
+        },
+        "draw_pro": {
+          "signature": "draw_pro(sx, sy, sw, sh, dx, dy, dw, dh, rotation, [color])",
+          "description": "Draw a portion of the texture to a destination rectangle with rotation. Origin is at center of destination.",
+          "params": [
+            {"name": "sx", "type": "Float", "description": "Source X (top-left of region)"},
+            {"name": "sy", "type": "Float", "description": "Source Y (top-left of region)"},
+            {"name": "sw", "type": "Float", "description": "Source width"},
+            {"name": "sh", "type": "Float", "description": "Source height"},
+            {"name": "dx", "type": "Float", "description": "Destination X (center)"},
+            {"name": "dy", "type": "Float", "description": "Destination Y (center)"},
+            {"name": "dw", "type": "Float", "description": "Destination width"},
+            {"name": "dh", "type": "Float", "description": "Destination height"},
+            {"name": "rotation", "type": "Float", "description": "Rotation angle in degrees"},
+            {"name": "color", "type": "Color", "optional": true, "default": "[255, 255, 255]", "description": "Color tint"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "sprite.draw_pro(0, 0, 32, 32, 160, 120, 64, 64, 0)"
+        }
+      }
+    },
+    "GMR::Input": {
+      "description": "Mouse and keyboard input handling. Supports both symbol and constant-based key identification.",
+      "functions": {
+        "mouse_x": {
+          "signature": "mouse_x",
+          "description": "Get the current mouse X position. Automatically adjusted for virtual resolution if enabled.",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Mouse X coordinate"},
+          "example": "x = GMR::Input.mouse_x"
+        },
+        "mouse_y": {
+          "signature": "mouse_y",
+          "description": "Get the current mouse Y position. Automatically adjusted for virtual resolution if enabled.",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Mouse Y coordinate"},
+          "example": "y = GMR::Input.mouse_y"
+        },
+        "mouse_down?": {
+          "signature": "mouse_down?(button)",
+          "description": "Check if a mouse button is currently held down",
+          "params": [
+            {"name": "button", "type": "MouseButton", "description": "Button to check (:left, :right, :middle or constant)"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.mouse_down?(:left)\n  # Handle held click\nend"
+        },
+        "mouse_pressed?": {
+          "signature": "mouse_pressed?(button)",
+          "description": "Check if a mouse button was just pressed this frame",
+          "params": [
+            {"name": "button", "type": "MouseButton", "description": "Button to check"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.mouse_pressed?(:left)\n  # Handle click\nend"
+        },
+        "mouse_released?": {
+          "signature": "mouse_released?(button)",
+          "description": "Check if a mouse button was just released this frame",
+          "params": [
+            {"name": "button", "type": "MouseButton", "description": "Button to check"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.mouse_released?(:left)\n  # Handle release\nend"
+        },
+        "mouse_wheel": {
+          "signature": "mouse_wheel",
+          "description": "Get the mouse wheel scroll delta this frame",
+          "params": [],
+          "returns": {"type": "Float", "description": "Scroll delta (positive = up, negative = down)"},
+          "example": "scroll = GMR::Input.mouse_wheel"
+        },
+        "key_down?": {
+          "signature": "key_down?(key)",
+          "description": "Check if a key is currently held down",
+          "params": [
+            {"name": "key", "type": "KeyCode", "description": "Key to check (:space, :a, :left, etc. or KEY_* constant)"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.key_down?(:space)\n  # Handle held key\nend"
+        },
+        "key_pressed?": {
+          "signature": "key_pressed?(key)",
+          "description": "Check if a key was just pressed this frame",
+          "params": [
+            {"name": "key", "type": "KeyCode", "description": "Key to check"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.key_pressed?(:escape)\n  GMR::System.quit\nend"
+        },
+        "key_released?": {
+          "signature": "key_released?(key)",
+          "description": "Check if a key was just released this frame",
+          "params": [
+            {"name": "key", "type": "KeyCode", "description": "Key to check"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Input.key_released?(:space)\n  # Handle release\nend"
+        },
+        "key_pressed": {
+          "signature": "key_pressed",
+          "description": "Get the key code of the last key pressed (for text input handling)",
+          "params": [],
+          "returns": {"type": "Integer?", "description": "Key code or nil if no key pressed"},
+          "example": "key = GMR::Input.key_pressed"
+        },
+        "char_pressed": {
+          "signature": "char_pressed",
+          "description": "Get the character code of the last character pressed (for text input)",
+          "params": [],
+          "returns": {"type": "Integer?", "description": "Character code or nil"},
+          "example": "char = GMR::Input.char_pressed"
+        }
+      }
+    },
+    "GMR::Audio::Sound": {
+      "kind": "class",
+      "description": "A loaded audio clip for playback. Supports WAV, OGG, MP3, and other common formats.",
+      "classMethods": {
+        "load": {
+          "signature": "Sound.load(path)",
+          "description": "Load a sound from a file",
+          "params": [
+            {"name": "path", "type": "String", "description": "Path to the audio file"}
+          ],
+          "returns": {"type": "Sound", "description": "The loaded sound object"},
+          "raises": ["RuntimeError if the file cannot be loaded"],
+          "example": "jump_sfx = GMR::Audio::Sound.load(\"assets/jump.wav\")"
+        }
+      },
+      "instanceMethods": {
+        "play": {
+          "signature": "play",
+          "description": "Play the sound. Can be called multiple times for overlapping playback.",
+          "params": [],
+          "returns": {"type": "nil"},
+          "example": "jump_sfx.play"
+        },
+        "stop": {
+          "signature": "stop",
+          "description": "Stop the sound if it's playing",
+          "params": [],
+          "returns": {"type": "nil"},
+          "example": "jump_sfx.stop"
+        },
+        "volume=": {
+          "signature": "volume=(value)",
+          "description": "Set the volume for this sound",
+          "params": [
+            {"name": "value", "type": "Float", "description": "Volume level from 0.0 (silent) to 1.0 (full)"}
+          ],
+          "returns": {"type": "Float", "description": "The volume that was set"},
+          "example": "jump_sfx.volume = 0.5"
+        }
+      }
+    },
+    "GMR::Window": {
+      "description": "Window management, fullscreen, and virtual resolution",
+      "functions": {
+        "width": {
+          "signature": "width",
+          "description": "Get the logical screen width (virtual resolution if set, otherwise actual)",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Width in pixels"},
+          "example": "w = GMR::Window.width"
+        },
+        "height": {
+          "signature": "height",
+          "description": "Get the logical screen height (virtual resolution if set, otherwise actual)",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Height in pixels"},
+          "example": "h = GMR::Window.height"
+        },
+        "actual_width": {
+          "signature": "actual_width",
+          "description": "Get the actual window width in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Actual width"},
+          "example": "actual_w = GMR::Window.actual_width"
+        },
+        "actual_height": {
+          "signature": "actual_height",
+          "description": "Get the actual window height in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Actual height"},
+          "example": "actual_h = GMR::Window.actual_height"
+        },
+        "set_size": {
+          "signature": "set_size(width, height)",
+          "description": "Set the window size. Ignored while in fullscreen mode.",
+          "params": [
+            {"name": "width", "type": "Integer", "description": "New width in pixels"},
+            {"name": "height", "type": "Integer", "description": "New height in pixels"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Window.set_size(800, 600)"
+        },
+        "set_title": {
+          "signature": "set_title(title)",
+          "description": "Set the window title",
+          "params": [
+            {"name": "title", "type": "String", "description": "New window title"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Window.set_title(\"My Game\")"
+        },
+        "toggle_fullscreen": {
+          "signature": "toggle_fullscreen",
+          "description": "Toggle between fullscreen and windowed mode",
+          "params": [],
+          "returns": {"type": "Boolean"},
+          "example": "GMR::Window.toggle_fullscreen"
+        },
+        "fullscreen=": {
+          "signature": "fullscreen=(enabled)",
+          "description": "Set fullscreen mode on or off",
+          "params": [
+            {"name": "enabled", "type": "Boolean", "description": "true for fullscreen, false for windowed"}
+          ],
+          "returns": {"type": "Boolean", "description": "The value that was set"},
+          "example": "GMR::Window.fullscreen = true"
+        },
+        "fullscreen?": {
+          "signature": "fullscreen?",
+          "description": "Check if currently in fullscreen mode",
+          "params": [],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Window.fullscreen?\n  puts \"Fullscreen\"\nend"
+        },
+        "set_virtual_resolution": {
+          "signature": "set_virtual_resolution(width, height)",
+          "description": "Enable virtual resolution - render at a fixed size that scales to fit the window with letterboxing",
+          "params": [
+            {"name": "width", "type": "Integer", "description": "Virtual width in pixels"},
+            {"name": "height", "type": "Integer", "description": "Virtual height in pixels"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "GMR::Window.set_virtual_resolution(320, 240)"
+        },
+        "clear_virtual_resolution": {
+          "signature": "clear_virtual_resolution",
+          "description": "Disable virtual resolution and render at actual window size",
+          "params": [],
+          "returns": {"type": "Boolean"},
+          "example": "GMR::Window.clear_virtual_resolution"
+        },
+        "virtual_resolution?": {
+          "signature": "virtual_resolution?",
+          "description": "Check if virtual resolution is enabled",
+          "params": [],
+          "returns": {"type": "Boolean"},
+          "example": "if GMR::Window.virtual_resolution?\n  puts \"Using virtual resolution\"\nend"
+        },
+        "set_filter_point": {
+          "signature": "set_filter_point",
+          "description": "Set texture filtering to point/nearest neighbor (crisp pixels). Only affects virtual resolution scaling.",
+          "params": [],
+          "returns": {"type": "nil"},
+          "example": "GMR::Window.set_filter_point"
+        },
+        "set_filter_bilinear": {
+          "signature": "set_filter_bilinear",
+          "description": "Set texture filtering to bilinear (smooth scaling). Only affects virtual resolution scaling.",
+          "params": [],
+          "returns": {"type": "nil"},
+          "example": "GMR::Window.set_filter_bilinear"
+        },
+        "monitor_count": {
+          "signature": "monitor_count",
+          "description": "Get the number of connected monitors",
+          "params": [],
+          "returns": {"type": "Integer"},
+          "example": "count = GMR::Window.monitor_count"
+        },
+        "monitor_width": {
+          "signature": "monitor_width(index)",
+          "description": "Get the width of a specific monitor",
+          "params": [
+            {"name": "index", "type": "Integer", "description": "Monitor index (0-based)"}
+          ],
+          "returns": {"type": "Integer", "description": "Monitor width in pixels"},
+          "example": "w = GMR::Window.monitor_width(0)"
+        },
+        "monitor_height": {
+          "signature": "monitor_height(index)",
+          "description": "Get the height of a specific monitor",
+          "params": [
+            {"name": "index", "type": "Integer", "description": "Monitor index (0-based)"}
+          ],
+          "returns": {"type": "Integer", "description": "Monitor height in pixels"},
+          "example": "h = GMR::Window.monitor_height(0)"
+        },
+        "monitor_refresh_rate": {
+          "signature": "monitor_refresh_rate(index)",
+          "description": "Get the refresh rate of a specific monitor",
+          "params": [
+            {"name": "index", "type": "Integer", "description": "Monitor index (0-based)"}
+          ],
+          "returns": {"type": "Integer", "description": "Refresh rate in Hz"},
+          "example": "hz = GMR::Window.monitor_refresh_rate(0)"
+        },
+        "monitor_name": {
+          "signature": "monitor_name(index)",
+          "description": "Get the name of a specific monitor",
+          "params": [
+            {"name": "index", "type": "Integer", "description": "Monitor index (0-based)"}
+          ],
+          "returns": {"type": "String", "description": "Monitor name"},
+          "example": "name = GMR::Window.monitor_name(0)"
+        }
+      }
+    },
+    "GMR::Time": {
+      "description": "Frame timing and FPS management",
+      "functions": {
+        "delta": {
+          "signature": "delta",
+          "description": "Get the time elapsed since the last frame in seconds. Use this for frame-rate independent movement.",
+          "params": [],
+          "returns": {"type": "Float", "description": "Delta time in seconds"},
+          "example": "x += speed * GMR::Time.delta"
+        },
+        "elapsed": {
+          "signature": "elapsed",
+          "description": "Get the total time elapsed since the game started",
+          "params": [],
+          "returns": {"type": "Float", "description": "Elapsed time in seconds"},
+          "example": "total = GMR::Time.elapsed"
+        },
+        "fps": {
+          "signature": "fps",
+          "description": "Get the current frames per second",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Current FPS"},
+          "example": "puts \"FPS: #{GMR::Time.fps}\""
+        },
+        "set_target_fps": {
+          "signature": "set_target_fps(fps)",
+          "description": "Set the target frames per second. The engine will attempt to maintain this frame rate.",
+          "params": [
+            {"name": "fps", "type": "Integer", "description": "Target FPS (e.g., 60)"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "GMR::Time.set_target_fps(60)"
+        }
+      }
+    },
+    "GMR::System": {
+      "description": "Utility functions, random numbers, and platform information",
+      "functions": {
+        "random_int": {
+          "signature": "random_int(min, max)",
+          "description": "Generate a random integer in the given range (inclusive)",
+          "params": [
+            {"name": "min", "type": "Integer", "description": "Minimum value (inclusive)"},
+            {"name": "max", "type": "Integer", "description": "Maximum value (inclusive)"}
+          ],
+          "returns": {"type": "Integer", "description": "Random integer between min and max"},
+          "example": "dice = GMR::System.random_int(1, 6)"
+        },
+        "random_float": {
+          "signature": "random_float",
+          "description": "Generate a random float between 0.0 and 1.0",
+          "params": [],
+          "returns": {"type": "Float", "description": "Random value 0.0 <= x < 1.0"},
+          "example": "chance = GMR::System.random_float"
+        },
+        "quit": {
+          "signature": "quit",
+          "description": "Exit the game immediately",
+          "params": [],
+          "returns": {"type": "nil", "description": "Does not return (exits process)"},
+          "example": "GMR::System.quit"
+        },
+        "platform": {
+          "signature": "platform",
+          "description": "Get the current platform name",
+          "params": [],
+          "returns": {"type": "String", "description": "One of: 'windows', 'linux', 'macos', 'web'"},
+          "example": "if GMR::System.platform == \"web\"\n  # Web-specific code\nend"
+        },
+        "build_type": {
+          "signature": "build_type",
+          "description": "Get the current build type",
+          "params": [],
+          "returns": {"type": "String", "description": "One of: 'debug', 'release'"},
+          "example": "puts GMR::System.build_type"
+        },
+        "compiled_scripts?": {
+          "signature": "compiled_scripts?",
+          "description": "Check if scripts are running from compiled bytecode",
+          "params": [],
+          "returns": {"type": "Boolean", "description": "true if using compiled bytecode"},
+          "example": "if GMR::System.compiled_scripts?\n  puts \"Running compiled scripts\"\nend"
+        },
+        "raylib_version": {
+          "signature": "raylib_version",
+          "description": "Get the raylib version string",
+          "params": [],
+          "returns": {"type": "String", "description": "Raylib version"},
+          "example": "puts GMR::System.raylib_version"
+        },
+        "gpu_vendor": {
+          "signature": "gpu_vendor",
+          "description": "Get the GPU vendor name",
+          "params": [],
+          "returns": {"type": "String", "description": "GPU vendor (e.g., 'NVIDIA Corporation')"},
+          "example": "puts GMR::System.gpu_vendor"
+        },
+        "gpu_renderer": {
+          "signature": "gpu_renderer",
+          "description": "Get the GPU renderer name",
+          "params": [],
+          "returns": {"type": "String", "description": "GPU renderer (e.g., 'GeForce RTX 3080')"},
+          "example": "puts GMR::System.gpu_renderer"
+        },
+        "gl_version": {
+          "signature": "gl_version",
+          "description": "Get the OpenGL version string",
+          "params": [],
+          "returns": {"type": "String", "description": "OpenGL version"},
+          "example": "puts GMR::System.gl_version"
+        },
+        "glsl_version": {
+          "signature": "glsl_version",
+          "description": "Get the GLSL version string",
+          "params": [],
+          "returns": {"type": "String", "description": "GLSL version"},
+          "example": "puts GMR::System.glsl_version"
+        }
+      }
+    }
+  },
+  "globals": {
+    "lifecycle": {
+      "init": {
+        "signature": "def init",
+        "description": "Called once when the game starts. Use this to initialize state, load assets, and set up the game world.",
+        "example": "def init\n  GMR::Window.set_title(\"My Game\")\n  $player = { x: 100, y: 100 }\nend"
+      },
+      "update": {
+        "signature": "def update(dt)",
+        "description": "Called every frame to update game logic. dt is the time in seconds since the last frame.",
+        "params": [
+          {"name": "dt", "type": "Float", "description": "Delta time in seconds"}
+        ],
+        "example": "def update(dt)\n  $player[:x] += 100 * dt if GMR::Input.key_down?(:right)\nend"
+      },
+      "draw": {
+        "signature": "def draw",
+        "description": "Called every frame to render the game. All drawing should happen here.",
+        "example": "def draw\n  GMR::Graphics.clear([0, 0, 0])\n  GMR::Graphics.draw_circle($player[:x], $player[:y], 10, [255, 0, 0])\nend"
+      }
+    },
+    "helpers": {
+      "eval_ruby": {
+        "signature": "eval_ruby(code)",
+        "description": "Evaluate Ruby code dynamically and return [success, result_or_error]. Used by the developer console.",
+        "params": [
+          {"name": "code", "type": "String", "description": "Ruby code to evaluate"}
+        ],
+        "returns": {"type": "Array", "description": "[Boolean success, String result_or_error]"},
+        "example": "success, result = eval_ruby(\"1 + 2\")"
+      },
+      "console_open?": {
+        "signature": "console_open?",
+        "description": "Check if the developer console is currently open. Useful for disabling game input while typing.",
+        "params": [],
+        "returns": {"type": "Boolean"},
+        "example": "unless console_open?\n  # Process game input\nend"
+      }
+    }
+  }
+}
