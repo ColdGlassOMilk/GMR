@@ -98,6 +98,8 @@ module Gmrcli
       # === Setup Events ===
 
       def setup_start(target)
+        return unless enabled?
+
         target_sym = target.to_s.to_sym
         stages = SETUP_STAGES[target_sym] || SETUP_STAGES[:native]
 
@@ -109,6 +111,8 @@ module Gmrcli
       end
 
       def setup_complete(duration_ms: nil)
+        return unless enabled?
+
         duration = duration_ms || elapsed_ms(@start_time)
         emit(:setup_complete, {
           status: "success",
@@ -119,6 +123,8 @@ module Gmrcli
       # === Build Events ===
 
       def build_start(build_type)
+        return unless enabled?
+
         type_sym = build_type.to_s.downcase.to_sym
         stages = BUILD_STAGES[type_sym] || BUILD_STAGES[:debug]
 
@@ -130,6 +136,8 @@ module Gmrcli
       end
 
       def build_complete(output_path: nil, duration_ms: nil)
+        return unless enabled?
+
         duration = duration_ms || elapsed_ms(@start_time)
         emit(:build_complete, {
           status: "success",
@@ -141,6 +149,8 @@ module Gmrcli
       # === Stage Events ===
 
       def stage_start(stage_id, stage_name = nil)
+        return unless enabled?
+
         @stage_start_times[stage_id] = Time.now
         emit(:stage_start, {
           stageId: stage_id.to_s,
@@ -149,6 +159,8 @@ module Gmrcli
       end
 
       def stage_progress(stage_id, percent, message, substage: nil)
+        return unless enabled?
+
         emit(:stage_progress, {
           stageId: stage_id.to_s,
           percent: percent.to_i,
@@ -158,6 +170,8 @@ module Gmrcli
       end
 
       def stage_complete(stage_id, duration_ms: nil)
+        return unless enabled?
+
         start_time = @stage_start_times[stage_id]
         duration = duration_ms || (start_time ? elapsed_ms(start_time) : nil)
 
@@ -169,6 +183,8 @@ module Gmrcli
       end
 
       def stage_skip(stage_id, reason: nil)
+        return unless enabled?
+
         emit(:stage_skip, {
           stageId: stage_id.to_s,
           status: "skipped",
@@ -177,6 +193,8 @@ module Gmrcli
       end
 
       def stage_error(stage_id, message, details: nil, suggestions: [])
+        return unless enabled?
+
         emit(:stage_error, {
           stageId: stage_id.to_s,
           status: "error",
