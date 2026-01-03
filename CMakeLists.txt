@@ -145,10 +145,11 @@ if(PLATFORM_WEB)
     # No need to preload script files for web builds
 
     # Preload assets folder for web builds (textures, sounds, etc.)
+    # Use project directory assets, not engine directory
     # Mount at /assets - the engine's resolve_asset_path() handles platform differences
-    if(EXISTS "${CMAKE_SOURCE_DIR}/game/assets")
+    if(EXISTS "${PROJECT_OUTPUT_DIR}/game/assets")
         target_link_options(${PROJECT_NAME} PRIVATE
-            "--preload-file=${CMAKE_SOURCE_DIR}/game/assets@/assets"
+            "--preload-file=${PROJECT_OUTPUT_DIR}/game/assets@/assets"
         )
     endif()
 
@@ -271,10 +272,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR PLATFORM_WEB)
     message(STATUS "Enabling compiled script bytecode")
     set(COMPILED_SCRIPTS_HEADER "${CMAKE_BINARY_DIR}/generated/gmr/scripting/compiled_scripts.hpp")
 
-    # Compile scripts and generate header
+    # Compile scripts from project directory (where the user's game scripts live)
     compile_ruby_scripts(
         ${PROJECT_NAME}
-        "${CMAKE_SOURCE_DIR}/game/scripts"
+        "${PROJECT_OUTPUT_DIR}/game/scripts"
         "${COMPILED_SCRIPTS_HEADER}"
     )
 
@@ -284,14 +285,27 @@ else()
     message(STATUS "Using runtime script loading (debug mode)")
 endif()
 
-# Copy game folder to output (for native builds only - web uses preload)
+# Copy game assets to output directory
+# - Debug builds: Copy entire game folder (scripts loaded from disk for hot-reload)
+# - Release builds: Only copy assets (scripts are compiled into bytecode)
 if(NOT PLATFORM_WEB)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${PROJECT_OUTPUT_DIR}/game
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/game
-        COMMENT "Copying game folder..."
-    )
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        # Release: Only copy assets folder (scripts are embedded as bytecode)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_OUTPUT_DIR}/game/assets
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/game/assets
+            COMMENT "Copying game assets..."
+        )
+    else()
+        # Debug: Copy entire game folder for hot-reload
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_OUTPUT_DIR}/game
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/game
+            COMMENT "Copying game folder..."
+        )
+    endif()
 endif()
 
 # Print configuration
