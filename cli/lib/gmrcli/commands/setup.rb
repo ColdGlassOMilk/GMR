@@ -234,10 +234,26 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "mruby", "source")
         install_dir = File.join(Platform.deps_dir, "mruby", "native")
 
-        if File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        lib_exists = File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        headers_exist = File.exist?(File.join(install_dir, "include", "mruby.h"))
+
+        if lib_exists && headers_exist
           UI.step "mruby native already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
           JsonEmitter.stage_progress(:mruby_native, 100, "Already built", substage: "cached")
+          return
+        end
+
+        # If lib exists but headers are missing, just copy headers
+        if lib_exists && !headers_exist && Dir.exist?(File.join(src_dir, "include"))
+          UI.step "Copying missing mruby headers..."
+          FileUtils.mkdir_p(File.join(install_dir, "include"))
+          FileUtils.cp_r(
+            Dir[File.join(src_dir, "include", "*")],
+            File.join(install_dir, "include")
+          )
+          UI.success "mruby headers installed"
+          JsonEmitter.stage_progress(:mruby_native, 100, "Headers installed", substage: "fixed")
           return
         end
 
@@ -546,10 +562,26 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "mruby", "source")
         install_dir = File.join(Platform.deps_dir, "mruby", "web")
 
-        if File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        lib_exists = File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        headers_exist = File.exist?(File.join(install_dir, "include", "mruby.h"))
+
+        if lib_exists && headers_exist
           UI.step "mruby web already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
           JsonEmitter.stage_progress(:mruby_web, 100, "Already built", substage: "cached")
+          return
+        end
+
+        # If lib exists but headers are missing, just copy headers
+        if lib_exists && !headers_exist && Dir.exist?(File.join(src_dir, "include"))
+          UI.step "Copying missing mruby headers..."
+          FileUtils.mkdir_p(File.join(install_dir, "include"))
+          FileUtils.cp_r(
+            Dir[File.join(src_dir, "include", "*")],
+            File.join(install_dir, "include")
+          )
+          UI.success "mruby headers installed"
+          JsonEmitter.stage_progress(:mruby_web, 100, "Headers installed", substage: "fixed")
           return
         end
 
