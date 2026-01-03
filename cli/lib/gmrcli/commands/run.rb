@@ -3,19 +3,25 @@
 module Gmrcli
   module Commands
     # Run command - runs GMR games
+    #
+    # The run command looks for executables in the project's release directory,
+    # not the engine directory. This matches the build command behavior where
+    # build output goes to the project directory.
     class Run
-      attr_reader :options
+      attr_reader :options, :project_dir
 
       def initialize(options = {})
         @options = {
           project: nil,
           port: 8080
         }.merge(options)
+
+        # Determine project directory early
+        @project_dir = resolve_project_dir
       end
 
       # Run the native executable
       def native
-        project_dir = resolve_project_dir
         exe_path = find_executable
 
         UI.info "Running: #{exe_path}"
@@ -34,7 +40,8 @@ module Gmrcli
 
       # Start a local web server for the web build
       def web
-        web_dir = File.join(Platform.gmr_root, "release", "web")
+        # Look in project's release/web directory
+        web_dir = File.join(project_dir, "release", "web")
         html_file = File.join(web_dir, "gmr.html")
 
         unless File.exist?(html_file)
@@ -87,8 +94,9 @@ module Gmrcli
 
         # Search order:
         # 1. GMR_EXE environment variable
-        # 2. GMR release directory
-        # 3. System PATH
+        # 2. Project's release directory (where builds output to)
+        # 3. Engine's release directory (legacy/fallback)
+        # 4. System PATH
 
         # Check environment variable
         if ENV["GMR_EXE"]
@@ -98,7 +106,11 @@ module Gmrcli
           UI.warn "GMR_EXE set but file not found: #{path}"
         end
 
-        # Check GMR release directory
+        # Check project's release directory (primary location)
+        project_exe = File.join(project_dir, "release", exe_name)
+        return project_exe if File.exist?(project_exe)
+
+        # Check engine's release directory (fallback for legacy builds)
         engine_exe = File.join(Platform.gmr_root, "release", exe_name)
         return engine_exe if File.exist?(engine_exe)
 
@@ -112,7 +124,7 @@ module Gmrcli
         raise MissingFileError.new(
           "GMR executable not found",
           suggestions: [
-            "Run 'gmrcli build debug' in the GMR engine directory",
+            "Run 'gmrcli build debug' to build the project first",
             "Set GMR_EXE environment variable to the executable path",
             "Add GMR to your system PATH"
           ]
