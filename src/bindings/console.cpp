@@ -41,7 +41,8 @@ static mrb_value mrb_eval_ruby(mrb_state* mrb, mrb_value) {
 }
 
 void register_console(mrb_state* mrb) {
-    define_method(mrb, "eval_ruby", mrb_eval_ruby, MRB_ARGS_REQ(1));
+    // Define eval_ruby as a global Kernel method
+    mrb_define_method(mrb, mrb->kernel_module, "eval_ruby", mrb_eval_ruby, MRB_ARGS_REQ(1));
 }
 
 } // namespace bindings

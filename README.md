@@ -8,15 +8,15 @@
 
 ## Features
 
-- **🔥 Hot Reload** - Edit Ruby scripts and see changes instantly without recompiling or restarting
-- **💻 Live REPL** - Built-in developer console for executing Ruby code in real-time while your game runs
-- **🎮 Full Game Engine** - Graphics, audio, input, resource management - everything you need
-- **🌐 Web & Native** - Deploy as native executables or compile to WebAssembly for browser play
-- **🛡️ Memory Safe** - Handle-based resources mean Ruby never touches raw pointers
-- **⚡ Fast** - mruby compiles Ruby to bytecode, raylib provides hardware-accelerated rendering
-- **📦 Cross-platform** - Windows, Linux, macOS support out of the box
-- **🎯 Simple API** - Clean, intuitive Ruby API designed for rapid game development
-- **🔧 Modern Tooling** - `gmrcli` utility for build/run/release, CMake presets, VSCode integration
+- 🔥 **Hot Reload** - Edit Ruby scripts and see changes instantly without recompiling or restarting
+- 💻 **Live REPL** - Built-in developer console for executing Ruby code in real-time while your game runs
+- 🎮 **Full Game Engine** - Graphics, audio, input, resource management - everything you need
+- 🌐 **Web & Native** - Deploy as native executables or compile to WebAssembly for browser play
+- 🛡️ **Memory Safe** - Handle-based resources mean Ruby never touches raw pointers
+- ⚡ **Fast** - mruby compiles Ruby to bytecode, raylib provides hardware-accelerated rendering
+- 📦 **Cross-platform** - Windows, Linux, macOS support out of the box
+- 🎯 **Simple API** - Clean, Ruby-style API designed for rapid game development
+- 🔧 **Modern Tooling** - `gmrcli` utility for build/run/release, CMake presets, VSCode integration
 
 ## Quick Start
 
@@ -93,31 +93,21 @@ Edit `scripts/main.rb`:
 
 ```ruby
 def init
-  set_window_title("My Awesome Game")
-  set_virtual_resolution(320, 240)  # Retro pixel-perfect rendering
-  $player_x = 160
-  $player_y = 120
-  $speed = 100
+  GMR::Window.set_title("My Game")
+  $x, $y = 160, 120
 end
 
 def update(dt)
-  # Movement
-  $player_x += $speed * dt if key_down?(262)  # Right
-  $player_x -= $speed * dt if key_down?(263)  # Left
-  $player_y -= $speed * dt if key_down?(265)  # Up
-  $player_y += $speed * dt if key_down?(264)  # Down
+  $x += 100 * dt if GMR::Input.key_down?(:right)
+  $x -= 100 * dt if GMR::Input.key_down?(:left)
+  $y -= 100 * dt if GMR::Input.key_down?(:up)
+  $y += 100 * dt if GMR::Input.key_down?(:down)
 end
 
 def draw
-  clear_screen(20, 20, 40)
-
-  # Draw player
-  set_color(100, 200, 255)
-  draw_circle($player_x.to_i, $player_y.to_i, 8)
-
-  # Draw UI
-  set_color(255, 255, 255)
-  draw_text("FPS: #{get_fps}", 10, 10, 20)
+  GMR::Graphics.clear([20, 20, 40])
+  GMR::Graphics.draw_circle($x, $y, 8, [100, 200, 255])
+  GMR::Graphics.draw_text("Arrow keys to move!", 10, 10, 20, [255, 255, 255])
 end
 ```
 
@@ -128,16 +118,17 @@ Save the file and watch it reload instantly!
 Press **`** (backtick/tilde key) to open the developer console while your game is running. You can execute Ruby code in real-time:
 
 ```ruby
-# Try these in the console:
-$speed = 200              # Make the player move faster
-$player_x = 160          # Teleport player to center
-puts "Speed: #{$speed}"  # Print to console
-quit                     # Exit the game
+$x = 160                  # Teleport player
+$speed = 200              # Change speed (if you add a $speed variable)
+puts GMR::Time.fps        # Print current FPS
+GMR::System.quit          # Exit the game
 ```
 
 This is perfect for tweaking values, debugging, and experimenting without reloading. Any global variables or functions defined in your scripts are accessible!
 
 ## API Reference
+
+GMR uses a clean, stateless API organized into modules. Colors are always `[r, g, b]` or `[r, g, b, a]` arrays (0-255).
 
 ### Lifecycle Hooks
 
@@ -147,135 +138,103 @@ def update(dt)    # Called every frame (dt = delta time in seconds)
 def draw          # Called every frame for rendering
 ```
 
-### Graphics - Drawing
+### GMR::Graphics
 
 ```ruby
-# Screen
-clear_screen                    # Clear with background color
-clear_screen(r, g, b)           # Clear with specific color
-set_clear_color(r, g, b)        # Set background color
+# Clear screen
+GMR::Graphics.clear([r, g, b])
 
-# Colors
-set_color(r, g, b)              # RGB (0-255)
-set_color(r, g, b, a)           # RGBA
-set_color([r, g, b])            # Array form
-set_alpha(a)                    # Set alpha only
-
-# Shapes
-draw_rect(x, y, width, height)
-draw_rect_lines(x, y, width, height)
-draw_rect_rotate(x, y, width, height, angle)
-
-draw_circle(x, y, radius)
-draw_circle_lines(x, y, radius)
-draw_circle_gradient(x, y, radius, [r1,g1,b1,a1], [r2,g2,b2,a2])
-
-draw_line(x1, y1, x2, y2)
-draw_line_thick(x1, y1, x2, y2, thickness)
-
-draw_triangle(x1, y1, x2, y2, x3, y3)
-draw_triangle_lines(x1, y1, x2, y2, x3, y3)
+# Shapes (color is always last)
+GMR::Graphics.draw_rect(x, y, w, h, color)
+GMR::Graphics.draw_rect_outline(x, y, w, h, color)
+GMR::Graphics.draw_circle(x, y, radius, color)
+GMR::Graphics.draw_circle_outline(x, y, radius, color)
+GMR::Graphics.draw_line(x1, y1, x2, y2, color)
+GMR::Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, color)
 
 # Text
-draw_text(text, x, y, font_size)
-measure_text(text, font_size)   # Returns width in pixels
+GMR::Graphics.draw_text(text, x, y, size, color)
+GMR::Graphics.measure_text(text, size)  # Returns width in pixels
 ```
 
-### Graphics - Textures
+### GMR::Graphics::Texture
 
 ```ruby
-tex = load_texture("assets/sprite.png")
-draw_texture(tex, x, y)
-draw_texture_ex(tex, x, y, rotation, scale)
-draw_texture_pro(tex, src_x, src_y, src_w, src_h,
-                 dst_x, dst_y, dst_w, dst_h, rotation)
-texture_width(tex)
-texture_height(tex)
+# Load and draw images
+sprite = GMR::Graphics::Texture.load("assets/player.png")
+sprite.width                              # Texture dimensions
+sprite.height
+sprite.draw(x, y)                         # Draw at position
+sprite.draw(x, y, [255, 0, 0])            # Draw with tint
+sprite.draw_ex(x, y, rotation, scale, color)
 ```
 
-### Input - Keyboard
+### GMR::Input
+
+Use readable symbols for keys and mouse buttons:
 
 ```ruby
-key_down?(key)          # Is key currently held?
-key_pressed?(key)       # Was key just pressed this frame?
-key_released?(key)      # Was key just released this frame?
-get_key_pressed         # Get last key pressed (or nil)
-get_char_pressed        # Get last character pressed (or nil)
+# Keyboard
+GMR::Input.key_down?(:space)      # Currently held?
+GMR::Input.key_pressed?(:escape)  # Just pressed this frame?
+GMR::Input.key_released?(:enter)  # Just released?
+
+# Mouse
+GMR::Input.mouse_x                # Position (virtual resolution aware)
+GMR::Input.mouse_y
+GMR::Input.mouse_down?(:left)     # :left, :right, :middle
+GMR::Input.mouse_wheel            # Scroll wheel delta
 ```
 
-**Key Codes:**
-| Key | Code | Key | Code |
-|-----|------|-----|------|
-| LEFT | 263 | RIGHT | 262 |
-| UP | 265 | DOWN | 264 |
-| SPACE | 32 | ENTER | 257 |
-| ESC | 256 | TAB | 258 |
-| A-Z | 65-90 | 0-9 | 48-57 |
-| F1-F12 | 290-301 | | |
+**Supported symbols:** `:space`, `:escape`, `:enter`, `:up`, `:down`, `:left`, `:right`, `:a` through `:z`, `:0` through `:9`, `:f1` through `:f12`
 
-### Input - Mouse
+### GMR::Audio::Sound
 
 ```ruby
-mouse_x                     # X position
-mouse_y                     # Y position
-mouse_down?(button)         # Is button held? (0=left, 1=right, 2=middle)
-mouse_pressed?(button)      # Was button just pressed?
-mouse_released?(button)     # Was button just released?
-mouse_wheel                 # Wheel movement this frame
+sfx = GMR::Audio::Sound.load("assets/jump.wav")
+sfx.play
+sfx.stop
+sfx.volume = 0.5  # 0.0 to 1.0
 ```
 
-### Audio
+### GMR::Window
 
 ```ruby
-sound = load_sound("assets/jump.wav")
-play_sound(sound)
-stop_sound(sound)
-set_sound_volume(sound, volume)  # 0.0 to 1.0
-```
-
-### Window & Display
-
-```ruby
-screen_width                # Current screen width
-screen_height               # Current screen height
-set_window_size(w, h)
-set_window_title(title)
-
-toggle_fullscreen
-set_fullscreen(true/false)
-fullscreen?
-
-monitor_count
-monitor_width(index)
-monitor_height(index)
-monitor_refresh_rate(index)
-monitor_name(index)
-
-set_target_fps(fps)
-get_fps                     # Current FPS
-get_time                    # Time since start (seconds)
-get_delta_time              # Time since last frame (seconds)
+GMR::Window.width                 # Screen dimensions
+GMR::Window.height
+GMR::Window.set_size(800, 600)
+GMR::Window.set_title("My Game")
+GMR::Window.toggle_fullscreen
+GMR::Window.fullscreen?
 ```
 
 ### Virtual Resolution
 
-Render at a fixed low resolution, automatically scaled up with pixel-perfect letterboxing:
+Render at a fixed low resolution, automatically scaled with pixel-perfect letterboxing:
 
 ```ruby
-set_virtual_resolution(320, 240)    # Retro 4:3
-set_virtual_resolution(320, 180)    # Retro 16:9
-clear_virtual_resolution            # Back to native
-virtual_resolution?                 # Is it enabled?
-set_filter_point                    # Crisp pixels (default)
-set_filter_bilinear                 # Smooth scaling
+GMR::Window.set_virtual_resolution(320, 240)  # Retro 4:3
+GMR::Window.clear_virtual_resolution          # Back to native
+GMR::Window.set_filter_point                  # Crisp pixels (default)
+GMR::Window.set_filter_bilinear               # Smooth scaling
 ```
 
-### Utility
+### GMR::Time
 
 ```ruby
-random_int(min, max)        # Random integer [min, max]
-random_float                # Random float [0.0, 1.0)
-quit                        # Exit the game
+GMR::Time.delta           # Seconds since last frame
+GMR::Time.elapsed         # Seconds since start
+GMR::Time.fps             # Current FPS
+GMR::Time.set_target_fps(60)
+```
+
+### GMR::System
+
+```ruby
+GMR::System.quit                    # Exit game
+GMR::System.random_int(1, 100)      # Random integer
+GMR::System.random_float            # Random 0.0 to 1.0
+GMR::System.platform                # "windows", "linux", "macos", "web"
 ```
 
 ## VSCode Integration

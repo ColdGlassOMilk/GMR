@@ -1,5 +1,6 @@
 #include "gmr/scripting/loader.hpp"
 #include "gmr/scripting/helpers.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/bindings/graphics.hpp"
 #include "gmr/bindings/input.hpp"
 #include "gmr/bindings/audio.hpp"
@@ -32,6 +33,10 @@ Loader::~Loader() {
 }
 
 void Loader::register_all_bindings() {
+    // Initialize GMR module hierarchy first
+    bindings::init_gmr_modules(mrb_);
+
+    // Register all bindings (they add to the modules created above)
     bindings::register_graphics(mrb_);
     bindings::register_input(mrb_);
     bindings::register_audio(mrb_);

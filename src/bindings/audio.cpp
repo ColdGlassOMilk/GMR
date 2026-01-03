@@ -5,44 +5,102 @@
 namespace gmr {
 namespace bindings {
 
-static mrb_value mrb_load_sound(mrb_state* mrb, mrb_value) {
+// ============================================================================
+// GMR::Audio::Sound Class
+// ============================================================================
+
+// Sound data structure - holds the handle
+struct SoundData {
+    SoundHandle handle;
+};
+
+// Data type for garbage collection
+static void sound_free(mrb_state* mrb, void* ptr) {
+    // Don't unload the sound - SoundManager owns it
+    // Just free the wrapper struct
+    mrb_free(mrb, ptr);
+}
+
+static const mrb_data_type sound_data_type = {
+    "GMR::Audio::Sound", sound_free
+};
+
+// Helper to get SoundData from self
+static SoundData* get_sound_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<SoundData*>(mrb_data_get_ptr(mrb, self, &sound_data_type));
+}
+
+// GMR::Audio::Sound.load(path) - class method
+static mrb_value mrb_sound_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
     mrb_get_args(mrb, "z", &path);
-    
+
     SoundHandle handle = SoundManager::instance().load(path);
     if (handle == INVALID_HANDLE) {
         mrb_raisef(mrb, E_RUNTIME_ERROR, "Failed to load sound: %s", path);
+        return mrb_nil_value();
     }
-    return mrb_fixnum_value(handle);
+
+    // Create new instance
+    RClass* sound_class = mrb_class_ptr(klass);
+    mrb_value obj = mrb_obj_new(mrb, sound_class, 0, nullptr);
+
+    // Allocate and set data
+    SoundData* data = static_cast<SoundData*>(mrb_malloc(mrb, sizeof(SoundData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &sound_data_type);
+
+    return obj;
 }
 
-static mrb_value mrb_play_sound(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
-    mrb_get_args(mrb, "i", &handle);
-    SoundManager::instance().play(static_cast<SoundHandle>(handle));
+// sound.play
+static mrb_value mrb_sound_play(mrb_state* mrb, mrb_value self) {
+    SoundData* data = get_sound_data(mrb, self);
+    if (data) {
+        SoundManager::instance().play(data->handle);
+    }
     return mrb_nil_value();
 }
 
-static mrb_value mrb_stop_sound(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
-    mrb_get_args(mrb, "i", &handle);
-    SoundManager::instance().stop(static_cast<SoundHandle>(handle));
+// sound.stop
+static mrb_value mrb_sound_stop(mrb_state* mrb, mrb_value self) {
+    SoundData* data = get_sound_data(mrb, self);
+    if (data) {
+        SoundManager::instance().stop(data->handle);
+    }
     return mrb_nil_value();
 }
 
-static mrb_value mrb_set_sound_volume(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
+// sound.volume = value
+static mrb_value mrb_sound_set_volume(mrb_state* mrb, mrb_value self) {
     mrb_float volume;
-    mrb_get_args(mrb, "if", &handle, &volume);
-    SoundManager::instance().set_volume(static_cast<SoundHandle>(handle), static_cast<float>(volume));
-    return mrb_nil_value();
+    mrb_get_args(mrb, "f", &volume);
+
+    SoundData* data = get_sound_data(mrb, self);
+    if (data) {
+        SoundManager::instance().set_volume(data->handle, static_cast<float>(volume));
+    }
+    return mrb_float_value(mrb, volume);
 }
+
+// ============================================================================
+// Registration
+// ============================================================================
 
 void register_audio(mrb_state* mrb) {
-    define_method(mrb, "load_sound", mrb_load_sound, MRB_ARGS_REQ(1));
-    define_method(mrb, "play_sound", mrb_play_sound, MRB_ARGS_REQ(1));
-    define_method(mrb, "stop_sound", mrb_stop_sound, MRB_ARGS_REQ(1));
-    define_method(mrb, "set_sound_volume", mrb_set_sound_volume, MRB_ARGS_REQ(2));
+    RClass* audio = get_gmr_submodule(mrb, "Audio");
+
+    // Sound class
+    RClass* sound_class = mrb_define_class_under(mrb, audio, "Sound", mrb->object_class);
+    MRB_SET_INSTANCE_TT(sound_class, MRB_TT_CDATA);
+
+    // Class method
+    mrb_define_class_method(mrb, sound_class, "load", mrb_sound_load, MRB_ARGS_REQ(1));
+
+    // Instance methods
+    mrb_define_method(mrb, sound_class, "play", mrb_sound_play, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sound_class, "stop", mrb_sound_stop, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sound_class, "volume=", mrb_sound_set_volume, MRB_ARGS_REQ(1));
 }
 
 } // namespace bindings

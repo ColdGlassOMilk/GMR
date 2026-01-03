@@ -28,24 +28,31 @@
 namespace gmr {
 namespace bindings {
 
-static mrb_value mrb_random_int(mrb_state* mrb, mrb_value) {
+// ============================================================================
+// GMR::System Module Functions
+// ============================================================================
+
+// GMR::System.random_int(min, max)
+static mrb_value mrb_system_random_int(mrb_state* mrb, mrb_value) {
     mrb_int min, max;
     mrb_get_args(mrb, "ii", &min, &max);
     return mrb_fixnum_value(GetRandomValue(min, max));
 }
 
-static mrb_value mrb_random_float(mrb_state* mrb, mrb_value) {
+// GMR::System.random_float
+static mrb_value mrb_system_random_float(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, static_cast<double>(GetRandomValue(0, RAND_MAX)) / RAND_MAX);
 }
 
-static mrb_value mrb_quit(mrb_state*, mrb_value) {
+// GMR::System.quit
+static mrb_value mrb_system_quit(mrb_state*, mrb_value) {
     CloseWindow();
     exit(0);
     return mrb_nil_value();
 }
 
-// Build info functions
-static mrb_value mrb_build_platform(mrb_state* mrb, mrb_value) {
+// GMR::System.platform
+static mrb_value mrb_system_platform(mrb_state* mrb, mrb_value) {
 #if defined(PLATFORM_WEB)
     return mrb_str_new_cstr(mrb, "web");
 #elif defined(_WIN32)
@@ -59,7 +66,8 @@ static mrb_value mrb_build_platform(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-static mrb_value mrb_build_type(mrb_state* mrb, mrb_value) {
+// GMR::System.build_type
+static mrb_value mrb_system_build_type(mrb_state* mrb, mrb_value) {
 #if defined(DEBUG)
     return mrb_str_new_cstr(mrb, "debug");
 #elif defined(NDEBUG)
@@ -69,7 +77,8 @@ static mrb_value mrb_build_type(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-static mrb_value mrb_build_compiled_scripts(mrb_state* mrb, mrb_value) {
+// GMR::System.compiled_scripts?
+static mrb_value mrb_system_compiled_scripts(mrb_state* mrb, mrb_value) {
 #if defined(GMR_USE_COMPILED_SCRIPTS)
     return mrb_true_value();
 #else
@@ -77,12 +86,13 @@ static mrb_value mrb_build_compiled_scripts(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-static mrb_value mrb_raylib_version(mrb_state* mrb, mrb_value) {
+// GMR::System.raylib_version
+static mrb_value mrb_system_raylib_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, RAYLIB_VERSION);
 }
 
-// GPU info functions (using OpenGL queries via rlgl)
-static mrb_value mrb_gpu_vendor(mrb_state* mrb, mrb_value) {
+// GMR::System.gpu_vendor
+static mrb_value mrb_system_gpu_vendor(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* vendor = getGLString(GL_VENDOR);
     if (vendor) {
@@ -92,7 +102,8 @@ static mrb_value mrb_gpu_vendor(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "unknown");
 }
 
-static mrb_value mrb_gpu_renderer(mrb_state* mrb, mrb_value) {
+// GMR::System.gpu_renderer
+static mrb_value mrb_system_gpu_renderer(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* renderer = getGLString(GL_RENDERER);
     if (renderer) {
@@ -102,7 +113,8 @@ static mrb_value mrb_gpu_renderer(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "WebGL");
 }
 
-static mrb_value mrb_gl_version(mrb_state* mrb, mrb_value) {
+// GMR::System.gl_version
+static mrb_value mrb_system_gl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* version = getGLString(GL_VERSION);
     if (version) {
@@ -112,7 +124,8 @@ static mrb_value mrb_gl_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "WebGL 2.0");
 }
 
-static mrb_value mrb_glsl_version(mrb_state* mrb, mrb_value) {
+// GMR::System.glsl_version
+static mrb_value mrb_system_glsl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* version = getGLString(GL_SHADING_LANGUAGE_VERSION);
     if (version) {
@@ -122,22 +135,28 @@ static mrb_value mrb_glsl_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "GLSL ES 3.00");
 }
 
+// ============================================================================
+// Registration
+// ============================================================================
+
 void register_util(mrb_state* mrb) {
-    define_method(mrb, "random_int", mrb_random_int, MRB_ARGS_REQ(2));
-    define_method(mrb, "random_float", mrb_random_float, MRB_ARGS_NONE());
-    define_method(mrb, "quit", mrb_quit, MRB_ARGS_NONE());
+    RClass* system = get_gmr_submodule(mrb, "System");
+
+    mrb_define_module_function(mrb, system, "random_int", mrb_system_random_int, MRB_ARGS_REQ(2));
+    mrb_define_module_function(mrb, system, "random_float", mrb_system_random_float, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "quit", mrb_system_quit, MRB_ARGS_NONE());
 
     // Build info
-    define_method(mrb, "build_platform", mrb_build_platform, MRB_ARGS_NONE());
-    define_method(mrb, "build_type", mrb_build_type, MRB_ARGS_NONE());
-    define_method(mrb, "compiled_scripts?", mrb_build_compiled_scripts, MRB_ARGS_NONE());
-    define_method(mrb, "raylib_version", mrb_raylib_version, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "platform", mrb_system_platform, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "build_type", mrb_system_build_type, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "compiled_scripts?", mrb_system_compiled_scripts, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "raylib_version", mrb_system_raylib_version, MRB_ARGS_NONE());
 
     // GPU info
-    define_method(mrb, "gpu_vendor", mrb_gpu_vendor, MRB_ARGS_NONE());
-    define_method(mrb, "gpu_renderer", mrb_gpu_renderer, MRB_ARGS_NONE());
-    define_method(mrb, "gl_version", mrb_gl_version, MRB_ARGS_NONE());
-    define_method(mrb, "glsl_version", mrb_glsl_version, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "gpu_vendor", mrb_system_gpu_vendor, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "gpu_renderer", mrb_system_gpu_renderer, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "gl_version", mrb_system_gl_version, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "glsl_version", mrb_system_glsl_version, MRB_ARGS_NONE());
 }
 
 } // namespace bindings

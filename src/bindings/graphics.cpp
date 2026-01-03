@@ -12,251 +12,337 @@ static ::Color to_raylib(const Color& c) {
     return ::Color{c.r, c.g, c.b, c.a};
 }
 
-static mrb_value mrb_set_color(mrb_state* mrb, mrb_value) {
-    mrb_value* argv;
-    mrb_int argc;
-    mrb_get_args(mrb, "*", &argv, &argc);
-    
-    auto& state = State::instance();
-    state.current_color = parse_color(mrb, argv, argc, state.current_color);
-    return mrb_nil_value();
-}
+// Default white color for when none is specified
+static const Color WHITE_COLOR{255, 255, 255, 255};
 
-static mrb_value mrb_set_clear_color(mrb_state* mrb, mrb_value) {
-    mrb_value* argv;
-    mrb_int argc;
-    mrb_get_args(mrb, "*", &argv, &argc);
-    
-    auto& state = State::instance();
-    state.clear_color = parse_color(mrb, argv, argc, state.clear_color);
-    return mrb_nil_value();
-}
+// ============================================================================
+// GMR::Graphics Module Functions (Stateless)
+// ============================================================================
 
-static mrb_value mrb_set_alpha(mrb_state* mrb, mrb_value) {
-    mrb_int a;
-    mrb_get_args(mrb, "i", &a);
-    State::instance().current_color.a = static_cast<uint8_t>(a);
-    return mrb_nil_value();
-}
+// GMR::Graphics.clear(color)
+static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
+    mrb_value color_val;
+    mrb_get_args(mrb, "A", &color_val);
 
-static mrb_value mrb_clear_screen(mrb_state* mrb, mrb_value) {
-    mrb_value* argv;
-    mrb_int argc;
-    mrb_get_args(mrb, "*", &argv, &argc);
-    
-    auto& state = State::instance();
-    Color c = (argc == 0) ? state.clear_color : parse_color(mrb, argv, argc, state.clear_color);
+    Color c = parse_color_value(mrb, color_val, State::instance().clear_color);
     ClearBackground(to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_rect(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_rect(x, y, w, h, color)
+static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
-    mrb_get_args(mrb, "iiii", &x, &y, &w, &h);
-    DrawRectangle(x, y, w, h, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "iiiiA", &x, &y, &w, &h, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawRectangle(x, y, w, h, to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_rect_lines(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_rect_outline(x, y, w, h, color)
+static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
-    mrb_get_args(mrb, "iiii", &x, &y, &w, &h);
-    DrawRectangleLines(x, y, w, h, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "iiiiA", &x, &y, &w, &h, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawRectangleLines(x, y, w, h, to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_rect_rotate(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_rect_rotated(x, y, w, h, angle, color)
+static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
     mrb_float x, y, w, h, angle;
-    mrb_get_args(mrb, "fffff", &x, &y, &w, &h, &angle);
-    
-    Rectangle rec = {static_cast<float>(x), static_cast<float>(y), 
+    mrb_value color_val;
+    mrb_get_args(mrb, "fffffA", &x, &y, &w, &h, &angle, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    Rectangle rec = {static_cast<float>(x), static_cast<float>(y),
                      static_cast<float>(w), static_cast<float>(h)};
     Vector2 origin = {static_cast<float>(w) / 2.0f, static_cast<float>(h) / 2.0f};
-    DrawRectanglePro(rec, origin, static_cast<float>(angle), to_raylib(State::instance().current_color));
+    DrawRectanglePro(rec, origin, static_cast<float>(angle), to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_line(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_line(x1, y1, x2, y2, color)
+static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
     mrb_int x1, y1, x2, y2;
-    mrb_get_args(mrb, "iiii", &x1, &y1, &x2, &y2);
-    DrawLine(x1, y1, x2, y2, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "iiiiA", &x1, &y1, &x2, &y2, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawLine(x1, y1, x2, y2, to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_line_thick(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_line_thick(x1, y1, x2, y2, thickness, color)
+static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, thick;
-    mrb_get_args(mrb, "fffff", &x1, &y1, &x2, &y2, &thick);
+    mrb_value color_val;
+    mrb_get_args(mrb, "fffffA", &x1, &y1, &x2, &y2, &thick, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
     DrawLineEx(
         Vector2{static_cast<float>(x1), static_cast<float>(y1)},
         Vector2{static_cast<float>(x2), static_cast<float>(y2)},
         static_cast<float>(thick),
-        to_raylib(State::instance().current_color)
+        to_raylib(c)
     );
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_circle(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_circle(x, y, radius, color)
+static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
-    mrb_get_args(mrb, "iii", &x, &y, &radius);
-    DrawCircle(x, y, radius, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "iiiA", &x, &y, &radius, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawCircle(x, y, static_cast<float>(radius), to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_circle_lines(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_circle_outline(x, y, radius, color)
+static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
-    mrb_get_args(mrb, "iii", &x, &y, &radius);
-    DrawCircleLines(x, y, radius, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "iiiA", &x, &y, &radius, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawCircleLines(x, y, static_cast<float>(radius), to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_circle_gradient(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_circle_gradient(x, y, radius, inner_color, outer_color)
+static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
-    mrb_value inner_arr, outer_arr;
-    mrb_get_args(mrb, "iiiAA", &x, &y, &radius, &inner_arr, &outer_arr);
-    
-    Color inner = parse_color(mrb, &inner_arr, 1, Color{255, 255, 255, 255});
-    Color outer = parse_color(mrb, &outer_arr, 1, Color{0, 0, 0, 0});
-    
-    DrawCircleGradient(x, y, radius, to_raylib(inner), to_raylib(outer));
+    mrb_value inner_val, outer_val;
+    mrb_get_args(mrb, "iiiAA", &x, &y, &radius, &inner_val, &outer_val);
+
+    Color inner = parse_color_value(mrb, inner_val, WHITE_COLOR);
+    Color outer = parse_color_value(mrb, outer_val, Color{0, 0, 0, 0});
+
+    DrawCircleGradient(x, y, static_cast<float>(radius), to_raylib(inner), to_raylib(outer));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_triangle(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, color)
+static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
-    mrb_get_args(mrb, "ffffff", &x1, &y1, &x2, &y2, &x3, &y3);
+    mrb_value color_val;
+    mrb_get_args(mrb, "ffffffA", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
     DrawTriangle(
         Vector2{static_cast<float>(x1), static_cast<float>(y1)},
         Vector2{static_cast<float>(x2), static_cast<float>(y2)},
         Vector2{static_cast<float>(x3), static_cast<float>(y3)},
-        to_raylib(State::instance().current_color)
+        to_raylib(c)
     );
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_triangle_lines(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)
+static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
-    mrb_get_args(mrb, "ffffff", &x1, &y1, &x2, &y2, &x3, &y3);
+    mrb_value color_val;
+    mrb_get_args(mrb, "ffffffA", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
     DrawTriangleLines(
         Vector2{static_cast<float>(x1), static_cast<float>(y1)},
         Vector2{static_cast<float>(x2), static_cast<float>(y2)},
         Vector2{static_cast<float>(x3), static_cast<float>(y3)},
-        to_raylib(State::instance().current_color)
+        to_raylib(c)
     );
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_text(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.draw_text(text, x, y, size, color)
+static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
     const char* text;
     mrb_int x, y, size;
-    mrb_get_args(mrb, "ziii", &text, &x, &y, &size);
-    DrawText(text, x, y, size, to_raylib(State::instance().current_color));
+    mrb_value color_val;
+    mrb_get_args(mrb, "ziiiA", &text, &x, &y, &size, &color_val);
+
+    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    DrawText(text, x, y, size, to_raylib(c));
     return mrb_nil_value();
 }
 
-static mrb_value mrb_measure_text(mrb_state* mrb, mrb_value) {
+// GMR::Graphics.measure_text(text, size)
+static mrb_value mrb_graphics_measure_text(mrb_state* mrb, mrb_value) {
     const char* text;
     mrb_int size;
     mrb_get_args(mrb, "zi", &text, &size);
     return mrb_fixnum_value(MeasureText(text, size));
 }
 
-// --- Texture functions (handle-based) ---
-static mrb_value mrb_load_texture(mrb_state* mrb, mrb_value) {
+// ============================================================================
+// GMR::Graphics::Texture Class
+// ============================================================================
+
+// Texture data structure - holds the handle
+struct TextureData {
+    TextureHandle handle;
+};
+
+// Data type for garbage collection
+static void texture_free(mrb_state* mrb, void* ptr) {
+    // Don't unload the texture - TextureManager owns it
+    // Just free the wrapper struct
+    mrb_free(mrb, ptr);
+}
+
+static const mrb_data_type texture_data_type = {
+    "GMR::Graphics::Texture", texture_free
+};
+
+// Helper to get TextureData from self
+static TextureData* get_texture_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<TextureData*>(mrb_data_get_ptr(mrb, self, &texture_data_type));
+}
+
+// GMR::Graphics::Texture.load(path) - class method
+static mrb_value mrb_texture_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
     mrb_get_args(mrb, "z", &path);
-    
+
     TextureHandle handle = TextureManager::instance().load(path);
     if (handle == INVALID_HANDLE) {
         mrb_raisef(mrb, E_RUNTIME_ERROR, "Failed to load texture: %s", path);
+        return mrb_nil_value();
     }
-    return mrb_fixnum_value(handle);
+
+    // Create new instance
+    RClass* texture_class = mrb_class_ptr(klass);
+    mrb_value obj = mrb_obj_new(mrb, texture_class, 0, nullptr);
+
+    // Allocate and set data
+    TextureData* data = static_cast<TextureData*>(mrb_malloc(mrb, sizeof(TextureData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &texture_data_type);
+
+    return obj;
 }
 
-static mrb_value mrb_draw_texture(mrb_state* mrb, mrb_value) {
-    mrb_int handle, x, y;
-    mrb_get_args(mrb, "iii", &handle, &x, &y);
-    
-    if (auto* texture = TextureManager::instance().get(static_cast<TextureHandle>(handle))) {
-        DrawTexture(*texture, x, y, to_raylib(State::instance().current_color));
+// texture.width
+static mrb_value mrb_texture_width(mrb_state* mrb, mrb_value self) {
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(TextureManager::instance().get_width(data->handle));
+}
+
+// texture.height
+static mrb_value mrb_texture_height(mrb_state* mrb, mrb_value self) {
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(TextureManager::instance().get_height(data->handle));
+}
+
+// texture.draw(x, y) or texture.draw(x, y, color)
+static mrb_value mrb_texture_draw(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_value color_val = mrb_nil_value();
+    mrb_int argc = mrb_get_args(mrb, "ii|A", &x, &y, &color_val);
+
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    Color c = (argc > 2) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+
+    if (auto* texture = TextureManager::instance().get(data->handle)) {
+        DrawTexture(*texture, x, y, to_raylib(c));
     }
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_texture_ex(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
+// texture.draw_ex(x, y, rotation, scale) or texture.draw_ex(x, y, rotation, scale, color)
+static mrb_value mrb_texture_draw_ex(mrb_state* mrb, mrb_value self) {
     mrb_float x, y, rotation, scale;
-    mrb_get_args(mrb, "iffff", &handle, &x, &y, &rotation, &scale);
-    
-    if (auto* texture = TextureManager::instance().get(static_cast<TextureHandle>(handle))) {
-        DrawTextureEx(*texture, 
+    mrb_value color_val = mrb_nil_value();
+    mrb_int argc = mrb_get_args(mrb, "ffff|A", &x, &y, &rotation, &scale, &color_val);
+
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    Color c = (argc > 4) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+
+    if (auto* texture = TextureManager::instance().get(data->handle)) {
+        DrawTextureEx(*texture,
             Vector2{static_cast<float>(x), static_cast<float>(y)},
             static_cast<float>(rotation),
             static_cast<float>(scale),
-            to_raylib(State::instance().current_color)
+            to_raylib(c)
         );
     }
     return mrb_nil_value();
 }
 
-static mrb_value mrb_draw_texture_pro(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
+// texture.draw_pro(sx, sy, sw, sh, dx, dy, dw, dh, rotation) or with color
+static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
     mrb_float sx, sy, sw, sh, dx, dy, dw, dh, rotation;
-    mrb_get_args(mrb, "ifffffffff", &handle, &sx, &sy, &sw, &sh, &dx, &dy, &dw, &dh, &rotation);
-    
-    if (auto* texture = TextureManager::instance().get(static_cast<TextureHandle>(handle))) {
+    mrb_value color_val = mrb_nil_value();
+    mrb_int argc = mrb_get_args(mrb, "fffffffff|A", &sx, &sy, &sw, &sh, &dx, &dy, &dw, &dh, &rotation, &color_val);
+
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    Color c = (argc > 9) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+
+    if (auto* texture = TextureManager::instance().get(data->handle)) {
         Rectangle source = {static_cast<float>(sx), static_cast<float>(sy),
                            static_cast<float>(sw), static_cast<float>(sh)};
         Rectangle dest = {static_cast<float>(dx), static_cast<float>(dy),
                          static_cast<float>(dw), static_cast<float>(dh)};
         Vector2 origin = {static_cast<float>(dw) / 2.0f, static_cast<float>(dh) / 2.0f};
-        
-        DrawTexturePro(*texture, source, dest, origin, static_cast<float>(rotation),
-                      to_raylib(State::instance().current_color));
+
+        DrawTexturePro(*texture, source, dest, origin, static_cast<float>(rotation), to_raylib(c));
     }
     return mrb_nil_value();
 }
 
-static mrb_value mrb_texture_width(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
-    mrb_get_args(mrb, "i", &handle);
-    return mrb_fixnum_value(TextureManager::instance().get_width(static_cast<TextureHandle>(handle)));
-}
-
-static mrb_value mrb_texture_height(mrb_state* mrb, mrb_value) {
-    mrb_int handle;
-    mrb_get_args(mrb, "i", &handle);
-    return mrb_fixnum_value(TextureManager::instance().get_height(static_cast<TextureHandle>(handle)));
-}
+// ============================================================================
+// Registration
+// ============================================================================
 
 void register_graphics(mrb_state* mrb) {
-    define_method(mrb, "set_color", mrb_set_color, MRB_ARGS_ANY());
-    define_method(mrb, "set_clear_color", mrb_set_clear_color, MRB_ARGS_ANY());
-    define_method(mrb, "set_alpha", mrb_set_alpha, MRB_ARGS_REQ(1));
-    define_method(mrb, "clear_screen", mrb_clear_screen, MRB_ARGS_ANY());
-    
-    define_method(mrb, "draw_rect", mrb_draw_rect, MRB_ARGS_REQ(4));
-    define_method(mrb, "draw_rect_lines", mrb_draw_rect_lines, MRB_ARGS_REQ(4));
-    define_method(mrb, "draw_rect_rotate", mrb_draw_rect_rotate, MRB_ARGS_REQ(5));
-    
-    define_method(mrb, "draw_line", mrb_draw_line, MRB_ARGS_REQ(4));
-    define_method(mrb, "draw_line_thick", mrb_draw_line_thick, MRB_ARGS_REQ(5));
-    
-    define_method(mrb, "draw_circle", mrb_draw_circle, MRB_ARGS_REQ(3));
-    define_method(mrb, "draw_circle_lines", mrb_draw_circle_lines, MRB_ARGS_REQ(3));
-    define_method(mrb, "draw_circle_gradient", mrb_draw_circle_gradient, MRB_ARGS_REQ(5));
-    
-    define_method(mrb, "draw_triangle", mrb_draw_triangle, MRB_ARGS_REQ(6));
-    define_method(mrb, "draw_triangle_lines", mrb_draw_triangle_lines, MRB_ARGS_REQ(6));
-    
-    define_method(mrb, "draw_text", mrb_draw_text, MRB_ARGS_REQ(4));
-    define_method(mrb, "measure_text", mrb_measure_text, MRB_ARGS_REQ(2));
-    
-    // Textures
-    define_method(mrb, "load_texture", mrb_load_texture, MRB_ARGS_REQ(1));
-    define_method(mrb, "draw_texture", mrb_draw_texture, MRB_ARGS_REQ(3));
-    define_method(mrb, "draw_texture_ex", mrb_draw_texture_ex, MRB_ARGS_REQ(5));
-    define_method(mrb, "draw_texture_pro", mrb_draw_texture_pro, MRB_ARGS_REQ(10));
-    define_method(mrb, "texture_width", mrb_texture_width, MRB_ARGS_REQ(1));
-    define_method(mrb, "texture_height", mrb_texture_height, MRB_ARGS_REQ(1));
+    RClass* graphics = get_gmr_submodule(mrb, "Graphics");
+
+    // Module functions (stateless drawing)
+    mrb_define_module_function(mrb, graphics, "clear", mrb_graphics_clear, MRB_ARGS_REQ(1));
+
+    mrb_define_module_function(mrb, graphics, "draw_rect", mrb_graphics_draw_rect, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "draw_rect_outline", mrb_graphics_draw_rect_outline, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "draw_rect_rotated", mrb_graphics_draw_rect_rotated, MRB_ARGS_REQ(6));
+
+    mrb_define_module_function(mrb, graphics, "draw_line", mrb_graphics_draw_line, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "draw_line_thick", mrb_graphics_draw_line_thick, MRB_ARGS_REQ(6));
+
+    mrb_define_module_function(mrb, graphics, "draw_circle", mrb_graphics_draw_circle, MRB_ARGS_REQ(4));
+    mrb_define_module_function(mrb, graphics, "draw_circle_outline", mrb_graphics_draw_circle_outline, MRB_ARGS_REQ(4));
+    mrb_define_module_function(mrb, graphics, "draw_circle_gradient", mrb_graphics_draw_circle_gradient, MRB_ARGS_REQ(5));
+
+    mrb_define_module_function(mrb, graphics, "draw_triangle", mrb_graphics_draw_triangle, MRB_ARGS_REQ(7));
+    mrb_define_module_function(mrb, graphics, "draw_triangle_outline", mrb_graphics_draw_triangle_outline, MRB_ARGS_REQ(7));
+
+    mrb_define_module_function(mrb, graphics, "draw_text", mrb_graphics_draw_text, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "measure_text", mrb_graphics_measure_text, MRB_ARGS_REQ(2));
+
+    // Texture class
+    RClass* texture_class = mrb_define_class_under(mrb, graphics, "Texture", mrb->object_class);
+    MRB_SET_INSTANCE_TT(texture_class, MRB_TT_CDATA);
+
+    // Class method
+    mrb_define_class_method(mrb, texture_class, "load", mrb_texture_load, MRB_ARGS_REQ(1));
+
+    // Instance methods
+    mrb_define_method(mrb, texture_class, "width", mrb_texture_width, MRB_ARGS_NONE());
+    mrb_define_method(mrb, texture_class, "height", mrb_texture_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, texture_class, "draw", mrb_texture_draw, MRB_ARGS_ARG(2, 1));
+    mrb_define_method(mrb, texture_class, "draw_ex", mrb_texture_draw_ex, MRB_ARGS_ARG(4, 1));
+    mrb_define_method(mrb, texture_class, "draw_pro", mrb_texture_draw_pro, MRB_ARGS_ARG(9, 1));
 }
 
 } // namespace bindings
