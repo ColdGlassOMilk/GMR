@@ -152,9 +152,14 @@ module Gmrcli
           errors << "raylib not built"
         end
 
-        mruby_lib = Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"
+        # Check for mruby in deps directory first (portable/IDE setup), then system paths
+        mruby_lib = File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")
         unless File.exist?(mruby_lib)
-          errors << "mruby not installed"
+          # Fallback to system paths for MSYS2/system installs
+          system_mruby = Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"
+          unless File.exist?(system_mruby)
+            errors << "mruby not installed"
+          end
         end
 
         unless errors.empty?

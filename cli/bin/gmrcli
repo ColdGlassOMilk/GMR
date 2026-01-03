@@ -183,7 +183,7 @@ module Gmrcli
       deps = [
         ["raylib-native", File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a")],
         ["raylib-web", File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a")],
-        ["mruby-native", Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"],
+        ["mruby-native", File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")],
         ["mruby-web", File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a")],
         ["emsdk", File.join(Platform.deps_dir, "emsdk")]
       ]
