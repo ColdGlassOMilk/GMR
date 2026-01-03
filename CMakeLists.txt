@@ -16,12 +16,20 @@ else()
     set(PLATFORM_WEB FALSE)
 endif()
 
-# Output binary to release folder
+# Project directory - where game scripts live and where output goes
+# If GMR_PROJECT_DIR is set, use it; otherwise fall back to engine directory
+if(DEFINED GMR_PROJECT_DIR)
+    set(PROJECT_OUTPUT_DIR ${GMR_PROJECT_DIR})
+else()
+    set(PROJECT_OUTPUT_DIR ${CMAKE_SOURCE_DIR})
+endif()
+
+# Output binary to release folder in project directory
 if(PLATFORM_WEB)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/release/web)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_OUTPUT_DIR}/release/web)
     set(CMAKE_EXECUTABLE_SUFFIX ".html")
 else()
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/release)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_OUTPUT_DIR}/release)
 endif()
 
 # Sources
@@ -280,7 +288,7 @@ endif()
 if(NOT PLATFORM_WEB)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/game
+        ${PROJECT_OUTPUT_DIR}/game
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/game
         COMMENT "Copying game folder..."
     )
