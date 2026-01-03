@@ -97,9 +97,13 @@ module Gmrcli
 
     desc "start [TARGET]", "Run the game"
     long_desc <<~DESC
-      Run GMR with the current project's scripts:
-        native - Run the native executable (default)
-        web    - Start a local web server for the web build
+      Run GMR with the current project's scripts.
+
+      By default, runs the native executable. Use 'web' to start a local web server.
+
+      Targets:
+        (default) - Run the native executable
+        web       - Start a local web server for the web build
 
       The command looks for game/scripts/main.rb in the current directory.
       The GMR executable is found automatically from the project's release/ folder.
@@ -108,17 +112,17 @@ module Gmrcli
                      desc: "Path to project directory"
     option :port, type: :numeric, default: 8080,
                   desc: "Port for web server"
-    def start(target = "native")
+    def start(target = "")
       ErrorHandler.wrap do
         runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
 
         case target.downcase
-        when "native", "" then runner.native
-        when "web"        then runner.web
+        when "", "native", "debug", "release" then runner.native
+        when "web" then runner.web
         else
           raise Error.new(
             "Unknown run target: #{target}",
-            suggestions: ["Available: native, web"]
+            suggestions: ["Available: web (or omit for native)"]
           )
         end
       end
