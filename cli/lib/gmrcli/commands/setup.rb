@@ -248,10 +248,9 @@ module Gmrcli
         if lib_exists && !headers_exist && Dir.exist?(File.join(src_dir, "include"))
           UI.step "Copying missing mruby headers..."
           FileUtils.mkdir_p(File.join(install_dir, "include"))
-          FileUtils.cp_r(
-            Dir[File.join(src_dir, "include", "*")],
-            File.join(install_dir, "include")
-          )
+          # Normalize to forward slashes for Dir[] glob on Windows
+          include_glob = File.join(src_dir, "include", "*").gsub("\\", "/")
+          FileUtils.cp_r(Dir[include_glob], File.join(install_dir, "include"))
           UI.success "mruby headers installed"
           JsonEmitter.stage_progress(:mruby_native, 100, "Headers installed", substage: "fixed")
           return
@@ -310,19 +309,13 @@ module Gmrcli
           # Copy library
           lib_src = File.join(src_dir, "build", "native", "lib", "libmruby.a")
           lib_dst = File.join(install_dir, "lib")
-          $stderr.puts "[DEBUG] Copying lib: #{lib_src} -> #{lib_dst}"
           FileUtils.cp(lib_src, lib_dst)
 
-          # Copy headers
-          include_src = File.join(src_dir, "include")
+          # Copy headers - normalize to forward slashes for Dir[] glob on Windows
+          include_src = File.join(src_dir, "include").gsub("\\", "/")
           include_dst = File.join(install_dir, "include")
-          header_files = Dir[File.join(include_src, "*")]
-          $stderr.puts "[DEBUG] Copying headers: #{header_files.inspect} -> #{include_dst}"
+          header_files = Dir[File.join(include_src, "*").gsub("\\", "/")]
           FileUtils.cp_r(header_files, include_dst)
-
-          # Verify
-          copied_headers = Dir[File.join(include_dst, "*")]
-          $stderr.puts "[DEBUG] Copied headers result: #{copied_headers.inspect}"
         end
 
         UI.success "mruby native built"
@@ -585,10 +578,9 @@ module Gmrcli
         if lib_exists && !headers_exist && Dir.exist?(File.join(src_dir, "include"))
           UI.step "Copying missing mruby headers..."
           FileUtils.mkdir_p(File.join(install_dir, "include"))
-          FileUtils.cp_r(
-            Dir[File.join(src_dir, "include", "*")],
-            File.join(install_dir, "include")
-          )
+          # Normalize to forward slashes for Dir[] glob on Windows
+          include_glob = File.join(src_dir, "include", "*").gsub("\\", "/")
+          FileUtils.cp_r(Dir[include_glob], File.join(install_dir, "include"))
           UI.success "mruby headers installed"
           JsonEmitter.stage_progress(:mruby_web, 100, "Headers installed", substage: "fixed")
           return
@@ -645,14 +637,17 @@ module Gmrcli
         UI.spinner("Installing") do
           FileUtils.mkdir_p(File.join(install_dir, "lib"))
           FileUtils.mkdir_p(File.join(install_dir, "include"))
-          FileUtils.cp(
-            File.join(src_dir, "build", "emscripten", "lib", "libmruby.a"),
-            File.join(install_dir, "lib")
-          )
-          FileUtils.cp_r(
-            Dir[File.join(src_dir, "include", "*")],
-            File.join(install_dir, "include")
-          )
+
+          # Copy library
+          lib_src = File.join(src_dir, "build", "emscripten", "lib", "libmruby.a")
+          lib_dst = File.join(install_dir, "lib")
+          FileUtils.cp(lib_src, lib_dst)
+
+          # Copy headers - normalize to forward slashes for Dir[] glob on Windows
+          include_src = File.join(src_dir, "include").gsub("\\", "/")
+          include_dst = File.join(install_dir, "include")
+          header_files = Dir[File.join(include_src, "*").gsub("\\", "/")]
+          FileUtils.cp_r(header_files, include_dst)
         end
 
         UI.success "mruby web built"
