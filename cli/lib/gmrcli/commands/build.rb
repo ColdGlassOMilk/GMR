@@ -175,8 +175,11 @@ module Gmrcli
           "-DGMR_PROJECT_DIR=\"#{project_path}\""
         ]
 
-        if Platform.mingw64?
-          args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
+        # Specify ninja path explicitly to ensure CMake finds it
+        # Use dynamic lookup instead of hardcoded MSYS2 path for IDE compatibility
+        ninja_path = Platform.command_path("ninja")
+        if ninja_path
+          args << "-DCMAKE_MAKE_PROGRAM=#{ninja_path.gsub('\\', '/')}"
         end
 
         args
@@ -250,8 +253,11 @@ module Gmrcli
             "-DPLATFORM=Web",
             "-DGMR_PROJECT_DIR=\"#{project_path}\""
           ]
-          if Platform.mingw64?
-            cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
+          # Specify ninja path explicitly to ensure CMake finds it
+          # Use dynamic lookup instead of hardcoded MSYS2 path for IDE compatibility
+          ninja_path = Platform.command_path("ninja")
+          if ninja_path
+            cmake_args << "-DCMAKE_MAKE_PROGRAM=#{ninja_path.gsub('\\', '/')}"
           end
 
           begin
