@@ -342,14 +342,26 @@ module Gmrcli
         emsdk_dir = File.join(Platform.deps_dir, "emsdk")
         emscripten_path = File.join(emsdk_dir, "upstream", "emscripten")
 
-        # Find node
-        node_dir = Dir.glob(File.join(emsdk_dir, "node", "*", "bin")).first
+        # Find node and python directories (versioned subdirectories)
+        node_version_dir = Dir.glob(File.join(emsdk_dir, "node", "*")).first
+        python_version_dir = Dir.glob(File.join(emsdk_dir, "python", "*")).first
+
+        # Node bin directory and executable
+        node_bin_dir = node_version_dir ? File.join(node_version_dir, "bin") : nil
+        node_exe = node_bin_dir ? File.join(node_bin_dir, "node.exe") : nil
+
+        # Python executable
+        python_exe = python_version_dir ? File.join(python_version_dir, "python.exe") : nil
+
+        # Emscripten config file
+        em_config = File.join(emsdk_dir, ".emscripten")
 
         path_additions = [
           Platform.bin_dir,
           emscripten_path,
-          node_dir,
-          "/usr/bin" # MSYS2 make is here
+          node_bin_dir,
+          python_version_dir,  # Add python dir to PATH
+          File.join(emsdk_dir, "upstream", "bin"),  # LLVM tools
         ].compact.join(File::PATH_SEPARATOR)
 
         # Use a cache path with NO SPACES to avoid Windows short path issues
@@ -360,13 +372,20 @@ module Gmrcli
                       File.join(ENV['HOME'], ".emcache")
                     end
 
-        {
+        env = {
           "PATH" => "#{path_additions}#{File::PATH_SEPARATOR}#{ENV['PATH']}",
           "EMSDK" => emsdk_dir,
+          "EM_CONFIG" => em_config,
           "EM_CACHE" => cache_dir,
           "RAYLIB_WEB_PATH" => File.join(Platform.deps_dir, "raylib", "web"),
           "MRUBY_WEB_PATH" => File.join(Platform.deps_dir, "mruby", "web")
         }
+
+        # Add python and node paths if found
+        env["EMSDK_PYTHON"] = python_exe if python_exe && File.exist?(python_exe)
+        env["EMSDK_NODE"] = node_exe if node_exe && File.exist?(node_exe)
+
+        env
       end
 
       # === Helpers ===
