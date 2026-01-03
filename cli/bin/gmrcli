@@ -99,13 +99,10 @@ module Gmrcli
     long_desc <<~DESC
       Run GMR with the current project's scripts:
         native - Run the native executable (default)
-        web    - Start a local web server
+        web    - Start a local web server for the web build
 
       The command looks for game/scripts/main.rb in the current directory.
-      The GMR executable is found automatically from:
-        1. $GMR_EXE environment variable
-        2. GMR release directory
-        3. System PATH
+      The GMR executable is found automatically from the project's release/ folder.
     DESC
     option :project, type: :string, aliases: "-p",
                      desc: "Path to project directory"
