@@ -306,14 +306,23 @@ module Gmrcli
         UI.spinner("Installing") do
           FileUtils.mkdir_p(File.join(install_dir, "lib"))
           FileUtils.mkdir_p(File.join(install_dir, "include"))
-          FileUtils.cp(
-            File.join(src_dir, "build", "native", "lib", "libmruby.a"),
-            File.join(install_dir, "lib")
-          )
-          FileUtils.cp_r(
-            Dir[File.join(src_dir, "include", "*")],
-            File.join(install_dir, "include")
-          )
+
+          # Copy library
+          lib_src = File.join(src_dir, "build", "native", "lib", "libmruby.a")
+          lib_dst = File.join(install_dir, "lib")
+          $stderr.puts "[DEBUG] Copying lib: #{lib_src} -> #{lib_dst}"
+          FileUtils.cp(lib_src, lib_dst)
+
+          # Copy headers
+          include_src = File.join(src_dir, "include")
+          include_dst = File.join(install_dir, "include")
+          header_files = Dir[File.join(include_src, "*")]
+          $stderr.puts "[DEBUG] Copying headers: #{header_files.inspect} -> #{include_dst}"
+          FileUtils.cp_r(header_files, include_dst)
+
+          # Verify
+          copied_headers = Dir[File.join(include_dst, "*")]
+          $stderr.puts "[DEBUG] Copied headers result: #{copied_headers.inspect}"
         end
 
         UI.success "mruby native built"
