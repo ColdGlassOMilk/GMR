@@ -5,16 +5,26 @@ require "fileutils"
 module Gmrcli
   module Commands
     # Build command - builds GMR for various targets
+    #
+    # The build process uses two directories:
+    # - Engine directory (GMR_ROOT): Contains CMakeLists.txt, deps, src - the GMR engine
+    # - Project directory (current working dir): Where game scripts live, and where
+    #   build output (build/, release/) is placed
+    #
+    # This allows multiple projects to share the same GMR engine installation.
     class Build
       TARGETS = %w[debug release web clean all].freeze
 
-      attr_reader :options
+      attr_reader :options, :project_dir
 
       def initialize(options = {})
         @options = {
           verbose: false,
           rebuild: false
         }.merge(options)
+
+        # Determine project directory - use current directory or find project root
+        @project_dir = Platform.find_project_root(Dir.pwd) || Dir.pwd
       end
 
       # === Public Build Methods ===
@@ -45,9 +55,9 @@ module Gmrcli
 
         cleaned = []
 
-        # Clean build and release directories
-        build_root = File.join(Platform.gmr_root, "build")
-        release_root = File.join(Platform.gmr_root, "release")
+        # Clean build and release directories in project directory
+        build_root = File.join(project_dir, "build")
+        release_root = File.join(project_dir, "release")
 
         [build_root, release_root].each do |dir|
           if Dir.exist?(dir)
@@ -151,10 +161,16 @@ module Gmrcli
       end
 
       def build_cmake_args(build_type)
+        # Point to the engine's CMakeLists.txt (absolute path)
+        # Normalize to forward slashes for CMake compatibility on Windows
+        engine_path = engine_dir.gsub("\\", "/")
+
         args = [
-          "../..",
+          engine_path,
           "-G Ninja",
-          "-DCMAKE_BUILD_TYPE=#{build_type}"
+          "-DCMAKE_BUILD_TYPE=#{build_type}",
+          # Tell CMake where to find game scripts
+          "-DGMR_PROJECT_DIR=#{project_dir.gsub('\\', '/')}"
         ]
 
         if Platform.mingw64?
@@ -221,11 +237,14 @@ module Gmrcli
         run_stage(:configure, "Configuring Build") do
           JsonEmitter.stage_progress(:configure, 10, "Running emcmake", substage: "cmake")
           UI.info "Configuring..."
+          # Point to the engine's CMakeLists.txt (absolute path)
+          engine_path = engine_dir.gsub("\\", "/")
           cmake_args = [
-            "../..",
+            engine_path,
             "-G Ninja",
             "-DCMAKE_BUILD_TYPE=Release",
-            "-DPLATFORM=Web"
+            "-DPLATFORM=Web",
+            "-DGMR_PROJECT_DIR=#{project_dir.gsub('\\', '/')}"
           ]
           if Platform.mingw64?
             cmake_args << "-DCMAKE_MAKE_PROGRAM=C:/msys64/mingw64/bin/ninja.exe"
@@ -342,20 +361,26 @@ module Gmrcli
 
       # === Helpers ===
 
+      # Build output goes to project directory
       def build_dir
-        File.join(Platform.gmr_root, "build", "native")
+        File.join(project_dir, "build", "native")
       end
 
       def web_build_dir
-        File.join(Platform.gmr_root, "build", "web")
+        File.join(project_dir, "build", "web")
       end
 
       def release_dir
-        File.join(Platform.gmr_root, "release")
+        File.join(project_dir, "release")
       end
 
       def web_release_dir
-        File.join(Platform.gmr_root, "release", "web")
+        File.join(project_dir, "release", "web")
+      end
+
+      # Engine directory (for CMakeLists.txt reference)
+      def engine_dir
+        Platform.gmr_root
       end
 
       def gmr_exe
