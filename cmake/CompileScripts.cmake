@@ -10,23 +10,14 @@ function(compile_ruby_scripts TARGET_NAME SCRIPT_DIR OUTPUT_HEADER)
     endif()
 
     # Determine mrbc compiler path based on platform
-    if(PLATFORM_WEB)
-        # For Emscripten builds, use host mrbc (must be built separately)
-        if(DEFINED ENV{MRBC_PATH})
-            set(MRBC_COMPILER $ENV{MRBC_PATH})
-        else()
-            find_program(MRBC_COMPILER mrbc
-                PATHS
-                    "${CMAKE_SOURCE_DIR}/deps/mruby/bin"
-                    "C:/msys64/mingw64/bin"
-                    "/usr/local/bin"
-                    "/usr/bin"
-            )
-        endif()
+    if(DEFINED ENV{MRBC_PATH})
+        set(MRBC_COMPILER $ENV{MRBC_PATH})
     else()
-        # For native builds, use system mrbc or deps
+        # Look for mrbc in deps/mruby structure (native build is used for both native and web)
         find_program(MRBC_COMPILER mrbc
             PATHS
+                "${CMAKE_SOURCE_DIR}/deps/mruby/source/build/native/bin"
+                "${CMAKE_SOURCE_DIR}/deps/mruby/native/bin"
                 "${CMAKE_SOURCE_DIR}/deps/mruby/bin"
                 "C:/msys64/mingw64/bin"
                 "/usr/local/bin"

@@ -19,7 +19,9 @@ endif()
 # Project directory - where game scripts live and where output goes
 # If GMR_PROJECT_DIR is set, use it; otherwise fall back to engine directory
 if(DEFINED GMR_PROJECT_DIR)
-    set(PROJECT_OUTPUT_DIR ${GMR_PROJECT_DIR})
+    # Convert relative path to absolute (required for file() commands)
+    # BASE_DIR must be CMAKE_BINARY_DIR since relative paths are from the build directory
+    get_filename_component(PROJECT_OUTPUT_DIR "${GMR_PROJECT_DIR}" ABSOLUTE BASE_DIR "${CMAKE_BINARY_DIR}")
 else()
     set(PROJECT_OUTPUT_DIR ${CMAKE_SOURCE_DIR})
 endif()
@@ -103,10 +105,17 @@ if(PLATFORM_WEB)
         target_link_directories(${PROJECT_NAME} PRIVATE ${MRUBY_WEB_PATH}/lib)
     endif()
     
-    # Calculate shell file path
-    set(SHELL_FILE "${CMAKE_SOURCE_DIR}/web/shell.html")
-    if(NOT EXISTS "${SHELL_FILE}")
+    # Calculate shell file path - check project dir first, fall back to engine
+    if(EXISTS "${PROJECT_OUTPUT_DIR}/web/shell.html")
+        set(SHELL_FILE "${PROJECT_OUTPUT_DIR}/web/shell.html")
+    elseif(EXISTS "${PROJECT_OUTPUT_DIR}/web/minshell.html")
+        set(SHELL_FILE "${PROJECT_OUTPUT_DIR}/web/minshell.html")
+    elseif(EXISTS "${CMAKE_SOURCE_DIR}/web/shell.html")
+        set(SHELL_FILE "${CMAKE_SOURCE_DIR}/web/shell.html")
+    elseif(EXISTS "${CMAKE_SOURCE_DIR}/web/minshell.html")
         set(SHELL_FILE "${CMAKE_SOURCE_DIR}/web/minshell.html")
+    else()
+        set(SHELL_FILE "")
     endif()
     
     # Emscripten linker flags
@@ -145,22 +154,23 @@ if(PLATFORM_WEB)
     # No need to preload script files for web builds
 
     # Preload assets folder for web builds (textures, sounds, etc.)
-    # Use project directory assets, not engine directory
-    # Mount at /assets - the engine's resolve_asset_path() handles platform differences
+    # Use relative path from build directory to avoid spaces in paths breaking file_packager
+    # Build dir is PROJECT_OUTPUT_DIR/build/web, so assets are at ../../game/assets
     if(EXISTS "${PROJECT_OUTPUT_DIR}/game/assets")
         target_link_options(${PROJECT_NAME} PRIVATE
-            "--preload-file=${PROJECT_OUTPUT_DIR}/game/assets@/assets"
+            "--preload-file=../../game/assets@/assets"
         )
+        message(STATUS "Preloading assets from: ${PROJECT_OUTPUT_DIR}/game/assets")
     endif()
 
     # Add custom shell if it exists
-    # if(EXISTS ${SHELL_FILE})
-    #     list(APPEND WEB_LINK_FLAGS "--shell-file=${SHELL_FILE}")
-    # endif()
-    if(EXISTS "${SHELL_FILE}")
+    # Use relative path from build directory to avoid spaces in paths
+    if(NOT "${SHELL_FILE}" STREQUAL "")
+        file(RELATIVE_PATH SHELL_REL_PATH "${CMAKE_BINARY_DIR}" "${SHELL_FILE}")
         target_link_options(${PROJECT_NAME} PRIVATE
-            "--shell-file=${SHELL_FILE}"
+            "--shell-file=${SHELL_REL_PATH}"
         )
+        message(STATUS "Using shell file: ${SHELL_REL_PATH}")
     endif()
 
     

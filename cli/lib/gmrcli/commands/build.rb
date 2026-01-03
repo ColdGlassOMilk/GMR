@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "pathname"
 
 module Gmrcli
   module Commands
@@ -116,13 +117,14 @@ module Gmrcli
         FileUtils.mkdir_p(build_dir)
 
         # Configure
+        # Always use streaming mode to avoid hangs with captured output
         run_stage(:configure, "Configuring Build") do
           JsonEmitter.stage_progress(:configure, 10, "Running CMake", substage: "cmake")
           UI.info "Configuring..."
           cmake_args = build_cmake_args(build_type)
 
           begin
-            Shell.cmake(cmake_args.join(" "), chdir: build_dir, verbose: verbose?)
+            Shell.cmake(cmake_args.join(" "), chdir: build_dir, verbose: true)
           rescue CommandError => e
             raise BuildError.new(
               "CMake configuration failed",
@@ -137,11 +139,12 @@ module Gmrcli
         end
 
         # Build
+        # Always use streaming mode to avoid hangs with captured output
         run_stage(:compile, "Compiling") do
           JsonEmitter.stage_progress(:compile, 10, "Starting compilation", substage: "ninja")
           UI.info "Building with #{Platform.nproc} threads..."
           begin
-            Shell.ninja("", chdir: build_dir, verbose: verbose?)
+            Shell.ninja("", chdir: build_dir, verbose: true)
           rescue CommandError => e
             raise BuildError.new(
               "Compilation failed",
@@ -238,34 +241,51 @@ module Gmrcli
 
         env = emscripten_env
 
-        # Configure with Ninja generator (same as native builds)
+        # Configure with Ninja generator
+        # Use relative paths from build directory to avoid spaces breaking Emscripten
         run_stage(:configure, "Configuring Build") do
           JsonEmitter.stage_progress(:configure, 10, "Running emcmake", substage: "cmake")
           UI.info "Configuring..."
-          # Point to the engine's CMakeLists.txt (absolute path)
-          # Quote paths to handle spaces in directory names
-          engine_path = engine_dir.gsub("\\", "/")
-          project_path = project_dir.gsub("\\", "/")
+
+          # Calculate relative paths from build directory to engine and project
+          # This avoids issues with spaces in absolute paths
+          # Normalize all paths to forward slashes for CMake compatibility
+          build_path = web_build_dir.gsub("\\", "/")
+          engine_rel = Pathname.new(engine_dir.gsub("\\", "/"))
+                         .relative_path_from(Pathname.new(build_path))
+                         .to_s.gsub("\\", "/")
+          project_rel = Pathname.new(project_dir.gsub("\\", "/"))
+                          .relative_path_from(Pathname.new(build_path))
+                          .to_s.gsub("\\", "/")
+
+          UI.info "Build dir: #{build_path}"
+          UI.info "Engine path: #{engine_rel}"
+          UI.info "Project path: #{project_rel}"
+
           cmake_args = [
-            "\"#{engine_path}\"",
+            engine_rel,
             "-G Ninja",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DPLATFORM=Web",
-            "-DGMR_PROJECT_DIR=\"#{project_path}\""
+            "-DGMR_PROJECT_DIR=#{project_rel}"
           ]
+
           # Specify ninja path explicitly to ensure CMake finds it
-          # Use dynamic lookup instead of hardcoded MSYS2 path for IDE compatibility
           ninja_path = Platform.command_path("ninja")
           if ninja_path
             cmake_args << "-DCMAKE_MAKE_PROGRAM=#{ninja_path.gsub('\\', '/')}"
           end
 
+          # Always use verbose (streaming) mode - capture mode can hang on emscripten
+          cmake_cmd = "emcmake cmake #{cmake_args.join(' ')}"
+          UI.info "Command: #{cmake_cmd}"
+
           begin
             Shell.run!(
-              "emcmake cmake #{cmake_args.join(' ')}",
+              cmake_cmd,
               chdir: web_build_dir,
               env: env,
-              verbose: verbose?
+              verbose: true
             )
           rescue CommandError => e
             raise BuildError.new(
@@ -280,6 +300,8 @@ module Gmrcli
         end
 
         # Build with emmake ninja -j1 (single-threaded to avoid ASYNCIFY hangs on Windows)
+        # Must use emmake wrapper to ensure Emscripten environment is properly set
+        # Always use verbose (streaming) mode - capture mode can hang on emscripten
         run_stage(:compile, "Compiling (WASM)") do
           JsonEmitter.stage_progress(:compile, 10, "Starting WASM compilation", substage: "emcc")
           UI.info "Building (single-threaded for ASYNCIFY compatibility)..."
@@ -288,7 +310,7 @@ module Gmrcli
               "emmake ninja -j1",
               chdir: web_build_dir,
               env: env,
-              verbose: verbose?
+              verbose: true
             )
           rescue CommandError => e
             raise BuildError.new(
@@ -339,46 +361,48 @@ module Gmrcli
       end
 
       def emscripten_env
-        emsdk_dir = File.join(Platform.deps_dir, "emsdk")
-        emscripten_path = File.join(emsdk_dir, "upstream", "emscripten")
+        # Helper to normalize paths to forward slashes (CMake/Emscripten prefer this)
+        normalize = ->(path) { path&.gsub("\\", "/") }
+
+        emsdk_dir = normalize.call(File.join(Platform.deps_dir, "emsdk"))
+        emscripten_path = normalize.call(File.join(emsdk_dir, "upstream", "emscripten"))
 
         # Find node and python directories (versioned subdirectories)
         node_version_dir = Dir.glob(File.join(emsdk_dir, "node", "*")).first
         python_version_dir = Dir.glob(File.join(emsdk_dir, "python", "*")).first
 
         # Node bin directory and executable
-        node_bin_dir = node_version_dir ? File.join(node_version_dir, "bin") : nil
-        node_exe = node_bin_dir ? File.join(node_bin_dir, "node.exe") : nil
+        node_bin_dir = node_version_dir ? normalize.call(File.join(node_version_dir, "bin")) : nil
+        node_exe = node_bin_dir ? normalize.call(File.join(node_bin_dir, "node.exe")) : nil
 
         # Python executable
-        python_exe = python_version_dir ? File.join(python_version_dir, "python.exe") : nil
+        python_exe = python_version_dir ? normalize.call(File.join(python_version_dir, "python.exe")) : nil
 
         # Emscripten config file
-        em_config = File.join(emsdk_dir, ".emscripten")
+        em_config = normalize.call(File.join(emsdk_dir, ".emscripten"))
 
         path_additions = [
-          Platform.bin_dir,
+          normalize.call(Platform.bin_dir),
           emscripten_path,
           node_bin_dir,
-          python_version_dir,  # Add python dir to PATH
-          File.join(emsdk_dir, "upstream", "bin"),  # LLVM tools
+          python_version_dir ? normalize.call(python_version_dir) : nil,
+          normalize.call(File.join(emsdk_dir, "upstream", "bin")),
+          normalize.call(File.join(Platform.mingw_root, "bin")),
         ].compact.join(File::PATH_SEPARATOR)
 
-        # Use a cache path with NO SPACES to avoid Windows short path issues
-        # The project path has spaces (OneDrive), so we must use an external location
-        cache_dir = if Platform.windows?
-                      "C:/tmp/emcache"
-                    else
-                      File.join(ENV['HOME'], ".emcache")
-                    end
+        # Use user's home directory for cache (no spaces in path)
+        # USERPROFILE is Windows-style (C:\Users\...), HOME may be Unix-style (/c/Users/...)
+        # Convert HOME to Windows-style if needed
+        home = ENV["USERPROFILE"] || Platform.to_windows_path(ENV["HOME"]) || "C:/tmp"
+        cache_dir = normalize.call(File.join(home, ".emcache"))
 
         env = {
           "PATH" => "#{path_additions}#{File::PATH_SEPARATOR}#{ENV['PATH']}",
           "EMSDK" => emsdk_dir,
           "EM_CONFIG" => em_config,
           "EM_CACHE" => cache_dir,
-          "RAYLIB_WEB_PATH" => File.join(Platform.deps_dir, "raylib", "web"),
-          "MRUBY_WEB_PATH" => File.join(Platform.deps_dir, "mruby", "web")
+          "RAYLIB_WEB_PATH" => normalize.call(File.join(Platform.deps_dir, "raylib", "web")),
+          "MRUBY_WEB_PATH" => normalize.call(File.join(Platform.deps_dir, "mruby", "web"))
         }
 
         # Add python and node paths if found
