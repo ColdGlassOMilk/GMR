@@ -24,8 +24,8 @@ module Gmrcli
           rebuild: false
         }.merge(options)
 
-        # Determine project directory - use current directory or find project root
-        @project_dir = Platform.find_project_root(Dir.pwd) || Dir.pwd
+        # Determine project directory - find project root from current dir, or fall back to engine root
+        @project_dir = Platform.find_project_root(Dir.pwd) || Platform.gmr_root
       end
 
       # === Public Build Methods ===

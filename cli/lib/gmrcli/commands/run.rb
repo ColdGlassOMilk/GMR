@@ -67,8 +67,8 @@ module Gmrcli
       private
 
       def resolve_project_dir
-        # Use explicit project option, find project root from current dir, or use current directory
-        project_dir = options[:project] || Platform.find_project_root(Dir.pwd) || Dir.pwd
+        # Use explicit project option, find project root from current dir, or fall back to engine root
+        project_dir = options[:project] || Platform.find_project_root(Dir.pwd) || Platform.gmr_root
         project_dir = File.expand_path(project_dir)
 
         # Validate it's a GMR project
