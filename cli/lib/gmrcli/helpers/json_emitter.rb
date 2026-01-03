@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "time"
 
 module Gmrcli
   # JSON event emitter for machine-readable output (NDJSON format)
