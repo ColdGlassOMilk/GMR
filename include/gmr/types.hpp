@@ -11,6 +11,7 @@ using TextureHandle = int32_t;
 using SoundHandle = int32_t;
 using MusicHandle = int32_t;
 using FontHandle = int32_t;
+using TilemapHandle = int32_t;
 
 constexpr int32_t INVALID_HANDLE = -1;
 

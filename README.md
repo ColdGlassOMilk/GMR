@@ -239,6 +239,65 @@ sprite.draw_ex(x, y, rotation, scale)     # Draw with rotation and scale
 sprite.draw_pro(sx, sy, sw, sh, dx, dy, dw, dh, rotation)  # Advanced: source rect to dest rect
 ```
 
+### GMR::Graphics::Tilemap
+
+Efficient tile-based rendering for large worlds. Uses a tileset texture where tiles are arranged in a grid.
+
+```ruby
+# Create a tilemap
+tileset = GMR::Graphics::Texture.load("assets/tiles.png")
+map = GMR::Graphics::Tilemap.new(
+  tileset,    # Tileset texture
+  16,         # Tile width in pixels
+  16,         # Tile height in pixels
+  100,        # Map width in tiles
+  50          # Map height in tiles
+)
+
+# Set tiles (tile indices start at 0, -1 = empty)
+map.set(10, 5, 3)                         # Set tile at (10, 5) to index 3
+map.fill(0)                               # Fill entire map with tile 0
+map.fill_rect(5, 5, 10, 10, 1)            # Fill rectangular region
+
+# Query tiles
+tile = map.get(10, 5)                     # Get tile index at position
+map.width                                 # Map dimensions in tiles
+map.height
+map.tile_width                            # Tile dimensions in pixels
+map.tile_height
+
+# Draw
+map.draw(0, 0)                            # Draw entire map at position
+map.draw(0, 0, [255, 255, 255])           # Draw with color tint
+
+# Draw visible region (for scrolling/culling)
+map.draw_region(0, 0, cam_x / 16, cam_y / 16, 21, 16)
+
+# Define tile properties (once per tile type, not per map cell)
+map.define_tile(0, { solid: false })                  # sky
+map.define_tile(4, { solid: true })                   # grass
+map.define_tile(8, { solid: true, hazard: true, damage: 10 })  # spikes
+map.define_tile(12, { solid: false, water: true })    # water
+
+# Query tile properties at map position
+map.tile_properties(10, 5)            # => { solid: true, ... } or nil
+map.tile_property(10, 5, :solid)      # => true/false/nil
+
+# Convenience methods for common checks
+map.solid?(10, 5)                     # Check :solid property
+map.wall?(10, 5)                      # Alias for solid?
+map.hazard?(10, 5)                    # Check :hazard property
+map.platform?(10, 5)                  # Check :platform property
+map.ladder?(10, 5)                    # Check :ladder property
+map.water?(10, 5)                     # Check :water property
+map.slippery?(10, 5)                  # Check :slippery property
+map.damage(10, 5)                     # Get damage value (0 if not defined)
+```
+
+**Tile indexing:** Tiles in the tileset are numbered left-to-right, top-to-bottom starting from 0. For a 64x64 tileset with 16x16 tiles, indices are: 0-3 (first row), 4-7 (second row), etc.
+
+**Tile properties:** Properties are defined per tile *type* (index), not per map cell. This is memory-efficient - a 100x100 map with 10,000 cells only stores properties once per unique tile type used.
+
 ### GMR::Input
 
 Use readable symbols for keys and mouse buttons:

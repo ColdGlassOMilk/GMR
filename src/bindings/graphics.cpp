@@ -2,7 +2,9 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/state.hpp"
 #include "gmr/resources/texture_manager.hpp"
+#include "gmr/resources/tilemap_manager.hpp"
 #include "raylib.h"
+#include <cstring>
 
 namespace gmr {
 namespace bindings {
@@ -304,6 +306,486 @@ static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
+// GMR::Graphics::Tilemap Class
+// ============================================================================
+
+// Tilemap data structure - holds the handle
+struct TilemapBindingData {
+    TilemapHandle handle;
+};
+
+// Data type for garbage collection
+static void tilemap_free(mrb_state* mrb, void* ptr) {
+    if (ptr) {
+        TilemapBindingData* data = static_cast<TilemapBindingData*>(ptr);
+        TilemapManager::instance().destroy(data->handle);
+        mrb_free(mrb, ptr);
+    }
+}
+
+static const mrb_data_type tilemap_data_type = {
+    "GMR::Graphics::Tilemap", tilemap_free
+};
+
+// Helper to get TilemapBindingData from self
+static TilemapBindingData* get_tilemap_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<TilemapBindingData*>(mrb_data_get_ptr(mrb, self, &tilemap_data_type));
+}
+
+// GMR::Graphics::Tilemap.new(tileset:, tile_width:, tile_height:, width:, height:)
+// Using positional args: Tilemap.new(tileset, tile_width, tile_height, width, height)
+static mrb_value mrb_tilemap_new(mrb_state* mrb, mrb_value klass) {
+    mrb_value tileset_obj;
+    mrb_int tile_width, tile_height, width, height;
+    mrb_get_args(mrb, "oiiii", &tileset_obj, &tile_width, &tile_height, &width, &height);
+
+    // Get texture handle from tileset object
+    TextureData* tex_data = static_cast<TextureData*>(mrb_data_get_ptr(mrb, tileset_obj, &texture_data_type));
+    if (!tex_data) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected Texture object for tileset");
+        return mrb_nil_value();
+    }
+
+    // Validate dimensions
+    if (width <= 0 || height <= 0 || tile_width <= 0 || tile_height <= 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Tilemap dimensions must be positive");
+        return mrb_nil_value();
+    }
+
+    // Create the tilemap
+    TilemapHandle handle = TilemapManager::instance().create(
+        static_cast<int32_t>(width),
+        static_cast<int32_t>(height),
+        static_cast<int32_t>(tile_width),
+        static_cast<int32_t>(tile_height),
+        tex_data->handle
+    );
+
+    // Create new Ruby instance
+    RClass* tilemap_class = mrb_class_ptr(klass);
+    mrb_value obj = mrb_obj_new(mrb, tilemap_class, 0, nullptr);
+
+    // Allocate and set data
+    TilemapBindingData* data = static_cast<TilemapBindingData*>(mrb_malloc(mrb, sizeof(TilemapBindingData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &tilemap_data_type);
+
+    return obj;
+}
+
+// tilemap.width - returns width in tiles
+static mrb_value mrb_tilemap_width(mrb_state* mrb, mrb_value self) {
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+        return mrb_fixnum_value(tilemap->width);
+    }
+    return mrb_fixnum_value(0);
+}
+
+// tilemap.height - returns height in tiles
+static mrb_value mrb_tilemap_height(mrb_state* mrb, mrb_value self) {
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+        return mrb_fixnum_value(tilemap->height);
+    }
+    return mrb_fixnum_value(0);
+}
+
+// tilemap.tile_width
+static mrb_value mrb_tilemap_tile_width(mrb_state* mrb, mrb_value self) {
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+        return mrb_fixnum_value(tilemap->tile_width);
+    }
+    return mrb_fixnum_value(0);
+}
+
+// tilemap.tile_height
+static mrb_value mrb_tilemap_tile_height(mrb_state* mrb, mrb_value self) {
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+        return mrb_fixnum_value(tilemap->tile_height);
+    }
+    return mrb_fixnum_value(0);
+}
+
+// tilemap.get(x, y) - get tile index at position
+static mrb_value mrb_tilemap_get(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(-1);
+    if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+        return mrb_fixnum_value(tilemap->get(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+    }
+    return mrb_fixnum_value(-1);
+}
+
+// tilemap.set(x, y, tile_index) - set tile index at position
+static mrb_value mrb_tilemap_set(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y, tile_index;
+    mrb_get_args(mrb, "iii", &x, &y, &tile_index);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (data) {
+        if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+            tilemap->set(static_cast<int32_t>(x), static_cast<int32_t>(y), static_cast<int32_t>(tile_index));
+        }
+    }
+    return mrb_nil_value();
+}
+
+// tilemap.fill(tile_index) - fill entire map with tile
+static mrb_value mrb_tilemap_fill(mrb_state* mrb, mrb_value self) {
+    mrb_int tile_index;
+    mrb_get_args(mrb, "i", &tile_index);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (data) {
+        if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+            tilemap->fill(static_cast<int32_t>(tile_index));
+        }
+    }
+    return mrb_nil_value();
+}
+
+// tilemap.fill_rect(x, y, w, h, tile_index) - fill rectangular region
+static mrb_value mrb_tilemap_fill_rect(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y, w, h, tile_index;
+    mrb_get_args(mrb, "iiiii", &x, &y, &w, &h, &tile_index);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (data) {
+        if (auto* tilemap = TilemapManager::instance().get(data->handle)) {
+            tilemap->fill_rect(
+                static_cast<int32_t>(x),
+                static_cast<int32_t>(y),
+                static_cast<int32_t>(w),
+                static_cast<int32_t>(h),
+                static_cast<int32_t>(tile_index)
+            );
+        }
+    }
+    return mrb_nil_value();
+}
+
+// tilemap.draw(x, y) or tilemap.draw(x, y, color)
+// Draws all tiles to the screen
+static mrb_value mrb_tilemap_draw(mrb_state* mrb, mrb_value self) {
+    mrb_int offset_x, offset_y;
+    mrb_value color_val = mrb_nil_value();
+    mrb_int argc = mrb_get_args(mrb, "ii|A", &offset_x, &offset_y, &color_val);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_nil_value();
+
+    auto* texture = TextureManager::instance().get(tilemap->tileset);
+    if (!texture) return mrb_nil_value();
+
+    Color c = (argc > 2) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+
+    // Calculate tileset dimensions (tiles per row in tileset)
+    int tileset_cols = texture->width / tilemap->tile_width;
+
+    // Draw each tile
+    for (int32_t ty = 0; ty < tilemap->height; ++ty) {
+        for (int32_t tx = 0; tx < tilemap->width; ++tx) {
+            int32_t tile_index = tilemap->get(tx, ty);
+            if (tile_index < 0) continue;  // Skip empty tiles
+
+            // Calculate source rectangle from tileset
+            int src_x = (tile_index % tileset_cols) * tilemap->tile_width;
+            int src_y = (tile_index / tileset_cols) * tilemap->tile_height;
+
+            Rectangle source = {
+                static_cast<float>(src_x),
+                static_cast<float>(src_y),
+                static_cast<float>(tilemap->tile_width),
+                static_cast<float>(tilemap->tile_height)
+            };
+
+            // Calculate destination position
+            Rectangle dest = {
+                static_cast<float>(offset_x + tx * tilemap->tile_width),
+                static_cast<float>(offset_y + ty * tilemap->tile_height),
+                static_cast<float>(tilemap->tile_width),
+                static_cast<float>(tilemap->tile_height)
+            };
+
+            DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, to_raylib(c));
+        }
+    }
+
+    return mrb_nil_value();
+}
+
+// tilemap.draw_region(x, y, start_tile_x, start_tile_y, tiles_wide, tiles_tall) or with color
+// Draws a portion of the tilemap (for scrolling/culling)
+static mrb_value mrb_tilemap_draw_region(mrb_state* mrb, mrb_value self) {
+    mrb_int offset_x, offset_y, start_x, start_y, tiles_w, tiles_h;
+    mrb_value color_val = mrb_nil_value();
+    mrb_int argc = mrb_get_args(mrb, "iiiiii|A", &offset_x, &offset_y, &start_x, &start_y, &tiles_w, &tiles_h, &color_val);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_nil_value();
+
+    auto* texture = TextureManager::instance().get(tilemap->tileset);
+    if (!texture) return mrb_nil_value();
+
+    Color c = (argc > 6) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+
+    // Calculate tileset dimensions
+    int tileset_cols = texture->width / tilemap->tile_width;
+
+    // Draw the specified region
+    for (int32_t ty = 0; ty < tiles_h; ++ty) {
+        int32_t map_y = static_cast<int32_t>(start_y) + ty;
+        if (map_y < 0 || map_y >= tilemap->height) continue;
+
+        for (int32_t tx = 0; tx < tiles_w; ++tx) {
+            int32_t map_x = static_cast<int32_t>(start_x) + tx;
+            if (map_x < 0 || map_x >= tilemap->width) continue;
+
+            int32_t tile_index = tilemap->get(map_x, map_y);
+            if (tile_index < 0) continue;
+
+            int src_x = (tile_index % tileset_cols) * tilemap->tile_width;
+            int src_y = (tile_index / tileset_cols) * tilemap->tile_height;
+
+            Rectangle source = {
+                static_cast<float>(src_x),
+                static_cast<float>(src_y),
+                static_cast<float>(tilemap->tile_width),
+                static_cast<float>(tilemap->tile_height)
+            };
+
+            Rectangle dest = {
+                static_cast<float>(offset_x + tx * tilemap->tile_width),
+                static_cast<float>(offset_y + ty * tilemap->tile_height),
+                static_cast<float>(tilemap->tile_width),
+                static_cast<float>(tilemap->tile_height)
+            };
+
+            DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, to_raylib(c));
+        }
+    }
+
+    return mrb_nil_value();
+}
+
+// tilemap.define_tile(tile_index, properties_hash) - define properties for a tile type
+// Hash keys: :solid, :hazard, :platform, :ladder, :water, :slippery, :damage
+static mrb_value mrb_tilemap_define_tile(mrb_state* mrb, mrb_value self) {
+    mrb_int tile_index;
+    mrb_value props_hash;
+    mrb_get_args(mrb, "iH", &tile_index, &props_hash);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_nil_value();
+
+    // Parse hash into TileProperties
+    TileProperties props;
+
+    mrb_value solid_key = mrb_symbol_value(mrb_intern_lit(mrb, "solid"));
+    mrb_value hazard_key = mrb_symbol_value(mrb_intern_lit(mrb, "hazard"));
+    mrb_value platform_key = mrb_symbol_value(mrb_intern_lit(mrb, "platform"));
+    mrb_value ladder_key = mrb_symbol_value(mrb_intern_lit(mrb, "ladder"));
+    mrb_value water_key = mrb_symbol_value(mrb_intern_lit(mrb, "water"));
+    mrb_value slippery_key = mrb_symbol_value(mrb_intern_lit(mrb, "slippery"));
+    mrb_value damage_key = mrb_symbol_value(mrb_intern_lit(mrb, "damage"));
+
+    props.set_solid(mrb_test(mrb_hash_get(mrb, props_hash, solid_key)));
+    props.set_hazard(mrb_test(mrb_hash_get(mrb, props_hash, hazard_key)));
+    props.set_platform(mrb_test(mrb_hash_get(mrb, props_hash, platform_key)));
+    props.set_ladder(mrb_test(mrb_hash_get(mrb, props_hash, ladder_key)));
+    props.set_water(mrb_test(mrb_hash_get(mrb, props_hash, water_key)));
+    props.set_slippery(mrb_test(mrb_hash_get(mrb, props_hash, slippery_key)));
+
+    mrb_value damage_val = mrb_hash_get(mrb, props_hash, damage_key);
+    if (mrb_fixnum_p(damage_val)) {
+        props.damage = static_cast<int16_t>(mrb_fixnum(damage_val));
+    }
+
+    tilemap->define_tile(static_cast<int32_t>(tile_index), props);
+
+    return mrb_nil_value();
+}
+
+// tilemap.tile_properties(x, y) - get properties hash for tile at position
+static mrb_value mrb_tilemap_tile_properties(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_nil_value();
+
+    const TileProperties* props = tilemap->get_props_at(
+        static_cast<int32_t>(x), static_cast<int32_t>(y));
+    if (!props) return mrb_nil_value();
+
+    // Build hash from C++ properties
+    mrb_value hash = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "solid")), mrb_bool_value(props->solid()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "hazard")), mrb_bool_value(props->hazard()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "platform")), mrb_bool_value(props->platform()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "ladder")), mrb_bool_value(props->ladder()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "water")), mrb_bool_value(props->water()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "slippery")), mrb_bool_value(props->slippery()));
+    mrb_hash_set(mrb, hash, mrb_symbol_value(mrb_intern_lit(mrb, "damage")), mrb_fixnum_value(props->damage));
+
+    return hash;
+}
+
+// tilemap.tile_property(x, y, key) - get a specific property for tile at position
+static mrb_value mrb_tilemap_tile_property(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_sym key_sym;
+    mrb_get_args(mrb, "iin", &x, &y, &key_sym);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_nil_value();
+
+    const TileProperties* props = tilemap->get_props_at(
+        static_cast<int32_t>(x), static_cast<int32_t>(y));
+    if (!props) return mrb_nil_value();
+
+    // Check which property was requested
+    const char* key_name = mrb_sym_name(mrb, key_sym);
+    if (strcmp(key_name, "solid") == 0) return mrb_bool_value(props->solid());
+    if (strcmp(key_name, "hazard") == 0) return mrb_bool_value(props->hazard());
+    if (strcmp(key_name, "platform") == 0) return mrb_bool_value(props->platform());
+    if (strcmp(key_name, "ladder") == 0) return mrb_bool_value(props->ladder());
+    if (strcmp(key_name, "water") == 0) return mrb_bool_value(props->water());
+    if (strcmp(key_name, "slippery") == 0) return mrb_bool_value(props->slippery());
+    if (strcmp(key_name, "damage") == 0) return mrb_fixnum_value(props->damage);
+
+    return mrb_nil_value();
+}
+
+// tilemap.solid?(x, y) - check if tile is solid
+static mrb_value mrb_tilemap_solid(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_solid(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.wall?(x, y) - alias for solid?
+static mrb_value mrb_tilemap_wall(mrb_state* mrb, mrb_value self) {
+    return mrb_tilemap_solid(mrb, self);
+}
+
+// tilemap.hazard?(x, y) - check if tile is a hazard
+static mrb_value mrb_tilemap_hazard(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_hazard(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.platform?(x, y) - check if tile is a platform (one-way)
+static mrb_value mrb_tilemap_platform(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_platform(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.ladder?(x, y) - check if tile is a ladder
+static mrb_value mrb_tilemap_ladder(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_ladder(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.water?(x, y) - check if tile is water
+static mrb_value mrb_tilemap_water(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_water(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.slippery?(x, y) - check if tile is slippery (ice)
+static mrb_value mrb_tilemap_slippery(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_false_value();
+
+    return mrb_bool_value(tilemap->is_slippery(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// tilemap.damage(x, y) - get damage value for tile
+static mrb_value mrb_tilemap_damage(mrb_state* mrb, mrb_value self) {
+    mrb_int x, y;
+    mrb_get_args(mrb, "ii", &x, &y);
+
+    TilemapBindingData* data = get_tilemap_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+
+    auto* tilemap = TilemapManager::instance().get(data->handle);
+    if (!tilemap) return mrb_fixnum_value(0);
+
+    return mrb_fixnum_value(tilemap->get_damage(static_cast<int32_t>(x), static_cast<int32_t>(y)));
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -343,6 +825,40 @@ void register_graphics(mrb_state* mrb) {
     mrb_define_method(mrb, texture_class, "draw", mrb_texture_draw, MRB_ARGS_ARG(2, 1));
     mrb_define_method(mrb, texture_class, "draw_ex", mrb_texture_draw_ex, MRB_ARGS_ARG(4, 1));
     mrb_define_method(mrb, texture_class, "draw_pro", mrb_texture_draw_pro, MRB_ARGS_ARG(9, 1));
+
+    // Tilemap class
+    RClass* tilemap_class = mrb_define_class_under(mrb, graphics, "Tilemap", mrb->object_class);
+    MRB_SET_INSTANCE_TT(tilemap_class, MRB_TT_CDATA);
+
+    // Class method - new(tileset, tile_width, tile_height, width, height)
+    mrb_define_class_method(mrb, tilemap_class, "new", mrb_tilemap_new, MRB_ARGS_REQ(5));
+
+    // Instance methods
+    mrb_define_method(mrb, tilemap_class, "width", mrb_tilemap_width, MRB_ARGS_NONE());
+    mrb_define_method(mrb, tilemap_class, "height", mrb_tilemap_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, tilemap_class, "tile_width", mrb_tilemap_tile_width, MRB_ARGS_NONE());
+    mrb_define_method(mrb, tilemap_class, "tile_height", mrb_tilemap_tile_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, tilemap_class, "get", mrb_tilemap_get, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "set", mrb_tilemap_set, MRB_ARGS_REQ(3));
+    mrb_define_method(mrb, tilemap_class, "fill", mrb_tilemap_fill, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, tilemap_class, "fill_rect", mrb_tilemap_fill_rect, MRB_ARGS_REQ(5));
+    mrb_define_method(mrb, tilemap_class, "draw", mrb_tilemap_draw, MRB_ARGS_ARG(2, 1));
+    mrb_define_method(mrb, tilemap_class, "draw_region", mrb_tilemap_draw_region, MRB_ARGS_ARG(6, 1));
+
+    // Tile properties
+    mrb_define_method(mrb, tilemap_class, "define_tile", mrb_tilemap_define_tile, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "tile_properties", mrb_tilemap_tile_properties, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "tile_property", mrb_tilemap_tile_property, MRB_ARGS_REQ(3));
+
+    // Common property shortcuts
+    mrb_define_method(mrb, tilemap_class, "solid?", mrb_tilemap_solid, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "wall?", mrb_tilemap_wall, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "hazard?", mrb_tilemap_hazard, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "platform?", mrb_tilemap_platform, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "ladder?", mrb_tilemap_ladder, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "water?", mrb_tilemap_water, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "slippery?", mrb_tilemap_slippery, MRB_ARGS_REQ(2));
+    mrb_define_method(mrb, tilemap_class, "damage", mrb_tilemap_damage, MRB_ARGS_REQ(2));
 }
 
 } // namespace bindings

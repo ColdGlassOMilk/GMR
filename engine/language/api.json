@@ -41,6 +41,11 @@
       "kind": "class",
       "module": "GMR::Audio",
       "description": "A loaded audio clip for playback"
+    },
+    "Tilemap": {
+      "kind": "class",
+      "module": "GMR::Graphics",
+      "description": "A tile-based map for efficient rendering of large worlds using a tileset texture"
     }
   },
   "modules": {
@@ -286,6 +291,236 @@
           ],
           "returns": {"type": "nil"},
           "example": "sprite.draw_pro(0, 0, 32, 32, 160, 120, 64, 64, 0)"
+        }
+      }
+    },
+    "GMR::Graphics::Tilemap": {
+      "kind": "class",
+      "description": "A tile-based map for efficient rendering of large worlds. Uses a tileset texture where tiles are arranged in a grid. Tile indices are calculated left-to-right, top-to-bottom starting from 0.",
+      "classMethods": {
+        "new": {
+          "signature": "Tilemap.new(tileset, tile_width, tile_height, width, height)",
+          "description": "Create a new tilemap with the specified dimensions. All tiles are initialized to -1 (empty/transparent).",
+          "params": [
+            {"name": "tileset", "type": "Texture", "description": "The tileset texture containing all tile graphics"},
+            {"name": "tile_width", "type": "Integer", "description": "Width of each tile in pixels"},
+            {"name": "tile_height", "type": "Integer", "description": "Height of each tile in pixels"},
+            {"name": "width", "type": "Integer", "description": "Map width in tiles"},
+            {"name": "height", "type": "Integer", "description": "Map height in tiles"}
+          ],
+          "returns": {"type": "Tilemap", "description": "The new tilemap object"},
+          "raises": ["ArgumentError if dimensions are not positive"],
+          "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)"
+        }
+      },
+      "instanceMethods": {
+        "width": {
+          "signature": "width",
+          "description": "Get the tilemap width in tiles",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Width in tiles"},
+          "example": "puts map.width"
+        },
+        "height": {
+          "signature": "height",
+          "description": "Get the tilemap height in tiles",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Height in tiles"},
+          "example": "puts map.height"
+        },
+        "tile_width": {
+          "signature": "tile_width",
+          "description": "Get the tile width in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Tile width in pixels"},
+          "example": "puts map.tile_width"
+        },
+        "tile_height": {
+          "signature": "tile_height",
+          "description": "Get the tile height in pixels",
+          "params": [],
+          "returns": {"type": "Integer", "description": "Tile height in pixels"},
+          "example": "puts map.tile_height"
+        },
+        "get": {
+          "signature": "get(x, y)",
+          "description": "Get the tile index at a position. Returns -1 for empty tiles or out of bounds.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Integer", "description": "Tile index or -1 if empty/out of bounds"},
+          "example": "tile = map.get(10, 5)"
+        },
+        "set": {
+          "signature": "set(x, y, tile_index)",
+          "description": "Set the tile index at a position. Use -1 for empty/transparent tiles.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"},
+            {"name": "tile_index", "type": "Integer", "description": "Tile index in tileset (-1 for empty)"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "map.set(10, 5, 3)"
+        },
+        "fill": {
+          "signature": "fill(tile_index)",
+          "description": "Fill the entire map with a single tile index",
+          "params": [
+            {"name": "tile_index", "type": "Integer", "description": "Tile index to fill with (-1 to clear)"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "map.fill(0)  # Fill with first tile"
+        },
+        "fill_rect": {
+          "signature": "fill_rect(x, y, w, h, tile_index)",
+          "description": "Fill a rectangular region with a tile index",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Start X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Start Y coordinate"},
+            {"name": "w", "type": "Integer", "description": "Width in tiles"},
+            {"name": "h", "type": "Integer", "description": "Height in tiles"},
+            {"name": "tile_index", "type": "Integer", "description": "Tile index to fill with"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "map.fill_rect(5, 5, 10, 10, 1)"
+        },
+        "draw": {
+          "signature": "draw(x, y, [color])",
+          "description": "Draw the entire tilemap at a position. Empty tiles (index -1) are skipped.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Screen X position (left edge)"},
+            {"name": "y", "type": "Integer", "description": "Screen Y position (top edge)"},
+            {"name": "color", "type": "Color", "optional": true, "default": "[255, 255, 255]", "description": "Color tint"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "map.draw(0, 0)"
+        },
+        "draw_region": {
+          "signature": "draw_region(x, y, start_x, start_y, tiles_wide, tiles_tall, [color])",
+          "description": "Draw a portion of the tilemap. Useful for scrolling or viewport culling.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Screen X position to draw at"},
+            {"name": "y", "type": "Integer", "description": "Screen Y position to draw at"},
+            {"name": "start_x", "type": "Integer", "description": "Starting tile X in the map"},
+            {"name": "start_y", "type": "Integer", "description": "Starting tile Y in the map"},
+            {"name": "tiles_wide", "type": "Integer", "description": "Number of tiles to draw horizontally"},
+            {"name": "tiles_tall", "type": "Integer", "description": "Number of tiles to draw vertically"},
+            {"name": "color", "type": "Color", "optional": true, "default": "[255, 255, 255]", "description": "Color tint"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "# Draw visible portion based on camera\nmap.draw_region(0, 0, cam_x / 16, cam_y / 16, 21, 16)"
+        },
+        "define_tile": {
+          "signature": "define_tile(tile_index, properties)",
+          "description": "Define properties for a tile type. Properties are stored per tile index, not per map cell, making this memory-efficient.",
+          "params": [
+            {"name": "tile_index", "type": "Integer", "description": "The tile index in the tileset"},
+            {"name": "properties", "type": "Hash", "description": "Hash of properties (e.g., { solid: true, damage: 10 })"}
+          ],
+          "returns": {"type": "nil"},
+          "example": "map.define_tile(4, { solid: true })\nmap.define_tile(8, { solid: true, hazard: true, damage: 10 })"
+        },
+        "tile_properties": {
+          "signature": "tile_properties(x, y)",
+          "description": "Get the full properties hash for the tile at a map position.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Hash?", "description": "Properties hash or nil if no properties defined"},
+          "example": "props = map.tile_properties(10, 5)\nputs props[:damage] if props"
+        },
+        "tile_property": {
+          "signature": "tile_property(x, y, key)",
+          "description": "Get a specific property for the tile at a map position.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"},
+            {"name": "key", "type": "Symbol", "description": "Property key to look up"}
+          ],
+          "returns": {"type": "any", "description": "Property value or nil"},
+          "example": "damage = map.tile_property(10, 5, :damage)"
+        },
+        "solid?": {
+          "signature": "solid?(x, y)",
+          "description": "Check if the tile at position has the :solid property set to true.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.solid?(player_tile_x, player_tile_y + 1)\n  # On solid ground\nend"
+        },
+        "wall?": {
+          "signature": "wall?(x, y)",
+          "description": "Alias for solid?. Check if the tile at position has the :solid property set to true.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.wall?(x, y)\n  # Blocked\nend"
+        },
+        "hazard?": {
+          "signature": "hazard?(x, y)",
+          "description": "Check if the tile at position has the :hazard property set to true.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.hazard?(player_tile_x, player_tile_y)\n  player_take_damage\nend"
+        },
+        "platform?": {
+          "signature": "platform?(x, y)",
+          "description": "Check if the tile at position has the :platform property set to true (one-way platforms).",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.platform?(x, y) && player_falling\n  # Can land on platform\nend"
+        },
+        "ladder?": {
+          "signature": "ladder?(x, y)",
+          "description": "Check if the tile at position has the :ladder property set to true.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.ladder?(player_tile_x, player_tile_y)\n  # Can climb\nend"
+        },
+        "water?": {
+          "signature": "water?(x, y)",
+          "description": "Check if the tile at position has the :water property set to true.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.water?(player_tile_x, player_tile_y)\n  # Swimming mode\nend"
+        },
+        "slippery?": {
+          "signature": "slippery?(x, y)",
+          "description": "Check if the tile at position has the :slippery property set to true (ice tiles).",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Boolean"},
+          "example": "if map.slippery?(player_tile_x, player_tile_y + 1)\n  # Reduce friction\nend"
+        },
+        "damage": {
+          "signature": "damage(x, y)",
+          "description": "Get the damage value for the tile at a position. Returns 0 if no damage is defined.",
+          "params": [
+            {"name": "x", "type": "Integer", "description": "Tile X coordinate"},
+            {"name": "y", "type": "Integer", "description": "Tile Y coordinate"}
+          ],
+          "returns": {"type": "Integer", "description": "Damage value (0 if not defined)"},
+          "example": "dmg = map.damage(player_tile_x, player_tile_y)\nplayer_hp -= dmg if dmg > 0"
         }
       }
     },
