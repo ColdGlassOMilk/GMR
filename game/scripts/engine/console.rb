@@ -591,21 +591,6 @@ def console_print(text, type = :info)
   Console.println(text, type)
 end
 
-# Override puts to capture output when console is evaluating
-alias __original_puts puts
-def puts(*args)
-  if Console.capturing
-    if args.empty?
-      $__console_output_buffer << ""
-    else
-      args.each do |arg|
-        $__console_output_buffer << arg.to_s
-      end
-    end
-  end
-  __original_puts(*args)
-end
-
 # Override print to capture output when console is evaluating
 alias __original_print print
 def print(*args)
