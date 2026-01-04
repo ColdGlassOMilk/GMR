@@ -18,6 +18,14 @@ require 'json'
 require 'optparse'
 require 'fileutils'
 
+# Try to load coderay for better syntax highlighting
+begin
+  require 'coderay'
+  CODERAY_AVAILABLE = true
+rescue LoadError
+  CODERAY_AVAILABLE = false
+end
+
 module GMRDocs
   # Maps mrb_get_args format characters to Ruby types
   ARG_TYPE_MAP = {
@@ -150,6 +158,11 @@ module GMRDocs
             current_class = nil
           when 'class'
             current_class = value
+          when 'parent'
+            # @parent sets the namespace for the current class
+            if current_class && !value.empty?
+              current_class = "#{value}::#{current_class}"
+            end
           when 'function', 'classmethod', 'method', 'constant'
             current_entry = DocEntry.new(tag.to_sym, value, line_num)
             current_entry.parent = current_class || current_module
@@ -525,7 +538,15 @@ module GMRDocs
       'GMR::Window' => 'window',
       'GMR::Collision' => 'collision',
       'GMR::Time' => 'time',
-      'GMR::System' => 'system'
+      'GMR::System' => 'system',
+      # Group utility types under 'types' page
+      'Vec2' => 'types',
+      'Vec3' => 'types',
+      'Rect' => 'types',
+      # Engine classes get their own pages with nice grouping
+      'Camera2D' => 'camera',
+      'Transform2D' => 'transform',
+      'Sprite' => 'sprite'
     }.freeze
 
     # Module descriptions for headers
@@ -540,7 +561,33 @@ module GMRDocs
       'GMR::Window' => 'Window management and display settings.',
       'GMR::Collision' => 'Collision detection between shapes.',
       'GMR::Time' => 'Frame timing and delta time access.',
-      'GMR::System' => 'System utilities and debugging.'
+      'GMR::System' => 'System utilities and debugging.',
+      # Grouped types page
+      'Vec2' => '2D vector for positions and directions.',
+      'Vec3' => '3D vector for positions and colors.',
+      'Rect' => 'Rectangle for bounds and collision areas.',
+      # Engine classes
+      'Camera2D' => '2D camera for scrolling, zooming, and screen effects.',
+      'Transform2D' => '2D transform with position, rotation, scale, and hierarchy.',
+      'Sprite' => 'Drawable 2D sprite with built-in transform properties.'
+    }.freeze
+
+    # Categories for organizing the index page
+    CATEGORY_ORDER = ['Modules', 'Engine', 'Types'].freeze
+
+    # Which items go in which category on the index
+    INDEX_CATEGORIES = {
+      'GMR::Graphics' => 'Modules',
+      'GMR::Input' => 'Modules',
+      'GMR::Audio' => 'Modules',
+      'GMR::Window' => 'Modules',
+      'GMR::Collision' => 'Modules',
+      'Camera2D' => 'Engine',
+      'Transform2D' => 'Engine',
+      'Sprite' => 'Engine',
+      'Vec2' => 'Types',
+      'Vec3' => 'Types',
+      'Rect' => 'Types'
     }.freeze
 
     def initialize(options)
@@ -760,9 +807,23 @@ module GMRDocs
       lambda proc
     ].freeze
 
-    # Simple Ruby syntax highlighter
-    # Uses placeholder tokens to avoid regex conflicts with generated HTML
+    # Ruby syntax highlighter - uses CodeRay if available, falls back to custom highlighter
     def self.highlight_ruby(code)
+      return '' unless code
+
+      if CODERAY_AVAILABLE
+        # Use CodeRay for high-quality syntax highlighting
+        # Output as HTML spans with CodeRay's token classes
+        CodeRay.scan(code.to_s, :ruby).html(css: :class, line_numbers: false)
+      else
+        # Fallback to our simple highlighter
+        highlight_ruby_fallback(code)
+      end
+    end
+
+    # Fallback highlighter when CodeRay is not available
+    # Uses placeholder tokens to avoid regex conflicts with generated HTML
+    def self.highlight_ruby_fallback(code)
       return '' unless code
 
       # Escape HTML first
@@ -772,11 +833,9 @@ module GMRDocs
         .gsub('>', '&gt;')
 
       # Use placeholder tokens to avoid regex matching inside generated spans
-      # Format: \x00TYPE\x01content\x02
       tokens = []
       token_id = 0
 
-      # Helper to create a token placeholder
       make_token = lambda do |type, content|
         id = token_id
         token_id += 1
@@ -1142,17 +1201,49 @@ module GMRDocs
         .nav-content { flex-direction: column; gap: 1rem; }
       }
 
-      /* Syntax Highlighting */
-      .hl-keyword { color: #bb9af7; font-weight: 500; }
-      .hl-string { color: #9ece6a; }
-      .hl-number { color: #ff9e64; }
-      .hl-comment { color: #565f89; font-style: italic; }
-      .hl-symbol { color: #7dcfff; }
-      .hl-class { color: #7aa2f7; }
-      .hl-method { color: #7aa2f7; }
-      .hl-ivar { color: #f7768e; }
-      .hl-gvar { color: #f7768e; }
-      .hl-const { color: #ff9e64; }
+      /* Syntax Highlighting - Fallback custom highlighter */
+      pre code .hl-keyword { color: #bb9af7; font-weight: 500; }
+      pre code .hl-string { color: #9ece6a; }
+      pre code .hl-number { color: #ff9e64; }
+      pre code .hl-comment { color: #565f89; font-style: italic; }
+      pre code .hl-symbol { color: #7dcfff; }
+      pre code .hl-class { color: #7aa2f7; }
+      pre code .hl-method { color: #7aa2f7; }
+      pre code .hl-ivar { color: #f7768e; }
+      pre code .hl-gvar { color: #f7768e; }
+      pre code .hl-const { color: #ff9e64; }
+
+      /* CodeRay Syntax Highlighting - Tokyo Night theme */
+      /* More specific selectors to override pre code color */
+      pre code .CodeRay { background: transparent; color: var(--text-primary); }
+      pre code .CodeRay .keyword { color: #bb9af7; font-weight: 500; }
+      pre code .CodeRay .reserved { color: #bb9af7; font-weight: 500; }
+      pre code .CodeRay .string { color: #9ece6a; }
+      pre code .CodeRay .char { color: #9ece6a; }
+      pre code .CodeRay .content { color: #9ece6a; }
+      pre code .CodeRay .delimiter { color: #89ddff; }
+      pre code .CodeRay .integer { color: #ff9e64; }
+      pre code .CodeRay .float { color: #ff9e64; }
+      pre code .CodeRay .comment { color: #565f89; font-style: italic; }
+      pre code .CodeRay .symbol { color: #7dcfff; }
+      pre code .CodeRay .class { color: #7aa2f7; font-weight: 500; }
+      pre code .CodeRay .constant { color: #ff9e64; }
+      pre code .CodeRay .function { color: #7aa2f7; }
+      pre code .CodeRay .method { color: #7aa2f7; }
+      pre code .CodeRay .instance-variable { color: #f7768e; }
+      pre code .CodeRay .global-variable { color: #f7768e; }
+      pre code .CodeRay .class-variable { color: #f7768e; }
+      pre code .CodeRay .predefined { color: #7dcfff; }
+      pre code .CodeRay .predefined-constant { color: #ff9e64; }
+      pre code .CodeRay .predefined-type { color: #7aa2f7; }
+      pre code .CodeRay .operator { color: #89ddff; }
+      pre code .CodeRay .shell { color: #9ece6a; }
+      pre code .CodeRay .regexp { color: #f7768e; }
+      pre code .CodeRay .key { color: #7dcfff; }
+      pre code .CodeRay .value { color: var(--text-primary); }
+      pre code .CodeRay .escape { color: #ff9e64; }
+      pre code .CodeRay .inline { color: #e0af68; }
+      pre code .CodeRay .ident { color: var(--text-primary); }
     CSS
 
     def initialize(options)
@@ -1199,13 +1290,10 @@ module GMRDocs
 
     def build_nav_items(model)
       items = []
+      # Only show modules in the nav bar (not classes) to keep it clean
       model.modules.keys.sort.each do |path|
         filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
         items << { name: path, file: "#{filename}.html", type: :module }
-      end
-      model.classes.keys.sort.each do |path|
-        filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
-        items << { name: path, file: "#{filename}.html", type: :class }
       end
       items.uniq { |i| i[:file] }
     end
@@ -1219,13 +1307,31 @@ module GMRDocs
         .gsub('"', '&quot;')
     end
 
+    # Nice display names for special pages
+    PAGE_TITLES = {
+      'types' => 'Types',
+      'camera' => 'Camera2D',
+      'transform' => 'Transform2D',
+      'sprite' => 'Sprite'
+    }.freeze
+
+    PAGE_DESCRIPTIONS = {
+      'types' => 'Core data types for positions, vectors, and bounds.'
+    }.freeze
+
     def generate_page(output_dir, filename, content, nav_items)
       path = File.join(output_dir, "#{filename}.html")
 
-      primary = content[:modules].first || content[:classes].first
-      primary_path = primary&.first || filename.capitalize
-      title = primary_path
-      description = MarkdownGenerator::MODULE_DESCRIPTIONS[primary_path] || "API reference for #{primary_path}."
+      # Use custom titles for special pages, otherwise use primary module/class name
+      if PAGE_TITLES[filename]
+        title = PAGE_TITLES[filename]
+        description = PAGE_DESCRIPTIONS[filename] || MarkdownGenerator::MODULE_DESCRIPTIONS[title] || "API reference for #{title}."
+      else
+        primary = content[:modules].first || content[:classes].first
+        primary_path = primary&.first || filename.capitalize
+        title = primary_path
+        description = MarkdownGenerator::MODULE_DESCRIPTIONS[primary_path] || "API reference for #{primary_path}."
+      end
 
       File.open(path, 'w') do |f|
         f.puts html_header(title, nav_items, filename)
@@ -1264,23 +1370,7 @@ module GMRDocs
     def render_sidebar(content, current_file)
       html = '<aside class="sidebar">'
 
-      # Functions section
-      functions = []
-      content[:modules].each do |_, data|
-        functions.concat(data['functions']&.keys || [])
-      end
-
-      unless functions.empty?
-        html += '<div class="sidebar-section">'
-        html += '<div class="sidebar-title">Functions</div>'
-        html += '<ul class="sidebar-links">'
-        functions.sort.each do |name|
-          html += "<li><a href=\"##{name}\">#{html_escape(name)}</a></li>"
-        end
-        html += '</ul></div>'
-      end
-
-      # Classes section
+      # Classes section FIRST (more important for navigation)
       content[:classes].each do |class_path, class_data|
         class_name = class_path.split('::').last
         html += '<div class="sidebar-section">'
@@ -1294,6 +1384,22 @@ module GMRDocs
           html += "<li><a href=\"##{class_name}-#{name}\">##{html_escape(name)}</a></li>"
         end
 
+        html += '</ul></div>'
+      end
+
+      # Functions section (module-level functions)
+      functions = []
+      content[:modules].each do |_, data|
+        functions.concat(data['functions']&.keys || [])
+      end
+
+      unless functions.empty?
+        html += '<div class="sidebar-section">'
+        html += '<div class="sidebar-title">Functions</div>'
+        html += '<ul class="sidebar-links">'
+        functions.sort.each do |name|
+          html += "<li><a href=\"##{name}\">#{html_escape(name)}</a></li>"
+        end
         html += '</ul></div>'
       end
 
@@ -1394,36 +1500,64 @@ module GMRDocs
         f.puts '<h1>GMR Ruby API Reference</h1>'
         f.puts "<p>Auto-generated API documentation for GMR #{@options[:engine_version]}.</p>"
 
-        # Modules grid
-        f.puts '<h2>Modules</h2>'
-        f.puts '<div class="card-grid">'
+        # Organize items by category
+        categories = {
+          'Modules' => [],
+          'Engine' => [],
+          'Types' => []
+        }
+
+        # Categorize modules (GMR::* namespaced modules)
         model.modules.keys.sort.each do |mod_path|
+          category = MarkdownGenerator::INDEX_CATEGORIES[mod_path] || 'Modules'
           filename = MarkdownGenerator::MODULE_FILES[mod_path] || mod_path.downcase.gsub('::', '_')
           desc = MarkdownGenerator::MODULE_DESCRIPTIONS[mod_path] || 'API reference'
-          f.puts '<div class="card">'
-          f.puts "<h3><a href=\"#{filename}.html\">#{html_escape(mod_path)}</a></h3>"
-          f.puts "<p>#{html_escape(desc)}</p>"
-          f.puts '</div>'
+          # Skip GMR root and nested classes like GMR::Graphics::Texture (they're on same page)
+          next if mod_path == 'GMR' || mod_path.count(':') > 2
+          categories[category] << { path: mod_path, filename: filename, desc: desc }
         end
-        f.puts '</div>'
 
-        # Classes grid
-        if model.classes.any?
-          f.puts '<h2>Classes</h2>'
+        # Categorize classes
+        model.classes.keys.sort.each do |class_path|
+          category = MarkdownGenerator::INDEX_CATEGORIES[class_path] || 'Engine'
+          filename = MarkdownGenerator::MODULE_FILES[class_path] || class_path.downcase.gsub('::', '_')
+          desc = MarkdownGenerator::MODULE_DESCRIPTIONS[class_path] || 'Class reference'
+          categories[category] << { path: class_path, filename: filename, desc: desc }
+        end
+
+        # Render each category
+        MarkdownGenerator::CATEGORY_ORDER.each do |category|
+          items = categories[category]
+          next if items.empty?
+
+          # Group items by their target file to avoid duplicates
+          items_by_file = items.group_by { |i| i[:filename] }
+
+          f.puts "<h2>#{html_escape(category)}</h2>"
           f.puts '<div class="card-grid">'
-          model.classes.keys.sort.each do |class_path|
-            filename = MarkdownGenerator::MODULE_FILES[class_path] || class_path.downcase.gsub('::', '_')
-            desc = MarkdownGenerator::MODULE_DESCRIPTIONS[class_path] || 'Class reference'
+
+          items_by_file.each do |filename, file_items|
+            # Use first item for card display, combine descriptions if multiple
+            primary = file_items.first
+            # For types page, show "Types" as title instead of individual class names
+            if filename == 'types'
+              title = 'Types'
+              desc = 'Vec2, Vec3, Rect - Core data types for positions, vectors, and bounds.'
+            else
+              title = primary[:path]
+              desc = primary[:desc]
+            end
+
             f.puts '<div class="card">'
-            f.puts "<h3><a href=\"#{filename}.html\">#{html_escape(class_path)}</a></h3>"
+            f.puts "<h3><a href=\"#{filename}.html\">#{html_escape(title)}</a></h3>"
             f.puts "<p>#{html_escape(desc)}</p>"
             f.puts '</div>'
           end
           f.puts '</div>'
         end
 
-        # Types table
-        f.puts '<h2>Types</h2>'
+        # Built-in types table (Color, KeyCode, etc.)
+        f.puts '<h2>Built-in Types</h2>'
         f.puts '<table>'
         f.puts '<thead><tr><th>Type</th><th>Description</th></tr></thead>'
         f.puts '<tbody>'
@@ -1470,7 +1604,7 @@ module GMRDocs
     def html_footer
       <<~HTML
           <footer class="footer">
-            <p>Generated by <code>generate_api_docs.rb</code> from C++ bindings.</p>
+            <p>Generated by GMRCli Docs</p>
             <p>GMR #{@options[:engine_version]} &bull; Ruby API Reference</p>
           </footer>
         </body>

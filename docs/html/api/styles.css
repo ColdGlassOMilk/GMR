@@ -317,14 +317,46 @@ tr:hover { background: var(--bg-secondary); }
   .nav-content { flex-direction: column; gap: 1rem; }
 }
 
-/* Syntax Highlighting */
-.hl-keyword { color: #bb9af7; font-weight: 500; }
-.hl-string { color: #9ece6a; }
-.hl-number { color: #ff9e64; }
-.hl-comment { color: #565f89; font-style: italic; }
-.hl-symbol { color: #7dcfff; }
-.hl-class { color: #7aa2f7; }
-.hl-method { color: #7aa2f7; }
-.hl-ivar { color: #f7768e; }
-.hl-gvar { color: #f7768e; }
-.hl-const { color: #ff9e64; }
+/* Syntax Highlighting - Fallback custom highlighter */
+pre code .hl-keyword { color: #bb9af7; font-weight: 500; }
+pre code .hl-string { color: #9ece6a; }
+pre code .hl-number { color: #ff9e64; }
+pre code .hl-comment { color: #565f89; font-style: italic; }
+pre code .hl-symbol { color: #7dcfff; }
+pre code .hl-class { color: #7aa2f7; }
+pre code .hl-method { color: #7aa2f7; }
+pre code .hl-ivar { color: #f7768e; }
+pre code .hl-gvar { color: #f7768e; }
+pre code .hl-const { color: #ff9e64; }
+
+/* CodeRay Syntax Highlighting - Tokyo Night theme */
+/* More specific selectors to override pre code color */
+pre code .CodeRay { background: transparent; color: var(--text-primary); }
+pre code .CodeRay .keyword { color: #bb9af7; font-weight: 500; }
+pre code .CodeRay .reserved { color: #bb9af7; font-weight: 500; }
+pre code .CodeRay .string { color: #9ece6a; }
+pre code .CodeRay .char { color: #9ece6a; }
+pre code .CodeRay .content { color: #9ece6a; }
+pre code .CodeRay .delimiter { color: #89ddff; }
+pre code .CodeRay .integer { color: #ff9e64; }
+pre code .CodeRay .float { color: #ff9e64; }
+pre code .CodeRay .comment { color: #565f89; font-style: italic; }
+pre code .CodeRay .symbol { color: #7dcfff; }
+pre code .CodeRay .class { color: #7aa2f7; font-weight: 500; }
+pre code .CodeRay .constant { color: #ff9e64; }
+pre code .CodeRay .function { color: #7aa2f7; }
+pre code .CodeRay .method { color: #7aa2f7; }
+pre code .CodeRay .instance-variable { color: #f7768e; }
+pre code .CodeRay .global-variable { color: #f7768e; }
+pre code .CodeRay .class-variable { color: #f7768e; }
+pre code .CodeRay .predefined { color: #7dcfff; }
+pre code .CodeRay .predefined-constant { color: #ff9e64; }
+pre code .CodeRay .predefined-type { color: #7aa2f7; }
+pre code .CodeRay .operator { color: #89ddff; }
+pre code .CodeRay .shell { color: #9ece6a; }
+pre code .CodeRay .regexp { color: #f7768e; }
+pre code .CodeRay .key { color: #7dcfff; }
+pre code .CodeRay .value { color: var(--text-primary); }
+pre code .CodeRay .escape { color: #ff9e64; }
+pre code .CodeRay .inline { color: #e0af68; }
+pre code .CodeRay .ident { color: var(--text-primary); }

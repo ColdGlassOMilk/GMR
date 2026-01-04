@@ -42,6 +42,10 @@ function(generate_api_docs TARGET_NAME)
         ${CMAKE_SOURCE_DIR}/src/bindings/collision.cpp
         ${CMAKE_SOURCE_DIR}/src/bindings/binding_helpers.cpp
         ${CMAKE_SOURCE_DIR}/src/bindings/console.cpp
+        ${CMAKE_SOURCE_DIR}/src/bindings/math.cpp
+        ${CMAKE_SOURCE_DIR}/src/bindings/camera.cpp
+        ${CMAKE_SOURCE_DIR}/src/bindings/transform.cpp
+        ${CMAKE_SOURCE_DIR}/src/bindings/sprite.cpp
     )
 
     # Filter to only existing files

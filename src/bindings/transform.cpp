@@ -12,14 +12,27 @@
 namespace gmr {
 namespace bindings {
 
+/// @class Transform2D
+/// @description A 2D transformation with position, rotation, scale, and origin (pivot point).
+///   Transforms can be parented to other transforms to create hierarchies - when a parent
+///   transforms, all children transform with it. Useful for turrets, attached weapons,
+///   or any object that should move relative to another.
+/// @example # Basic transform
+///   t = Transform2D.new(x: 100, y: 50)
+///   t.rotation = 45
+///   t.scale_x = 2.0
+/// @example # Parent-child hierarchy
+///   parent = Transform2D.new(x: 200, y: 200)
+///   child = Transform2D.new
+///   child.parent = parent
+///   child.y = -20  # Offset from parent
+///   parent.rotation += 1  # Child rotates with parent!
+
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
 static constexpr float RAD_TO_DEG = 180.0f / 3.14159265358979323846f;
 
-// ============================================================================
 // Transform2D Binding Data
-// ============================================================================
-
 struct TransformData {
     TransformHandle handle;
 };
@@ -69,10 +82,18 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     return {0.0f, 0.0f};
 }
 
-// ============================================================================
-// Transform2D.new(x:, y:, rotation:, scale_x:, scale_y:, origin_x:, origin_y:)
-// ============================================================================
-
+/// @method initialize
+/// @description Create a new Transform2D with optional initial values.
+/// @param x [Float] Initial X position (default: 0)
+/// @param y [Float] Initial Y position (default: 0)
+/// @param rotation [Float] Initial rotation in degrees (default: 0)
+/// @param scale_x [Float] Initial X scale (default: 1.0)
+/// @param scale_y [Float] Initial Y scale (default: 1.0)
+/// @param origin_x [Float] Pivot point X (default: 0)
+/// @param origin_y [Float] Pivot point Y (default: 0)
+/// @returns [Transform2D] The new transform
+/// @example t = Transform2D.new
+/// @example t = Transform2D.new(x: 100, y: 50, rotation: 45)
 static mrb_value mrb_transform_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value kwargs = mrb_nil_value();
     mrb_get_args(mrb, "|H", &kwargs);
@@ -126,10 +147,10 @@ static mrb_value mrb_transform_initialize(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
-// ============================================================================
-// Property Getters
-// ============================================================================
-
+/// @method x
+/// @description Get the X position of the transform.
+/// @returns [Float] The X position
+/// @example x_pos = transform.x
 static mrb_value mrb_transform_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -138,6 +159,10 @@ static mrb_value mrb_transform_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->position.x);
 }
 
+/// @method y
+/// @description Get the Y position of the transform.
+/// @returns [Float] The Y position
+/// @example y_pos = transform.y
 static mrb_value mrb_transform_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -146,6 +171,10 @@ static mrb_value mrb_transform_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->position.y);
 }
 
+/// @method position
+/// @description Get the position as a Vec2.
+/// @returns [Vec2] The position vector
+/// @example pos = transform.position
 static mrb_value mrb_transform_position(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -154,6 +183,10 @@ static mrb_value mrb_transform_position(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, t->position.x, t->position.y);
 }
 
+/// @method rotation
+/// @description Get the rotation in degrees.
+/// @returns [Float] The rotation angle in degrees
+/// @example angle = transform.rotation
 static mrb_value mrb_transform_rotation(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -163,6 +196,10 @@ static mrb_value mrb_transform_rotation(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->rotation * RAD_TO_DEG);
 }
 
+/// @method scale_x
+/// @description Get the X scale factor.
+/// @returns [Float] The X scale (1.0 = normal size)
+/// @example sx = transform.scale_x
 static mrb_value mrb_transform_scale_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -171,6 +208,10 @@ static mrb_value mrb_transform_scale_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->scale.x);
 }
 
+/// @method scale_y
+/// @description Get the Y scale factor.
+/// @returns [Float] The Y scale (1.0 = normal size)
+/// @example sy = transform.scale_y
 static mrb_value mrb_transform_scale_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -179,6 +220,10 @@ static mrb_value mrb_transform_scale_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->scale.y);
 }
 
+/// @method origin_x
+/// @description Get the X origin (pivot point) for rotation and scaling.
+/// @returns [Float] The X origin offset in pixels
+/// @example ox = transform.origin_x
 static mrb_value mrb_transform_origin_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -187,6 +232,10 @@ static mrb_value mrb_transform_origin_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, t->origin.x);
 }
 
+/// @method origin_y
+/// @description Get the Y origin (pivot point) for rotation and scaling.
+/// @returns [Float] The Y origin offset in pixels
+/// @example oy = transform.origin_y
 static mrb_value mrb_transform_origin_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -199,6 +248,12 @@ static mrb_value mrb_transform_origin_y(mrb_state* mrb, mrb_value self) {
 // Property Setters
 // ============================================================================
 
+/// @method x=
+/// @description Set the X position of the transform.
+/// @param value [Float] The new X position
+/// @returns [Float] The value that was set
+/// @example transform.x = 100
+/// @example transform.x += 5  # Move right by 5 pixels
 static mrb_value mrb_transform_set_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -211,6 +266,12 @@ static mrb_value mrb_transform_set_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method y=
+/// @description Set the Y position of the transform.
+/// @param value [Float] The new Y position
+/// @returns [Float] The value that was set
+/// @example transform.y = 200
+/// @example transform.y += 10  # Move down by 10 pixels
 static mrb_value mrb_transform_set_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -223,6 +284,12 @@ static mrb_value mrb_transform_set_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method position=
+/// @description Set the position using a Vec2.
+/// @param value [Vec2] The new position vector
+/// @returns [Vec2] The value that was set
+/// @example transform.position = Vec2.new(100, 200)
+/// @example transform.position = player.position  # Copy another position
 static mrb_value mrb_transform_set_position(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -235,6 +302,12 @@ static mrb_value mrb_transform_set_position(mrb_state* mrb, mrb_value self) {
     return val;
 }
 
+/// @method rotation=
+/// @description Set the rotation in degrees. Positive values rotate clockwise.
+/// @param value [Float] The new rotation angle in degrees
+/// @returns [Float] The value that was set
+/// @example transform.rotation = 45
+/// @example transform.rotation += 90 * dt  # Rotate 90 degrees per second
 static mrb_value mrb_transform_set_rotation(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -248,6 +321,13 @@ static mrb_value mrb_transform_set_rotation(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method scale_x=
+/// @description Set the X scale factor. Values greater than 1 stretch horizontally,
+///   less than 1 shrink. Negative values flip horizontally.
+/// @param value [Float] The new X scale (1.0 = normal size)
+/// @returns [Float] The value that was set
+/// @example transform.scale_x = 2.0   # Double width
+/// @example transform.scale_x = -1.0  # Flip horizontally
 static mrb_value mrb_transform_set_scale_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -260,6 +340,13 @@ static mrb_value mrb_transform_set_scale_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method scale_y=
+/// @description Set the Y scale factor. Values greater than 1 stretch vertically,
+///   less than 1 shrink. Negative values flip vertically.
+/// @param value [Float] The new Y scale (1.0 = normal size)
+/// @returns [Float] The value that was set
+/// @example transform.scale_y = 0.5   # Half height
+/// @example transform.scale_y = -1.0  # Flip vertically
 static mrb_value mrb_transform_set_scale_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -272,6 +359,12 @@ static mrb_value mrb_transform_set_scale_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method origin_x=
+/// @description Set the X origin (pivot point) for rotation and scaling.
+///   The origin is the point around which the transform rotates and scales.
+/// @param value [Float] The X origin offset in pixels from top-left
+/// @returns [Float] The value that was set
+/// @example transform.origin_x = 16  # Pivot 16px from left edge
 static mrb_value mrb_transform_set_origin_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -284,6 +377,12 @@ static mrb_value mrb_transform_set_origin_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method origin_y=
+/// @description Set the Y origin (pivot point) for rotation and scaling.
+///   The origin is the point around which the transform rotates and scales.
+/// @param value [Float] The Y origin offset in pixels from top-left
+/// @returns [Float] The value that was set
+/// @example transform.origin_y = 16  # Pivot 16px from top edge
 static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -300,6 +399,14 @@ static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
 // Parent Hierarchy
 // ============================================================================
 
+/// @method parent
+/// @description Get the parent transform. Returns nil if no parent is set.
+///   When a transform has a parent, its position, rotation, and scale are
+///   relative to the parent's world transform.
+/// @returns [Transform2D, nil] The parent transform, or nil if none
+/// @example if transform.parent
+///   puts "Has a parent!"
+/// end
 static mrb_value mrb_transform_parent(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -312,6 +419,19 @@ static mrb_value mrb_transform_parent(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(t->parent);
 }
 
+/// @method parent=
+/// @description Set the parent transform for hierarchical transformations.
+///   When parented, this transform's position, rotation, and scale become
+///   relative to the parent. Set to nil to remove the parent.
+/// @param value [Transform2D, nil] The parent transform, or nil to clear
+/// @returns [Transform2D, nil] The value that was set
+/// @example # Create a turret hierarchy
+///   base = Transform2D.new(x: 200, y: 200)
+///   gun = Transform2D.new
+///   gun.parent = base
+///   gun.y = -20  # Offset from base
+///   base.rotation += 1  # Gun rotates with base!
+/// @example transform.parent = nil  # Remove parent
 static mrb_value mrb_transform_set_parent(mrb_state* mrb, mrb_value self) {
     mrb_value parent_val;
     mrb_get_args(mrb, "o", &parent_val);
@@ -335,6 +455,17 @@ static mrb_value mrb_transform_set_parent(mrb_state* mrb, mrb_value self) {
 // World Position (after hierarchy composition)
 // ============================================================================
 
+/// @method world_position
+/// @description Get the final world position after applying all parent transforms.
+///   For transforms without a parent, this equals the local position. For parented
+///   transforms, this returns the actual screen position after parent transformations.
+/// @returns [Vec2] The world position after parent hierarchy composition
+/// @example # Get world position of a child transform
+///   parent = Transform2D.new(x: 100, y: 100)
+///   parent.rotation = 90
+///   child = Transform2D.new(x: 50, y: 0)
+///   child.parent = parent
+///   pos = child.world_position  # Position after rotation by parent
 static mrb_value mrb_transform_world_position(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
     if (!data) return mrb_nil_value();

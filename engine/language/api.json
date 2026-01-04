@@ -113,9 +113,14 @@
         "back"
       ]
     },
+    "Camera2D": {
+      "kind": "class",
+      "module": "Camera2D",
+      "description": "TODO: Add description"
+    },
     "Texture": {
       "kind": "class",
-      "module": "Texture",
+      "module": "GMR::Graphics::Texture",
       "description": "TODO: Add description"
     },
     "Tilemap": {
@@ -123,9 +128,39 @@
       "module": "GMR::Graphics::Tilemap",
       "description": "TODO: Add description"
     },
+    "Vec2": {
+      "kind": "class",
+      "module": "Vec2",
+      "description": "TODO: Add description"
+    },
+    "Vec3": {
+      "kind": "class",
+      "module": "Vec3",
+      "description": "TODO: Add description"
+    },
+    "Rect": {
+      "kind": "class",
+      "module": "Rect",
+      "description": "TODO: Add description"
+    },
+    "Sprite": {
+      "kind": "class",
+      "module": "Sprite",
+      "description": "TODO: Add description"
+    },
+    "Transform2D": {
+      "kind": "class",
+      "module": "Transform2D",
+      "description": "TODO: Add description"
+    },
     "Sound": {
       "kind": "class",
       "module": "GMR::Audio::Sound",
+      "description": "TODO: Add description"
+    },
+    "GMR": {
+      "kind": "class",
+      "module": "GMR",
       "description": "TODO: Add description"
     }
   },
@@ -1403,48 +1438,282 @@
       }
     },
     "GMR": {
+      "kind": "class",
       "description": "TODO: Add description",
-      "functions": {
-        "delta": {
-          "signature": "delta",
+      "instanceMethods": {
+        "inspect": {
+          "signature": "inspect",
           "description": "TODO: Add documentation",
           "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "elapsed": {
-          "signature": "elapsed",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "fps": {
-          "signature": "fps",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_target_fps": {
-          "signature": "set_target_fps(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
           "returns": {
             "type": "unknown"
           }
         }
       }
     },
-    "Texture": {
+    "Camera2D": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Camera2D with optional initial values.",
+          "params": [
+            {
+              "name": "target",
+              "type": "Vec2",
+              "description": "World position the camera looks at (default: 0,0)"
+            },
+            {
+              "name": "offset",
+              "type": "Vec2",
+              "description": "Screen position offset, typically screen center (default: 0,0)"
+            },
+            {
+              "name": "zoom",
+              "type": "Float",
+              "description": "Zoom level, 1.0 = normal (default: 1.0)"
+            },
+            {
+              "name": "rotation",
+              "type": "Float",
+              "description": "Rotation in degrees (default: 0)"
+            }
+          ],
+          "returns": {
+            "type": "Camera2D",
+            "description": "The new camera"
+          },
+          "example": "cam = Camera2D.new(offset: Vec2.new(400, 300))  # Center on 800x600 screen"
+        },
+        "target": {
+          "description": "Get the world position the camera is looking at.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The camera's target position"
+          },
+          "example": "target = camera.target"
+        },
+        "offset": {
+          "description": "Get the screen position offset (where the target appears on screen). Typically set to screen center for centered camera following.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The camera's offset position"
+          },
+          "example": "offset = camera.offset"
+        },
+        "zoom": {
+          "description": "Get the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.",
+          "returns": {
+            "type": "Float",
+            "description": "The zoom level"
+          },
+          "example": "z = camera.zoom"
+        },
+        "rotation": {
+          "description": "Get the camera rotation in degrees.",
+          "returns": {
+            "type": "Float",
+            "description": "The rotation angle"
+          },
+          "example": "angle = camera.rotation"
+        },
+        "target=": {
+          "description": "Set the world position the camera looks at.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The target position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "camera.target = player.position"
+        },
+        "offset=": {
+          "description": "Set the screen position offset. The target appears at this screen position. Set to screen center for centered following.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The offset position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "camera.offset = Vec2.new(400, 300)  # Center on 800x600 screen"
+        },
+        "zoom=": {
+          "description": "Set the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The zoom level (must be > 0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "camera.zoom = 0.5    # Zoom out (see more of the world)"
+        },
+        "rotation=": {
+          "description": "Set the camera rotation in degrees.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The rotation angle in degrees"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "camera.rotation += 10 * dt  # Rotate over time"
+        },
+        "follow": {
+          "description": "Configure the camera to follow a target object with optional smoothing and deadzone. The target must respond to `position` (returning Vec2) or have `x`/`y` methods. Call with nil to stop following.",
+          "params": [
+            {
+              "name": "target",
+              "type": "Object, nil",
+              "description": "Object with position/x/y to follow, or nil to stop"
+            },
+            {
+              "name": "smoothing",
+              "type": "Float",
+              "description": "Smoothing factor 0-1 (0=instant, 0.1=smooth, default: 0)"
+            },
+            {
+              "name": "deadzone",
+              "type": "Rect",
+              "description": "Rectangle where target can move without camera moving"
+            }
+          ],
+          "returns": {
+            "type": "Camera2D",
+            "description": "self for chaining"
+          },
+          "example": "# Stop following\n  camera.follow(nil)\r"
+        },
+        "bounds=": {
+          "description": "Set camera bounds to constrain movement within a world region. The camera will not show areas outside these bounds. Set to nil to remove bounds.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Rect, nil",
+              "description": "The world bounds, or nil to remove"
+            }
+          ],
+          "returns": {
+            "type": "Rect, nil",
+            "description": "The value that was set"
+          },
+          "example": "camera.bounds = nil  # No bounds"
+        },
+        "bounds": {
+          "description": "Get the current camera bounds. Returns nil if no bounds are set.",
+          "returns": {
+            "type": "Rect, nil",
+            "description": "The world bounds, or nil if unbounded"
+          },
+          "example": "rect = camera.bounds"
+        },
+        "shake": {
+          "description": "Trigger a screen shake effect. The shake decays over the duration.",
+          "params": [
+            {
+              "name": "strength",
+              "type": "Float",
+              "description": "Maximum shake offset in pixels (default: 5.0)"
+            },
+            {
+              "name": "duration",
+              "type": "Float",
+              "description": "How long the shake lasts in seconds (default: 0.3)"
+            },
+            {
+              "name": "frequency",
+              "type": "Float",
+              "description": "Shake oscillation frequency in Hz (default: 30.0)"
+            }
+          ],
+          "returns": {
+            "type": "Camera2D",
+            "description": "self for chaining"
+          },
+          "example": "camera.shake(strength: 3, duration: 0.2, frequency: 20)"
+        },
+        "world_to_screen": {
+          "description": "Convert a world position to screen coordinates. Useful for placing UI elements relative to game objects.",
+          "params": [
+            {
+              "name": "position",
+              "type": "Vec2",
+              "description": "The world position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The screen position"
+          },
+          "example": "health_bar_x = camera.world_to_screen(enemy.position).x"
+        },
+        "screen_to_world": {
+          "description": "Convert a screen position to world coordinates. Useful for mouse picking and click-to-move.",
+          "params": [
+            {
+              "name": "position",
+              "type": "Vec2",
+              "description": "The screen position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The world position"
+          },
+          "example": "click_target = camera.screen_to_world(Vec2.new(mouse_x, mouse_y))"
+        },
+        "use": {
+          "description": "Execute a block with this camera's transform applied. All drawing within the block will be transformed by the camera (position, zoom, rotation). The camera mode is automatically ended when the block completes.",
+          "returns": {
+            "type": "Object",
+            "description": "The return value of the block"
+          },
+          "example": "# Nested cameras\n  world_camera.use do\r\n    draw_world()\r\n  end\r\n  # UI drawn outside camera (screen space)\r\n  draw_ui()\r"
+        },
+        "current=": {
+          "description": "Set the current active camera (class method). This camera will be used for sprite rendering and coordinate transformations.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Camera2D, nil",
+              "description": "The camera to make current, or nil to clear"
+            }
+          ],
+          "returns": {
+            "type": "Camera2D, nil",
+            "description": "The value that was set"
+          },
+          "example": "Camera2D.current = nil  # No camera"
+        },
+        "current": {
+          "description": "Get the current active camera (class method). Returns nil if no camera is set.",
+          "returns": {
+            "type": "Camera2D, nil",
+            "description": "The current camera, or nil"
+          },
+          "example": "cam = Camera2D.current"
+        }
+      }
+    },
+    "GMR::Graphics::Texture": {
       "kind": "class",
       "description": "TODO: Add description",
       "classMethods": {
@@ -1603,7 +1872,7 @@
         }
       }
     },
-    "Tilemap": {
+    "GMR::Graphics::Tilemap": {
       "kind": "class",
       "description": "TODO: Add description",
       "classMethods": {
@@ -1646,46 +1915,7 @@
           ],
           "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)"
         }
-      }
-    },
-    "GMR::Audio::Sound": {
-      "kind": "class",
-      "description": "TODO: Add description",
-      "instanceMethods": {
-        "play": {
-          "signature": "play",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "stop": {
-          "signature": "stop",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "volume=": {
-          "signature": "volume=(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
-    "GMR::Graphics::Tilemap": {
-      "kind": "class",
-      "description": "TODO: Add description",
+      },
       "instanceMethods": {
         "tile_width": {
           "signature": "tile_width",
@@ -2006,6 +2236,1080 @@
             {
               "name": "arg2",
               "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      }
+    },
+    "Vec2": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Vec2 with optional x and y values.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "The x component (default: 0)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "The y component (default: 0)"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The new vector"
+          },
+          "example": "Vec2.new(100, 200)    # (100, 200)"
+        },
+        "x": {
+          "description": "Get the x component.",
+          "returns": {
+            "type": "Float",
+            "description": "The x value"
+          },
+          "example": "x = vec.x"
+        },
+        "y": {
+          "description": "Get the y component.",
+          "returns": {
+            "type": "Float",
+            "description": "The y value"
+          },
+          "example": "y = vec.y"
+        },
+        "+": {
+          "description": "Add two vectors, returning a new Vec2.",
+          "params": [
+            {
+              "name": "other",
+              "type": "Vec2",
+              "description": "The vector to add"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "A new vector with the sum"
+          },
+          "example": "result = Vec2.new(1, 2) + Vec2.new(3, 4)  # Vec2(4, 6)"
+        },
+        "-": {
+          "description": "Subtract two vectors, returning a new Vec2.",
+          "params": [
+            {
+              "name": "other",
+              "type": "Vec2",
+              "description": "The vector to subtract"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "A new vector with the difference"
+          },
+          "example": "result = Vec2.new(5, 5) - Vec2.new(2, 1)  # Vec2(3, 4)"
+        },
+        "*": {
+          "description": "Multiply vector by a scalar, returning a new Vec2.",
+          "params": [
+            {
+              "name": "scalar",
+              "type": "Float",
+              "description": "The scalar value"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "A new scaled vector"
+          },
+          "example": "result = Vec2.new(2, 3) * 2.0  # Vec2(4, 6)"
+        },
+        "/": {
+          "description": "Divide vector by a scalar, returning a new Vec2.",
+          "params": [
+            {
+              "name": "scalar",
+              "type": "Float",
+              "description": "The scalar value (must not be zero)"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "A new scaled vector"
+          },
+          "example": "result = Vec2.new(10, 20) / 2.0  # Vec2(5, 10)"
+        },
+        "to_s": {
+          "description": "A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), and other 3-component values. Supports arithmetic operations.",
+          "returns": {
+            "type": "String",
+            "description": "String in format \"Vec2(x, y)\""
+          },
+          "example": "v3 = v * 0.5                 # Scale"
+        }
+      }
+    },
+    "Vec3": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Vec3 with optional x, y, and z values.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "The x component (default: 0)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "The y component (default: 0)"
+            },
+            {
+              "name": "z",
+              "type": "Float",
+              "description": "The z component (default: 0)"
+            }
+          ],
+          "returns": {
+            "type": "Vec3",
+            "description": "The new vector"
+          },
+          "example": "Vec3.new(1, 2, 3)     # (1, 2, 3)"
+        },
+        "x": {
+          "description": "Get the x component.",
+          "returns": {
+            "type": "Float",
+            "description": "The x value"
+          },
+          "example": "x = vec.x"
+        },
+        "y": {
+          "description": "Get the y component.",
+          "returns": {
+            "type": "Float",
+            "description": "The y value"
+          },
+          "example": "y = vec.y"
+        },
+        "z": {
+          "description": "Get the z component.",
+          "returns": {
+            "type": "Float",
+            "description": "The z value"
+          },
+          "example": "z = vec.z"
+        },
+        "+": {
+          "description": "Add two vectors, returning a new Vec3.",
+          "params": [
+            {
+              "name": "other",
+              "type": "Vec3",
+              "description": "The vector to add"
+            }
+          ],
+          "returns": {
+            "type": "Vec3",
+            "description": "A new vector with the sum"
+          },
+          "example": "result = Vec3.new(1, 2, 3) + Vec3.new(1, 1, 1)  # Vec3(2, 3, 4)"
+        },
+        "-": {
+          "description": "Subtract two vectors, returning a new Vec3.",
+          "params": [
+            {
+              "name": "other",
+              "type": "Vec3",
+              "description": "The vector to subtract"
+            }
+          ],
+          "returns": {
+            "type": "Vec3",
+            "description": "A new vector with the difference"
+          },
+          "example": "result = Vec3.new(5, 5, 5) - Vec3.new(1, 2, 3)  # Vec3(4, 3, 2)"
+        },
+        "*": {
+          "description": "Multiply vector by a scalar, returning a new Vec3.",
+          "params": [
+            {
+              "name": "scalar",
+              "type": "Float",
+              "description": "The scalar value"
+            }
+          ],
+          "returns": {
+            "type": "Vec3",
+            "description": "A new scaled vector"
+          },
+          "example": "result = Vec3.new(1, 2, 3) * 2.0  # Vec3(2, 4, 6)"
+        },
+        "/": {
+          "description": "Divide vector by a scalar, returning a new Vec3.",
+          "params": [
+            {
+              "name": "scalar",
+              "type": "Float",
+              "description": "The scalar value (must not be zero)"
+            }
+          ],
+          "returns": {
+            "type": "Vec3",
+            "description": "A new scaled vector"
+          },
+          "example": "result = Vec3.new(10, 20, 30) / 10.0  # Vec3(1, 2, 3)"
+        },
+        "to_s": {
+          "description": "A rectangle with position (x, y) and dimensions (w, h). Used for bounds, source rectangles, collision areas, and UI layout.",
+          "returns": {
+            "type": "String",
+            "description": "String in format \"Vec3(x, y, z)\""
+          },
+          "example": "puts rect.x, rect.y, rect.w, rect.h"
+        }
+      }
+    },
+    "Rect": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Rect with optional position and dimensions.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "The x position (default: 0)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "The y position (default: 0)"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "The width (default: 0)"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "The height (default: 0)"
+            }
+          ],
+          "returns": {
+            "type": "Rect",
+            "description": "The new rectangle"
+          },
+          "example": "Rect.new(10, 20, 100, 50)   # x=10, y=20, w=100, h=50"
+        },
+        "x": {
+          "description": "Get the x position (left edge).",
+          "returns": {
+            "type": "Float",
+            "description": "The x position"
+          },
+          "example": "x = rect.x"
+        },
+        "y": {
+          "description": "Get the y position (top edge).",
+          "returns": {
+            "type": "Float",
+            "description": "The y position"
+          },
+          "example": "y = rect.y"
+        },
+        "w": {
+          "description": "Get the width.",
+          "returns": {
+            "type": "Float",
+            "description": "The width"
+          },
+          "example": "width = rect.w"
+        },
+        "h": {
+          "description": "Get the height.",
+          "returns": {
+            "type": "Float",
+            "description": "The height"
+          },
+          "example": "height = rect.h"
+        },
+        "to_s": {
+          "description": "Convert to a string representation.",
+          "returns": {
+            "type": "String",
+            "description": "String in format \"Rect(x, y, w, h)\""
+          },
+          "example": "puts Rect.new(0, 0, 32, 32).to_s  # \"Rect(0.00, 0.00, 32.00, 32.00)\""
+        }
+      }
+    },
+    "Sprite": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Sprite from a texture with optional initial values.",
+          "params": [
+            {
+              "name": "texture",
+              "type": "Texture",
+              "description": "The texture to use for this sprite"
+            },
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Initial X position (default: 0)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Initial Y position (default: 0)"
+            },
+            {
+              "name": "rotation",
+              "type": "Float",
+              "description": "Initial rotation in degrees (default: 0)"
+            },
+            {
+              "name": "scale_x",
+              "type": "Float",
+              "description": "Initial X scale (default: 1.0)"
+            },
+            {
+              "name": "scale_y",
+              "type": "Float",
+              "description": "Initial Y scale (default: 1.0)"
+            },
+            {
+              "name": "z",
+              "type": "Float",
+              "description": "Explicit z-index for layering (default: nil, uses draw order)"
+            },
+            {
+              "name": "source_rect",
+              "type": "Rect",
+              "description": "Region of texture to draw (default: entire texture)"
+            }
+          ],
+          "returns": {
+            "type": "Sprite",
+            "description": "The new sprite"
+          },
+          "example": "sprite = Sprite.new(spritesheet, source_rect: Rect.new(0, 0, 32, 32))"
+        },
+        "x": {
+          "description": "Get the X position of the sprite.",
+          "returns": {
+            "type": "Float",
+            "description": "The X position"
+          },
+          "example": "x_pos = sprite.x"
+        },
+        "y": {
+          "description": "Get the Y position of the sprite.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y position"
+          },
+          "example": "y_pos = sprite.y"
+        },
+        "x=": {
+          "description": "Set the X position of the sprite.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new X position"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.x += 5  # Move right by 5 pixels"
+        },
+        "y=": {
+          "description": "Set the Y position of the sprite.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new Y position"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.y += 10  # Move down by 10 pixels"
+        },
+        "position": {
+          "description": "Get the position as a Vec2.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The position vector"
+          },
+          "example": "pos = sprite.position"
+        },
+        "position=": {
+          "description": "Set the position using a Vec2.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The new position vector"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "sprite.position = Vec2.new(100, 200)"
+        },
+        "rotation": {
+          "description": "Get the rotation in degrees.",
+          "returns": {
+            "type": "Float",
+            "description": "The rotation angle in degrees"
+          },
+          "example": "angle = sprite.rotation"
+        },
+        "rotation=": {
+          "description": "Set the rotation in degrees. Positive values rotate clockwise.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new rotation angle in degrees"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.rotation += 90 * dt  # Rotate 90 degrees per second"
+        },
+        "scale_x": {
+          "description": "Get the X scale factor.",
+          "returns": {
+            "type": "Float",
+            "description": "The X scale (1.0 = normal size)"
+          },
+          "example": "sx = sprite.scale_x"
+        },
+        "scale_y": {
+          "description": "Get the Y scale factor.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y scale (1.0 = normal size)"
+          },
+          "example": "sy = sprite.scale_y"
+        },
+        "scale_x=": {
+          "description": "Set the X scale factor. Values greater than 1 stretch, less than 1 shrink.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new X scale (1.0 = normal size)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.scale_x = 2.0  # Double width"
+        },
+        "scale_y=": {
+          "description": "Set the Y scale factor. Values greater than 1 stretch, less than 1 shrink.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new Y scale (1.0 = normal size)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.scale_y = 0.5  # Half height"
+        },
+        "origin_x": {
+          "description": "Get the X origin (pivot point) for rotation and scaling.",
+          "returns": {
+            "type": "Float",
+            "description": "The X origin offset in pixels"
+          },
+          "example": "ox = sprite.origin_x"
+        },
+        "origin_y": {
+          "description": "Get the Y origin (pivot point) for rotation and scaling.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y origin offset in pixels"
+          },
+          "example": "oy = sprite.origin_y"
+        },
+        "origin_x=": {
+          "description": "Set the X origin (pivot point) for rotation and scaling.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The X origin offset in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.origin_x = 16  # Pivot 16px from left"
+        },
+        "origin_y=": {
+          "description": "Set the Y origin (pivot point) for rotation and scaling.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The Y origin offset in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.origin_y = 16  # Pivot 16px from top"
+        },
+        "center_origin": {
+          "description": "Set the origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.",
+          "returns": {
+            "type": "Sprite",
+            "description": "self for chaining"
+          },
+          "example": "sprite = Sprite.new(tex).center_origin  # Method chaining"
+        },
+        "z": {
+          "description": "Get the explicit z-index for layering. Returns nil if using automatic draw order (the default). Higher z values render on top of lower values.",
+          "returns": {
+            "type": "Float, nil",
+            "description": "The z-index, or nil if using draw order"
+          },
+          "example": "if sprite.z.nil?\n  puts \"Using automatic draw order\"\r\nend\r"
+        },
+        "z=": {
+          "description": "Set an explicit z-index for layering, or nil to use draw order. By default (nil), sprites are layered by draw order - later drawn sprites appear on top. Setting an explicit z gives you precise control over layering.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float, nil",
+              "description": "The z-index (higher = on top), or nil for draw order"
+            }
+          ],
+          "returns": {
+            "type": "Float, nil",
+            "description": "The value that was set"
+          },
+          "example": "# Typical usage pattern"
+        },
+        "color": {
+          "description": "Get the color tint as an RGBA array. White [255,255,255,255] means no tint.",
+          "returns": {
+            "type": "Array<Integer>",
+            "description": "RGBA color array [r, g, b, a]"
+          },
+          "example": "r, g, b, a = sprite.color"
+        },
+        "color=": {
+          "description": "Set the color tint as an RGBA array. The sprite is multiplied by this color.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Array<Integer>",
+              "description": "RGBA color array [r, g, b] or [r, g, b, a]"
+            }
+          ],
+          "returns": {
+            "type": "Array<Integer>",
+            "description": "The value that was set"
+          },
+          "example": "sprite.color = [255, 255, 255, 128]  # 50% transparent"
+        },
+        "alpha": {
+          "description": "Get the alpha (opacity) as a float from 0.0 (invisible) to 1.0 (opaque).",
+          "returns": {
+            "type": "Float",
+            "description": "The alpha value"
+          },
+          "example": "a = sprite.alpha"
+        },
+        "alpha=": {
+          "description": "Set the alpha (opacity) from 0.0 (invisible) to 1.0 (opaque).",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new alpha value (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "sprite.alpha = 0    # Invisible"
+        },
+        "flip_x": {
+          "description": "Check if the sprite is flipped horizontally.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if flipped horizontally"
+          },
+          "example": "if sprite.flip_x\n  puts \"Facing left\"\r\nend\r"
+        },
+        "flip_y": {
+          "description": "Check if the sprite is flipped vertically.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if flipped vertically"
+          },
+          "example": "if sprite.flip_y\n  puts \"Flipped upside down\"\r\nend\r"
+        },
+        "flip_x=": {
+          "description": "Set whether the sprite is flipped horizontally. Useful for facing direction.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "true to flip horizontally"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The value that was set"
+          },
+          "example": "sprite.flip_x = velocity.x < 0  # Face movement direction"
+        },
+        "flip_y=": {
+          "description": "Set whether the sprite is flipped vertically.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "true to flip vertically"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The value that was set"
+          },
+          "example": "sprite.flip_y = true"
+        },
+        "texture": {
+          "description": "Get the current texture.",
+          "returns": {
+            "type": "Texture",
+            "description": "The sprite's texture"
+          },
+          "example": "tex = sprite.texture"
+        },
+        "texture=": {
+          "description": "Set the texture to draw.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Texture",
+              "description": "The new texture"
+            }
+          ],
+          "returns": {
+            "type": "Texture",
+            "description": "The value that was set"
+          },
+          "example": "sprite.texture = new_texture"
+        },
+        "source_rect": {
+          "description": "Get the source rectangle (region of texture to draw). Returns nil if using the entire texture.",
+          "returns": {
+            "type": "Rect, nil",
+            "description": "The source rectangle, or nil if using full texture"
+          },
+          "example": "rect = sprite.source_rect"
+        },
+        "source_rect=": {
+          "description": "Set the source rectangle to draw only part of the texture. Useful for sprite sheets and animations. Set to nil to draw the full texture.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Rect, nil",
+              "description": "The source rectangle, or nil for full texture"
+            }
+          ],
+          "returns": {
+            "type": "Rect, nil",
+            "description": "The value that was set"
+          },
+          "example": "@sprite.source_rect = nil  # Use full texture"
+        },
+        "width": {
+          "description": "Get the width of the sprite (from source_rect or texture).",
+          "returns": {
+            "type": "Integer",
+            "description": "The width in pixels"
+          },
+          "example": "w = sprite.width"
+        },
+        "height": {
+          "description": "Get the height of the sprite (from source_rect or texture).",
+          "returns": {
+            "type": "Integer",
+            "description": "The height in pixels"
+          },
+          "example": "h = sprite.height"
+        },
+        "parent": {
+          "description": "Get the parent Transform2D. Returns nil if no parent is set.",
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The parent transform, or nil if none"
+          },
+          "example": "parent = sprite.parent"
+        },
+        "parent=": {
+          "description": "Set a Transform2D as the parent. The sprite will transform relative to the parent's world transform. Set to nil to remove the parent.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Transform2D, nil",
+              "description": "The parent transform, or nil to clear"
+            }
+          ],
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The value that was set"
+          },
+          "example": "# Sprite follows a transform\n  turret_base = Transform2D.new(x: 200, y: 200)\r"
+        },
+        "draw": {
+          "description": "Queue the sprite for rendering. Sprites are drawn in z-order after all draw() calls complete. By default, draw order determines layering (later = on top). Set sprite.z to override with an explicit z-index.",
+          "returns": {
+            "type": "Sprite",
+            "description": "self for chaining"
+          },
+          "example": "# Method chaining"
+        },
+        "count": {
+          "description": "Get the total number of active sprites (class method).",
+          "returns": {
+            "type": "Integer",
+            "description": "The number of active sprites"
+          },
+          "example": "puts \"Active sprites: #{Sprite.count}\""
+        }
+      }
+    },
+    "Transform2D": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Transform2D with optional initial values.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Initial X position (default: 0)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Initial Y position (default: 0)"
+            },
+            {
+              "name": "rotation",
+              "type": "Float",
+              "description": "Initial rotation in degrees (default: 0)"
+            },
+            {
+              "name": "scale_x",
+              "type": "Float",
+              "description": "Initial X scale (default: 1.0)"
+            },
+            {
+              "name": "scale_y",
+              "type": "Float",
+              "description": "Initial Y scale (default: 1.0)"
+            },
+            {
+              "name": "origin_x",
+              "type": "Float",
+              "description": "Pivot point X (default: 0)"
+            },
+            {
+              "name": "origin_y",
+              "type": "Float",
+              "description": "Pivot point Y (default: 0)"
+            }
+          ],
+          "returns": {
+            "type": "Transform2D",
+            "description": "The new transform"
+          },
+          "example": "t = Transform2D.new(x: 100, y: 50, rotation: 45)"
+        },
+        "x": {
+          "description": "Get the X position of the transform.",
+          "returns": {
+            "type": "Float",
+            "description": "The X position"
+          },
+          "example": "x_pos = transform.x"
+        },
+        "y": {
+          "description": "Get the Y position of the transform.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y position"
+          },
+          "example": "y_pos = transform.y"
+        },
+        "position": {
+          "description": "Get the position as a Vec2.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The position vector"
+          },
+          "example": "pos = transform.position"
+        },
+        "rotation": {
+          "description": "Get the rotation in degrees.",
+          "returns": {
+            "type": "Float",
+            "description": "The rotation angle in degrees"
+          },
+          "example": "angle = transform.rotation"
+        },
+        "scale_x": {
+          "description": "Get the X scale factor.",
+          "returns": {
+            "type": "Float",
+            "description": "The X scale (1.0 = normal size)"
+          },
+          "example": "sx = transform.scale_x"
+        },
+        "scale_y": {
+          "description": "Get the Y scale factor.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y scale (1.0 = normal size)"
+          },
+          "example": "sy = transform.scale_y"
+        },
+        "origin_x": {
+          "description": "Get the X origin (pivot point) for rotation and scaling.",
+          "returns": {
+            "type": "Float",
+            "description": "The X origin offset in pixels"
+          },
+          "example": "ox = transform.origin_x"
+        },
+        "origin_y": {
+          "description": "Get the Y origin (pivot point) for rotation and scaling.",
+          "returns": {
+            "type": "Float",
+            "description": "The Y origin offset in pixels"
+          },
+          "example": "oy = transform.origin_y"
+        },
+        "x=": {
+          "description": "Set the X position of the transform.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new X position"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.x += 5  # Move right by 5 pixels"
+        },
+        "y=": {
+          "description": "Set the Y position of the transform.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new Y position"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.y += 10  # Move down by 10 pixels"
+        },
+        "position=": {
+          "description": "Set the position using a Vec2.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The new position vector"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "transform.position = player.position  # Copy another position"
+        },
+        "rotation=": {
+          "description": "Set the rotation in degrees. Positive values rotate clockwise.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new rotation angle in degrees"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.rotation += 90 * dt  # Rotate 90 degrees per second"
+        },
+        "scale_x=": {
+          "description": "Set the X scale factor. Values greater than 1 stretch horizontally, less than 1 shrink. Negative values flip horizontally.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new X scale (1.0 = normal size)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.scale_x = -1.0  # Flip horizontally"
+        },
+        "scale_y=": {
+          "description": "Set the Y scale factor. Values greater than 1 stretch vertically, less than 1 shrink. Negative values flip vertically.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new Y scale (1.0 = normal size)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.scale_y = -1.0  # Flip vertically"
+        },
+        "origin_x=": {
+          "description": "Set the X origin (pivot point) for rotation and scaling. The origin is the point around which the transform rotates and scales.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The X origin offset in pixels from top-left"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.origin_x = 16  # Pivot 16px from left edge"
+        },
+        "origin_y=": {
+          "description": "Set the Y origin (pivot point) for rotation and scaling. The origin is the point around which the transform rotates and scales.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The Y origin offset in pixels from top-left"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.origin_y = 16  # Pivot 16px from top edge"
+        },
+        "parent": {
+          "description": "Get the parent transform. Returns nil if no parent is set. When a transform has a parent, its position, rotation, and scale are relative to the parent's world transform.",
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The parent transform, or nil if none"
+          },
+          "example": "if transform.parent\n  puts \"Has a parent!\"\r\nend\r"
+        },
+        "parent=": {
+          "description": "Set the parent transform for hierarchical transformations. When parented, this transform's position, rotation, and scale become relative to the parent. Set to nil to remove the parent.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Transform2D, nil",
+              "description": "The parent transform, or nil to clear"
+            }
+          ],
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The value that was set"
+          },
+          "example": "transform.parent = nil  # Remove parent"
+        },
+        "world_position": {
+          "description": "Get the final world position after applying all parent transforms. For transforms without a parent, this equals the local position. For parented transforms, this returns the actual screen position after parent transformations.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The world position after parent hierarchy composition"
+          },
+          "example": "# Get world position of a child transform\n  parent = Transform2D.new(x: 100, y: 100)\r\n  parent.rotation = 90\r\n  child = Transform2D.new(x: 50, y: 0)\r\n  child.parent = parent\r\n  pos = child.world_position  # Position after rotation by parent\r"
+        }
+      }
+    },
+    "GMR::Audio::Sound": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "play": {
+          "signature": "play",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "stop": {
+          "signature": "stop",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "volume=": {
+          "signature": "volume=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Float"
             }
           ],
           "returns": {

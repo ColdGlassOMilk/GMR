@@ -42,3 +42,17 @@ TODO: Add documentation
 
 ---
 
+## GMR
+
+TODO: Add description
+
+### Instance Methods
+
+### inspect
+
+TODO: Add documentation
+
+**Returns:** `unknown`
+
+---
+

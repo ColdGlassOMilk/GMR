@@ -13,6 +13,22 @@
 namespace gmr {
 namespace bindings {
 
+/// @class Camera2D
+/// @description A 2D camera for scrolling, zooming, and rotating the view.
+///   Supports smooth following, screen shake, bounds constraints, and coordinate conversion.
+///   Use the camera.use { } block to render in camera space.
+/// @example # Basic camera setup
+///   @camera = Camera2D.new
+///   @camera.target = Vec2.new(player.x, player.y)
+///   @camera.offset = Vec2.new(400, 300)  # Center of 800x600 screen
+///   @camera.zoom = 1.0
+/// @example # Camera with smooth following
+///   @camera.follow(@player, smoothing: 0.1, deadzone: Rect.new(380, 280, 40, 40))
+/// @example # Rendering with camera
+///   @camera.use do
+///     draw_world()  # All drawing here uses camera transform
+///   end
+
 // ============================================================================
 // Camera2D Binding Data
 // ============================================================================
@@ -96,6 +112,16 @@ static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
 // Camera2D.new(target:, offset:, zoom:, rotation:)
 // ============================================================================
 
+/// @method initialize
+/// @description Create a new Camera2D with optional initial values.
+/// @param target [Vec2] World position the camera looks at (default: 0,0)
+/// @param offset [Vec2] Screen position offset, typically screen center (default: 0,0)
+/// @param zoom [Float] Zoom level, 1.0 = normal (default: 1.0)
+/// @param rotation [Float] Rotation in degrees (default: 0)
+/// @returns [Camera2D] The new camera
+/// @example cam = Camera2D.new
+/// @example cam = Camera2D.new(target: Vec2.new(100, 100), zoom: 2.0)
+/// @example cam = Camera2D.new(offset: Vec2.new(400, 300))  # Center on 800x600 screen
 static mrb_value mrb_camera_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value kwargs = mrb_nil_value();
     mrb_get_args(mrb, "|H", &kwargs);
@@ -146,7 +172,10 @@ static mrb_value mrb_camera_initialize(mrb_state* mrb, mrb_value self) {
 // Property Getters
 // ============================================================================
 
-// camera.target
+/// @method target
+/// @description Get the world position the camera is looking at.
+/// @returns [Vec2] The camera's target position
+/// @example target = camera.target
 static mrb_value mrb_camera_target(mrb_state* mrb, mrb_value self) {
     CameraData* data = get_camera_data(mrb, self);
     Camera2DState* cam = CameraManager::instance().get(data->handle);
@@ -154,7 +183,11 @@ static mrb_value mrb_camera_target(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, cam->target.x, cam->target.y);
 }
 
-// camera.offset
+/// @method offset
+/// @description Get the screen position offset (where the target appears on screen).
+///   Typically set to screen center for centered camera following.
+/// @returns [Vec2] The camera's offset position
+/// @example offset = camera.offset
 static mrb_value mrb_camera_offset(mrb_state* mrb, mrb_value self) {
     CameraData* data = get_camera_data(mrb, self);
     Camera2DState* cam = CameraManager::instance().get(data->handle);
@@ -162,7 +195,10 @@ static mrb_value mrb_camera_offset(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, cam->offset.x, cam->offset.y);
 }
 
-// camera.zoom
+/// @method zoom
+/// @description Get the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.
+/// @returns [Float] The zoom level
+/// @example z = camera.zoom
 static mrb_value mrb_camera_zoom(mrb_state* mrb, mrb_value self) {
     CameraData* data = get_camera_data(mrb, self);
     Camera2DState* cam = CameraManager::instance().get(data->handle);
@@ -170,7 +206,10 @@ static mrb_value mrb_camera_zoom(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, cam->zoom);
 }
 
-// camera.rotation
+/// @method rotation
+/// @description Get the camera rotation in degrees.
+/// @returns [Float] The rotation angle
+/// @example angle = camera.rotation
 static mrb_value mrb_camera_rotation(mrb_state* mrb, mrb_value self) {
     CameraData* data = get_camera_data(mrb, self);
     Camera2DState* cam = CameraManager::instance().get(data->handle);
@@ -182,7 +221,12 @@ static mrb_value mrb_camera_rotation(mrb_state* mrb, mrb_value self) {
 // Property Setters
 // ============================================================================
 
-// camera.target = vec2
+/// @method target=
+/// @description Set the world position the camera looks at.
+/// @param value [Vec2] The target position
+/// @returns [Vec2] The value that was set
+/// @example camera.target = Vec2.new(player.x, player.y)
+/// @example camera.target = player.position
 static mrb_value mrb_camera_set_target(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -196,7 +240,12 @@ static mrb_value mrb_camera_set_target(mrb_state* mrb, mrb_value self) {
     return val;
 }
 
-// camera.offset = vec2
+/// @method offset=
+/// @description Set the screen position offset. The target appears at this screen position.
+///   Set to screen center for centered following.
+/// @param value [Vec2] The offset position
+/// @returns [Vec2] The value that was set
+/// @example camera.offset = Vec2.new(400, 300)  # Center on 800x600 screen
 static mrb_value mrb_camera_set_offset(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -210,7 +259,12 @@ static mrb_value mrb_camera_set_offset(mrb_state* mrb, mrb_value self) {
     return val;
 }
 
-// camera.zoom = float
+/// @method zoom=
+/// @description Set the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.
+/// @param value [Float] The zoom level (must be > 0)
+/// @returns [Float] The value that was set
+/// @example camera.zoom = 2.0    # Zoom in 2x
+/// @example camera.zoom = 0.5    # Zoom out (see more of the world)
 static mrb_value mrb_camera_set_zoom(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -224,7 +278,12 @@ static mrb_value mrb_camera_set_zoom(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
-// camera.rotation = float
+/// @method rotation=
+/// @description Set the camera rotation in degrees.
+/// @param value [Float] The rotation angle in degrees
+/// @returns [Float] The value that was set
+/// @example camera.rotation = 45
+/// @example camera.rotation += 10 * dt  # Rotate over time
 static mrb_value mrb_camera_set_rotation(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -242,7 +301,20 @@ static mrb_value mrb_camera_set_rotation(mrb_state* mrb, mrb_value self) {
 // Follow System
 // ============================================================================
 
-// camera.follow(target, smoothing:, deadzone:)
+/// @method follow
+/// @description Configure the camera to follow a target object with optional smoothing and deadzone.
+///   The target must respond to `position` (returning Vec2) or have `x`/`y` methods.
+///   Call with nil to stop following.
+/// @param target [Object, nil] Object with position/x/y to follow, or nil to stop
+/// @param smoothing [Float] Smoothing factor 0-1 (0=instant, 0.1=smooth, default: 0)
+/// @param deadzone [Rect] Rectangle where target can move without camera moving
+/// @returns [Camera2D] self for chaining
+/// @example # Simple follow
+///   camera.follow(@player)
+/// @example # Smooth follow with deadzone
+///   camera.follow(@player, smoothing: 0.1, deadzone: Rect.new(380, 280, 40, 40))
+/// @example # Stop following
+///   camera.follow(nil)
 static mrb_value mrb_camera_follow(mrb_state* mrb, mrb_value self) {
     mrb_value target = mrb_nil_value();
     mrb_value kwargs = mrb_nil_value();
@@ -294,7 +366,14 @@ static mrb_value mrb_camera_follow(mrb_state* mrb, mrb_value self) {
 // Bounds
 // ============================================================================
 
-// camera.bounds = rect (or nil)
+/// @method bounds=
+/// @description Set camera bounds to constrain movement within a world region.
+///   The camera will not show areas outside these bounds. Set to nil to remove bounds.
+/// @param value [Rect, nil] The world bounds, or nil to remove
+/// @returns [Rect, nil] The value that was set
+/// @example # Constrain to level size
+///   camera.bounds = Rect.new(0, 0, level_width, level_height)
+/// @example camera.bounds = nil  # No bounds
 static mrb_value mrb_camera_set_bounds(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -314,7 +393,10 @@ static mrb_value mrb_camera_set_bounds(mrb_state* mrb, mrb_value self) {
     return val;
 }
 
-// camera.bounds
+/// @method bounds
+/// @description Get the current camera bounds. Returns nil if no bounds are set.
+/// @returns [Rect, nil] The world bounds, or nil if unbounded
+/// @example rect = camera.bounds
 static mrb_value mrb_camera_bounds(mrb_state* mrb, mrb_value self) {
     CameraData* data = get_camera_data(mrb, self);
     Camera2DState* cam = CameraManager::instance().get(data->handle);
@@ -334,7 +416,14 @@ static mrb_value mrb_camera_bounds(mrb_state* mrb, mrb_value self) {
 // Screen Shake
 // ============================================================================
 
-// camera.shake(strength:, duration:, frequency:)
+/// @method shake
+/// @description Trigger a screen shake effect. The shake decays over the duration.
+/// @param strength [Float] Maximum shake offset in pixels (default: 5.0)
+/// @param duration [Float] How long the shake lasts in seconds (default: 0.3)
+/// @param frequency [Float] Shake oscillation frequency in Hz (default: 30.0)
+/// @returns [Camera2D] self for chaining
+/// @example camera.shake(strength: 10, duration: 0.5)
+/// @example camera.shake(strength: 3, duration: 0.2, frequency: 20)
 static mrb_value mrb_camera_shake(mrb_state* mrb, mrb_value self) {
     mrb_value kwargs;
     mrb_get_args(mrb, "H", &kwargs);
@@ -386,7 +475,13 @@ static mrb_value mrb_camera_shake(mrb_state* mrb, mrb_value self) {
 // Coordinate Helpers
 // ============================================================================
 
-// camera.world_to_screen(vec2)
+/// @method world_to_screen
+/// @description Convert a world position to screen coordinates.
+///   Useful for placing UI elements relative to game objects.
+/// @param position [Vec2] The world position
+/// @returns [Vec2] The screen position
+/// @example screen_pos = camera.world_to_screen(player.position)
+/// @example health_bar_x = camera.world_to_screen(enemy.position).x
 static mrb_value mrb_camera_world_to_screen(mrb_state* mrb, mrb_value self) {
     mrb_value pos;
     mrb_get_args(mrb, "o", &pos);
@@ -409,7 +504,13 @@ static mrb_value mrb_camera_world_to_screen(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, screen_pos.x, screen_pos.y);
 }
 
-// camera.screen_to_world(vec2)
+/// @method screen_to_world
+/// @description Convert a screen position to world coordinates.
+///   Useful for mouse picking and click-to-move.
+/// @param position [Vec2] The screen position
+/// @returns [Vec2] The world position
+/// @example world_pos = camera.screen_to_world(GMR::Input.mouse_position)
+/// @example click_target = camera.screen_to_world(Vec2.new(mouse_x, mouse_y))
 static mrb_value mrb_camera_screen_to_world(mrb_state* mrb, mrb_value self) {
     mrb_value pos;
     mrb_get_args(mrb, "o", &pos);
@@ -436,6 +537,22 @@ static mrb_value mrb_camera_screen_to_world(mrb_state* mrb, mrb_value self) {
 // Scoped Usage (camera.use { block })
 // ============================================================================
 
+/// @method use
+/// @description Execute a block with this camera's transform applied. All drawing
+///   within the block will be transformed by the camera (position, zoom, rotation).
+///   The camera mode is automatically ended when the block completes.
+/// @returns [Object] The return value of the block
+/// @example camera.use do
+///   draw_tilemap()
+///   @player.draw
+///   @enemies.each(&:draw)
+/// end
+/// @example # Nested cameras
+///   world_camera.use do
+///     draw_world()
+///   end
+///   # UI drawn outside camera (screen space)
+///   draw_ui()
 static mrb_value mrb_camera_use(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -479,7 +596,13 @@ static mrb_value mrb_camera_use(mrb_state* mrb, mrb_value self) {
 // Class Methods
 // ============================================================================
 
-// Camera2D.current = camera
+/// @method current=
+/// @description Set the current active camera (class method). This camera will be used
+///   for sprite rendering and coordinate transformations.
+/// @param value [Camera2D, nil] The camera to make current, or nil to clear
+/// @returns [Camera2D, nil] The value that was set
+/// @example Camera2D.current = @main_camera
+/// @example Camera2D.current = nil  # No camera
 static mrb_value mrb_camera_class_set_current(mrb_state* mrb, mrb_value klass) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -498,7 +621,10 @@ static mrb_value mrb_camera_class_set_current(mrb_state* mrb, mrb_value klass) {
     return val;
 }
 
-// Camera2D.current
+/// @method current
+/// @description Get the current active camera (class method). Returns nil if no camera is set.
+/// @returns [Camera2D, nil] The current camera, or nil
+/// @example cam = Camera2D.current
 static mrb_value mrb_camera_class_current(mrb_state* mrb, mrb_value klass) {
     mrb_sym sym = mrb_intern_cstr(mrb, "@@current");
     if (mrb_cv_defined(mrb, klass, sym)) {

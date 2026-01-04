@@ -17,6 +17,27 @@
 namespace gmr {
 namespace bindings {
 
+/// @class Sprite
+/// @description A drawable 2D sprite with built-in transform properties.
+///   Sprites combine a texture with position, rotation, scale, and origin for easy rendering.
+///   By default, draw order determines layering (later drawn = on top). Set an explicit z value
+///   to override this behavior for specific sprites.
+/// @example # Basic sprite usage
+///   tex = GMR::Graphics::Texture.load("assets/player.png")
+///   @player = Sprite.new(tex)
+///   @player.x = 100
+///   @player.y = 200
+///   @player.center_origin
+///   @player.draw
+/// @example # Sprite with explicit z-index
+///   @background = Sprite.new(bg_tex)
+///   @background.z = 0     # Always behind
+///   @player = Sprite.new(player_tex)
+///   @player.z = 10        # Always in front of background
+/// @example # Animated sprite with source rect
+///   @sprite = Sprite.new(spritesheet)
+///   @sprite.source_rect = Rect.new(0, 0, 32, 32)  # First frame
+
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
 static constexpr float RAD_TO_DEG = 180.0f / 3.14159265358979323846f;
@@ -122,6 +143,20 @@ static TransformHandle get_transform_handle(mrb_state* mrb, mrb_value val) {
 // Sprite.new(texture, **opts)
 // ============================================================================
 
+/// @method initialize
+/// @description Create a new Sprite from a texture with optional initial values.
+/// @param texture [Texture] The texture to use for this sprite
+/// @param x [Float] Initial X position (default: 0)
+/// @param y [Float] Initial Y position (default: 0)
+/// @param rotation [Float] Initial rotation in degrees (default: 0)
+/// @param scale_x [Float] Initial X scale (default: 1.0)
+/// @param scale_y [Float] Initial Y scale (default: 1.0)
+/// @param z [Float] Explicit z-index for layering (default: nil, uses draw order)
+/// @param source_rect [Rect] Region of texture to draw (default: entire texture)
+/// @returns [Sprite] The new sprite
+/// @example sprite = Sprite.new(texture)
+/// @example sprite = Sprite.new(texture, x: 100, y: 50, rotation: 45)
+/// @example sprite = Sprite.new(spritesheet, source_rect: Rect.new(0, 0, 32, 32))
 static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value texture_val;
     mrb_value kwargs = mrb_nil_value();
@@ -191,6 +226,10 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 // Position Getters/Setters
 // ============================================================================
 
+/// @method x
+/// @description Get the X position of the sprite.
+/// @returns [Float] The X position
+/// @example x_pos = sprite.x
 static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -199,6 +238,10 @@ static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->position.x);
 }
 
+/// @method y
+/// @description Get the Y position of the sprite.
+/// @returns [Float] The Y position
+/// @example y_pos = sprite.y
 static mrb_value mrb_sprite_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -207,6 +250,12 @@ static mrb_value mrb_sprite_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->position.y);
 }
 
+/// @method x=
+/// @description Set the X position of the sprite.
+/// @param value [Float] The new X position
+/// @returns [Float] The value that was set
+/// @example sprite.x = 100
+/// @example sprite.x += 5  # Move right by 5 pixels
 static mrb_value mrb_sprite_set_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -218,6 +267,12 @@ static mrb_value mrb_sprite_set_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method y=
+/// @description Set the Y position of the sprite.
+/// @param value [Float] The new Y position
+/// @returns [Float] The value that was set
+/// @example sprite.y = 200
+/// @example sprite.y += 10  # Move down by 10 pixels
 static mrb_value mrb_sprite_set_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -229,6 +284,10 @@ static mrb_value mrb_sprite_set_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method position
+/// @description Get the position as a Vec2.
+/// @returns [Vec2] The position vector
+/// @example pos = sprite.position
 static mrb_value mrb_sprite_position(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -237,6 +296,11 @@ static mrb_value mrb_sprite_position(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, s->position.x, s->position.y);
 }
 
+/// @method position=
+/// @description Set the position using a Vec2.
+/// @param value [Vec2] The new position vector
+/// @returns [Vec2] The value that was set
+/// @example sprite.position = Vec2.new(100, 200)
 static mrb_value mrb_sprite_set_position(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -252,6 +316,10 @@ static mrb_value mrb_sprite_set_position(mrb_state* mrb, mrb_value self) {
 // Rotation
 // ============================================================================
 
+/// @method rotation
+/// @description Get the rotation in degrees.
+/// @returns [Float] The rotation angle in degrees
+/// @example angle = sprite.rotation
 static mrb_value mrb_sprite_rotation(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -260,6 +328,12 @@ static mrb_value mrb_sprite_rotation(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->rotation * RAD_TO_DEG);
 }
 
+/// @method rotation=
+/// @description Set the rotation in degrees. Positive values rotate clockwise.
+/// @param value [Float] The new rotation angle in degrees
+/// @returns [Float] The value that was set
+/// @example sprite.rotation = 45
+/// @example sprite.rotation += 90 * dt  # Rotate 90 degrees per second
 static mrb_value mrb_sprite_set_rotation(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -275,6 +349,10 @@ static mrb_value mrb_sprite_set_rotation(mrb_state* mrb, mrb_value self) {
 // Scale
 // ============================================================================
 
+/// @method scale_x
+/// @description Get the X scale factor.
+/// @returns [Float] The X scale (1.0 = normal size)
+/// @example sx = sprite.scale_x
 static mrb_value mrb_sprite_scale_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -283,6 +361,10 @@ static mrb_value mrb_sprite_scale_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->scale.x);
 }
 
+/// @method scale_y
+/// @description Get the Y scale factor.
+/// @returns [Float] The Y scale (1.0 = normal size)
+/// @example sy = sprite.scale_y
 static mrb_value mrb_sprite_scale_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -291,6 +373,11 @@ static mrb_value mrb_sprite_scale_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->scale.y);
 }
 
+/// @method scale_x=
+/// @description Set the X scale factor. Values greater than 1 stretch, less than 1 shrink.
+/// @param value [Float] The new X scale (1.0 = normal size)
+/// @returns [Float] The value that was set
+/// @example sprite.scale_x = 2.0  # Double width
 static mrb_value mrb_sprite_set_scale_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -302,6 +389,11 @@ static mrb_value mrb_sprite_set_scale_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method scale_y=
+/// @description Set the Y scale factor. Values greater than 1 stretch, less than 1 shrink.
+/// @param value [Float] The new Y scale (1.0 = normal size)
+/// @returns [Float] The value that was set
+/// @example sprite.scale_y = 0.5  # Half height
 static mrb_value mrb_sprite_set_scale_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -317,6 +409,10 @@ static mrb_value mrb_sprite_set_scale_y(mrb_state* mrb, mrb_value self) {
 // Origin
 // ============================================================================
 
+/// @method origin_x
+/// @description Get the X origin (pivot point) for rotation and scaling.
+/// @returns [Float] The X origin offset in pixels
+/// @example ox = sprite.origin_x
 static mrb_value mrb_sprite_origin_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -325,6 +421,10 @@ static mrb_value mrb_sprite_origin_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->origin.x);
 }
 
+/// @method origin_y
+/// @description Get the Y origin (pivot point) for rotation and scaling.
+/// @returns [Float] The Y origin offset in pixels
+/// @example oy = sprite.origin_y
 static mrb_value mrb_sprite_origin_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -333,6 +433,11 @@ static mrb_value mrb_sprite_origin_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->origin.y);
 }
 
+/// @method origin_x=
+/// @description Set the X origin (pivot point) for rotation and scaling.
+/// @param value [Float] The X origin offset in pixels
+/// @returns [Float] The value that was set
+/// @example sprite.origin_x = 16  # Pivot 16px from left
 static mrb_value mrb_sprite_set_origin_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -344,6 +449,11 @@ static mrb_value mrb_sprite_set_origin_x(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method origin_y=
+/// @description Set the Y origin (pivot point) for rotation and scaling.
+/// @param value [Float] The Y origin offset in pixels
+/// @returns [Float] The value that was set
+/// @example sprite.origin_y = 16  # Pivot 16px from top
 static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -355,6 +465,12 @@ static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method center_origin
+/// @description Set the origin to the center of the sprite, so it rotates and scales
+///   around its center. Uses texture dimensions or source_rect if set.
+/// @returns [Sprite] self for chaining
+/// @example sprite.center_origin
+/// @example sprite = Sprite.new(tex).center_origin  # Method chaining
 static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -386,6 +502,14 @@ static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
 // Z-Index
 // ============================================================================
 
+/// @method z
+/// @description Get the explicit z-index for layering. Returns nil if using automatic
+///   draw order (the default). Higher z values render on top of lower values.
+/// @returns [Float, nil] The z-index, or nil if using draw order
+/// @example z = sprite.z
+/// @example if sprite.z.nil?
+///   puts "Using automatic draw order"
+/// end
 static mrb_value mrb_sprite_z(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -398,6 +522,19 @@ static mrb_value mrb_sprite_z(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
+/// @method z=
+/// @description Set an explicit z-index for layering, or nil to use draw order.
+///   By default (nil), sprites are layered by draw order - later drawn sprites appear
+///   on top. Setting an explicit z gives you precise control over layering.
+/// @param value [Float, nil] The z-index (higher = on top), or nil for draw order
+/// @returns [Float, nil] The value that was set
+/// @example sprite.z = 10        # Always above sprites with z < 10
+/// @example sprite.z = nil       # Use draw order instead
+/// @example # Typical usage pattern
+///   @background.z = 0       # Always at back
+///   @enemies.each { |e| e.z = 5 }  # Mid-layer
+///   @player.z = 10          # Player on top
+///   @ui.z = 100             # UI always on top
 static mrb_value mrb_sprite_set_z(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -418,6 +555,10 @@ static mrb_value mrb_sprite_set_z(mrb_state* mrb, mrb_value self) {
 // Color
 // ============================================================================
 
+/// @method color
+/// @description Get the color tint as an RGBA array. White [255,255,255,255] means no tint.
+/// @returns [Array<Integer>] RGBA color array [r, g, b, a]
+/// @example r, g, b, a = sprite.color
 static mrb_value mrb_sprite_color(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -432,6 +573,12 @@ static mrb_value mrb_sprite_color(mrb_state* mrb, mrb_value self) {
     return arr;
 }
 
+/// @method color=
+/// @description Set the color tint as an RGBA array. The sprite is multiplied by this color.
+/// @param value [Array<Integer>] RGBA color array [r, g, b] or [r, g, b, a]
+/// @returns [Array<Integer>] The value that was set
+/// @example sprite.color = [255, 0, 0]        # Red tint
+/// @example sprite.color = [255, 255, 255, 128]  # 50% transparent
 static mrb_value mrb_sprite_set_color(mrb_state* mrb, mrb_value self) {
     mrb_value color_val;
     mrb_get_args(mrb, "A", &color_val);
@@ -444,6 +591,10 @@ static mrb_value mrb_sprite_set_color(mrb_state* mrb, mrb_value self) {
     return color_val;
 }
 
+/// @method alpha
+/// @description Get the alpha (opacity) as a float from 0.0 (invisible) to 1.0 (opaque).
+/// @returns [Float] The alpha value
+/// @example a = sprite.alpha
 static mrb_value mrb_sprite_alpha(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -452,6 +603,12 @@ static mrb_value mrb_sprite_alpha(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, s->color.a / 255.0f);
 }
 
+/// @method alpha=
+/// @description Set the alpha (opacity) from 0.0 (invisible) to 1.0 (opaque).
+/// @param value [Float] The new alpha value (0.0 to 1.0)
+/// @returns [Float] The value that was set
+/// @example sprite.alpha = 0.5  # 50% transparent
+/// @example sprite.alpha = 0    # Invisible
 static mrb_value mrb_sprite_set_alpha(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
@@ -471,6 +628,12 @@ static mrb_value mrb_sprite_set_alpha(mrb_state* mrb, mrb_value self) {
 // Flip
 // ============================================================================
 
+/// @method flip_x
+/// @description Check if the sprite is flipped horizontally.
+/// @returns [Boolean] true if flipped horizontally
+/// @example if sprite.flip_x
+///   puts "Facing left"
+/// end
 static mrb_value mrb_sprite_flip_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -479,6 +642,12 @@ static mrb_value mrb_sprite_flip_x(mrb_state* mrb, mrb_value self) {
     return mrb_bool_value(s->flip_x);
 }
 
+/// @method flip_y
+/// @description Check if the sprite is flipped vertically.
+/// @returns [Boolean] true if flipped vertically
+/// @example if sprite.flip_y
+///   puts "Flipped upside down"
+/// end
 static mrb_value mrb_sprite_flip_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -487,6 +656,11 @@ static mrb_value mrb_sprite_flip_y(mrb_state* mrb, mrb_value self) {
     return mrb_bool_value(s->flip_y);
 }
 
+/// @method flip_x=
+/// @description Set whether the sprite is flipped horizontally. Useful for facing direction.
+/// @param value [Boolean] true to flip horizontally
+/// @returns [Boolean] The value that was set
+/// @example sprite.flip_x = velocity.x < 0  # Face movement direction
 static mrb_value mrb_sprite_set_flip_x(mrb_state* mrb, mrb_value self) {
     mrb_bool val;
     mrb_get_args(mrb, "b", &val);
@@ -498,6 +672,11 @@ static mrb_value mrb_sprite_set_flip_x(mrb_state* mrb, mrb_value self) {
     return mrb_bool_value(val);
 }
 
+/// @method flip_y=
+/// @description Set whether the sprite is flipped vertically.
+/// @param value [Boolean] true to flip vertically
+/// @returns [Boolean] The value that was set
+/// @example sprite.flip_y = true
 static mrb_value mrb_sprite_set_flip_y(mrb_state* mrb, mrb_value self) {
     mrb_bool val;
     mrb_get_args(mrb, "b", &val);
@@ -513,10 +692,19 @@ static mrb_value mrb_sprite_set_flip_y(mrb_state* mrb, mrb_value self) {
 // Texture/Source Rect
 // ============================================================================
 
+/// @method texture
+/// @description Get the current texture.
+/// @returns [Texture] The sprite's texture
+/// @example tex = sprite.texture
 static mrb_value mrb_sprite_texture(mrb_state* mrb, mrb_value self) {
     return mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@texture"));
 }
 
+/// @method texture=
+/// @description Set the texture to draw.
+/// @param value [Texture] The new texture
+/// @returns [Texture] The value that was set
+/// @example sprite.texture = new_texture
 static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
     mrb_value texture_val;
     mrb_get_args(mrb, "o", &texture_val);
@@ -537,6 +725,11 @@ static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
     return texture_val;
 }
 
+/// @method source_rect
+/// @description Get the source rectangle (region of texture to draw). Returns nil if
+///   using the entire texture.
+/// @returns [Rect, nil] The source rectangle, or nil if using full texture
+/// @example rect = sprite.source_rect
 static mrb_value mrb_sprite_source_rect(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -553,6 +746,15 @@ static mrb_value mrb_sprite_source_rect(mrb_state* mrb, mrb_value self) {
     return mrb_obj_new(mrb, rect_class, 4, args);
 }
 
+/// @method source_rect=
+/// @description Set the source rectangle to draw only part of the texture.
+///   Useful for sprite sheets and animations. Set to nil to draw the full texture.
+/// @param value [Rect, nil] The source rectangle, or nil for full texture
+/// @returns [Rect, nil] The value that was set
+/// @example # Animation frames from a sprite sheet
+///   frame_width = 32
+///   @sprite.source_rect = Rect.new(frame * frame_width, 0, frame_width, 32)
+/// @example @sprite.source_rect = nil  # Use full texture
 static mrb_value mrb_sprite_set_source_rect(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
@@ -574,6 +776,10 @@ static mrb_value mrb_sprite_set_source_rect(mrb_state* mrb, mrb_value self) {
 // Dimensions
 // ============================================================================
 
+/// @method width
+/// @description Get the width of the sprite (from source_rect or texture).
+/// @returns [Integer] The width in pixels
+/// @example w = sprite.width
 static mrb_value mrb_sprite_width(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -591,6 +797,10 @@ static mrb_value mrb_sprite_width(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(0);
 }
 
+/// @method height
+/// @description Get the height of the sprite (from source_rect or texture).
+/// @returns [Integer] The height in pixels
+/// @example h = sprite.height
 static mrb_value mrb_sprite_height(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -612,10 +822,25 @@ static mrb_value mrb_sprite_height(mrb_state* mrb, mrb_value self) {
 // Parent Hierarchy
 // ============================================================================
 
+/// @method parent
+/// @description Get the parent Transform2D. Returns nil if no parent is set.
+/// @returns [Transform2D, nil] The parent transform, or nil if none
+/// @example parent = sprite.parent
 static mrb_value mrb_sprite_parent(mrb_state* mrb, mrb_value self) {
     return mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@parent"));
 }
 
+/// @method parent=
+/// @description Set a Transform2D as the parent. The sprite will transform relative to
+///   the parent's world transform. Set to nil to remove the parent.
+/// @param value [Transform2D, nil] The parent transform, or nil to clear
+/// @returns [Transform2D, nil] The value that was set
+/// @example # Sprite follows a transform
+///   turret_base = Transform2D.new(x: 200, y: 200)
+///   @gun_sprite = Sprite.new(gun_tex)
+///   @gun_sprite.parent = turret_base
+///   @gun_sprite.y = -20  # Offset from turret
+///   turret_base.rotation += 1  # Gun rotates with base!
 static mrb_value mrb_sprite_set_parent(mrb_state* mrb, mrb_value self) {
     mrb_value parent_val;
     mrb_get_args(mrb, "o", &parent_val);
@@ -639,6 +864,17 @@ static mrb_value mrb_sprite_set_parent(mrb_state* mrb, mrb_value self) {
 // Draw
 // ============================================================================
 
+/// @method draw
+/// @description Queue the sprite for rendering. Sprites are drawn in z-order after all
+///   draw() calls complete. By default, draw order determines layering (later = on top).
+///   Set sprite.z to override with an explicit z-index.
+/// @returns [Sprite] self for chaining
+/// @example # Simple drawing (draw order = z order)
+///   @background.draw  # drawn first, appears behind
+///   @player.draw      # drawn second, appears on top
+/// @example # Method chaining
+///   @player.draw
+///   @enemy.draw
 static mrb_value mrb_sprite_draw(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -653,6 +889,10 @@ static mrb_value mrb_sprite_draw(mrb_state* mrb, mrb_value self) {
 // Class Methods
 // ============================================================================
 
+/// @method count
+/// @description Get the total number of active sprites (class method).
+/// @returns [Integer] The number of active sprites
+/// @example puts "Active sprites: #{Sprite.count}"
 static mrb_value mrb_sprite_class_count(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(SpriteManager::instance().count());
 }

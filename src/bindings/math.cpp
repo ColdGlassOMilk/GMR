@@ -11,6 +11,14 @@ namespace bindings {
 // Vec2 Class
 // ============================================================================
 
+/// @class Vec2
+/// @description A 2D vector with x and y components. Used for positions, velocities,
+///   and directions. Supports arithmetic operations (+, -, *, /).
+/// @example v = Vec2.new(100, 200)
+/// @example v2 = v + Vec2.new(10, 0)   # Add vectors
+/// @example v3 = v * 2.0               # Scale by 2
+/// @example puts v.x, v.y
+
 struct Vec2Data {
     float x;
     float y;
@@ -28,7 +36,13 @@ static Vec2Data* get_vec2_data(mrb_state* mrb, mrb_value self) {
     return static_cast<Vec2Data*>(mrb_data_get_ptr(mrb, self, &vec2_data_type));
 }
 
-// Vec2.new(x = 0, y = 0)
+/// @method initialize
+/// @description Create a new Vec2 with optional x and y values.
+/// @param x [Float] The x component (default: 0)
+/// @param y [Float] The y component (default: 0)
+/// @returns [Vec2] The new vector
+/// @example Vec2.new              # (0, 0)
+/// @example Vec2.new(100, 200)    # (100, 200)
 static mrb_value mrb_vec2_initialize(mrb_state* mrb, mrb_value self) {
     mrb_float x = 0.0f, y = 0.0f;
     mrb_get_args(mrb, "|ff", &x, &y);
@@ -41,13 +55,19 @@ static mrb_value mrb_vec2_initialize(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
-// vec2.x
+/// @method x
+/// @description Get the x component.
+/// @returns [Float] The x value
+/// @example x = vec.x
 static mrb_value mrb_vec2_x(mrb_state* mrb, mrb_value self) {
     Vec2Data* data = get_vec2_data(mrb, self);
     return mrb_float_value(mrb, data->x);
 }
 
-// vec2.y
+/// @method y
+/// @description Get the y component.
+/// @returns [Float] The y value
+/// @example y = vec.y
 static mrb_value mrb_vec2_y(mrb_state* mrb, mrb_value self) {
     Vec2Data* data = get_vec2_data(mrb, self);
     return mrb_float_value(mrb, data->y);
@@ -66,7 +86,11 @@ static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
     return obj;
 }
 
-// vec2 + other
+/// @method +
+/// @description Add two vectors, returning a new Vec2.
+/// @param other [Vec2] The vector to add
+/// @returns [Vec2] A new vector with the sum
+/// @example result = Vec2.new(1, 2) + Vec2.new(3, 4)  # Vec2(4, 6)
 static mrb_value mrb_vec2_add(mrb_state* mrb, mrb_value self) {
     mrb_value other;
     mrb_get_args(mrb, "o", &other);
@@ -81,7 +105,11 @@ static mrb_value mrb_vec2_add(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, a->x + b->x, a->y + b->y);
 }
 
-// vec2 - other
+/// @method -
+/// @description Subtract two vectors, returning a new Vec2.
+/// @param other [Vec2] The vector to subtract
+/// @returns [Vec2] A new vector with the difference
+/// @example result = Vec2.new(5, 5) - Vec2.new(2, 1)  # Vec2(3, 4)
 static mrb_value mrb_vec2_sub(mrb_state* mrb, mrb_value self) {
     mrb_value other;
     mrb_get_args(mrb, "o", &other);
@@ -96,7 +124,11 @@ static mrb_value mrb_vec2_sub(mrb_state* mrb, mrb_value self) {
     return create_vec2(mrb, a->x - b->x, a->y - b->y);
 }
 
-// vec2 * scalar
+/// @method *
+/// @description Multiply vector by a scalar, returning a new Vec2.
+/// @param scalar [Float] The scalar value
+/// @returns [Vec2] A new scaled vector
+/// @example result = Vec2.new(2, 3) * 2.0  # Vec2(4, 6)
 static mrb_value mrb_vec2_mul(mrb_state* mrb, mrb_value self) {
     mrb_float scalar;
     mrb_get_args(mrb, "f", &scalar);
@@ -106,7 +138,11 @@ static mrb_value mrb_vec2_mul(mrb_state* mrb, mrb_value self) {
                            data->y * static_cast<float>(scalar));
 }
 
-// vec2 / scalar
+/// @method /
+/// @description Divide vector by a scalar, returning a new Vec2.
+/// @param scalar [Float] The scalar value (must not be zero)
+/// @returns [Vec2] A new scaled vector
+/// @example result = Vec2.new(10, 20) / 2.0  # Vec2(5, 10)
 static mrb_value mrb_vec2_div(mrb_state* mrb, mrb_value self) {
     mrb_float scalar;
     mrb_get_args(mrb, "f", &scalar);
@@ -121,7 +157,10 @@ static mrb_value mrb_vec2_div(mrb_state* mrb, mrb_value self) {
                            data->y / static_cast<float>(scalar));
 }
 
-// vec2.to_s
+/// @method to_s
+/// @description Convert to a string representation.
+/// @returns [String] String in format "Vec2(x, y)"
+/// @example puts Vec2.new(1, 2).to_s  # "Vec2(1.00, 2.00)"
 static mrb_value mrb_vec2_to_s(mrb_state* mrb, mrb_value self) {
     Vec2Data* data = get_vec2_data(mrb, self);
     char buf[64];
@@ -132,6 +171,13 @@ static mrb_value mrb_vec2_to_s(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 // Vec3 Class
 // ============================================================================
+
+/// @class Vec3
+/// @description A 3D vector with x, y, and z components. Used for 3D positions,
+///   colors (RGB), and other 3-component values. Supports arithmetic operations.
+/// @example v = Vec3.new(1, 2, 3)
+/// @example v2 = v + Vec3.new(1, 1, 1)  # Add vectors
+/// @example v3 = v * 0.5                 # Scale
 
 struct Vec3Data {
     float x;
@@ -151,7 +197,14 @@ static Vec3Data* get_vec3_data(mrb_state* mrb, mrb_value self) {
     return static_cast<Vec3Data*>(mrb_data_get_ptr(mrb, self, &vec3_data_type));
 }
 
-// Vec3.new(x = 0, y = 0, z = 0)
+/// @method initialize
+/// @description Create a new Vec3 with optional x, y, and z values.
+/// @param x [Float] The x component (default: 0)
+/// @param y [Float] The y component (default: 0)
+/// @param z [Float] The z component (default: 0)
+/// @returns [Vec3] The new vector
+/// @example Vec3.new              # (0, 0, 0)
+/// @example Vec3.new(1, 2, 3)     # (1, 2, 3)
 static mrb_value mrb_vec3_initialize(mrb_state* mrb, mrb_value self) {
     mrb_float x = 0.0f, y = 0.0f, z = 0.0f;
     mrb_get_args(mrb, "|fff", &x, &y, &z);
@@ -165,19 +218,28 @@ static mrb_value mrb_vec3_initialize(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
-// vec3.x
+/// @method x
+/// @description Get the x component.
+/// @returns [Float] The x value
+/// @example x = vec.x
 static mrb_value mrb_vec3_x(mrb_state* mrb, mrb_value self) {
     Vec3Data* data = get_vec3_data(mrb, self);
     return mrb_float_value(mrb, data->x);
 }
 
-// vec3.y
+/// @method y
+/// @description Get the y component.
+/// @returns [Float] The y value
+/// @example y = vec.y
 static mrb_value mrb_vec3_y(mrb_state* mrb, mrb_value self) {
     Vec3Data* data = get_vec3_data(mrb, self);
     return mrb_float_value(mrb, data->y);
 }
 
-// vec3.z
+/// @method z
+/// @description Get the z component.
+/// @returns [Float] The z value
+/// @example z = vec.z
 static mrb_value mrb_vec3_z(mrb_state* mrb, mrb_value self) {
     Vec3Data* data = get_vec3_data(mrb, self);
     return mrb_float_value(mrb, data->z);
@@ -197,7 +259,11 @@ static mrb_value create_vec3(mrb_state* mrb, float x, float y, float z) {
     return obj;
 }
 
-// vec3 + other
+/// @method +
+/// @description Add two vectors, returning a new Vec3.
+/// @param other [Vec3] The vector to add
+/// @returns [Vec3] A new vector with the sum
+/// @example result = Vec3.new(1, 2, 3) + Vec3.new(1, 1, 1)  # Vec3(2, 3, 4)
 static mrb_value mrb_vec3_add(mrb_state* mrb, mrb_value self) {
     mrb_value other;
     mrb_get_args(mrb, "o", &other);
@@ -212,7 +278,11 @@ static mrb_value mrb_vec3_add(mrb_state* mrb, mrb_value self) {
     return create_vec3(mrb, a->x + b->x, a->y + b->y, a->z + b->z);
 }
 
-// vec3 - other
+/// @method -
+/// @description Subtract two vectors, returning a new Vec3.
+/// @param other [Vec3] The vector to subtract
+/// @returns [Vec3] A new vector with the difference
+/// @example result = Vec3.new(5, 5, 5) - Vec3.new(1, 2, 3)  # Vec3(4, 3, 2)
 static mrb_value mrb_vec3_sub(mrb_state* mrb, mrb_value self) {
     mrb_value other;
     mrb_get_args(mrb, "o", &other);
@@ -227,7 +297,11 @@ static mrb_value mrb_vec3_sub(mrb_state* mrb, mrb_value self) {
     return create_vec3(mrb, a->x - b->x, a->y - b->y, a->z - b->z);
 }
 
-// vec3 * scalar
+/// @method *
+/// @description Multiply vector by a scalar, returning a new Vec3.
+/// @param scalar [Float] The scalar value
+/// @returns [Vec3] A new scaled vector
+/// @example result = Vec3.new(1, 2, 3) * 2.0  # Vec3(2, 4, 6)
 static mrb_value mrb_vec3_mul(mrb_state* mrb, mrb_value self) {
     mrb_float scalar;
     mrb_get_args(mrb, "f", &scalar);
@@ -238,7 +312,11 @@ static mrb_value mrb_vec3_mul(mrb_state* mrb, mrb_value self) {
                            data->z * static_cast<float>(scalar));
 }
 
-// vec3 / scalar
+/// @method /
+/// @description Divide vector by a scalar, returning a new Vec3.
+/// @param scalar [Float] The scalar value (must not be zero)
+/// @returns [Vec3] A new scaled vector
+/// @example result = Vec3.new(10, 20, 30) / 10.0  # Vec3(1, 2, 3)
 static mrb_value mrb_vec3_div(mrb_state* mrb, mrb_value self) {
     mrb_float scalar;
     mrb_get_args(mrb, "f", &scalar);
@@ -254,7 +332,10 @@ static mrb_value mrb_vec3_div(mrb_state* mrb, mrb_value self) {
                            data->z / static_cast<float>(scalar));
 }
 
-// vec3.to_s
+/// @method to_s
+/// @description Convert to a string representation.
+/// @returns [String] String in format "Vec3(x, y, z)"
+/// @example puts Vec3.new(1, 2, 3).to_s  # "Vec3(1.00, 2.00, 3.00)"
 static mrb_value mrb_vec3_to_s(mrb_state* mrb, mrb_value self) {
     Vec3Data* data = get_vec3_data(mrb, self);
     char buf[96];
@@ -265,6 +346,12 @@ static mrb_value mrb_vec3_to_s(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 // Rect Class
 // ============================================================================
+
+/// @class Rect
+/// @description A rectangle with position (x, y) and dimensions (w, h).
+///   Used for bounds, source rectangles, collision areas, and UI layout.
+/// @example rect = Rect.new(10, 20, 100, 50)  # x, y, width, height
+/// @example puts rect.x, rect.y, rect.w, rect.h
 
 struct RectData {
     float x;
@@ -285,7 +372,15 @@ static RectData* get_rect_data(mrb_state* mrb, mrb_value self) {
     return static_cast<RectData*>(mrb_data_get_ptr(mrb, self, &rect_data_type));
 }
 
-// Rect.new(x = 0, y = 0, w = 0, h = 0)
+/// @method initialize
+/// @description Create a new Rect with optional position and dimensions.
+/// @param x [Float] The x position (default: 0)
+/// @param y [Float] The y position (default: 0)
+/// @param w [Float] The width (default: 0)
+/// @param h [Float] The height (default: 0)
+/// @returns [Rect] The new rectangle
+/// @example Rect.new                    # (0, 0, 0, 0)
+/// @example Rect.new(10, 20, 100, 50)   # x=10, y=20, w=100, h=50
 static mrb_value mrb_rect_initialize(mrb_state* mrb, mrb_value self) {
     mrb_float x = 0.0f, y = 0.0f, w = 0.0f, h = 0.0f;
     mrb_get_args(mrb, "|ffff", &x, &y, &w, &h);
@@ -300,31 +395,46 @@ static mrb_value mrb_rect_initialize(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
-// rect.x
+/// @method x
+/// @description Get the x position (left edge).
+/// @returns [Float] The x position
+/// @example x = rect.x
 static mrb_value mrb_rect_x(mrb_state* mrb, mrb_value self) {
     RectData* data = get_rect_data(mrb, self);
     return mrb_float_value(mrb, data->x);
 }
 
-// rect.y
+/// @method y
+/// @description Get the y position (top edge).
+/// @returns [Float] The y position
+/// @example y = rect.y
 static mrb_value mrb_rect_y(mrb_state* mrb, mrb_value self) {
     RectData* data = get_rect_data(mrb, self);
     return mrb_float_value(mrb, data->y);
 }
 
-// rect.w
+/// @method w
+/// @description Get the width.
+/// @returns [Float] The width
+/// @example width = rect.w
 static mrb_value mrb_rect_w(mrb_state* mrb, mrb_value self) {
     RectData* data = get_rect_data(mrb, self);
     return mrb_float_value(mrb, data->w);
 }
 
-// rect.h
+/// @method h
+/// @description Get the height.
+/// @returns [Float] The height
+/// @example height = rect.h
 static mrb_value mrb_rect_h(mrb_state* mrb, mrb_value self) {
     RectData* data = get_rect_data(mrb, self);
     return mrb_float_value(mrb, data->h);
 }
 
-// rect.to_s
+/// @method to_s
+/// @description Convert to a string representation.
+/// @returns [String] String in format "Rect(x, y, w, h)"
+/// @example puts Rect.new(0, 0, 32, 32).to_s  # "Rect(0.00, 0.00, 32.00, 32.00)"
 static mrb_value mrb_rect_to_s(mrb_state* mrb, mrb_value self) {
     RectData* data = get_rect_data(mrb, self);
     char buf[96];

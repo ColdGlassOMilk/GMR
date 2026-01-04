@@ -17,10 +17,16 @@ Auto-generated API documentation for GMR 0.1.0.
 
 | Class | Description |
 |-------|-------------|
+| [Camera2D](camera.md) | 2D camera for scrolling, zooming, and screen effects. |
+| [GMR](core.md) | Core engine functions and lifecycle hooks. |
 | [GMR::Audio::Sound](audio.md) | Loaded audio file for playback. |
+| [GMR::Graphics::Texture](graphics.md) | Loaded image textures for drawing sprites. |
 | [GMR::Graphics::Tilemap](graphics.md) | Tilemap rendering from Tiled JSON exports. |
-| [Texture](texture.md) | Class reference |
-| [Tilemap](tilemap.md) | Class reference |
+| [Rect](types.md) | Rectangle for bounds and collision areas. |
+| [Sprite](sprite.md) | Drawable 2D sprite with built-in transform properties. |
+| [Transform2D](transform.md) | 2D transform with position, rotation, scale, and hierarchy. |
+| [Vec2](types.md) | 2D vector for positions and directions. |
+| [Vec3](types.md) | 3D vector for positions and colors. |
 
 ## Types
 

@@ -360,10 +360,16 @@
       "GMR::Window"
     ],
     "classes": [
+      "Camera2D",
+      "GMR",
       "GMR::Audio::Sound",
+      "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
-      "Texture",
-      "Tilemap"
+      "Rect",
+      "Sprite",
+      "Transform2D",
+      "Vec2",
+      "Vec3"
     ],
     "functions": {
       "GMR::Graphics": [
@@ -447,12 +453,29 @@
         "monitor_name"
       ],
       "GMR": [
-        "delta",
-        "elapsed",
-        "fps",
-        "set_target_fps"
+        "inspect"
       ],
-      "Texture": [
+      "Camera2D": [
+        "initialize",
+        "target",
+        "offset",
+        "zoom",
+        "rotation",
+        "target=",
+        "offset=",
+        "zoom=",
+        "rotation=",
+        "follow",
+        "bounds=",
+        "bounds",
+        "shake",
+        "world_to_screen",
+        "screen_to_world",
+        "use",
+        "current=",
+        "current"
+      ],
+      "GMR::Graphics::Texture": [
         "load",
         "width",
         "height",
@@ -460,15 +483,8 @@
         "draw_ex",
         "draw_pro"
       ],
-      "Tilemap": [
-        "new"
-      ],
-      "GMR::Audio::Sound": [
-        "play",
-        "stop",
-        "volume="
-      ],
       "GMR::Graphics::Tilemap": [
+        "new",
         "tile_width",
         "tile_height",
         "get",
@@ -487,6 +503,102 @@
         "water?",
         "slippery?",
         "damage"
+      ],
+      "Vec2": [
+        "initialize",
+        "x",
+        "y",
+        "+",
+        "-",
+        "*",
+        "/",
+        "to_s"
+      ],
+      "Vec3": [
+        "initialize",
+        "x",
+        "y",
+        "z",
+        "+",
+        "-",
+        "*",
+        "/",
+        "to_s"
+      ],
+      "Rect": [
+        "initialize",
+        "x",
+        "y",
+        "w",
+        "h",
+        "to_s"
+      ],
+      "Sprite": [
+        "initialize",
+        "x",
+        "y",
+        "x=",
+        "y=",
+        "position",
+        "position=",
+        "rotation",
+        "rotation=",
+        "scale_x",
+        "scale_y",
+        "scale_x=",
+        "scale_y=",
+        "origin_x",
+        "origin_y",
+        "origin_x=",
+        "origin_y=",
+        "center_origin",
+        "z",
+        "z=",
+        "color",
+        "color=",
+        "alpha",
+        "alpha=",
+        "flip_x",
+        "flip_y",
+        "flip_x=",
+        "flip_y=",
+        "texture",
+        "texture=",
+        "source_rect",
+        "source_rect=",
+        "width",
+        "height",
+        "parent",
+        "parent=",
+        "draw",
+        "count"
+      ],
+      "Transform2D": [
+        "initialize",
+        "x",
+        "y",
+        "position",
+        "rotation",
+        "scale_x",
+        "scale_y",
+        "origin_x",
+        "origin_y",
+        "x=",
+        "y=",
+        "position=",
+        "rotation=",
+        "scale_x=",
+        "scale_y=",
+        "origin_x=",
+        "origin_y=",
+        "parent",
+        "parent=",
+        "world_position"
+      ],
+      "GMR::Audio::Sound": [
+        "play",
+        "stop",
+        "volume="
       ]
     },
     "constants": {
