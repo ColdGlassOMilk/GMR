@@ -179,6 +179,11 @@ echo -e "  ${BLUE}gmrcli build debug${NC}        # Build debug version"
 echo -e "  ${BLUE}gmrcli run${NC}                # Run the game"
 echo -e "  ${BLUE}gmrcli help${NC}               # All commands"
 echo ""
+echo "Output modes:"
+echo -e "  ${DIM}(default)${NC}                   # Machine-readable JSON output"
+echo -e "  ${BLUE}gmrcli -o text${NC}            # Human-readable text output"
+echo -e "  ${BLUE}gmrcli --protocol-version v1${NC} # Lock to protocol version"
+echo ""
 echo -e "For future sessions, reload your shell:"
 echo ""
 echo -e "  ${GREEN}source ~/.bashrc${NC}"
@@ -199,10 +204,11 @@ else
         setup_type=${setup_type:-f}
 
         echo ""
+        # Use -o text for interactive terminal output
         if [[ "$setup_type" =~ ^[Nn]$ ]]; then
-            exec gmrcli setup --native-only
+            exec gmrcli -o text setup --native-only
         else
-            exec gmrcli setup
+            exec gmrcli -o text setup
         fi
     fi
 fi

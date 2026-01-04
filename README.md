@@ -29,33 +29,35 @@
    git clone https://github.com/ColdGlassOMilk/GMR
    cd GMR
    ./bootstrap.sh         # Install gmrcli & run setup
-   gmrcli build           # Build the engine
+   gmrcli build -o text   # Build the engine
    gmrcli run             # Run the game!
    ```
 
 3. **Edit `scripts/main.rb`** - changes reload automatically while running!
 
+> **Note:** `gmrcli` outputs JSON by default for IDE/automation use. Add `-o text` for traditional colored text output in the terminal.
+
 ### Linux (Ubuntu/Debian)
 
 ```bash
 cd gmr
-./bootstrap.sh         # Install gmrcli & run setup
-gmrcli build           # Build
-gmrcli run             # Run
+./bootstrap.sh             # Install gmrcli & run setup
+gmrcli build -o text       # Build
+gmrcli run                 # Run
 ```
 
 ### macOS
 
 ```bash
 cd gmr
-./bootstrap.sh         # Install gmrcli & run setup
-gmrcli build           # Build
-gmrcli run             # Run
+./bootstrap.sh             # Install gmrcli & run setup
+gmrcli build -o text       # Build
+gmrcli run                 # Run
 ```
 
 ## CLI Commands
 
-GMR uses the `gmrcli` tool for all operations:
+GMR uses the `gmrcli` tool for all operations. The CLI is **machine-first** by default, outputting structured JSON for IDE and automation integration. Use `-o text` for traditional text output.
 
 ```bash
 # Setup
@@ -77,8 +79,73 @@ gmrcli run web            # Start local web server
 # Project
 gmrcli new my-game        # Create new game project
 gmrcli info               # Show environment info
+gmrcli version            # Show version and protocol info
 gmrcli help               # Show all commands
 ```
+
+### Output Modes
+
+```bash
+# Machine-readable JSON (default)
+gmrcli build debug            # Outputs NDJSON events + final JSON envelope
+
+# Human-readable text
+gmrcli build debug -o text    # Colored text output with spinners
+
+# Protocol versioning (for stable integrations)
+gmrcli build debug --protocol-version v1
+
+# Environment variable override
+GMRCLI_OUTPUT=text gmrcli build debug   # Force text output
+```
+
+### JSON Output Format
+
+All commands emit structured JSON following a stable protocol:
+
+**Success envelope:**
+```json
+{
+  "protocol": "v1",
+  "status": "success",
+  "command": "build",
+  "result": {
+    "target": "debug",
+    "output_path": "/path/to/release/gmr.exe",
+    "artifacts": [{"type": "executable", "path": "..."}]
+  },
+  "metadata": {
+    "timestamp": "2024-01-15T10:30:45.123Z",
+    "duration_ms": 1234,
+    "gmrcli_version": "0.1.0"
+  }
+}
+```
+
+**Error envelope:**
+```json
+{
+  "protocol": "v1",
+  "status": "error",
+  "command": "build",
+  "error": {
+    "code": "BUILD.CMAKE_FAILED",
+    "message": "CMake configuration failed",
+    "suggestions": ["Run 'gmrcli setup' if you haven't already"]
+  }
+}
+```
+
+**Exit codes:**
+- `0` - Success
+- `1` - Generic/internal error
+- `2` - Protocol error
+- `10-19` - Setup errors
+- `20-29` - Build errors
+- `30-39` - Run errors
+- `40-49` - Project errors
+- `50-59` - Platform errors
+- `130` - User interrupt (Ctrl+C)
 
 ### CMake Presets (Alternative)
 

@@ -19,6 +19,11 @@ module Gmrcli
           return
         end
 
+        # Track stages for final result
+        @stages_completed = []
+        @stages_skipped = []
+        @start_time = Time.now
+
         # Determine target type for JSON output
         target = determine_target
         JsonEmitter.setup_start(target)
@@ -32,14 +37,16 @@ module Gmrcli
           unless options[:skip_pacman]
             run_stage(:packages, "Installing Packages") { install_system_packages }
           else
+            @stages_skipped << "packages"
             JsonEmitter.stage_skip(:packages, reason: "Skipped via --skip-pacman")
           end
           run_stage(:mruby_native, "Building mruby (native)") { build_mruby_native }
           run_stage(:raylib_native, "Building raylib (native)") { build_raylib_native }
         else
-          JsonEmitter.stage_skip(:packages, reason: "Native build skipped")
-          JsonEmitter.stage_skip(:mruby_native, reason: "Native build skipped")
-          JsonEmitter.stage_skip(:raylib_native, reason: "Native build skipped")
+          %w[packages mruby_native raylib_native].each do |stage|
+            @stages_skipped << stage
+            JsonEmitter.stage_skip(stage.to_sym, reason: "Native build skipped")
+          end
         end
 
         unless skip_web?
@@ -47,26 +54,63 @@ module Gmrcli
           run_stage(:raylib_web, "Building raylib (web)") { build_raylib_web }
           run_stage(:mruby_web, "Building mruby (web)") { build_mruby_web; create_env_script }
         else
-          JsonEmitter.stage_skip(:emscripten, reason: "Web build skipped")
-          JsonEmitter.stage_skip(:raylib_web, reason: "Web build skipped")
-          JsonEmitter.stage_skip(:mruby_web, reason: "Web build skipped")
+          %w[emscripten raylib_web mruby_web].each do |stage|
+            @stages_skipped << stage
+            JsonEmitter.stage_skip(stage.to_sym, reason: "Web build skipped")
+          end
         end
 
         run_stage(:verification, "Verification") { verify_installation }
         run_stage(:completion, "Complete") { show_completion }
 
-        JsonEmitter.setup_complete
+        # Emit final result with structured data
+        JsonEmitter.setup_complete(result: build_result)
+      end
+
+      # Build the final result object for JSON output
+      def build_result
+        {
+          target: determine_target.to_s,
+          stages_completed: @stages_completed,
+          stages_skipped: @stages_skipped,
+          paths: build_paths
+        }
+      end
+
+      # Build paths object for result
+      def build_paths
+        paths = {}
+
+        unless skip_native?
+          raylib_native = File.join(Platform.deps_dir, "raylib", "native")
+          mruby_native = File.join(Platform.deps_dir, "mruby", "native")
+          paths[:raylib_native] = raylib_native if Dir.exist?(raylib_native)
+          paths[:mruby_native] = mruby_native if Dir.exist?(mruby_native)
+        end
+
+        unless skip_web?
+          raylib_web = File.join(Platform.deps_dir, "raylib", "web")
+          mruby_web = File.join(Platform.deps_dir, "mruby", "web")
+          emsdk = File.join(Platform.deps_dir, "emsdk")
+          paths[:raylib_web] = raylib_web if Dir.exist?(raylib_web)
+          paths[:mruby_web] = mruby_web if Dir.exist?(mruby_web)
+          paths[:emsdk] = emsdk if Dir.exist?(emsdk)
+        end
+
+        paths
       end
 
       # Run a stage with JSON event tracking
       def run_stage(stage_id, stage_name)
         JsonEmitter.stage_start(stage_id, stage_name)
         yield
+        @stages_completed << stage_id.to_s
         JsonEmitter.stage_complete(stage_id)
       rescue StandardError => e
         error_details = e.respond_to?(:details) ? e.details : nil
         error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
-        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions)
+        error_code = e.respond_to?(:code) ? e.code : nil
+        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions, code: error_code)
         raise
       end
 

@@ -2,49 +2,130 @@
 
 module Gmrcli
   # Base error class for all GMR errors
+  # All errors have a hierarchical error code for machine identification
   class Error < StandardError
-    attr_reader :details, :suggestions
+    attr_reader :code, :details, :suggestions, :error_metadata
 
-    def initialize(message, details: nil, suggestions: [])
+    def initialize(message, code: "INTERNAL.UNEXPECTED", details: nil, suggestions: [], metadata: {})
       super(message)
+      @code = code
       @details = details
       @suggestions = Array(suggestions)
+      @error_metadata = metadata
+    end
+
+    # Get exit code from ErrorCodes registry
+    def exit_code
+      ErrorCodes.exit_code_for(code)
+    end
+
+    # Convert to hash for JSON serialization
+    def to_h
+      {
+        code: code,
+        message: message,
+        details: details,
+        suggestions: suggestions,
+        metadata: error_metadata
+      }.compact
     end
   end
 
   # Environment/platform errors
-  class PlatformError < Error; end
-  class MissingDependencyError < Error; end
-  class EnvironmentError < Error; end
+  class PlatformError < Error
+    def initialize(message, code: "PLATFORM.UNSUPPORTED", **kwargs)
+      super(message, code: code, **kwargs)
+    end
+  end
+
+  class MissingDependencyError < Error
+    def initialize(message, dependency: nil, **kwargs)
+      code = dependency ? "SETUP.MISSING_DEP.#{dependency.to_s.upcase}" : "SETUP.MISSING_DEP"
+      super(message, code: code, **kwargs)
+    end
+  end
+
+  class EnvironmentError < Error
+    def initialize(message, code: "PLATFORM.WRONG_ENV", **kwargs)
+      super(message, code: code, **kwargs)
+    end
+  end
 
   # Build errors
-  class BuildError < Error; end
-  class ConfigurationError < Error; end
-  class CompilationError < Error; end
+  class BuildError < Error
+    def initialize(message, stage: nil, **kwargs)
+      code = case stage&.to_s&.downcase
+             when "cmake", "configure" then "BUILD.CMAKE_FAILED"
+             when "compile", "compilation" then "BUILD.COMPILE_FAILED"
+             when "link", "linking" then "BUILD.LINK_FAILED"
+             else "BUILD.COMPILE_FAILED"
+             end
+      super(message, code: code, **kwargs)
+    end
+  end
+
+  class ConfigurationError < Error
+    def initialize(message, code: "BUILD.CMAKE_FAILED", **kwargs)
+      super(message, code: code, **kwargs)
+    end
+  end
+
+  class CompilationError < Error
+    def initialize(message, code: "BUILD.COMPILE_FAILED", **kwargs)
+      super(message, code: code, **kwargs)
+    end
+  end
 
   # Project errors
-  class ProjectError < Error; end
-  class NotAProjectError < ProjectError; end
-  class MissingFileError < ProjectError; end
+  class ProjectError < Error
+    def initialize(message, code: "PROJECT.INVALID", **kwargs)
+      super(message, code: code, **kwargs)
+    end
+  end
+
+  class NotAProjectError < ProjectError
+    def initialize(message, **kwargs)
+      super(message, code: "PROJECT.NOT_FOUND", **kwargs)
+    end
+  end
+
+  class MissingFileError < ProjectError
+    def initialize(message, **kwargs)
+      super(message, code: "PROJECT.MISSING_FILE", **kwargs)
+    end
+  end
 
   # Command execution errors
   class CommandError < Error
-    attr_reader :command, :exit_code, :output
+    attr_reader :command, :command_exit_code, :output
 
-    def initialize(message, command: nil, exit_code: nil, output: nil, **kwargs)
-      super(message, **kwargs)
+    def initialize(message, command: nil, exit_code: nil, output: nil, code: "INTERNAL.COMMAND_FAILED", **kwargs)
+      super(message, code: code, **kwargs)
       @command = command
-      @exit_code = exit_code
+      @command_exit_code = exit_code
       @output = output
+    end
+
+    def to_h
+      super.merge(
+        command: command,
+        command_exit_code: command_exit_code
+      ).compact
     end
   end
 
   # Error handler module for consistent error display
+  # Handles both machine (JSON) and human output modes
   module ErrorHandler
-    def self.handle(error, ui: UI)
-      # In JSON mode, emit error as JSON event
+    class << self
+      attr_accessor :current_command, :command_start_time
+    end
+
+    def self.handle(error, ui: UI, command: nil)
+      cmd = command || current_command
+      # In JSON mode (default), emit structured error
       if defined?(JsonEmitter) && JsonEmitter.enabled?
-        emit_json_error(error)
+        emit_json_error(error, command: cmd)
       else
         emit_human_error(error, ui: ui)
       end
@@ -53,49 +134,63 @@ module Gmrcli
     def self.emit_human_error(error, ui: UI)
       case error
       when Gmrcli::Error
-        ui.error(error.message)
+        ui.error("[#{error.code}] #{error.message}")
         ui.info("Details: #{error.details}") if error.details
         error.suggestions.each { |s| ui.info("  -> #{s}") }
       when Interrupt
         ui.warn("\nInterrupted by user")
       else
-        ui.error("Unexpected error: #{error.message}")
+        ui.error("[INTERNAL.UNEXPECTED] #{error.message}")
         ui.info(error.backtrace.first(5).join("\n")) if ENV["GMR_DEBUG"]
       end
     end
 
-    def self.emit_json_error(error)
-      error_data = {
-        message: error.message,
-        type: error.class.name
-      }
+    def self.emit_json_error(error, command: nil)
+      error_data = if error.respond_to?(:to_h)
+                     error.to_h
+                   else
+                     {
+                       code: "INTERNAL.UNEXPECTED",
+                       message: error.message
+                     }
+                   end
 
-      if error.respond_to?(:details) && error.details
-        error_data[:details] = error.details
-      end
-
-      if error.respond_to?(:suggestions) && error.suggestions&.any?
-        error_data[:suggestions] = error.suggestions
-      end
-
+      # Add backtrace in debug mode
       if ENV["GMR_DEBUG"] && error.backtrace
         error_data[:backtrace] = error.backtrace.first(5)
       end
 
-      JsonEmitter.emit(:error, { error: error_data })
+      # Emit the final error envelope
+      JsonEmitter.emit_error_envelope(
+        command: command,
+        error: error_data,
+        start_time: command_start_time
+      )
     end
 
-    def self.wrap(ui: UI)
+    # Wrap command execution with error handling
+    # Uses error codes to determine exit codes
+    def self.wrap(ui: UI, command: nil, &block)
+      self.current_command = command
+      self.command_start_time = Time.now
       yield
     rescue Gmrcli::Error => e
-      handle(e, ui: ui)
-      exit 1
+      handle(e, ui: ui, command: command)
+      exit e.exit_code
     rescue Interrupt
-      handle(Interrupt.new, ui: ui)
+      if defined?(JsonEmitter) && JsonEmitter.enabled?
+        JsonEmitter.emit(:interrupted, { signal: "SIGINT" })
+      else
+        ui.warn("\nInterrupted by user")
+      end
       exit 130
     rescue StandardError => e
-      handle(e, ui: ui)
+      wrapped = Error.new(e.message, code: "INTERNAL.UNEXPECTED")
+      handle(wrapped, ui: ui, command: command)
       exit 1
+    ensure
+      self.current_command = nil
+      self.command_start_time = nil
     end
   end
 end

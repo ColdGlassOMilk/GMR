@@ -31,24 +31,42 @@ module Gmrcli
       # === Public Build Methods ===
 
       def debug
+        @start_time = Time.now
+        @stages_completed = []
         JsonEmitter.build_start(:debug)
         UI.banner
         build_native("Debug")
-        JsonEmitter.build_complete(output_path: File.join(release_dir, gmr_exe))
+        output_path = File.join(release_dir, gmr_exe)
+        JsonEmitter.build_complete(
+          output_path: output_path,
+          result: build_result("debug", output_path)
+        )
       end
 
       def release
+        @start_time = Time.now
+        @stages_completed = []
         JsonEmitter.build_start(:release)
         UI.banner
         build_native("Release")
-        JsonEmitter.build_complete(output_path: File.join(release_dir, gmr_exe))
+        output_path = File.join(release_dir, gmr_exe)
+        JsonEmitter.build_complete(
+          output_path: output_path,
+          result: build_result("release", output_path)
+        )
       end
 
       def web
+        @start_time = Time.now
+        @stages_completed = []
         JsonEmitter.build_start(:web)
         UI.banner
         build_web
-        JsonEmitter.build_complete(output_path: File.join(web_release_dir, "gmr.html"))
+        output_path = File.join(web_release_dir, "gmr.html")
+        JsonEmitter.build_complete(
+          output_path: output_path,
+          result: build_result("web", output_path)
+        )
       end
 
       def clean
@@ -72,13 +90,59 @@ module Gmrcli
         else
           UI.success "Cleaned: #{cleaned.join(', ')}"
         end
+
+        # Emit JSON result for clean command
+        JsonEmitter.emit_success_envelope(
+          command: "build",
+          result: {
+            target: "clean",
+            directories_cleaned: cleaned
+          }
+        )
       end
 
       def all
+        @start_time = Time.now
+        @stages_completed = []
         UI.banner
         build_native("Debug")
         build_native("Release")
         build_web
+
+        # Emit combined result
+        JsonEmitter.emit_success_envelope(
+          command: "build",
+          result: {
+            target: "all",
+            stages_completed: @stages_completed,
+            artifacts: [
+              { type: "executable", target: "debug", path: File.join(release_dir, gmr_exe) },
+              { type: "executable", target: "release", path: File.join(release_dir, gmr_exe) },
+              { type: "wasm", target: "web", path: File.join(web_release_dir, "gmr.html") }
+            ]
+          }
+        )
+      end
+
+      # Build the final result object for JSON output
+      def build_result(target, output_path)
+        artifacts = case target
+                    when "web"
+                      [
+                        { type: "wasm", path: output_path },
+                        { type: "js", path: output_path.sub(".html", ".js") },
+                        { type: "data", path: output_path.sub(".html", ".data") }
+                      ]
+                    else
+                      [{ type: "executable", path: output_path }]
+                    end
+
+        {
+          target: target,
+          output_path: output_path,
+          stages_completed: @stages_completed || [],
+          artifacts: artifacts
+        }
       end
 
       private
@@ -91,11 +155,13 @@ module Gmrcli
       def run_stage(stage_id, stage_name)
         JsonEmitter.stage_start(stage_id, stage_name)
         yield
+        @stages_completed << stage_id.to_s if @stages_completed
         JsonEmitter.stage_complete(stage_id)
       rescue StandardError => e
         error_details = e.respond_to?(:details) ? e.details : nil
         error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
-        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions)
+        error_code = e.respond_to?(:code) ? e.code : nil
+        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions, code: error_code)
         raise
       end
 
@@ -128,6 +194,7 @@ module Gmrcli
           rescue CommandError => e
             raise BuildError.new(
               "CMake configuration failed",
+              stage: :cmake,
               details: e.output,
               suggestions: [
                 "Check that all dependencies are installed",
@@ -148,6 +215,7 @@ module Gmrcli
           rescue CommandError => e
             raise BuildError.new(
               "Compilation failed",
+              stage: :compile,
               details: e.output,
               suggestions: [
                 "Check the error messages above",
@@ -284,10 +352,11 @@ module Gmrcli
           rescue CommandError => e
             raise BuildError.new(
               "CMake configuration failed for web build",
+              stage: :cmake,
               details: e.output,
               suggestions: [
                 "Make sure Emscripten is properly set up",
-                "Run 'gmrutil setup' if you haven't already"
+                "Run 'gmrcli setup' if you haven't already"
               ]
             )
           end
@@ -309,6 +378,7 @@ module Gmrcli
           rescue CommandError => e
             raise BuildError.new(
               "Web compilation failed",
+              stage: :compile,
               details: e.output,
               suggestions: ["Check the error messages above"]
             )

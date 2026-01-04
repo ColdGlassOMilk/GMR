@@ -20,13 +20,60 @@ module Gmrcli
 
     class_option :verbose, type: :boolean, default: false, aliases: "-v",
                            desc: "Show detailed output"
-    class_option :json, type: :boolean, default: false,
-                        desc: "Output structured JSON (NDJSON format) instead of human-readable text"
+    class_option :output, type: :string, default: "json", aliases: "-o",
+                          desc: "Output format: json (default), text"
+    class_option :protocol_version, type: :string, default: nil,
+                                    desc: "Request specific protocol version (e.g., v1)"
 
-    # Enable JSON mode before any command runs
+    # Machine-first: JSON mode is enabled by default unless -o text is passed
     def initialize(*args)
       super
-      JsonEmitter.enable! if options[:json]
+
+      # Validate protocol version if specified
+      if options[:protocol_version]
+        begin
+          Protocol.negotiate(options[:protocol_version])
+        rescue UnsupportedProtocolError => e
+          # Emit error in JSON format (can't use human mode for protocol errors)
+          error_envelope = {
+            protocol: Protocol::VERSION,
+            status: "error",
+            command: nil,
+            error: {
+              code: "PROTOCOL.UNSUPPORTED",
+              message: e.message,
+              details: "Requested: #{e.requested}, Supported: #{e.supported.join(', ')}"
+            }
+          }
+          puts error_envelope.to_json
+          exit 2
+        end
+      end
+
+      # Parse output format
+      output_format = (options[:output] || "json").downcase
+
+      # Validate output format
+      unless %w[json text].include?(output_format)
+        # For invalid format, emit error in JSON (safest default)
+        error_envelope = {
+          protocol: Protocol::VERSION,
+          status: "error",
+          command: nil,
+          error: {
+            code: "CLI.INVALID_OUTPUT_FORMAT",
+            message: "Invalid output format: #{output_format}",
+            details: "Valid formats: json, text"
+          }
+        }
+        puts error_envelope.to_json
+        exit 1
+      end
+
+      # Machine-first: Enable JSON by default, disable only if -o text is passed
+      # Environment variable GMRCLI_OUTPUT=text also enables text mode (escape hatch)
+      text_mode = output_format == "text" || ENV["GMRCLI_OUTPUT"] == "text"
+      JsonEmitter.enable! unless text_mode
     end
 
     # === Setup Command ===
@@ -56,7 +103,7 @@ module Gmrcli
     option :fix_ssl, type: :boolean, default: false,
                      desc: "Fix SSL certificate issues"
     def setup
-      ErrorHandler.wrap do
+      ErrorHandler.wrap(command: "setup") do
         Commands::Setup.new(options.to_h.transform_keys(&:to_sym)).run
       end
     end
@@ -75,7 +122,7 @@ module Gmrcli
     option :rebuild, type: :boolean, default: false, aliases: "-r",
                      desc: "Clean before building"
     def build(target = "debug")
-      ErrorHandler.wrap do
+      ErrorHandler.wrap(command: "build") do
         builder = Commands::Build.new(options.to_h.transform_keys(&:to_sym))
 
         case target.downcase
@@ -87,6 +134,7 @@ module Gmrcli
         else
           raise Error.new(
             "Unknown build target: #{target}",
+            code: "BUILD.INVALID_TARGET",
             suggestions: ["Available: debug, release, web, clean, all"]
           )
         end
@@ -113,7 +161,7 @@ module Gmrcli
     option :port, type: :numeric, default: 8080,
                   desc: "Port for web server"
     def start(target = "")
-      ErrorHandler.wrap do
+      ErrorHandler.wrap(command: "run") do
         runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
 
         case target.downcase
@@ -122,6 +170,7 @@ module Gmrcli
         else
           raise Error.new(
             "Unknown run target: #{target}",
+            code: "RUN.INVALID_TARGET",
             suggestions: ["Available: web (or omit for native)"]
           )
         end
@@ -155,7 +204,7 @@ module Gmrcli
     option :template, type: :string, default: "basic", aliases: "-t",
                       desc: "Template: basic, empty"
     def new(name)
-      ErrorHandler.wrap do
+      ErrorHandler.wrap(command: "new") do
         Commands::New.new(options.to_h.transform_keys(&:to_sym)).project(name)
       end
     end
@@ -164,13 +213,69 @@ module Gmrcli
 
     desc "version", "Show gmrcli version"
     def version
-      puts "gmrcli #{VERSION}"
-      puts "Platform: #{Platform.name}"
-      puts "GMR root: #{Platform.gmr_root}" if Platform.gmr_engine?(Platform.gmr_root)
+      result = {
+        gmrcli_version: VERSION,
+        protocol_version: Protocol::VERSION,
+        platform: Platform.name,
+        gmr_root: Platform.gmr_root
+      }
+
+      # Emit JSON if in machine mode
+      JsonEmitter.emit_success_envelope(command: "version", result: result)
+
+      # Human output
+      UI.info "gmrcli #{VERSION}"
+      UI.info "Protocol: #{Protocol::VERSION}"
+      UI.info "Platform: #{Platform.name}"
+      UI.info "GMR root: #{Platform.gmr_root}" if Platform.gmr_engine?(Platform.gmr_root)
     end
 
     desc "info", "Show environment information"
     def info
+      # Collect info for JSON output
+      tools_info = {}
+      deps_info = {}
+
+      # Collect tools info
+      %w[gcc g++ cmake ninja git ruby].each do |tool|
+        if Platform.command_exists?(tool)
+          version = Shell.capture("#{tool} --version")&.lines&.first&.strip
+          tools_info[tool] = { installed: true, version: version || "unknown" }
+        else
+          tools_info[tool] = { installed: false }
+        end
+      end
+
+      # Collect dependencies info
+      dep_paths = {
+        "raylib_native" => File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a"),
+        "raylib_web" => File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a"),
+        "mruby_native" => File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a"),
+        "mruby_web" => File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a"),
+        "emsdk" => File.join(Platform.deps_dir, "emsdk")
+      }
+
+      dep_paths.each do |name, path|
+        installed = File.exist?(path)
+        deps_info[name] = { installed: installed }
+        deps_info[name][:path] = path if installed
+      end
+
+      result = {
+        environment: {
+          platform: Platform.name,
+          platform_id: Platform.id,
+          gmr_root: Platform.gmr_root,
+          cpu_cores: Platform.nproc
+        },
+        tools: tools_info,
+        dependencies: deps_info
+      }
+
+      # Emit JSON result
+      JsonEmitter.emit_success_envelope(command: "info", result: result)
+
+      # Human output
       UI.banner
 
       UI.step "Environment"
@@ -179,26 +284,18 @@ module Gmrcli
       UI.status_line("CPU cores", Platform.nproc.to_s)
 
       UI.step "Tools"
-      %w[gcc g++ cmake ninja git ruby].each do |tool|
-        if Platform.command_exists?(tool)
-          version = Shell.capture("#{tool} --version")&.lines&.first&.strip
-          UI.status_line(tool, version || "installed", ok: true)
+      tools_info.each do |tool, info|
+        if info[:installed]
+          UI.status_line(tool, info[:version] || "installed", ok: true)
         else
           UI.status_line(tool, "not found", ok: false)
         end
       end
 
       UI.step "Dependencies"
-      deps = [
-        ["raylib-native", File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a")],
-        ["raylib-web", File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a")],
-        ["mruby-native", File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")],
-        ["mruby-web", File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a")],
-        ["emsdk", File.join(Platform.deps_dir, "emsdk")]
-      ]
-
-      deps.each do |name, path|
-        UI.status_line(name, File.exist?(path) ? "installed" : "not found", ok: File.exist?(path))
+      dep_paths.each do |name, path|
+        display_name = name.tr("_", "-")
+        UI.status_line(display_name, File.exist?(path) ? "installed" : "not found", ok: File.exist?(path))
       end
     end
 

@@ -18,11 +18,13 @@ module Gmrcli
 
       def project(name)
         project_dir = File.expand_path(name)
+        @files_created = []
 
         # Check if directory already exists and has content
         if Dir.exist?(project_dir) && !Dir.empty?(project_dir)
-          raise ProjectError.new(
+          raise Error.new(
             "Directory already exists and is not empty",
+            code: "PROJECT.ALREADY_EXISTS",
             details: project_dir,
             suggestions: [
               "Choose a different name",
@@ -40,6 +42,17 @@ module Gmrcli
         create_main_rb(project_dir, name)
         create_project_config(project_dir, name)
         create_gitignore(project_dir)
+
+        # Emit JSON result
+        JsonEmitter.emit_success_envelope(
+          command: "new",
+          result: {
+            project_name: name,
+            project_path: project_dir,
+            template: options[:template],
+            files_created: @files_created
+          }
+        )
 
         UI.success "Project created: #{project_dir}"
         UI.blank
@@ -75,6 +88,7 @@ module Gmrcli
                   end
 
         File.write(main_rb, content)
+        @files_created << "game/scripts/main.rb"
         UI.info "Created game/scripts/main.rb"
       end
 
@@ -163,6 +177,7 @@ module Gmrcli
 
         config_path = File.join(project_dir, "gmr.json")
         File.write(config_path, JSON.pretty_generate(config))
+        @files_created << "gmr.json"
         UI.info "Created gmr.json"
       end
 
@@ -184,6 +199,7 @@ module Gmrcli
         GITIGNORE
 
         File.write(File.join(project_dir, ".gitignore"), content)
+        @files_created << ".gitignore"
         UI.info "Created .gitignore"
       end
 

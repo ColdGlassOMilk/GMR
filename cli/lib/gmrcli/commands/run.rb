@@ -24,6 +24,16 @@ module Gmrcli
       def native
         exe_path = find_executable
 
+        # Emit JSON result before exec (exec replaces process, so emit first)
+        JsonEmitter.emit_success_envelope(
+          command: "run",
+          result: {
+            target: "native",
+            executable: exe_path,
+            project: project_dir
+          }
+        )
+
         UI.info "Running: #{exe_path}"
         UI.info "Project: #{project_dir}"
         UI.blank
@@ -53,6 +63,19 @@ module Gmrcli
         end
 
         port = options[:port]
+
+        # Emit JSON result
+        JsonEmitter.emit_success_envelope(
+          command: "run",
+          result: {
+            target: "web",
+            url: "http://localhost:#{port}/gmr.html",
+            port: port,
+            document_root: web_dir,
+            project: project_dir
+          }
+        )
+
         UI.info "Starting web server on http://localhost:#{port}"
         UI.info "Open http://localhost:#{port}/gmr.html in your browser"
         UI.blank
@@ -121,8 +144,9 @@ module Gmrcli
         end
 
         # Not found
-        raise MissingFileError.new(
+        raise Error.new(
           "GMR executable not found",
+          code: "RUN.EXECUTABLE_NOT_FOUND",
           suggestions: [
             "Run 'gmrcli build debug' to build the project first",
             "Set GMR_EXE environment variable to the executable path",
