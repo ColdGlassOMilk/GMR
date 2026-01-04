@@ -165,8 +165,9 @@ sprite = GMR::Graphics::Texture.load("assets/player.png")
 sprite.width                              # Texture dimensions
 sprite.height
 sprite.draw(x, y)                         # Draw at position
-sprite.draw(x, y, [255, 0, 0])            # Draw with tint
-sprite.draw_ex(x, y, rotation, scale, color)
+sprite.draw(x, y, [255, 0, 0])            # Draw with color tint
+sprite.draw_ex(x, y, rotation, scale)     # Draw with rotation and scale
+sprite.draw_pro(sx, sy, sw, sh, dx, dy, dw, dh, rotation)  # Advanced: source rect to dest rect
 ```
 
 ### GMR::Input

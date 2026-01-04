@@ -145,6 +145,12 @@
         "draw_triangle", "draw_triangle_outline",
         "draw_text", "measure_text"
       ],
+      "GMR::Graphics::Texture": [
+        "load", "width", "height", "draw", "draw_ex", "draw_pro"
+      ],
+      "GMR::Audio::Sound": [
+        "load", "play", "stop", "volume="
+      ],
       "GMR::Input": [
         "mouse_x", "mouse_y",
         "mouse_down?", "mouse_pressed?", "mouse_released?",
