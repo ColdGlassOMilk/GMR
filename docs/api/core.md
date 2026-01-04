@@ -1,14 +1,10 @@
-# GMR::Audio::Sound
+# GMR
 
-Loaded audio file for playback.
+Core engine functions and lifecycle hooks.
 
-## Sound
+## Functions
 
-TODO: Add description
-
-### Instance Methods
-
-### play
+### delta
 
 TODO: Add documentation
 
@@ -16,7 +12,7 @@ TODO: Add documentation
 
 ---
 
-### stop
+### elapsed
 
 TODO: Add documentation
 
@@ -24,7 +20,15 @@ TODO: Add documentation
 
 ---
 
-### volume=(arg1)
+### fps
+
+TODO: Add documentation
+
+**Returns:** `unknown`
+
+---
+
+### set_target_fps(arg1)
 
 TODO: Add documentation
 
@@ -32,7 +36,7 @@ TODO: Add documentation
 
 | Name | Type | Description |
 |------|------|-------------|
-| arg1 | Float |  |
+| arg1 | Integer |  |
 
 **Returns:** `unknown`
 

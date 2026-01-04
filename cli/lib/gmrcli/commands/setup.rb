@@ -32,6 +32,7 @@ module Gmrcli
 
         run_stage(:environment, "Environment Detection") { detect_environment }
         run_stage(:directories, "Directory Setup") { clean_if_requested; create_directories }
+        run_stage(:api_docs, "Generating API Definitions") { generate_api_docs }
 
         unless skip_native?
           unless options[:skip_pacman]
@@ -96,6 +97,16 @@ module Gmrcli
           paths[:mruby_web] = mruby_web if Dir.exist?(mruby_web)
           paths[:emsdk] = emsdk if Dir.exist?(emsdk)
         end
+
+        # API definitions
+        api_defs = File.join(Platform.gmr_root, "engine", "language")
+        paths[:api_definitions] = api_defs if Dir.exist?(api_defs)
+
+        # Documentation
+        api_docs = File.join(Platform.gmr_root, "docs", "api")
+        cli_docs = File.join(Platform.gmr_root, "docs", "cli")
+        paths[:api_docs] = api_docs if Dir.exist?(api_docs)
+        paths[:cli_docs] = cli_docs if Dir.exist?(cli_docs)
 
         paths
       end
@@ -222,6 +233,96 @@ module Gmrcli
       def create_directories
         FileUtils.mkdir_p(Platform.deps_dir)
         FileUtils.mkdir_p(Platform.bin_dir)
+      end
+
+      # === API Documentation Generation ===
+
+      def generate_api_docs
+        UI.step "Generating API definitions from C++ bindings..."
+
+        generator_script = File.join(Platform.gmr_root, "tools", "generate_api_docs.rb")
+        cli_docs_script = File.join(Platform.gmr_root, "tools", "generate_cli_docs.rb")
+        output_dir = File.join(Platform.gmr_root, "engine", "language")
+        binding_dir = File.join(Platform.gmr_root, "src", "bindings")
+        api_docs_dir = File.join(Platform.gmr_root, "docs", "api")
+        cli_docs_dir = File.join(Platform.gmr_root, "docs", "cli")
+
+        # Check if generator script exists
+        unless File.exist?(generator_script)
+          UI.warn "API generator script not found: #{generator_script}"
+          UI.info "Skipping API documentation generation"
+          JsonEmitter.stage_progress(:api_docs, 100, "Skipped (script not found)", substage: "skipped")
+          return
+        end
+
+        # Check if binding files exist
+        binding_files = Dir.glob(File.join(binding_dir, "*.cpp"))
+        if binding_files.empty?
+          UI.warn "No binding source files found in: #{binding_dir}"
+          UI.info "Skipping API documentation generation"
+          JsonEmitter.stage_progress(:api_docs, 100, "Skipped (no sources)", substage: "skipped")
+          return
+        end
+
+        # Build command arguments
+        source_args = binding_files.map { |f| "-s \"#{f}\"" }.join(" ")
+
+        # Generate JSON definitions
+        JsonEmitter.stage_progress(:api_docs, 20, "Parsing C++ bindings", substage: "parse")
+        UI.spinner("Parsing #{binding_files.size} binding files") do
+          Shell.run!(
+            "ruby \"#{generator_script}\" #{source_args} -o \"#{output_dir}\"",
+            verbose: verbose?,
+            error_message: "API documentation generation failed"
+          )
+        end
+
+        # Generate API markdown docs
+        JsonEmitter.stage_progress(:api_docs, 50, "Generating API docs", substage: "markdown")
+        UI.spinner("Generating API markdown docs") do
+          Shell.run!(
+            "ruby \"#{generator_script}\" #{source_args} -o \"#{output_dir}\" -m \"#{api_docs_dir}\"",
+            verbose: verbose?,
+            error_message: "API markdown generation failed"
+          )
+        end
+
+        # Generate CLI markdown docs
+        if File.exist?(cli_docs_script)
+          JsonEmitter.stage_progress(:api_docs, 80, "Generating CLI docs", substage: "cli")
+          UI.spinner("Generating CLI markdown docs") do
+            Shell.run!(
+              "ruby \"#{cli_docs_script}\" -o \"#{cli_docs_dir}\"",
+              verbose: verbose?,
+              error_message: "CLI documentation generation failed"
+            )
+          end
+        end
+
+        # Verify output files were created
+        api_json = File.join(output_dir, "api.json")
+        syntax_json = File.join(output_dir, "syntax.json")
+        version_json = File.join(output_dir, "version.json")
+
+        if File.exist?(api_json) && File.exist?(syntax_json) && File.exist?(version_json)
+          JsonEmitter.stage_progress(:api_docs, 100, "Generated successfully", substage: "complete")
+          UI.success "API definitions generated"
+          UI.info "  api.json: #{File.size(api_json)} bytes"
+          UI.info "  syntax.json: #{File.size(syntax_json)} bytes"
+          UI.info "  version.json: #{File.size(version_json)} bytes"
+
+          # Report markdown docs if generated
+          if Dir.exist?(api_docs_dir)
+            api_md_count = Dir.glob(File.join(api_docs_dir, "*.md")).size
+            UI.info "  docs/api/: #{api_md_count} files"
+          end
+          if Dir.exist?(cli_docs_dir)
+            cli_md_count = Dir.glob(File.join(cli_docs_dir, "*.md")).size
+            UI.info "  docs/cli/: #{cli_md_count} files"
+          end
+        else
+          UI.warn "Some API definition files may not have been generated"
+        end
       end
 
       # === System Packages ===

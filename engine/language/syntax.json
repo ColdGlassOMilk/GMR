@@ -381,6 +381,18 @@
         "draw_text",
         "measure_text"
       ],
+      "GMR::Collision": [
+        "point_in_rect?",
+        "point_in_circle?",
+        "rect_overlap?",
+        "rect_contains?",
+        "circle_overlap?",
+        "circle_rect_overlap?",
+        "rect_tiles",
+        "tile_rect",
+        "distance",
+        "distance_squared"
+      ],
       "GMR::Input": [
         "mouse_x",
         "mouse_y",
@@ -399,6 +411,21 @@
         "action_down?",
         "action_pressed?",
         "action_released?"
+      ],
+      "GMR::System": [
+        "random_int",
+        "random_float",
+        "quit",
+        "platform",
+        "build_type",
+        "compiled_scripts?",
+        "raylib_version",
+        "gpu_vendor",
+        "gpu_renderer",
+        "gl_version",
+        "glsl_version",
+        "last_error",
+        "in_error_state?"
       ],
       "GMR::Window": [
         "actual_width",
@@ -425,33 +452,6 @@
         "fps",
         "set_target_fps"
       ],
-      "GMR::System": [
-        "random_int",
-        "random_float",
-        "quit",
-        "platform",
-        "build_type",
-        "compiled_scripts?",
-        "raylib_version",
-        "gpu_vendor",
-        "gpu_renderer",
-        "gl_version",
-        "glsl_version",
-        "last_error",
-        "in_error_state?"
-      ],
-      "GMR::Collision": [
-        "point_in_rect?",
-        "point_in_circle?",
-        "rect_overlap?",
-        "rect_contains?",
-        "circle_overlap?",
-        "circle_rect_overlap?",
-        "rect_tiles",
-        "tile_rect",
-        "distance",
-        "distance_squared"
-      ],
       "Texture": [
         "load",
         "width",
@@ -462,6 +462,11 @@
       ],
       "Tilemap": [
         "new"
+      ],
+      "GMR::Audio::Sound": [
+        "play",
+        "stop",
+        "volume="
       ],
       "GMR::Graphics::Tilemap": [
         "tile_width",
@@ -482,11 +487,6 @@
         "water?",
         "slippery?",
         "damage"
-      ],
-      "GMR::Audio::Sound": [
-        "play",
-        "stop",
-        "volume="
       ]
     },
     "constants": {

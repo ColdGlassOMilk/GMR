@@ -8,8 +8,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include script compilation utilities
 include(cmake/CompileScripts.cmake)
 
-# Include API documentation generation
-include(cmake/GenerateAPIDocs.cmake)
+# API documentation generation option (disabled by default - use 'gmrcli setup' instead)
+option(GMR_GENERATE_API_DOCS "Generate API documentation during build (normally handled by gmrcli setup)" OFF)
+if(GMR_GENERATE_API_DOCS)
+    include(cmake/GenerateAPIDocs.cmake)
+endif()
 
 # Detect Emscripten
 if(EMSCRIPTEN OR PLATFORM STREQUAL "Web")
@@ -60,8 +63,10 @@ set(SOURCES
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Generate API documentation (pre-build step)
-generate_api_docs(${PROJECT_NAME})
+# Generate API documentation (pre-build step) - only if enabled
+if(GMR_GENERATE_API_DOCS)
+    generate_api_docs(${PROJECT_NAME})
+endif()
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE

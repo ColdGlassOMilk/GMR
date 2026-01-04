@@ -1,310 +1,209 @@
-# Input Module
+# GMR::Input
 
-Keyboard, mouse input, and action mapping system.
+Keyboard, mouse, and gamepad input handling.
 
-```ruby
-include GMR
-```
+## Functions
 
-## Action Mapping
+### mouse_x
 
-Map abstract actions to physical keys for cleaner, rebindable input.
+TODO: Add documentation
 
-### map
+**Returns:** `unknown`
 
-Define an action with one or more keys.
+---
 
-```ruby
-Input.map(action, keys)
-```
+### mouse_y
 
-**Parameters:**
-- `action` - Action name as symbol
-- `keys` - Single key symbol or array of key symbols
+TODO: Add documentation
 
-**Example:**
-```ruby
-def init
-  # Single key
-  Input.map(:jump, :space)
+**Returns:** `unknown`
 
-  # Multiple keys (either works)
-  Input.map(:move_left, [:left, :a])
-  Input.map(:move_right, [:right, :d])
-  Input.map(:move_up, [:up, :w])
-  Input.map(:move_down, [:down, :s])
+---
 
-  # Action for attack
-  Input.map(:attack, [:z, :j])
-end
-```
+### mouse_down?(arg1)
 
-### action_down?
-
-Check if any key mapped to an action is held.
-
-```ruby
-Input.action_down?(action)
-```
-
-**Returns:** `true` if any mapped key is currently held
-
-**Example:**
-```ruby
-def update(dt)
-  dx = 0
-  dx -= 1 if Input.action_down?(:move_left)
-  dx += 1 if Input.action_down?(:move_right)
-  $player[:x] += dx * $player[:speed] * dt
-end
-```
-
-### action_pressed?
-
-Check if any key mapped to an action was just pressed this frame.
-
-```ruby
-Input.action_pressed?(action)
-```
-
-**Returns:** `true` if any mapped key was pressed this frame
-
-**Example:**
-```ruby
-def update(dt)
-  if Input.action_pressed?(:jump) && $player[:on_ground]
-    $player[:velocity_y] = -JUMP_FORCE
-  end
-end
-```
-
-### action_released?
-
-Check if any key mapped to an action was just released this frame.
-
-```ruby
-Input.action_released?(action)
-```
-
-**Example:**
-```ruby
-def update(dt)
-  if Input.action_released?(:charge_attack)
-    release_charged_attack()
-  end
-end
-```
-
-## Keyboard (Direct)
-
-Direct key access when you need specific keys.
-
-### key_down?
-
-Check if a key is currently held.
-
-```ruby
-Input.key_down?(key)
-Input.key_down?(keys)  # Array of keys
-```
+TODO: Add documentation
 
 **Parameters:**
-- `key` - Key symbol
-- `keys` - Array of key symbols (returns true if ANY are held)
 
-**Example:**
-```ruby
-# Single key
-if Input.key_down?(:space)
-  $player[:charging] = true
-end
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-# Multiple keys (any)
-if Input.key_down?([:left_shift, :right_shift])
-  speed *= 2  # Sprint with either shift
-end
-```
+**Returns:** `unknown`
 
-### key_pressed?
+---
 
-Check if a key was just pressed this frame.
+### mouse_pressed?(arg1)
 
-```ruby
-Input.key_pressed?(key)
-Input.key_pressed?(keys)
-```
-
-**Example:**
-```ruby
-if Input.key_pressed?(:escape)
-  toggle_pause_menu()
-end
-
-# Any of these keys opens inventory
-if Input.key_pressed?([:i, :tab])
-  open_inventory()
-end
-```
-
-### key_released?
-
-Check if a key was just released this frame.
-
-```ruby
-Input.key_released?(key)
-Input.key_released?(keys)
-```
-
-## Mouse
-
-### mouse_x, mouse_y
-
-Get current mouse position.
-
-```ruby
-x = Input.mouse_x
-y = Input.mouse_y
-```
-
-**Example:**
-```ruby
-def update(dt)
-  # Aim at mouse cursor
-  $crosshair_x = Input.mouse_x
-  $crosshair_y = Input.mouse_y
-end
-```
-
-### mouse_down?
-
-Check if a mouse button is held.
-
-```ruby
-Input.mouse_down?(button)
-```
+TODO: Add documentation
 
 **Parameters:**
-- `button` - `:left`, `:right`, or `:middle`
 
-**Example:**
-```ruby
-if Input.mouse_down?(:left)
-  fire_weapon()
-end
-```
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-### mouse_pressed?
+**Returns:** `unknown`
 
-Check if a mouse button was just clicked.
+---
 
-```ruby
-Input.mouse_pressed?(button)
-```
+### mouse_released?(arg1)
 
-**Example:**
-```ruby
-if Input.mouse_pressed?(:left)
-  select_unit_at(Input.mouse_x, Input.mouse_y)
-end
-```
+TODO: Add documentation
 
-### mouse_released?
+**Parameters:**
 
-Check if a mouse button was just released.
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-```ruby
-Input.mouse_released?(button)
-```
+**Returns:** `unknown`
 
-## Key Symbols Reference
+---
 
-### Letters
-`:a` through `:z`
+### mouse_wheel
 
-### Numbers
-`:zero`, `:one`, `:two`, `:three`, `:four`, `:five`, `:six`, `:seven`, `:eight`, `:nine`
+TODO: Add documentation
 
-### Function Keys
-`:f1` through `:f12`
+**Returns:** `unknown`
 
-### Arrow Keys
-`:up`, `:down`, `:left`, `:right`
+---
 
-### Modifiers
-`:left_shift`, `:right_shift`, `:left_control`, `:right_control`, `:left_alt`, `:right_alt`
+### key_down?(arg1)
 
-### Special Keys
-`:space`, `:enter`, `:escape`, `:tab`, `:backspace`, `:delete`, `:insert`, `:home`, `:end`, `:page_up`, `:page_down`
+TODO: Add documentation
 
-## Complete Example
+**Parameters:**
 
-```ruby
-include GMR
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-def init
-  Window.set_size(800, 600)
+**Returns:** `unknown`
 
-  # Set up action mappings
-  Input.map(:move_left, [:left, :a])
-  Input.map(:move_right, [:right, :d])
-  Input.map(:move_up, [:up, :w])
-  Input.map(:move_down, [:down, :s])
-  Input.map(:fire, :space)
-  Input.map(:pause, :escape)
+---
 
-  $player = { x: 400, y: 300, speed: 200 }
-  $paused = false
-end
+### key_pressed?(arg1)
 
-def update(dt)
-  return if console_open?
+TODO: Add documentation
 
-  # Toggle pause
-  if Input.action_pressed?(:pause)
-    $paused = !$paused
-  end
-  return if $paused
+**Parameters:**
 
-  # Movement using actions
-  dx, dy = 0, 0
-  dx -= 1 if Input.action_down?(:move_left)
-  dx += 1 if Input.action_down?(:move_right)
-  dy -= 1 if Input.action_down?(:move_up)
-  dy += 1 if Input.action_down?(:move_down)
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-  # Normalize diagonal
-  if dx != 0 && dy != 0
-    dx *= 0.707
-    dy *= 0.707
-  end
+**Returns:** `unknown`
 
-  $player[:x] += dx * $player[:speed] * dt
-  $player[:y] += dy * $player[:speed] * dt
+---
 
-  # Fire with keyboard or mouse
-  if Input.action_pressed?(:fire) || Input.mouse_pressed?(:left)
-    spawn_bullet($player[:x], $player[:y])
-  end
-end
+### key_released?(arg1)
 
-def draw
-  Graphics.clear([30, 30, 40])
-  Graphics.draw_rect($player[:x] - 16, $player[:y] - 16, 32, 32, [100, 200, 255])
+TODO: Add documentation
 
-  if $paused
-    Graphics.draw_text("PAUSED", 350, 280, 32, [255, 255, 255])
-  end
-end
-```
+**Parameters:**
 
-## Tips
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Object |  |
 
-1. **Use action mapping** - Makes controls rebindable and code cleaner
-2. **Check `console_open?`** - Skip game input when developer console is open
-3. **`pressed?` vs `down?`** - Use `pressed?` for single actions (jump), `down?` for continuous (movement)
-4. **Array syntax** - Accept multiple keys with `[:key1, :key2]` for accessibility
+**Returns:** `unknown`
 
-## See Also
+---
 
-- [Window](window.md) - Focus and fullscreen
-- [API Overview](README.md) - Key symbol reference
+### key_pressed
+
+TODO: Add documentation
+
+**Returns:** `unknown`
+
+---
+
+### char_pressed
+
+TODO: Add documentation
+
+**Returns:** `unknown`
+
+---
+
+### map(arg1, arg2)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Symbol |  |
+| arg2 | Object |  |
+
+**Returns:** `unknown`
+
+---
+
+### unmap(arg1)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Symbol |  |
+
+**Returns:** `unknown`
+
+---
+
+### clear_mappings
+
+TODO: Add documentation
+
+**Returns:** `unknown`
+
+---
+
+### action_down?(arg1)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Symbol |  |
+
+**Returns:** `unknown`
+
+---
+
+### action_pressed?(arg1)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Symbol |  |
+
+**Returns:** `unknown`
+
+---
+
+### action_released?(arg1)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| arg1 | Symbol |  |
+
+**Returns:** `unknown`
+
+---
+

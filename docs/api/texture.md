@@ -1,199 +1,132 @@
-# Texture Class
+# Texture
 
-Loading and rendering images.
+API reference for Texture.
 
-```ruby
-include GMR
-```
+## Texture
 
-## Loading Textures
+TODO: Add description
 
-### Texture.load
+### Class Methods
 
-Load an image file as a texture.
+### load
 
-```ruby
-texture = Graphics::Texture.load(path)
-```
+Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.
 
 **Parameters:**
-- `path` - Path to image file (relative to game folder)
 
-**Returns:** Texture object or `nil` on failure
+| Name | Type | Description |
+|------|------|-------------|
+| path | String | Path to the image file (relative to game root) |
 
-**Supported formats:** PNG, JPG, BMP, GIF
+**Returns:** `Texture` - The loaded texture object
+
+**Raises:**
+- RuntimeError if the file cannot be loaded
 
 **Example:**
 ```ruby
-def init
-  $player_sprite = Graphics::Texture.load("assets/player.png")
-  $tileset = Graphics::Texture.load("assets/tiles.png")
-end
+sprite = GMR::Graphics::Texture.load("assets/player.png")
 ```
 
-## Properties
+---
+
+### Instance Methods
 
 ### width
 
-Get texture width in pixels.
+Get the texture width in pixels
 
+**Returns:** `Integer` - Width in pixels
+
+**Example:**
 ```ruby
-texture.width  # => Integer
+puts sprite.width
 ```
+
+---
 
 ### height
 
-Get texture height in pixels.
+Get the texture height in pixels
 
-```ruby
-texture.height  # => Integer
-```
+**Returns:** `Integer` - Height in pixels
 
 **Example:**
 ```ruby
-$sprite = Graphics::Texture.load("assets/hero.png")
-puts "Sprite size: #{$sprite.width}x#{$sprite.height}"
+puts sprite.height
 ```
 
-## Drawing Methods
+---
 
 ### draw
 
-Draw texture at a position.
-
-```ruby
-texture.draw(x, y)
-texture.draw(x, y, tint)
-```
+Draw the texture at a position, optionally with a color tint
 
 **Parameters:**
-- `x`, `y` - Position (top-left corner)
-- `tint` - Optional color tint (default: white/no tint)
+
+| Name | Type | Description |
+|------|------|-------------|
+| x | Integer | X position (left edge) |
+| y | Integer | Y position (top edge) |
+| color | Color | (optional, default: [255, 255, 255]) Color tint (multiplied with texture) |
+
+**Returns:** `nil`
 
 **Example:**
 ```ruby
-def draw
-  # Normal drawing
-  $sprite.draw(100, 100)
-
-  # With red tint
-  $sprite.draw(200, 100, [255, 100, 100])
-
-  # Semi-transparent
-  $sprite.draw(300, 100, [255, 255, 255, 128])
-end
+sprite.draw(100, 100)
 ```
+
+---
 
 ### draw_ex
 
-Draw texture with rotation and scale.
-
-```ruby
-texture.draw_ex(x, y, rotation, scale, tint)
-```
+Draw the texture with rotation and scaling
 
 **Parameters:**
-- `x`, `y` - Position (center of texture)
-- `rotation` - Rotation in degrees (clockwise)
-- `scale` - Scale factor (1.0 = normal size)
-- `tint` - Color tint
+
+| Name | Type | Description |
+|------|------|-------------|
+| x | Float | X position |
+| y | Float | Y position |
+| rotation | Float | Rotation angle in degrees |
+| scale | Float | Scale multiplier (1.0 = original size) |
+| color | Color | (optional, default: [255, 255, 255]) Color tint |
+
+**Returns:** `nil`
 
 **Example:**
 ```ruby
-def draw
-  # Rotate 45 degrees, double size
-  $sprite.draw_ex(400, 300, 45, 2.0, [255, 255, 255])
-
-  # Spin based on time
-  angle = Time.elapsed * 90  # 90 degrees per second
-  $sprite.draw_ex(200, 200, angle, 1.0, [255, 255, 255])
-end
+sprite.draw_ex(160, 120, 45.0, 2.0)
 ```
+
+---
 
 ### draw_pro
 
-Draw a portion of a texture with full control.
-
-```ruby
-texture.draw_pro(src_x, src_y, src_w, src_h, dst_x, dst_y, dst_w, dst_h, rotation, tint)
-```
+A tile-based map for efficient rendering of large worlds using a tileset texture
 
 **Parameters:**
-- `src_x`, `src_y` - Source rectangle position (in texture)
-- `src_w`, `src_h` - Source rectangle size
-- `dst_x`, `dst_y` - Destination position (on screen)
-- `dst_w`, `dst_h` - Destination size (stretches/shrinks)
-- `rotation` - Rotation in degrees
-- `tint` - Color tint
+
+| Name | Type | Description |
+|------|------|-------------|
+| sx | Float | Source X (top-left of region) |
+| sy | Float | Source Y (top-left of region) |
+| sw | Float | Source width |
+| sh | Float | Source height |
+| dx | Float | Destination X (center) |
+| dy | Float | Destination Y (center) |
+| dw | Float | Destination width |
+| dh | Float | Destination height |
+| rotation | Float | Rotation angle in degrees |
+| color | Color | (optional, default: [255, 255, 255]) Color tint |
+
+**Returns:** `nil`
 
 **Example:**
 ```ruby
-# Draw sprite from a spritesheet
-# Source: 32x32 tile at position (64, 0) in spritesheet
-# Destination: Draw at (100, 100), scaled to 64x64
-$spritesheet.draw_pro(
-  64, 0, 32, 32,    # Source rect
-  100, 100, 64, 64, # Dest rect (2x scale)
-  0,                # No rotation
-  [255, 255, 255]   # No tint
-)
+sprite.draw_pro(0, 0, 32, 32, 160, 120, 64, 64, 0)
 ```
 
-## Spritesheet Animation Example
+---
 
-```ruby
-FRAME_WIDTH = 32
-FRAME_HEIGHT = 32
-ANIMATION_SPEED = 0.1  # Seconds per frame
-
-def init
-  $spritesheet = Graphics::Texture.load("assets/player_walk.png")
-  $frame = 0
-  $frame_timer = 0
-  $player_x = 100
-  $player_y = 100
-end
-
-def update(dt)
-  # Update animation
-  $frame_timer += dt
-  if $frame_timer >= ANIMATION_SPEED
-    $frame_timer = 0
-    $frame = ($frame + 1) % 4  # 4 frames of animation
-  end
-end
-
-def draw
-  Graphics.clear([40, 40, 40])
-
-  # Draw current frame from spritesheet
-  src_x = $frame * FRAME_WIDTH
-  $spritesheet.draw_pro(
-    src_x, 0, FRAME_WIDTH, FRAME_HEIGHT,
-    $player_x, $player_y, FRAME_WIDTH, FRAME_HEIGHT,
-    0, [255, 255, 255]
-  )
-end
-```
-
-## Tips
-
-1. **Load in `init`** - Load textures once, not every frame
-2. **Check for nil** - `Texture.load` returns `nil` if file not found
-3. **Use spritesheets** - Combine multiple images into one file for efficiency
-4. **Tint for effects** - Use tint for damage flash, selection highlight, etc.
-
-```ruby
-def init
-  $sprite = Graphics::Texture.load("assets/player.png")
-  unless $sprite
-    System.error("Failed to load player sprite!")
-  end
-end
-```
-
-## See Also
-
-- [Graphics](graphics.md) - Drawing primitives
-- [Tilemap](tilemap.md) - Tile-based rendering
-- [API Overview](README.md) - Color conventions

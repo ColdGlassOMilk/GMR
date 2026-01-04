@@ -576,555 +576,6 @@
         }
       }
     },
-    "GMR::Input": {
-      "description": "TODO: Add description",
-      "functions": {
-        "mouse_x": {
-          "signature": "mouse_x",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "mouse_y": {
-          "signature": "mouse_y",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "mouse_down?": {
-          "signature": "mouse_down?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "mouse_pressed?": {
-          "signature": "mouse_pressed?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "mouse_released?": {
-          "signature": "mouse_released?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "mouse_wheel": {
-          "signature": "mouse_wheel",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "key_down?": {
-          "signature": "key_down?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "key_pressed?": {
-          "signature": "key_pressed?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "key_released?": {
-          "signature": "key_released?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "key_pressed": {
-          "signature": "key_pressed",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "char_pressed": {
-          "signature": "char_pressed",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "map": {
-          "signature": "map(arg1, arg2)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Symbol"
-            },
-            {
-              "name": "arg2",
-              "type": "Object"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "unmap": {
-          "signature": "unmap(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Symbol"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "clear_mappings": {
-          "signature": "clear_mappings",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "action_down?": {
-          "signature": "action_down?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Symbol"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "action_pressed?": {
-          "signature": "action_pressed?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Symbol"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "action_released?": {
-          "signature": "action_released?(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Symbol"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
-    "GMR::Window": {
-      "description": "TODO: Add description",
-      "functions": {
-        "actual_width": {
-          "signature": "actual_width",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "actual_height": {
-          "signature": "actual_height",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_size": {
-          "signature": "set_size(arg1, arg2)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_title": {
-          "signature": "set_title(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "String"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "toggle_fullscreen": {
-          "signature": "toggle_fullscreen",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "fullscreen=": {
-          "signature": "fullscreen=(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Boolean"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "fullscreen?": {
-          "signature": "fullscreen?",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_virtual_resolution": {
-          "signature": "set_virtual_resolution(arg1, arg2)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "clear_virtual_resolution": {
-          "signature": "clear_virtual_resolution",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "virtual_resolution?": {
-          "signature": "virtual_resolution?",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_filter_point": {
-          "signature": "set_filter_point",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_filter_bilinear": {
-          "signature": "set_filter_bilinear",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "monitor_count": {
-          "signature": "monitor_count",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "monitor_width": {
-          "signature": "monitor_width(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "monitor_height": {
-          "signature": "monitor_height(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "monitor_refresh_rate": {
-          "signature": "monitor_refresh_rate(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "monitor_name": {
-          "signature": "monitor_name(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
-    "GMR": {
-      "description": "TODO: Add description",
-      "functions": {
-        "delta": {
-          "signature": "delta",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "elapsed": {
-          "signature": "elapsed",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "fps": {
-          "signature": "fps",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set_target_fps": {
-          "signature": "set_target_fps(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
-    "GMR::System": {
-      "description": "TODO: Add description",
-      "functions": {
-        "random_int": {
-          "signature": "random_int(arg1, arg2)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "random_float": {
-          "signature": "random_float",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "quit": {
-          "signature": "quit",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "platform": {
-          "signature": "platform",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "build_type": {
-          "signature": "build_type",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "compiled_scripts?": {
-          "signature": "compiled_scripts?",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "raylib_version": {
-          "signature": "raylib_version",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "gpu_vendor": {
-          "signature": "gpu_vendor",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "gpu_renderer": {
-          "signature": "gpu_renderer",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "gl_version": {
-          "signature": "gl_version",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "glsl_version": {
-          "signature": "glsl_version",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "last_error": {
-          "signature": "last_error",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "in_error_state?": {
-          "signature": "in_error_state?",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
     "GMR::Collision": {
       "description": "TODO: Add description",
       "functions": {
@@ -1444,6 +895,555 @@
         }
       }
     },
+    "GMR::Input": {
+      "description": "TODO: Add description",
+      "functions": {
+        "mouse_x": {
+          "signature": "mouse_x",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "mouse_y": {
+          "signature": "mouse_y",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "mouse_down?": {
+          "signature": "mouse_down?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "mouse_pressed?": {
+          "signature": "mouse_pressed?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "mouse_released?": {
+          "signature": "mouse_released?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "mouse_wheel": {
+          "signature": "mouse_wheel",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "key_down?": {
+          "signature": "key_down?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "key_pressed?": {
+          "signature": "key_pressed?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "key_released?": {
+          "signature": "key_released?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "key_pressed": {
+          "signature": "key_pressed",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "char_pressed": {
+          "signature": "char_pressed",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "map": {
+          "signature": "map(arg1, arg2)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Symbol"
+            },
+            {
+              "name": "arg2",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "unmap": {
+          "signature": "unmap(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Symbol"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "clear_mappings": {
+          "signature": "clear_mappings",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "action_down?": {
+          "signature": "action_down?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Symbol"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "action_pressed?": {
+          "signature": "action_pressed?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Symbol"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "action_released?": {
+          "signature": "action_released?(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Symbol"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      }
+    },
+    "GMR::System": {
+      "description": "TODO: Add description",
+      "functions": {
+        "random_int": {
+          "signature": "random_int(arg1, arg2)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            },
+            {
+              "name": "arg2",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "random_float": {
+          "signature": "random_float",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "quit": {
+          "signature": "quit",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "platform": {
+          "signature": "platform",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "build_type": {
+          "signature": "build_type",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "compiled_scripts?": {
+          "signature": "compiled_scripts?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "raylib_version": {
+          "signature": "raylib_version",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "gpu_vendor": {
+          "signature": "gpu_vendor",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "gpu_renderer": {
+          "signature": "gpu_renderer",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "gl_version": {
+          "signature": "gl_version",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "glsl_version": {
+          "signature": "glsl_version",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "last_error": {
+          "signature": "last_error",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "in_error_state?": {
+          "signature": "in_error_state?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      }
+    },
+    "GMR::Window": {
+      "description": "TODO: Add description",
+      "functions": {
+        "actual_width": {
+          "signature": "actual_width",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "actual_height": {
+          "signature": "actual_height",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_size": {
+          "signature": "set_size(arg1, arg2)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            },
+            {
+              "name": "arg2",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_title": {
+          "signature": "set_title(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "String"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "toggle_fullscreen": {
+          "signature": "toggle_fullscreen",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "fullscreen=": {
+          "signature": "fullscreen=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Boolean"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "fullscreen?": {
+          "signature": "fullscreen?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_virtual_resolution": {
+          "signature": "set_virtual_resolution(arg1, arg2)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            },
+            {
+              "name": "arg2",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "clear_virtual_resolution": {
+          "signature": "clear_virtual_resolution",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "virtual_resolution?": {
+          "signature": "virtual_resolution?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_filter_point": {
+          "signature": "set_filter_point",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_filter_bilinear": {
+          "signature": "set_filter_bilinear",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "monitor_count": {
+          "signature": "monitor_count",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "monitor_width": {
+          "signature": "monitor_width(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "monitor_height": {
+          "signature": "monitor_height(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "monitor_refresh_rate": {
+          "signature": "monitor_refresh_rate(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "monitor_name": {
+          "signature": "monitor_name(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      }
+    },
+    "GMR": {
+      "description": "TODO: Add description",
+      "functions": {
+        "delta": {
+          "signature": "delta",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "elapsed": {
+          "signature": "elapsed",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "fps": {
+          "signature": "fps",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "set_target_fps": {
+          "signature": "set_target_fps(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Integer"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      }
+    },
     "Texture": {
       "kind": "class",
       "description": "TODO: Add description",
@@ -1645,6 +1645,41 @@
             "ArgumentError if dimensions are not positive"
           ],
           "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)"
+        }
+      }
+    },
+    "GMR::Audio::Sound": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "play": {
+          "signature": "play",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "stop": {
+          "signature": "stop",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "volume=": {
+          "signature": "volume=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
         }
       }
     },
@@ -1971,41 +2006,6 @@
             {
               "name": "arg2",
               "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
-    "GMR::Audio::Sound": {
-      "kind": "class",
-      "description": "TODO: Add description",
-      "instanceMethods": {
-        "play": {
-          "signature": "play",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "stop": {
-          "signature": "stop",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "volume=": {
-          "signature": "volume=(arg1)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
             }
           ],
           "returns": {

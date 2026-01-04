@@ -3,10 +3,12 @@
 
 # GMR API Documentation Generator
 # Parses C++ binding files and generates api.json, syntax.json, and version.json
+# Optionally generates markdown documentation files
 #
 # Usage: ruby generate_api_docs.rb [options]
 #   -s, --source FILE    Add source file to parse (can be repeated)
 #   -o, --output DIR     Output directory (default: engine/language)
+#   -m, --markdown DIR   Generate markdown docs to directory
 #   -v, --version VER    Engine version (default: 0.1.0)
 #   --raylib VER         Raylib version (default: 5.6-dev)
 #   --mruby VER          mRuby version (default: 3.4.0)
@@ -508,6 +510,241 @@ module GMRDocs
     end
   end
 
+  # Generates Markdown documentation files
+  class MarkdownGenerator
+    # Module name to filename mapping
+    MODULE_FILES = {
+      'GMR' => 'core',
+      'GMR::Graphics' => 'graphics',
+      'GMR::Graphics::Texture' => 'graphics',
+      'GMR::Graphics::Tilemap' => 'graphics',
+      'GMR::Input' => 'input',
+      'GMR::Audio' => 'audio',
+      'GMR::Audio::Sound' => 'audio',
+      'GMR::Window' => 'window',
+      'GMR::Collision' => 'collision',
+      'GMR::Time' => 'time',
+      'GMR::System' => 'system'
+    }.freeze
+
+    # Module descriptions for headers
+    MODULE_DESCRIPTIONS = {
+      'GMR' => 'Core engine functions and lifecycle hooks.',
+      'GMR::Graphics' => 'Drawing primitives, textures, and rendering.',
+      'GMR::Graphics::Texture' => 'Loaded image textures for drawing sprites.',
+      'GMR::Graphics::Tilemap' => 'Tilemap rendering from Tiled JSON exports.',
+      'GMR::Input' => 'Keyboard, mouse, and gamepad input handling.',
+      'GMR::Audio' => 'Sound effects and music playback.',
+      'GMR::Audio::Sound' => 'Loaded audio file for playback.',
+      'GMR::Window' => 'Window management and display settings.',
+      'GMR::Collision' => 'Collision detection between shapes.',
+      'GMR::Time' => 'Frame timing and delta time access.',
+      'GMR::System' => 'System utilities and debugging.'
+    }.freeze
+
+    def initialize(options)
+      @options = options
+    end
+
+    def generate(model, output_dir)
+      FileUtils.mkdir_p(output_dir)
+
+      # Group modules and classes by output file
+      files = {}
+
+      model.modules.each do |path, data|
+        filename = MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        files[filename] ||= { modules: [], classes: [] }
+        files[filename][:modules] << [path, data]
+      end
+
+      model.classes.each do |path, data|
+        filename = MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        files[filename] ||= { modules: [], classes: [] }
+        files[filename][:classes] << [path, data]
+      end
+
+      # Generate each file
+      files.each do |filename, content|
+        generate_file(output_dir, filename, content)
+      end
+
+      # Generate index
+      generate_index(output_dir, files, model)
+    end
+
+    private
+
+    def generate_file(output_dir, filename, content)
+      path = File.join(output_dir, "#{filename}.md")
+      File.open(path, 'w') do |f|
+        # Find primary module for header
+        primary = content[:modules].first || content[:classes].first
+        primary_path = primary&.first || filename.capitalize
+
+        f.puts "# #{primary_path}"
+        f.puts
+        f.puts MODULE_DESCRIPTIONS[primary_path] || "API reference for #{primary_path}."
+        f.puts
+
+        # Document modules
+        content[:modules].each do |mod_path, mod_data|
+          write_module(f, mod_path, mod_data)
+        end
+
+        # Document classes
+        content[:classes].each do |class_path, class_data|
+          write_class(f, class_path, class_data)
+        end
+      end
+
+      puts "  Generated: #{path}"
+    end
+
+    def write_module(f, path, data)
+      return unless data['functions']&.any?
+
+      f.puts "## Functions"
+      f.puts
+
+      data['functions'].each do |name, func|
+        write_function(f, name, func, path)
+      end
+    end
+
+    def write_class(f, path, data)
+      class_name = path.split('::').last
+      f.puts "## #{class_name}"
+      f.puts
+      f.puts data['description'] || MODULE_DESCRIPTIONS[path] || "TODO: Add description"
+      f.puts
+
+      # Class methods
+      if data['classMethods']&.any?
+        f.puts "### Class Methods"
+        f.puts
+        data['classMethods'].each do |name, method|
+          write_function(f, name, method, "#{class_name}.", is_class_method: true)
+        end
+      end
+
+      # Instance methods
+      if data['instanceMethods']&.any?
+        f.puts "### Instance Methods"
+        f.puts
+        data['instanceMethods'].each do |name, method|
+          write_function(f, name, method, "#{class_name}#", is_instance_method: true)
+        end
+      end
+    end
+
+    def write_function(f, name, func, prefix = '', is_class_method: false, is_instance_method: false)
+      # Header with signature
+      signature = func['signature'] || name
+      f.puts "### #{signature}"
+      f.puts
+
+      # Description
+      if func['description']
+        f.puts func['description']
+        f.puts
+      end
+
+      # Parameters table
+      if func['params']&.any?
+        f.puts "**Parameters:**"
+        f.puts
+        f.puts "| Name | Type | Description |"
+        f.puts "|------|------|-------------|"
+        func['params'].each do |param|
+          type_str = param['type']
+          type_str += " (optional)" if param['optional']
+          type_str += ", default: #{param['default']}" if param['default']
+          f.puts "| #{param['name']} | #{type_str} | #{param['description'] || ''} |"
+        end
+        f.puts
+      end
+
+      # Returns
+      if func['returns']
+        ret = func['returns']
+        ret_desc = ret['description'] ? " - #{ret['description']}" : ""
+        f.puts "**Returns:** `#{ret['type']}`#{ret_desc}"
+        f.puts
+      end
+
+      # Raises
+      if func['raises']&.any?
+        f.puts "**Raises:**"
+        func['raises'].each do |err|
+          f.puts "- #{err}"
+        end
+        f.puts
+      end
+
+      # Example
+      if func['example']
+        f.puts "**Example:**"
+        f.puts "```ruby"
+        f.puts func['example']
+        f.puts "```"
+        f.puts
+      end
+
+      f.puts "---"
+      f.puts
+    end
+
+    def generate_index(output_dir, files, model)
+      path = File.join(output_dir, "README.md")
+      File.open(path, 'w') do |f|
+        f.puts "# GMR Ruby API Reference"
+        f.puts
+        f.puts "Auto-generated API documentation for GMR #{@options[:engine_version]}."
+        f.puts
+        f.puts "## Modules"
+        f.puts
+        f.puts "| Module | Description |"
+        f.puts "|--------|-------------|"
+
+        model.modules.keys.sort.each do |mod_path|
+          filename = MODULE_FILES[mod_path] || mod_path.downcase.gsub('::', '_')
+          desc = MODULE_DESCRIPTIONS[mod_path] || "API reference"
+          f.puts "| [#{mod_path}](#{filename}.md) | #{desc} |"
+        end
+        f.puts
+
+        if model.classes.any?
+          f.puts "## Classes"
+          f.puts
+          f.puts "| Class | Description |"
+          f.puts "|-------|-------------|"
+
+          model.classes.keys.sort.each do |class_path|
+            filename = MODULE_FILES[class_path] || class_path.downcase.gsub('::', '_')
+            desc = MODULE_DESCRIPTIONS[class_path] || "Class reference"
+            f.puts "| [#{class_path}](#{filename}.md) | #{desc} |"
+          end
+          f.puts
+        end
+
+        f.puts "## Types"
+        f.puts
+        f.puts "| Type | Description |"
+        f.puts "|------|-------------|"
+        TYPE_DEFINITIONS.each do |type_name, type_def|
+          f.puts "| #{type_name} | #{type_def['description']} |"
+        end
+        f.puts
+        f.puts "---"
+        f.puts
+        f.puts "*Generated by `generate_api_docs.rb` from C++ bindings.*"
+      end
+
+      puts "  Generated: #{path}"
+    end
+  end
+
   # Generates JSON output files
   class JSONGenerator
     def initialize(options)
@@ -687,7 +924,7 @@ module GMRDocs
     doc_parser = DocParser.new
     binding_parser = BindingParser.new
     merger = APIMerger.new
-    generator = JSONGenerator.new(options)
+    json_generator = JSONGenerator.new(options)
 
     all_docs = []
     all_bindings = []
@@ -714,11 +951,18 @@ module GMRDocs
     # Ensure output directory exists
     FileUtils.mkdir_p(options[:output_dir])
 
-    # Generate output files
-    puts "\nGenerating output files..."
-    generator.generate_api_json(model, File.join(options[:output_dir], 'api.json'))
-    generator.generate_syntax_json(model, File.join(options[:output_dir], 'syntax.json'))
-    generator.generate_version_json(model, File.join(options[:output_dir], 'version.json'))
+    # Generate JSON output files
+    puts "\nGenerating JSON files..."
+    json_generator.generate_api_json(model, File.join(options[:output_dir], 'api.json'))
+    json_generator.generate_syntax_json(model, File.join(options[:output_dir], 'syntax.json'))
+    json_generator.generate_version_json(model, File.join(options[:output_dir], 'version.json'))
+
+    # Generate markdown documentation if requested
+    if options[:markdown_dir]
+      puts "\nGenerating Markdown documentation..."
+      md_generator = MarkdownGenerator.new(options)
+      md_generator.generate(model, options[:markdown_dir])
+    end
 
     puts "\nDone!"
   end
@@ -728,6 +972,7 @@ end
 options = {
   sources: [],
   output_dir: 'engine/language',
+  markdown_dir: nil,
   engine_version: '0.1.0',
   raylib_version: '5.6-dev',
   mruby_version: '3.4.0'
@@ -740,8 +985,12 @@ OptionParser.new do |opts|
     options[:sources] << f
   end
 
-  opts.on("-o", "--output DIR", "Output directory") do |d|
+  opts.on("-o", "--output DIR", "Output directory for JSON") do |d|
     options[:output_dir] = d
+  end
+
+  opts.on("-m", "--markdown DIR", "Generate markdown docs to directory") do |d|
+    options[:markdown_dir] = d
   end
 
   opts.on("-v", "--version VERSION", "Engine version") do |v|
