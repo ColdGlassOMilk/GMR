@@ -19,6 +19,7 @@
 #include "gmr/bindings/util.hpp"
 
 // Scripting
+#include "gmr/scripting/script_error.hpp"
 #include "gmr/scripting/loader.hpp"
 #include "gmr/scripting/helpers.hpp"
 

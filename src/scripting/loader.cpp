@@ -59,14 +59,20 @@ void Loader::load_file(const fs::path& path) {
     }
 
     printf("  Loading: %s\n", path.string().c_str());
-    mrb_load_file(mrb_, fp);
+
+    // Create compile context with filename for proper error reporting
+    mrbc_context* ctx = mrbc_context_new(mrb_);
+    mrbc_filename(mrb_, ctx, path.filename().string().c_str());
+
+    mrb_load_file_cxt(mrb_, fp, ctx);
+
+    mrbc_context_free(mrb_, ctx);
     fclose(fp);
 
     loaded_files_.insert(canonical);
 
     if (mrb_->exc) {
-        mrb_print_error(mrb_);
-        mrb_->exc = nullptr;
+        handle_exception(mrb_, path.string().c_str());
     }
 }
 
@@ -134,8 +140,7 @@ void Loader::load_bytecode(const char* path, const uint8_t* bytecode) {
     mrb_load_irep(mrb_, bytecode);
 
     if (mrb_->exc) {
-        mrb_print_error(mrb_);
-        mrb_->exc = nullptr;
+        handle_exception(mrb_, path);
     }
 }
 
@@ -181,6 +186,7 @@ void Loader::load(const std::string& script_dir) {
     }
 
     loaded_files_.clear();
+    clear_error_state();
 
     mrb_ = mrb_open();
     if (!mrb_) {
@@ -207,12 +213,17 @@ void Loader::load(const std::string& script_dir) {
 
         FILE* fp = fopen(main_path.string().c_str(), "r");
         if (fp) {
-            mrb_load_file(mrb_, fp);
+            // Create compile context with filename for proper error reporting
+            mrbc_context* ctx = mrbc_context_new(mrb_);
+            mrbc_filename(mrb_, ctx, "main.rb");
+
+            mrb_load_file_cxt(mrb_, fp, ctx);
+
+            mrbc_context_free(mrb_, ctx);
             fclose(fp);
 
             if (mrb_->exc) {
-                mrb_print_error(mrb_);
-                mrb_->exc = nullptr;
+                handle_exception(mrb_, "main.rb");
             }
         }
     }
@@ -250,6 +261,53 @@ void Loader::reload_if_changed() {
     (void)last_check_time_; // suppress unused variable warning
     (void)pending_mod_time_;
 #endif
+}
+
+void Loader::clear_error_state() {
+    in_error_state_ = false;
+    last_error_.reset();
+    reported_errors_.clear();
+}
+
+bool Loader::handle_exception(mrb_state* mrb, const char* context) {
+    auto error_opt = capture_exception(mrb);
+    if (!error_opt) {
+        return false;
+    }
+
+    // Clear the exception
+    mrb->exc = nullptr;
+
+    ScriptError error = std::move(*error_opt);
+    std::string key = error.dedup_key();
+
+    // Check if already reported (deduplication)
+    if (reported_errors_.count(key)) {
+        return true;  // Error exists but suppressed
+    }
+
+    // Record this error
+    reported_errors_.insert(key);
+    last_error_ = error;
+    in_error_state_ = true;
+
+    // Print formatted error (replaces mrb_print_error spam)
+    fprintf(stderr, "\n=== Script Error ===\n");
+    if (context) {
+        fprintf(stderr, "Context: %s\n", context);
+    }
+    fprintf(stderr, "%s: %s\n", error.exception_class.c_str(), error.message.c_str());
+    fprintf(stderr, "  at %s:%d\n", error.file.c_str(), error.line);
+
+    if (!error.backtrace.empty()) {
+        fprintf(stderr, "Backtrace:\n");
+        for (const auto& line : error.backtrace) {
+            fprintf(stderr, "  %s\n", line.c_str());
+        }
+    }
+    fprintf(stderr, "====================\n\n");
+
+    return true;
 }
 
 } // namespace scripting

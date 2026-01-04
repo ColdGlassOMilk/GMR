@@ -235,7 +235,32 @@ GMR::System.quit                    # Exit game
 GMR::System.random_int(1, 100)      # Random integer
 GMR::System.random_float            # Random 0.0 to 1.0
 GMR::System.platform                # "windows", "linux", "macos", "web"
+GMR::System.build_type              # "debug" or "release"
+
+# Error state
+GMR::System.in_error_state?         # Check if script error occurred
+GMR::System.last_error              # Get error details hash (or nil)
 ```
+
+### Error Handling
+
+Script errors include full file/line information and are deduplicated (won't spam the console). Error state is cleared on hot reload.
+
+```ruby
+if GMR::System.in_error_state?
+  err = GMR::System.last_error
+  puts "#{err[:class]}: #{err[:message]}"
+  puts "  at #{err[:file]}:#{err[:line]}"
+  err[:backtrace].each { |line| puts "    #{line}" }
+end
+```
+
+The error hash contains:
+- `:class` - Exception type (e.g., "NoMethodError")
+- `:message` - Error message
+- `:file` - Source file name
+- `:line` - Line number
+- `:backtrace` - Array of stack trace entries
 
 ## VSCode Integration
 
@@ -323,7 +348,7 @@ These files are pure data (no executable code) and can be consumed by any editor
 **Scripts not hot-reloading**
 - Only works in debug builds (not release/web)
 - Make sure file is saved
-- Check console for Ruby syntax errors
+- Check console for Ruby syntax errors (errors now show file:line info)
 
 **Web build fails**
 - Run `gmrcli setup` to install Emscripten

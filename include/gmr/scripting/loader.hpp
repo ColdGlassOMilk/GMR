@@ -4,7 +4,10 @@
 #include <mruby.h>
 #include <string>
 #include <set>
+#include <unordered_set>
 #include <filesystem>
+#include <optional>
+#include "gmr/scripting/script_error.hpp"
 
 namespace gmr {
 namespace scripting {
@@ -20,6 +23,17 @@ public:
 
     mrb_state* mrb() { return mrb_; }
     bool has_error() const { return mrb_ == nullptr; }
+
+    // Error state queries
+    bool in_error_state() const { return in_error_state_; }
+    const std::optional<ScriptError>& last_error() const { return last_error_; }
+
+    // Clear error state (called on hot reload)
+    void clear_error_state();
+
+    // Handle an exception - called by check_error()
+    // Returns true if error was reported (not deduplicated)
+    bool handle_exception(mrb_state* mrb, const char* context = nullptr);
 
     Loader(const Loader&) = delete;
     Loader& operator=(const Loader&) = delete;
@@ -46,6 +60,11 @@ private:
     ScriptTime pending_mod_time_{};
 
     double last_check_time_ = 0.0;  // Throttle reload checks
+
+    // Error state
+    bool in_error_state_ = false;
+    std::optional<ScriptError> last_error_;
+    std::unordered_set<std::string> reported_errors_;  // Dedup keys
 };
 
 } // namespace scripting

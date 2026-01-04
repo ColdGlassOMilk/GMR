@@ -39,10 +39,7 @@ void game_loop(void* arg) {
         if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
             mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
                         mrb_float_value(mrb, dt));
-            if (mrb->exc) {
-                mrb_print_error(mrb);
-                mrb->exc = nullptr;
-            }
+            gmr::scripting::check_error(mrb, "console_update");
         }
 
         // Always update game - input context is handled in Ruby
@@ -56,10 +53,7 @@ void game_loop(void* arg) {
             mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
                 mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                if (mrb->exc) {
-                    mrb_print_error(mrb);
-                    mrb->exc = nullptr;
-                }
+                gmr::scripting::check_error(mrb, "console_draw");
             }
             
             EndTextureMode();
@@ -92,10 +86,7 @@ void game_loop(void* arg) {
             mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
                 mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                if (mrb->exc) {
-                    mrb_print_error(mrb);
-                    mrb->exc = nullptr;
-                }
+                gmr::scripting::check_error(mrb, "console_draw");
             }
             
             EndDrawing();
@@ -165,65 +156,56 @@ int main() {
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
                 mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
                             mrb_float_value(mrb, dt));
-                if (mrb->exc) {
-                    mrb_print_error(mrb);
-                    mrb->exc = nullptr;
-                }
+                gmr::scripting::check_error(mrb, "console_update");
             }
 
             // Always update game - input context is handled in Ruby
             gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
-            
+
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
                 gmr::scripting::safe_call(mrb, "draw");
-                
+
                 // Draw console on render target
                 mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
                 if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
                     mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                    if (mrb->exc) {
-                        mrb_print_error(mrb);
-                        mrb->exc = nullptr;
-                    }
+                    gmr::scripting::check_error(mrb, "console_draw");
                 }
-                
+
                 EndTextureMode();
-                
+
                 BeginDrawing();
                 ClearBackground(::Color{0, 0, 0, 255});
-                
+
                 float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
                 float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
                 float scale = (scale_x < scale_y) ? scale_x : scale_y;
-                
+
                 int scaled_width = static_cast<int>(state.virtual_width * scale);
                 int scaled_height = static_cast<int>(state.virtual_height * scale);
                 int offset_x = (GetScreenWidth() - scaled_width) / 2;
                 int offset_y = (GetScreenHeight() - scaled_height) / 2;
-                
-                Rectangle source = {0, 0, static_cast<float>(state.virtual_width), 
+
+                Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                    -static_cast<float>(state.virtual_height)};
                 Rectangle dest = {static_cast<float>(offset_x), static_cast<float>(offset_y),
                                   static_cast<float>(scaled_width), static_cast<float>(scaled_height)};
-                
-                DrawTexturePro(gmr::bindings::get_render_target().texture, source, dest, 
+
+                DrawTexturePro(gmr::bindings::get_render_target().texture, source, dest,
                               Vector2{0, 0}, 0.0f, ::Color{255, 255, 255, 255});
                 EndDrawing();
             } else {
                 BeginDrawing();
                 gmr::scripting::safe_call(mrb, "draw");
-                
+
                 // Draw console on top
                 mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
                 if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
                     mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                    if (mrb->exc) {
-                        mrb_print_error(mrb);
-                        mrb->exc = nullptr;
-                    }
+                    gmr::scripting::check_error(mrb, "console_draw");
                 }
-                
+
                 EndDrawing();
             }
         } else {

@@ -166,7 +166,8 @@
       "GMR::System": [
         "random_int", "random_float", "quit",
         "platform", "build_type", "compiled_scripts?",
-        "raylib_version", "gpu_vendor", "gpu_renderer", "gl_version", "glsl_version"
+        "raylib_version", "gpu_vendor", "gpu_renderer", "gl_version", "glsl_version",
+        "last_error", "in_error_state?"
       ]
     },
     "constants": {

@@ -697,6 +697,20 @@
           "params": [],
           "returns": {"type": "String", "description": "GLSL version"},
           "example": "puts GMR::System.glsl_version"
+        },
+        "last_error": {
+          "signature": "last_error",
+          "description": "Get the last script error that occurred. Returns nil if no error has occurred since the last reload. Errors are deduplicated - the same error won't spam the console.",
+          "params": [],
+          "returns": {"type": "Hash?", "description": "Error hash with :class, :message, :file, :line, :backtrace keys, or nil"},
+          "example": "if err = GMR::System.last_error\n  puts \"#{err[:class]}: #{err[:message]}\"\n  puts \"  at #{err[:file]}:#{err[:line]}\"\nend"
+        },
+        "in_error_state?": {
+          "signature": "in_error_state?",
+          "description": "Check if the engine is in an error state due to a script error. Error state is cleared on hot reload.",
+          "params": [],
+          "returns": {"type": "Boolean", "description": "true if an error has occurred"},
+          "example": "if GMR::System.in_error_state?\n  # Display error UI or handle gracefully\nend"
         }
       }
     }

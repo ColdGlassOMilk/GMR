@@ -1,5 +1,9 @@
 #include "gmr/bindings/util.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/scripting/loader.hpp"
+#include <mruby/hash.h>
+#include <mruby/array.h>
+#include <mruby/string.h>
 #include "raylib.h"
 #include "rlgl.h"
 #include <cstdlib>
@@ -135,6 +139,56 @@ static mrb_value mrb_system_glsl_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "GLSL ES 3.00");
 }
 
+// GMR::System.last_error
+// Returns the last script error as a hash, or nil if no error
+static mrb_value mrb_system_last_error(mrb_state* mrb, mrb_value) {
+    auto& loader = gmr::scripting::Loader::instance();
+    const auto& error = loader.last_error();
+
+    if (!error) {
+        return mrb_nil_value();
+    }
+
+    mrb_value hash = mrb_hash_new(mrb);
+
+    // Set :class
+    mrb_hash_set(mrb, hash,
+        mrb_symbol_value(mrb_intern_cstr(mrb, "class")),
+        mrb_str_new_cstr(mrb, error->exception_class.c_str()));
+
+    // Set :message
+    mrb_hash_set(mrb, hash,
+        mrb_symbol_value(mrb_intern_cstr(mrb, "message")),
+        mrb_str_new_cstr(mrb, error->message.c_str()));
+
+    // Set :file
+    mrb_hash_set(mrb, hash,
+        mrb_symbol_value(mrb_intern_cstr(mrb, "file")),
+        mrb_str_new_cstr(mrb, error->file.c_str()));
+
+    // Set :line
+    mrb_hash_set(mrb, hash,
+        mrb_symbol_value(mrb_intern_cstr(mrb, "line")),
+        mrb_fixnum_value(error->line));
+
+    // Set :backtrace as array of strings
+    mrb_value bt = mrb_ary_new_capa(mrb, static_cast<mrb_int>(error->backtrace.size()));
+    for (const auto& entry : error->backtrace) {
+        mrb_ary_push(mrb, bt, mrb_str_new_cstr(mrb, entry.c_str()));
+    }
+    mrb_hash_set(mrb, hash,
+        mrb_symbol_value(mrb_intern_cstr(mrb, "backtrace")),
+        bt);
+
+    return hash;
+}
+
+// GMR::System.in_error_state?
+static mrb_value mrb_system_in_error_state(mrb_state*, mrb_value) {
+    auto& loader = gmr::scripting::Loader::instance();
+    return loader.in_error_state() ? mrb_true_value() : mrb_false_value();
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -157,6 +211,10 @@ void register_util(mrb_state* mrb) {
     mrb_define_module_function(mrb, system, "gpu_renderer", mrb_system_gpu_renderer, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, system, "gl_version", mrb_system_gl_version, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, system, "glsl_version", mrb_system_glsl_version, MRB_ARGS_NONE());
+
+    // Error state
+    mrb_define_module_function(mrb, system, "last_error", mrb_system_last_error, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, system, "in_error_state?", mrb_system_in_error_state, MRB_ARGS_NONE());
 }
 
 } // namespace bindings
