@@ -12,6 +12,8 @@ using SoundHandle = int32_t;
 using MusicHandle = int32_t;
 using FontHandle = int32_t;
 using TilemapHandle = int32_t;
+using TransformHandle = int32_t;
+using SpriteHandle = int32_t;
 
 constexpr int32_t INVALID_HANDLE = -1;
 
@@ -31,13 +33,29 @@ struct Color {
 struct Vec2 {
     float x = 0.0f;
     float y = 0.0f;
-    
+
     Vec2() = default;
     Vec2(float x, float y) : x(x), y(y) {}
-    
+
     Vec2 operator+(const Vec2& other) const { return {x + other.x, y + other.y}; }
     Vec2 operator-(const Vec2& other) const { return {x - other.x, y - other.y}; }
     Vec2 operator*(float scalar) const { return {x * scalar, y * scalar}; }
+    Vec2 operator/(float scalar) const { return {x / scalar, y / scalar}; }
+};
+
+// Vector3 (our own type)
+struct Vec3 {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+
+    Vec3() = default;
+    Vec3(float x, float y, float z) : x(x), y(y), z(z) {}
+
+    Vec3 operator+(const Vec3& other) const { return {x + other.x, y + other.y, z + other.z}; }
+    Vec3 operator-(const Vec3& other) const { return {x - other.x, y - other.y, z - other.z}; }
+    Vec3 operator*(float scalar) const { return {x * scalar, y * scalar, z * scalar}; }
+    Vec3 operator/(float scalar) const { return {x / scalar, y / scalar, z / scalar}; }
 };
 
 // Rectangle (our own type)

@@ -1,4 +1,8 @@
 #include "gmr/engine.hpp"
+#include "gmr/camera.hpp"
+#include "gmr/draw_queue.hpp"
+#include "gmr/sprite.hpp"
+#include "gmr/transform.hpp"
 #include "raylib.h"
 #include <cstdio>
 
@@ -34,6 +38,12 @@ void game_loop(void* arg) {
     // Note: Hot reload is disabled for web builds (no filesystem write access)
     
     if (auto* mrb = loader.mrb()) {
+        // Reset draw queue for new frame
+        gmr::DrawQueue::instance().begin_frame();
+
+        // Update camera system (before Ruby update)
+        gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
+
         // Console update (handles its own input)
         mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
         if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
@@ -44,11 +54,13 @@ void game_loop(void* arg) {
 
         // Always update game - input context is handled in Ruby
         gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
-        
+
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
             gmr::scripting::safe_call(mrb, "draw");
-            
+            // Flush queued sprite draws (z-sorted)
+            gmr::DrawQueue::instance().flush();
+
             // Draw console on render target
             mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
@@ -81,14 +93,16 @@ void game_loop(void* arg) {
         } else {
             BeginDrawing();
             gmr::scripting::safe_call(mrb, "draw");
-            
+            // Flush queued sprite draws (z-sorted)
+            gmr::DrawQueue::instance().flush();
+
             // Draw console on top
             mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
                 mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
                 gmr::scripting::check_error(mrb, "console_draw");
             }
-            
+
             EndDrawing();
         }
     } else {
@@ -151,6 +165,12 @@ int main() {
         loader.reload_if_changed();
         
         if (auto* mrb = loader.mrb()) {
+            // Reset draw queue for new frame
+            gmr::DrawQueue::instance().begin_frame();
+
+            // Update camera system (before Ruby update)
+            gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
+
             // Console update (handles its own input)
             mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
             if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
@@ -165,6 +185,8 @@ int main() {
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
                 gmr::scripting::safe_call(mrb, "draw");
+                // Flush queued sprite draws (z-sorted)
+                gmr::DrawQueue::instance().flush();
 
                 // Draw console on render target
                 mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
@@ -198,6 +220,8 @@ int main() {
             } else {
                 BeginDrawing();
                 gmr::scripting::safe_call(mrb, "draw");
+                // Flush queued sprite draws (z-sorted)
+                gmr::DrawQueue::instance().flush();
 
                 // Draw console on top
                 mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
@@ -218,6 +242,9 @@ int main() {
     
     // Cleanup (only for native - web doesn't reach here)
     gmr::bindings::cleanup_window();
+    gmr::SpriteManager::instance().clear();
+    gmr::TransformManager::instance().clear();
+    gmr::DrawQueue::instance().clear();
     gmr::SoundManager::instance().clear();
     gmr::TextureManager::instance().clear();
     

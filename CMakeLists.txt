@@ -44,6 +44,7 @@ endif()
 set(SOURCES
     src/main.cpp
     src/state.cpp
+    src/camera.cpp
     src/resources/texture_manager.cpp
     src/resources/sound_manager.cpp
     src/resources/tilemap_manager.cpp
@@ -55,6 +56,13 @@ set(SOURCES
     src/bindings/util.cpp
     src/bindings/console.cpp
     src/bindings/collision.cpp
+    src/bindings/math.cpp
+    src/bindings/camera.cpp
+    src/bindings/transform.cpp
+    src/bindings/sprite.cpp
+    src/transform.cpp
+    src/sprite.cpp
+    src/draw_queue.cpp
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
     src/scripting/script_error.cpp

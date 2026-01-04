@@ -8,6 +8,10 @@
 #include "gmr/bindings/util.hpp"
 #include "gmr/bindings/console.hpp"
 #include "gmr/bindings/collision.hpp"
+#include "gmr/bindings/math.hpp"
+#include "gmr/bindings/camera.hpp"
+#include "gmr/bindings/transform.hpp"
+#include "gmr/bindings/sprite.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
 #include <cstdio>
@@ -40,6 +44,9 @@ void Loader::register_all_bindings() {
     // Initialize GMR module hierarchy first
     bindings::init_gmr_modules(mrb_);
 
+    // Register math types first (Vec2, Vec3, Rect) - other bindings may depend on these
+    bindings::register_math(mrb_);
+
     // Register all bindings (they add to the modules created above)
     bindings::register_graphics(mrb_);
     bindings::register_input(mrb_);
@@ -48,6 +55,13 @@ void Loader::register_all_bindings() {
     bindings::register_util(mrb_);
     bindings::register_console(mrb_);
     bindings::register_collision(mrb_);
+
+    // Register Camera2D (depends on math types)
+    bindings::register_camera(mrb_);
+
+    // Register Transform2D and Sprite (depend on math types)
+    bindings::register_transform(mrb_);
+    bindings::register_sprite(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {
