@@ -97,8 +97,8 @@ Press **`** (backtick) while running to open the console:
 
 ```ruby
 $x = 400              # Modify game state
-puts Time.fps         # Debug info
-System.quit           # Exit game
+puts GMR::Time.fps         # Debug info
+GMR::System.quit           # Exit game
 ```
 
 ## License

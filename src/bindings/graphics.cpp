@@ -692,7 +692,6 @@ static mrb_value mrb_tilemap_draw(mrb_state* mrb, mrb_value self) {
                 static_cast<float>(tilemap->tile_height)
             };
 
-            // Calculate destination position
             Rectangle dest = {
                 static_cast<float>(offset_x + tx * tilemap->tile_width),
                 static_cast<float>(offset_y + ty * tilemap->tile_height),

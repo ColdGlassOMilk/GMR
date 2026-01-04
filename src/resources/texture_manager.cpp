@@ -14,6 +14,8 @@ std::optional<Texture2D> TextureManager::load_resource(const std::string& path) 
     if (texture.id == 0) {
         return std::nullopt;
     }
+    // Use point filtering by default to prevent bleeding between pixels/tiles
+    SetTextureFilter(texture, TEXTURE_FILTER_POINT);
     return texture;
 }
 

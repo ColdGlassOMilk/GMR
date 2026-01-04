@@ -465,6 +465,34 @@ static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method origin
+/// @description Get the origin (pivot point) as a Vec2.
+/// @returns [Vec2] The origin vector
+/// @example origin = sprite.origin
+static mrb_value mrb_sprite_origin(mrb_state* mrb, mrb_value self) {
+    SpriteData* data = get_sprite_data(mrb, self);
+    if (!data) return mrb_nil_value();
+    SpriteState* s = SpriteManager::instance().get(data->handle);
+    if (!s) return mrb_nil_value();
+    return create_vec2(mrb, s->origin.x, s->origin.y);
+}
+
+/// @method origin=
+/// @description Set the origin (pivot point) using a Vec2.
+/// @param value [Vec2] The new origin vector
+/// @returns [Vec2] The value that was set
+/// @example sprite.origin = Vec2.new(16, 16)
+static mrb_value mrb_sprite_set_origin(mrb_state* mrb, mrb_value self) {
+    mrb_value val;
+    mrb_get_args(mrb, "o", &val);
+    SpriteData* data = get_sprite_data(mrb, self);
+    if (!data) return mrb_nil_value();
+    SpriteState* s = SpriteManager::instance().get(data->handle);
+    if (!s) return mrb_nil_value();
+    s->origin = extract_vec2(mrb, val);
+    return val;
+}
+
 /// @method center_origin
 /// @description Set the origin to the center of the sprite, so it rotates and scales
 ///   around its center. Uses texture dimensions or source_rect if set.
@@ -928,6 +956,8 @@ void register_sprite(mrb_state* mrb) {
     mrb_define_method(mrb, sprite_class, "scale_y=", mrb_sprite_set_scale_y, MRB_ARGS_REQ(1));
 
     // Origin
+    mrb_define_method(mrb, sprite_class, "origin", mrb_sprite_origin, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sprite_class, "origin=", mrb_sprite_set_origin, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, sprite_class, "origin_x", mrb_sprite_origin_x, MRB_ARGS_NONE());
     mrb_define_method(mrb, sprite_class, "origin_y", mrb_sprite_origin_y, MRB_ARGS_NONE());
     mrb_define_method(mrb, sprite_class, "origin_x=", mrb_sprite_set_origin_x, MRB_ARGS_REQ(1));
