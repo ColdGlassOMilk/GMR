@@ -14,64 +14,187 @@
   },
   "keywords": {
     "control": [
-      "if", "elsif", "else", "unless", "then",
-      "case", "when",
-      "while", "until", "for", "loop", "do",
-      "begin", "rescue", "ensure", "raise", "retry",
-      "return", "break", "next", "redo",
+      "if",
+      "elsif",
+      "else",
+      "unless",
+      "then",
+      "case",
+      "when",
+      "while",
+      "until",
+      "for",
+      "loop",
+      "do",
+      "begin",
+      "rescue",
+      "ensure",
+      "raise",
+      "retry",
+      "return",
+      "break",
+      "next",
+      "redo",
       "yield"
     ],
     "definition": [
-      "def", "end", "class", "module",
-      "include", "extend", "prepend",
-      "attr_reader", "attr_writer", "attr_accessor",
-      "alias", "undef"
+      "def",
+      "end",
+      "class",
+      "module",
+      "include",
+      "extend",
+      "prepend",
+      "attr_reader",
+      "attr_writer",
+      "attr_accessor",
+      "alias",
+      "undef"
     ],
     "modifier": [
-      "public", "private", "protected"
+      "public",
+      "private",
+      "protected"
     ],
     "logical": [
-      "and", "or", "not", "in"
+      "and",
+      "or",
+      "not",
+      "in"
     ],
     "special": [
-      "self", "super", "nil", "true", "false",
-      "__FILE__", "__LINE__", "__ENCODING__",
+      "self",
+      "super",
+      "nil",
+      "true",
+      "false",
+      "__FILE__",
+      "__LINE__",
+      "__ENCODING__",
       "defined?"
     ]
   },
   "operators": {
-    "arithmetic": ["+", "-", "*", "/", "%", "**"],
-    "comparison": ["==", "!=", "<", ">", "<=", ">=", "<=>", "===", "=~", "!~"],
-    "assignment": ["=", "+=", "-=", "*=", "/=", "%=", "**=", "&&=", "||=", "&=", "|=", "^=", "<<=", ">>="],
-    "logical": ["&&", "||", "!"],
-    "bitwise": ["&", "|", "^", "~", "<<", ">>"],
-    "range": ["..", "..."],
-    "ternary": ["?", ":"],
-    "access": ["::", ".", "->", "=>", "&.", "::"]
+    "arithmetic": [
+      "+",
+      "-",
+      "*",
+      "/",
+      "%",
+      "**"
+    ],
+    "comparison": [
+      "==",
+      "!=",
+      "<",
+      ">",
+      "<=",
+      ">=",
+      "<=>",
+      "===",
+      "=~",
+      "!~"
+    ],
+    "assignment": [
+      "=",
+      "+=",
+      "-=",
+      "*=",
+      "/=",
+      "%=",
+      "**=",
+      "&&=",
+      "||=",
+      "&=",
+      "|=",
+      "^=",
+      "<<=",
+      ">>="
+    ],
+    "logical": [
+      "&&",
+      "||",
+      "!"
+    ],
+    "bitwise": [
+      "&",
+      "|",
+      "^",
+      "~",
+      "<<",
+      ">>"
+    ],
+    "range": [
+      "..",
+      "..."
+    ],
+    "ternary": [
+      "?",
+      ":"
+    ],
+    "access": [
+      "::",
+      ".",
+      "->",
+      "=>",
+      "&.",
+      "::"
+    ]
   },
   "brackets": {
     "pairs": [
-      ["(", ")"],
-      ["[", "]"],
-      ["{", "}"],
-      ["do", "end"]
+      [
+        "(",
+        ")"
+      ],
+      [
+        "[",
+        "]"
+      ],
+      [
+        "{",
+        "}"
+      ],
+      [
+        "do",
+        "end"
+      ]
     ]
   },
   "literals": {
     "string": {
       "singleQuote": "'",
       "doubleQuote": "\"",
-      "heredoc": ["<<-", "<<~", "<<"],
-      "percent": ["%q", "%Q", "%w", "%W", "%i", "%I", "%x"]
+      "heredoc": [
+        "<<-",
+        "<<~",
+        "<<"
+      ],
+      "percent": [
+        "%q",
+        "%Q",
+        "%w",
+        "%W",
+        "%i",
+        "%I",
+        "%x"
+      ]
     },
     "symbol": {
       "prefix": ":",
       "percent": "%s"
     },
     "regex": {
-      "delimiters": ["/"],
+      "delimiters": [
+        "/"
+      ],
       "percent": "%r",
-      "flags": ["i", "m", "x", "o"]
+      "flags": [
+        "i",
+        "m",
+        "x",
+        "o"
+      ]
     },
     "number": {
       "integer": {
@@ -90,132 +213,385 @@
   },
   "builtins": {
     "classes": [
-      "Object", "Class", "Module", "BasicObject",
-      "String", "Integer", "Float", "Numeric", "Symbol",
-      "Array", "Hash", "Range", "Regexp", "Proc", "Method",
-      "TrueClass", "FalseClass", "NilClass",
-      "Exception", "StandardError", "RuntimeError", "ArgumentError", "TypeError", "NameError", "NoMethodError",
-      "Kernel", "Comparable", "Enumerable", "Math", "Fiber"
+      "Object",
+      "Class",
+      "Module",
+      "BasicObject",
+      "String",
+      "Integer",
+      "Float",
+      "Numeric",
+      "Symbol",
+      "Array",
+      "Hash",
+      "Range",
+      "Regexp",
+      "Proc",
+      "Method",
+      "TrueClass",
+      "FalseClass",
+      "NilClass",
+      "Exception",
+      "StandardError",
+      "RuntimeError",
+      "ArgumentError",
+      "TypeError",
+      "NameError",
+      "NoMethodError",
+      "Kernel",
+      "Comparable",
+      "Enumerable",
+      "Math",
+      "Fiber"
     ],
     "methods": [
-      "puts", "print", "p", "gets",
-      "require", "require_relative", "load",
-      "lambda", "proc",
-      "raise", "fail", "catch", "throw",
-      "loop", "block_given?", "caller",
-      "rand", "srand", "sleep",
-      "sprintf", "format",
-      "eval", "instance_eval", "class_eval", "module_eval",
-      "method", "send", "public_send", "respond_to?",
-      "is_a?", "kind_of?", "instance_of?",
-      "nil?", "empty?", "frozen?",
-      "to_s", "to_i", "to_f", "to_a", "to_h", "to_sym",
-      "inspect", "clone", "dup", "freeze", "tap",
-      "each", "each_with_index", "map", "collect", "select", "find_all", "reject", "reduce", "inject", "find", "detect",
-      "sort", "sort_by", "min", "max", "minmax", "sum",
-      "length", "size", "count", "first", "last",
-      "push", "pop", "shift", "unshift", "insert", "delete", "delete_at",
-      "flatten", "compact", "uniq", "reverse", "shuffle", "sample",
-      "join", "split", "strip", "chomp", "chop", "gsub", "sub", "match",
-      "upcase", "downcase", "capitalize", "swapcase",
-      "include?", "index", "rindex", "start_with?", "end_with?",
-      "any?", "all?", "none?", "one?", "empty?"
+      "puts",
+      "print",
+      "p",
+      "gets",
+      "require",
+      "require_relative",
+      "load",
+      "lambda",
+      "proc",
+      "raise",
+      "fail",
+      "catch",
+      "throw",
+      "loop",
+      "block_given?",
+      "caller",
+      "rand",
+      "srand",
+      "sleep",
+      "sprintf",
+      "format",
+      "eval",
+      "instance_eval",
+      "class_eval",
+      "module_eval",
+      "method",
+      "send",
+      "public_send",
+      "respond_to?",
+      "is_a?",
+      "kind_of?",
+      "instance_of?",
+      "nil?",
+      "empty?",
+      "frozen?",
+      "to_s",
+      "to_i",
+      "to_f",
+      "to_a",
+      "to_h",
+      "to_sym",
+      "inspect",
+      "clone",
+      "dup",
+      "freeze",
+      "tap",
+      "each",
+      "each_with_index",
+      "map",
+      "collect",
+      "select",
+      "find_all",
+      "reject",
+      "reduce",
+      "inject",
+      "find",
+      "detect",
+      "sort",
+      "sort_by",
+      "min",
+      "max",
+      "minmax",
+      "sum",
+      "length",
+      "size",
+      "count",
+      "first",
+      "last",
+      "push",
+      "pop",
+      "shift",
+      "unshift",
+      "insert",
+      "delete",
+      "delete_at",
+      "flatten",
+      "compact",
+      "uniq",
+      "reverse",
+      "shuffle",
+      "sample",
+      "join",
+      "split",
+      "strip",
+      "chomp",
+      "chop",
+      "gsub",
+      "sub",
+      "match",
+      "upcase",
+      "downcase",
+      "capitalize",
+      "swapcase",
+      "include?",
+      "index",
+      "rindex",
+      "start_with?",
+      "end_with?",
+      "any?",
+      "all?",
+      "none?",
+      "one?",
+      "empty?"
     ]
   },
   "engine": {
     "modules": [
       "GMR",
+      "GMR::Collision",
       "GMR::Graphics",
-      "GMR::Audio",
       "GMR::Input",
-      "GMR::Window",
-      "GMR::Time",
-      "GMR::System"
+      "GMR::System",
+      "GMR::Window"
     ],
     "classes": [
-      "GMR::Graphics::Texture",
-      "GMR::Audio::Sound"
+      "GMR::Audio::Sound",
+      "GMR::Graphics::Tilemap",
+      "Texture",
+      "Tilemap"
     ],
     "functions": {
       "GMR::Graphics": [
         "clear",
-        "draw_rect", "draw_rect_outline", "draw_rect_rotated",
-        "draw_line", "draw_line_thick",
-        "draw_circle", "draw_circle_outline", "draw_circle_gradient",
-        "draw_triangle", "draw_triangle_outline",
-        "draw_text", "measure_text"
-      ],
-      "GMR::Graphics::Texture": [
-        "load", "width", "height", "draw", "draw_ex", "draw_pro"
-      ],
-      "GMR::Audio::Sound": [
-        "load", "play", "stop", "volume="
+        "draw_rect",
+        "draw_rect_outline",
+        "draw_rect_rotated",
+        "draw_line",
+        "draw_line_thick",
+        "draw_circle",
+        "draw_circle_outline",
+        "draw_circle_gradient",
+        "draw_triangle",
+        "draw_triangle_outline",
+        "draw_text",
+        "measure_text"
       ],
       "GMR::Input": [
-        "mouse_x", "mouse_y",
-        "mouse_down?", "mouse_pressed?", "mouse_released?",
+        "mouse_x",
+        "mouse_y",
+        "mouse_down?",
+        "mouse_pressed?",
+        "mouse_released?",
         "mouse_wheel",
-        "key_down?", "key_pressed?", "key_released?",
-        "key_pressed", "char_pressed"
+        "key_down?",
+        "key_pressed?",
+        "key_released?",
+        "key_pressed",
+        "char_pressed",
+        "map",
+        "unmap",
+        "clear_mappings",
+        "action_down?",
+        "action_pressed?",
+        "action_released?"
       ],
       "GMR::Window": [
-        "width", "height", "actual_width", "actual_height",
-        "set_size", "set_title",
-        "toggle_fullscreen", "fullscreen=", "fullscreen?",
-        "set_virtual_resolution", "clear_virtual_resolution", "virtual_resolution?",
-        "set_filter_point", "set_filter_bilinear",
-        "monitor_count", "monitor_width", "monitor_height", "monitor_refresh_rate", "monitor_name"
+        "actual_width",
+        "actual_height",
+        "set_size",
+        "set_title",
+        "toggle_fullscreen",
+        "fullscreen=",
+        "fullscreen?",
+        "set_virtual_resolution",
+        "clear_virtual_resolution",
+        "virtual_resolution?",
+        "set_filter_point",
+        "set_filter_bilinear",
+        "monitor_count",
+        "monitor_width",
+        "monitor_height",
+        "monitor_refresh_rate",
+        "monitor_name"
       ],
-      "GMR::Time": [
-        "delta", "elapsed", "fps", "set_target_fps"
+      "GMR": [
+        "delta",
+        "elapsed",
+        "fps",
+        "set_target_fps"
       ],
       "GMR::System": [
-        "random_int", "random_float", "quit",
-        "platform", "build_type", "compiled_scripts?",
-        "raylib_version", "gpu_vendor", "gpu_renderer", "gl_version", "glsl_version",
-        "last_error", "in_error_state?"
+        "random_int",
+        "random_float",
+        "quit",
+        "platform",
+        "build_type",
+        "compiled_scripts?",
+        "raylib_version",
+        "gpu_vendor",
+        "gpu_renderer",
+        "gl_version",
+        "glsl_version",
+        "last_error",
+        "in_error_state?"
+      ],
+      "GMR::Collision": [
+        "point_in_rect?",
+        "point_in_circle?",
+        "rect_overlap?",
+        "rect_contains?",
+        "circle_overlap?",
+        "circle_rect_overlap?",
+        "rect_tiles",
+        "tile_rect",
+        "distance",
+        "distance_squared"
+      ],
+      "Texture": [
+        "load",
+        "width",
+        "height",
+        "draw",
+        "draw_ex",
+        "draw_pro"
+      ],
+      "Tilemap": [
+        "new"
+      ],
+      "GMR::Graphics::Tilemap": [
+        "tile_width",
+        "tile_height",
+        "get",
+        "set",
+        "fill",
+        "fill_rect",
+        "draw_region",
+        "define_tile",
+        "tile_properties",
+        "tile_property",
+        "solid?",
+        "wall?",
+        "hazard?",
+        "platform?",
+        "ladder?",
+        "water?",
+        "slippery?",
+        "damage"
+      ],
+      "GMR::Audio::Sound": [
+        "play",
+        "stop",
+        "volume="
       ]
     },
     "constants": {
       "GMR::Input": {
         "mouse": [
-          "MOUSE_LEFT", "MOUSE_RIGHT", "MOUSE_MIDDLE",
-          "MOUSE_SIDE", "MOUSE_EXTRA", "MOUSE_FORWARD", "MOUSE_BACK"
+          "MOUSE_LEFT",
+          "MOUSE_RIGHT",
+          "MOUSE_MIDDLE",
+          "MOUSE_SIDE",
+          "MOUSE_EXTRA",
+          "MOUSE_FORWARD",
+          "MOUSE_BACK"
         ],
         "keys": {
           "special": [
-            "KEY_SPACE", "KEY_ESCAPE", "KEY_ENTER", "KEY_TAB",
-            "KEY_BACKSPACE", "KEY_DELETE", "KEY_INSERT"
+            "KEY_SPACE",
+            "KEY_ESCAPE",
+            "KEY_ENTER",
+            "KEY_TAB",
+            "KEY_BACKSPACE",
+            "KEY_DELETE",
+            "KEY_INSERT"
           ],
           "arrows": [
-            "KEY_UP", "KEY_DOWN", "KEY_LEFT", "KEY_RIGHT"
+            "KEY_UP",
+            "KEY_DOWN",
+            "KEY_LEFT",
+            "KEY_RIGHT"
           ],
           "navigation": [
-            "KEY_HOME", "KEY_END", "KEY_PAGE_UP", "KEY_PAGE_DOWN"
+            "KEY_HOME",
+            "KEY_END",
+            "KEY_PAGE_UP",
+            "KEY_PAGE_DOWN"
           ],
           "modifiers": [
-            "KEY_LEFT_SHIFT", "KEY_RIGHT_SHIFT",
-            "KEY_LEFT_CONTROL", "KEY_RIGHT_CONTROL",
-            "KEY_LEFT_ALT", "KEY_RIGHT_ALT"
+            "KEY_LEFT_SHIFT",
+            "KEY_RIGHT_SHIFT",
+            "KEY_LEFT_CONTROL",
+            "KEY_RIGHT_CONTROL",
+            "KEY_LEFT_ALT",
+            "KEY_RIGHT_ALT"
           ],
           "function": [
-            "KEY_F1", "KEY_F2", "KEY_F3", "KEY_F4", "KEY_F5", "KEY_F6",
-            "KEY_F7", "KEY_F8", "KEY_F9", "KEY_F10", "KEY_F11", "KEY_F12"
+            "KEY_F1",
+            "KEY_F2",
+            "KEY_F3",
+            "KEY_F4",
+            "KEY_F5",
+            "KEY_F6",
+            "KEY_F7",
+            "KEY_F8",
+            "KEY_F9",
+            "KEY_F10",
+            "KEY_F11",
+            "KEY_F12"
           ],
           "letters": [
-            "KEY_A", "KEY_B", "KEY_C", "KEY_D", "KEY_E", "KEY_F", "KEY_G",
-            "KEY_H", "KEY_I", "KEY_J", "KEY_K", "KEY_L", "KEY_M", "KEY_N",
-            "KEY_O", "KEY_P", "KEY_Q", "KEY_R", "KEY_S", "KEY_T", "KEY_U",
-            "KEY_V", "KEY_W", "KEY_X", "KEY_Y", "KEY_Z"
+            "KEY_A",
+            "KEY_B",
+            "KEY_C",
+            "KEY_D",
+            "KEY_E",
+            "KEY_F",
+            "KEY_G",
+            "KEY_H",
+            "KEY_I",
+            "KEY_J",
+            "KEY_K",
+            "KEY_L",
+            "KEY_M",
+            "KEY_N",
+            "KEY_O",
+            "KEY_P",
+            "KEY_Q",
+            "KEY_R",
+            "KEY_S",
+            "KEY_T",
+            "KEY_U",
+            "KEY_V",
+            "KEY_W",
+            "KEY_X",
+            "KEY_Y",
+            "KEY_Z"
           ],
           "numbers": [
-            "KEY_0", "KEY_1", "KEY_2", "KEY_3", "KEY_4",
-            "KEY_5", "KEY_6", "KEY_7", "KEY_8", "KEY_9"
+            "KEY_0",
+            "KEY_1",
+            "KEY_2",
+            "KEY_3",
+            "KEY_4",
+            "KEY_5",
+            "KEY_6",
+            "KEY_7",
+            "KEY_8",
+            "KEY_9"
           ]
         }
       }
     },
-    "lifecycleHooks": ["init", "update", "draw"],
+    "lifecycleHooks": [
+      "init",
+      "update",
+      "draw"
+    ],
     "aliases": {
       "G": "GMR::Graphics",
       "I": "GMR::Input",

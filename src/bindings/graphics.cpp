@@ -21,6 +21,14 @@ static const Color WHITE_COLOR{255, 255, 255, 255};
 // GMR::Graphics Module Functions (Stateless)
 // ============================================================================
 
+/// @module GMR::Graphics
+/// @description Drawing primitives and texture management
+
+/// @function clear
+/// @description Clear the screen with a solid color
+/// @param color [Color] The background color
+/// @returns [nil]
+/// @example GMR::Graphics.clear([20, 20, 40])
 // GMR::Graphics.clear(color)
 static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
     mrb_value color_val;
@@ -31,6 +39,15 @@ static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_rect
+/// @description Draw a filled rectangle
+/// @param x [Integer] X position (left edge)
+/// @param y [Integer] Y position (top edge)
+/// @param w [Integer] Width in pixels
+/// @param h [Integer] Height in pixels
+/// @param color [Color] Fill color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])
 // GMR::Graphics.draw_rect(x, y, w, h, color)
 static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
@@ -42,6 +59,15 @@ static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_rect_outline
+/// @description Draw a rectangle outline (not filled)
+/// @param x [Integer] X position (left edge)
+/// @param y [Integer] Y position (top edge)
+/// @param w [Integer] Width in pixels
+/// @param h [Integer] Height in pixels
+/// @param color [Color] Outline color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])
 // GMR::Graphics.draw_rect_outline(x, y, w, h, color)
 static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
@@ -53,6 +79,16 @@ static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_rect_rotated
+/// @description Draw a filled rectangle rotated around its center
+/// @param x [Float] X position (center)
+/// @param y [Float] Y position (center)
+/// @param w [Float] Width in pixels
+/// @param h [Float] Height in pixels
+/// @param angle [Float] Rotation angle in degrees
+/// @param color [Color] Fill color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_rect_rotated(160, 120, 40, 20, 45.0, [0, 255, 0])
 // GMR::Graphics.draw_rect_rotated(x, y, w, h, angle, color)
 static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
     mrb_float x, y, w, h, angle;
@@ -67,6 +103,15 @@ static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_line
+/// @description Draw a line between two points
+/// @param x1 [Integer] Start X position
+/// @param y1 [Integer] Start Y position
+/// @param x2 [Integer] End X position
+/// @param y2 [Integer] End Y position
+/// @param color [Color] Line color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])
 // GMR::Graphics.draw_line(x1, y1, x2, y2, color)
 static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
     mrb_int x1, y1, x2, y2;
@@ -78,6 +123,16 @@ static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_line_thick
+/// @description Draw a thick line between two points
+/// @param x1 [Float] Start X position
+/// @param y1 [Float] Start Y position
+/// @param x2 [Float] End X position
+/// @param y2 [Float] End Y position
+/// @param thickness [Float] Line thickness in pixels
+/// @param color [Color] Line color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_line_thick(0, 0, 100, 100, 3.0, [255, 200, 100])
 // GMR::Graphics.draw_line_thick(x1, y1, x2, y2, thickness, color)
 static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, thick;
@@ -94,6 +149,14 @@ static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_circle
+/// @description Draw a filled circle
+/// @param x [Integer] Center X position
+/// @param y [Integer] Center Y position
+/// @param radius [Integer] Circle radius in pixels
+/// @param color [Color] Fill color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])
 // GMR::Graphics.draw_circle(x, y, radius, color)
 static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
@@ -105,6 +168,14 @@ static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_circle_outline
+/// @description Draw a circle outline
+/// @param x [Integer] Center X position
+/// @param y [Integer] Center Y position
+/// @param radius [Integer] Circle radius in pixels
+/// @param color [Color] Outline color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])
 // GMR::Graphics.draw_circle_outline(x, y, radius, color)
 static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
@@ -116,6 +187,15 @@ static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_circle_gradient
+/// @description Draw a circle with a radial gradient from inner to outer color
+/// @param x [Integer] Center X position
+/// @param y [Integer] Center Y position
+/// @param radius [Integer] Circle radius in pixels
+/// @param inner_color [Color] Color at center
+/// @param outer_color [Color] Color at edge
+/// @returns [nil]
+/// @example GMR::Graphics.draw_circle_gradient(160, 120, 50, [255, 255, 255], [255, 0, 0, 0])
 // GMR::Graphics.draw_circle_gradient(x, y, radius, inner_color, outer_color)
 static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
@@ -129,6 +209,17 @@ static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_triangle
+/// @description Draw a filled triangle
+/// @param x1 [Float] First vertex X
+/// @param y1 [Float] First vertex Y
+/// @param x2 [Float] Second vertex X
+/// @param y2 [Float] Second vertex Y
+/// @param x3 [Float] Third vertex X
+/// @param y3 [Float] Third vertex Y
+/// @param color [Color] Fill color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])
 // GMR::Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, color)
 static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
@@ -145,6 +236,17 @@ static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_triangle_outline
+/// @description Draw a triangle outline
+/// @param x1 [Float] First vertex X
+/// @param y1 [Float] First vertex Y
+/// @param x2 [Float] Second vertex X
+/// @param y2 [Float] Second vertex Y
+/// @param x3 [Float] Third vertex X
+/// @param y3 [Float] Third vertex Y
+/// @param color [Color] Outline color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])
 // GMR::Graphics.draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)
 static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
@@ -161,6 +263,15 @@ static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function draw_text
+/// @description Draw text at a position
+/// @param text [String] The text to draw
+/// @param x [Integer] X position (left edge)
+/// @param y [Integer] Y position (top edge)
+/// @param size [Integer] Font size in pixels
+/// @param color [Color] Text color
+/// @returns [nil]
+/// @example GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])
 // GMR::Graphics.draw_text(text, x, y, size, color)
 static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
     const char* text;
@@ -173,6 +284,12 @@ static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
+/// @function measure_text
+/// @description Measure the width of text in pixels
+/// @param text [String] The text to measure
+/// @param size [Integer] Font size in pixels
+/// @returns [Integer] Width in pixels
+/// @example width = GMR::Graphics.measure_text("Hello", 20)
 // GMR::Graphics.measure_text(text, size)
 static mrb_value mrb_graphics_measure_text(mrb_state* mrb, mrb_value) {
     const char* text;
@@ -184,6 +301,10 @@ static mrb_value mrb_graphics_measure_text(mrb_state* mrb, mrb_value) {
 // ============================================================================
 // GMR::Graphics::Texture Class
 // ============================================================================
+
+/// @class Texture
+/// @parent GMR::Graphics
+/// @description A loaded image texture for drawing sprites and images
 
 // Texture data structure - holds the handle
 struct TextureData {
@@ -206,6 +327,12 @@ static TextureData* get_texture_data(mrb_state* mrb, mrb_value self) {
     return static_cast<TextureData*>(mrb_data_get_ptr(mrb, self, &texture_data_type));
 }
 
+/// @classmethod load
+/// @description Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.
+/// @param path [String] Path to the image file (relative to game root)
+/// @returns [Texture] The loaded texture object
+/// @raises [RuntimeError] if the file cannot be loaded
+/// @example sprite = GMR::Graphics::Texture.load("assets/player.png")
 // GMR::Graphics::Texture.load(path) - class method
 static mrb_value mrb_texture_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
@@ -229,6 +356,10 @@ static mrb_value mrb_texture_load(mrb_state* mrb, mrb_value klass) {
     return obj;
 }
 
+/// @method width
+/// @description Get the texture width in pixels
+/// @returns [Integer] Width in pixels
+/// @example puts sprite.width
 // texture.width
 static mrb_value mrb_texture_width(mrb_state* mrb, mrb_value self) {
     TextureData* data = get_texture_data(mrb, self);
@@ -236,6 +367,10 @@ static mrb_value mrb_texture_width(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(TextureManager::instance().get_width(data->handle));
 }
 
+/// @method height
+/// @description Get the texture height in pixels
+/// @returns [Integer] Height in pixels
+/// @example puts sprite.height
 // texture.height
 static mrb_value mrb_texture_height(mrb_state* mrb, mrb_value self) {
     TextureData* data = get_texture_data(mrb, self);
@@ -243,6 +378,13 @@ static mrb_value mrb_texture_height(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(TextureManager::instance().get_height(data->handle));
 }
 
+/// @method draw
+/// @description Draw the texture at a position, optionally with a color tint
+/// @param x [Integer] X position (left edge)
+/// @param y [Integer] Y position (top edge)
+/// @param color [Color] (optional, default: [255, 255, 255]) Color tint (multiplied with texture)
+/// @returns [nil]
+/// @example sprite.draw(100, 100)
 // texture.draw(x, y) or texture.draw(x, y, color)
 static mrb_value mrb_texture_draw(mrb_state* mrb, mrb_value self) {
     mrb_int x, y;
@@ -260,6 +402,15 @@ static mrb_value mrb_texture_draw(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
+/// @method draw_ex
+/// @description Draw the texture with rotation and scaling
+/// @param x [Float] X position
+/// @param y [Float] Y position
+/// @param rotation [Float] Rotation angle in degrees
+/// @param scale [Float] Scale multiplier (1.0 = original size)
+/// @param color [Color] (optional, default: [255, 255, 255]) Color tint
+/// @returns [nil]
+/// @example sprite.draw_ex(160, 120, 45.0, 2.0)
 // texture.draw_ex(x, y, rotation, scale) or texture.draw_ex(x, y, rotation, scale, color)
 static mrb_value mrb_texture_draw_ex(mrb_state* mrb, mrb_value self) {
     mrb_float x, y, rotation, scale;
@@ -282,6 +433,20 @@ static mrb_value mrb_texture_draw_ex(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
+/// @method draw_pro
+/// @description Draw a portion of the texture to a destination rectangle with rotation. Origin is at center of destination.
+/// @param sx [Float] Source X (top-left of region)
+/// @param sy [Float] Source Y (top-left of region)
+/// @param sw [Float] Source width
+/// @param sh [Float] Source height
+/// @param dx [Float] Destination X (center)
+/// @param dy [Float] Destination Y (center)
+/// @param dw [Float] Destination width
+/// @param dh [Float] Destination height
+/// @param rotation [Float] Rotation angle in degrees
+/// @param color [Color] (optional, default: [255, 255, 255]) Color tint
+/// @returns [nil]
+/// @example sprite.draw_pro(0, 0, 32, 32, 160, 120, 64, 64, 0)
 // texture.draw_pro(sx, sy, sw, sh, dx, dy, dw, dh, rotation) or with color
 static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
     mrb_float sx, sy, sw, sh, dx, dy, dw, dh, rotation;
@@ -309,6 +474,10 @@ static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
 // GMR::Graphics::Tilemap Class
 // ============================================================================
 
+/// @class Tilemap
+/// @parent GMR::Graphics
+/// @description A tile-based map for efficient rendering of large worlds using a tileset texture
+
 // Tilemap data structure - holds the handle
 struct TilemapBindingData {
     TilemapHandle handle;
@@ -332,6 +501,17 @@ static TilemapBindingData* get_tilemap_data(mrb_state* mrb, mrb_value self) {
     return static_cast<TilemapBindingData*>(mrb_data_get_ptr(mrb, self, &tilemap_data_type));
 }
 
+/// @classmethod new
+/// @description Create a new tilemap with the specified dimensions. All tiles are initialized to -1 (empty/transparent).
+/// @param tileset [Texture] The tileset texture containing all tile graphics
+/// @param tile_width [Integer] Width of each tile in pixels
+/// @param tile_height [Integer] Height of each tile in pixels
+/// @param width [Integer] Map width in tiles
+/// @param height [Integer] Map height in tiles
+/// @returns [Tilemap] The new tilemap object
+/// @raises [ArgumentError] if dimensions are not positive
+/// @example tileset = GMR::Graphics::Texture.load("assets/tiles.png")
+/// map = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)
 // GMR::Graphics::Tilemap.new(tileset:, tile_width:, tile_height:, width:, height:)
 // Using positional args: Tilemap.new(tileset, tile_width, tile_height, width, height)
 static mrb_value mrb_tilemap_new(mrb_state* mrb, mrb_value klass) {

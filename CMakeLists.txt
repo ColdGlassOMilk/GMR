@@ -8,6 +8,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include script compilation utilities
 include(cmake/CompileScripts.cmake)
 
+# Include API documentation generation
+include(cmake/GenerateAPIDocs.cmake)
+
 # Detect Emscripten
 if(EMSCRIPTEN OR PLATFORM STREQUAL "Web")
     set(PLATFORM_WEB TRUE)
@@ -48,6 +51,7 @@ set(SOURCES
     src/bindings/window.cpp
     src/bindings/util.cpp
     src/bindings/console.cpp
+    src/bindings/collision.cpp
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
     src/scripting/script_error.cpp
@@ -55,6 +59,9 @@ set(SOURCES
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+# Generate API documentation (pre-build step)
+generate_api_docs(${PROJECT_NAME})
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE

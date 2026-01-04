@@ -7,10 +7,14 @@
 #include "gmr/bindings/window.hpp"
 #include "gmr/bindings/util.hpp"
 #include "gmr/bindings/console.hpp"
+#include "gmr/bindings/collision.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
 #include <cstdio>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <cctype>
 #include "raylib.h"
 
 // Include compiled scripts only in release builds
@@ -43,6 +47,7 @@ void Loader::register_all_bindings() {
     bindings::register_window(mrb_);
     bindings::register_util(mrb_);
     bindings::register_console(mrb_);
+    bindings::register_collision(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {
@@ -134,6 +139,108 @@ Loader::ScriptTime Loader::get_newest_mod_time(const fs::path& dir_path) {
     return newest;
 }
 
+std::vector<fs::path> Loader::get_changed_files() {
+    std::vector<fs::path> changed;
+
+    if (!fs::exists(script_dir_)) {
+        return changed;
+    }
+
+    for (const auto& entry : fs::recursive_directory_iterator(script_dir_)) {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() != ".rb") continue;
+
+        fs::path canonical = fs::weakly_canonical(entry.path());
+        auto mod_time = entry.last_write_time();
+
+        auto it = file_states_.find(canonical);
+        if (it == file_states_.end()) {
+            // New file detected
+            changed.push_back(canonical);
+            file_states_[canonical] = {mod_time};
+        } else if (mod_time > it->second.last_modified) {
+            // File was modified
+            changed.push_back(canonical);
+            it->second.last_modified = mod_time;
+        }
+    }
+
+    return changed;
+}
+
+void Loader::reload_file(const fs::path& path) {
+    if (!mrb_) return;
+
+    FILE* fp = fopen(path.string().c_str(), "r");
+    if (!fp) {
+        fprintf(stderr, "Could not open: %s\n", path.string().c_str());
+        return;
+    }
+
+    printf("  Reloading: %s\n", path.filename().string().c_str());
+
+    mrbc_context* ctx = mrbc_context_new(mrb_);
+    mrbc_filename(mrb_, ctx, path.filename().string().c_str());
+
+    // This redefines functions in the file - globals untouched
+    mrb_load_file_cxt(mrb_, fp, ctx);
+
+    mrbc_context_free(mrb_, ctx);
+    fclose(fp);
+
+    if (mrb_->exc) {
+        handle_exception(mrb_, path.string().c_str());
+    }
+}
+
+std::string Loader::extract_init_content() {
+    fs::path main_path = script_dir_ / "main.rb";
+    if (!fs::exists(main_path)) return "";
+
+    std::ifstream file(main_path);
+    if (!file) return "";
+
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+
+    // Find "def init" block
+    size_t start = content.find("def init");
+    if (start == std::string::npos) return "";
+
+    // Find matching "end" by tracking depth
+    size_t pos = start;
+    int depth = 0;
+    bool found_def = false;
+
+    while (pos < content.size()) {
+        // Check for "def" keyword (not part of another identifier)
+        if (content.compare(pos, 3, "def") == 0 &&
+            (pos == 0 || !std::isalnum(static_cast<unsigned char>(content[pos-1]))) &&
+            (pos + 3 >= content.size() || !std::isalnum(static_cast<unsigned char>(content[pos+3])))) {
+            depth++;
+            found_def = true;
+            pos += 3;
+            continue;
+        }
+
+        // Check for "end" keyword
+        if (content.compare(pos, 3, "end") == 0 &&
+            (pos == 0 || !std::isalnum(static_cast<unsigned char>(content[pos-1]))) &&
+            (pos + 3 >= content.size() || !std::isalnum(static_cast<unsigned char>(content[pos+3])))) {
+            depth--;
+            if (found_def && depth == 0) {
+                return content.substr(start, pos + 3 - start);
+            }
+            pos += 3;
+            continue;
+        }
+
+        pos++;
+    }
+
+    return "";
+}
+
 void Loader::load_bytecode(const char* path, const uint8_t* bytecode) {
     printf("  Loading: %s (compiled)\n", path);
 
@@ -186,6 +293,7 @@ void Loader::load(const std::string& script_dir) {
     }
 
     loaded_files_.clear();
+    file_states_.clear();
     clear_error_state();
 
     mrb_ = mrb_open();
@@ -229,6 +337,17 @@ void Loader::load(const std::string& script_dir) {
     }
 
     printf("--- Loaded %zu script(s) ---\n", loaded_files_.size());
+
+    // Initialize per-file tracking for selective hot reload
+    for (const auto& entry : fs::recursive_directory_iterator(script_dir_)) {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() != ".rb") continue;
+        fs::path canonical = fs::weakly_canonical(entry.path());
+        file_states_[canonical] = {entry.last_write_time()};
+    }
+
+    // Capture initial init content for change detection
+    last_init_content_ = extract_init_content();
 #endif
 
     safe_call(mrb_, "init");
@@ -246,15 +365,49 @@ void Loader::reload_if_changed() {
     }
     last_check_time_ = now;
 
-    auto newest = get_newest_mod_time(script_dir_);
+    auto changed_files = get_changed_files();
+    if (changed_files.empty()) {
+        return;
+    }
 
-    if (newest > last_mod_time_) {
-        if (newest == pending_mod_time_) {
-            printf("\n*** Hot reload triggered ***\n");
-            load(script_dir_.string());
-        } else {
-            pending_mod_time_ = newest;
+    // Check for new files that weren't loaded yet
+    bool has_new_files = false;
+    for (const auto& file : changed_files) {
+        if (loaded_files_.find(file) == loaded_files_.end()) {
+            has_new_files = true;
+            break;
         }
+    }
+
+    // New files require full reload (dependency order matters)
+    if (has_new_files) {
+        printf("\n*** Hot reload (new files - full reload) ***\n");
+        load(script_dir_.string());
+        return;
+    }
+
+    // Selective reload - keep VM alive, only reload changed files
+    printf("\n*** Hot reload (selective) ***\n");
+
+    // Capture init content BEFORE reload
+    std::string old_init = extract_init_content();
+
+    clear_error_state();
+
+    // Reload only changed files
+    for (const auto& file : changed_files) {
+        reload_file(file);
+    }
+
+    // Check if init changed
+    std::string new_init = extract_init_content();
+
+    if (old_init != new_init && !new_init.empty()) {
+        printf("  init() changed - reinitializing\n");
+        safe_call(mrb_, "init");
+        last_init_content_ = new_init;
+    } else {
+        printf("  State preserved\n");
     }
 #else
     // Hot reload disabled in release or web builds

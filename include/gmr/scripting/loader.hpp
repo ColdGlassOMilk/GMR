@@ -5,6 +5,8 @@
 #include <string>
 #include <set>
 #include <unordered_set>
+#include <unordered_map>
+#include <vector>
 #include <filesystem>
 #include <optional>
 #include "gmr/scripting/script_error.hpp"
@@ -52,9 +54,26 @@ private:
     using ScriptTime = fs::file_time_type;
     ScriptTime get_newest_mod_time(const fs::path& dir_path);
 
+    // Per-file tracking for selective hot reload
+    struct FileState {
+        ScriptTime last_modified{};
+    };
+
+    struct PathHasher {
+        size_t operator()(const fs::path& p) const {
+            return std::hash<std::string>{}(p.string());
+        }
+    };
+
+    std::vector<fs::path> get_changed_files();
+    void reload_file(const fs::path& path);
+    std::string extract_init_content();
+
     mrb_state* mrb_ = nullptr;
     fs::path script_dir_;
     std::set<fs::path> loaded_files_;
+    std::unordered_map<fs::path, FileState, PathHasher> file_states_;
+    std::string last_init_content_;  // For detecting init() changes
 
     ScriptTime last_mod_time_{};
     ScriptTime pending_mod_time_{};

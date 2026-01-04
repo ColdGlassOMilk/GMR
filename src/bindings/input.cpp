@@ -2,9 +2,28 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
+#include <vector>
 
 namespace gmr {
 namespace bindings {
+
+// ============================================================================
+// Helper: Check if any key in array/single value matches a condition
+// ============================================================================
+
+template<typename CheckFn>
+static bool check_keys_any(mrb_state* mrb, mrb_value arg, CheckFn check_fn) {
+    if (mrb_array_p(arg)) {
+        mrb_int len = RARRAY_LEN(arg);
+        for (mrb_int i = 0; i < len; i++) {
+            mrb_value item = mrb_ary_ref(mrb, arg, i);
+            int key = parse_key_arg(mrb, item);
+            if (check_fn(key)) return true;
+        }
+        return false;
+    }
+    return check_fn(parse_key_arg(mrb, arg));
+}
 
 // ============================================================================
 // GMR::Input Module Functions
@@ -73,28 +92,28 @@ static mrb_value mrb_input_mouse_wheel(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, GetMouseWheelMove());
 }
 
-// GMR::Input.key_down?(key) - accepts integer or symbol
+// GMR::Input.key_down?(key) - accepts integer, symbol, or array of either
 static mrb_value mrb_input_key_down(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
-    int key = parse_key_arg(mrb, arg);
-    return to_mrb_bool(mrb, IsKeyDown(key));
+    bool result = check_keys_any(mrb, arg, [](int key) { return IsKeyDown(key); });
+    return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.key_pressed?(key)
+// GMR::Input.key_pressed?(key) - accepts integer, symbol, or array of either
 static mrb_value mrb_input_key_pressed(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
-    int key = parse_key_arg(mrb, arg);
-    return to_mrb_bool(mrb, IsKeyPressed(key));
+    bool result = check_keys_any(mrb, arg, [](int key) { return IsKeyPressed(key); });
+    return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.key_released?(key)
+// GMR::Input.key_released?(key) - accepts integer, symbol, or array of either
 static mrb_value mrb_input_key_released(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
-    int key = parse_key_arg(mrb, arg);
-    return to_mrb_bool(mrb, IsKeyReleased(key));
+    bool result = check_keys_any(mrb, arg, [](int key) { return IsKeyReleased(key); });
+    return to_mrb_bool(mrb, result);
 }
 
 // GMR::Input.key_pressed (returns the key code of the last key pressed)
@@ -109,6 +128,101 @@ static mrb_value mrb_input_get_char_pressed(mrb_state* mrb, mrb_value) {
     int ch = GetCharPressed();
     if (ch == 0) return mrb_nil_value();
     return mrb_fixnum_value(ch);
+}
+
+// ============================================================================
+// Action Mapping System
+// ============================================================================
+
+// Helper to parse keys from array into vector of key codes
+static std::vector<int> parse_keys_array(mrb_state* mrb, mrb_value arr) {
+    std::vector<int> keys;
+    if (mrb_array_p(arr)) {
+        mrb_int len = RARRAY_LEN(arr);
+        for (mrb_int i = 0; i < len; i++) {
+            mrb_value item = mrb_ary_ref(mrb, arr, i);
+            keys.push_back(parse_key_arg(mrb, item));
+        }
+    } else {
+        // Single key
+        keys.push_back(parse_key_arg(mrb, arr));
+    }
+    return keys;
+}
+
+// GMR::Input.map(action_name, keys) - Map an action to one or more keys
+static mrb_value mrb_input_map(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_value keys;
+    mrb_get_args(mrb, "no", &action_sym, &keys);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    auto& state = State::instance();
+    state.input_actions[action_name] = parse_keys_array(mrb, keys);
+
+    return mrb_nil_value();
+}
+
+// GMR::Input.unmap(action_name) - Remove an action mapping
+static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_get_args(mrb, "n", &action_sym);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    auto& state = State::instance();
+    state.input_actions.erase(action_name);
+
+    return mrb_nil_value();
+}
+
+// GMR::Input.clear_mappings - Remove all action mappings
+static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value) {
+    auto& state = State::instance();
+    state.input_actions.clear();
+    return mrb_nil_value();
+}
+
+// Helper to check action keys
+template<typename CheckFn>
+static bool check_action_any(const std::string& action_name, CheckFn check_fn) {
+    auto& state = State::instance();
+    auto it = state.input_actions.find(action_name);
+    if (it == state.input_actions.end()) return false;
+
+    for (int key : it->second) {
+        if (check_fn(key)) return true;
+    }
+    return false;
+}
+
+// GMR::Input.action_down?(action_name)
+static mrb_value mrb_input_action_down(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_get_args(mrb, "n", &action_sym);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    bool result = check_action_any(action_name, [](int key) { return IsKeyDown(key); });
+    return to_mrb_bool(mrb, result);
+}
+
+// GMR::Input.action_pressed?(action_name)
+static mrb_value mrb_input_action_pressed(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_get_args(mrb, "n", &action_sym);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    bool result = check_action_any(action_name, [](int key) { return IsKeyPressed(key); });
+    return to_mrb_bool(mrb, result);
+}
+
+// GMR::Input.action_released?(action_name)
+static mrb_value mrb_input_action_released(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_get_args(mrb, "n", &action_sym);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    bool result = check_action_any(action_name, [](int key) { return IsKeyReleased(key); });
+    return to_mrb_bool(mrb, result);
 }
 
 // ============================================================================
@@ -229,6 +343,14 @@ void register_input(mrb_state* mrb) {
     mrb_define_module_function(mrb, input, "key_released?", mrb_input_key_released, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "key_pressed", mrb_input_get_key_pressed, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "char_pressed", mrb_input_get_char_pressed, MRB_ARGS_NONE());
+
+    // Action mapping functions
+    mrb_define_module_function(mrb, input, "map", mrb_input_map, MRB_ARGS_REQ(2));
+    mrb_define_module_function(mrb, input, "unmap", mrb_input_unmap, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "clear_mappings", mrb_input_clear_mappings, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, input, "action_down?", mrb_input_action_down, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "action_pressed?", mrb_input_action_pressed, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "action_released?", mrb_input_action_released, MRB_ARGS_REQ(1));
 
     // Register key constants
     register_key_constants(mrb, input);

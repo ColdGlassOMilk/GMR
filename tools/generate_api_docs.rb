@@ -1,0 +1,779 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# GMR API Documentation Generator
+# Parses C++ binding files and generates api.json, syntax.json, and version.json
+#
+# Usage: ruby generate_api_docs.rb [options]
+#   -s, --source FILE    Add source file to parse (can be repeated)
+#   -o, --output DIR     Output directory (default: engine/language)
+#   -v, --version VER    Engine version (default: 0.1.0)
+#   --raylib VER         Raylib version (default: 5.6-dev)
+#   --mruby VER          mRuby version (default: 3.4.0)
+
+require 'json'
+require 'optparse'
+require 'fileutils'
+
+module GMRDocs
+  # Maps mrb_get_args format characters to Ruby types
+  ARG_TYPE_MAP = {
+    'i' => 'Integer',
+    'f' => 'Float',
+    'z' => 'String',
+    'n' => 'Symbol',
+    'o' => 'Object',
+    'A' => 'Array',
+    'H' => 'Hash',
+    'b' => 'Boolean',
+    '&' => 'Block',
+    '*' => 'Array'
+  }.freeze
+
+  # Static type definitions that don't change
+  TYPE_DEFINITIONS = {
+    'Color' => {
+      'kind' => 'alias',
+      'type' => 'Array<Integer>',
+      'description' => 'RGBA color as [r, g, b] or [r, g, b, a], values 0-255. Alpha defaults to 255 if omitted.',
+      'examples' => ['[255, 0, 0]', '[255, 0, 0, 128]']
+    },
+    'KeyCode' => {
+      'kind' => 'union',
+      'types' => ['Integer', 'Symbol', 'Array<Integer|Symbol>'],
+      'description' => 'Key identifier - integer constant (KEY_*), symbol (:space, :a, :left, etc.), or array of keys to check any match',
+      'symbols' => %w[
+        space escape enter return tab backspace delete insert
+        up down left right home end page_up page_down
+        left_shift right_shift left_control right_control left_alt right_alt
+        f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12
+        a b c d e f g h i j k l m n o p q r s t u v w x y z
+        0 1 2 3 4 5 6 7 8 9
+      ]
+    },
+    'MouseButton' => {
+      'kind' => 'union',
+      'types' => ['Integer', 'Symbol'],
+      'description' => 'Mouse button identifier - integer constant (MOUSE_*) or symbol',
+      'symbols' => %w[left right middle side extra forward back]
+    }
+  }.freeze
+
+  # Represents a parsed documentation entry
+  class DocEntry
+    attr_reader :kind, :name, :line_number
+    attr_accessor :description, :signature, :params, :returns, :raises, :example, :aliases, :parent
+
+    def initialize(kind, name, line_number)
+      @kind = kind
+      @name = name
+      @line_number = line_number
+      @description = nil
+      @signature = nil
+      @params = []
+      @returns = nil
+      @raises = []
+      @example = nil
+      @aliases = []
+      @parent = nil
+    end
+
+    def to_h
+      h = {}
+      h['signature'] = @signature if @signature
+      h['description'] = @description if @description
+      h['params'] = @params unless @params.empty?
+      h['returns'] = @returns if @returns
+      h['raises'] = @raises unless @raises.empty?
+      h['example'] = @example if @example
+      h
+    end
+  end
+
+  # Represents a parsed binding registration
+  class BindingDef
+    attr_reader :type, :module_var, :name, :handler, :args_spec, :line_number
+    attr_accessor :arg_types
+
+    def initialize(type, module_var, name, handler, args_spec, line_number)
+      @type = type
+      @module_var = module_var
+      @name = name
+      @handler = handler
+      @args_spec = args_spec
+      @line_number = line_number
+      @arg_types = []
+    end
+
+    # Parse MRB_ARGS_* to get required/optional counts
+    def parse_args_spec
+      case @args_spec
+      when /MRB_ARGS_NONE/
+        { required: 0, optional: 0 }
+      when /MRB_ARGS_REQ\((\d+)\)/
+        { required: $1.to_i, optional: 0 }
+      when /MRB_ARGS_OPT\((\d+)\)/
+        { required: 0, optional: $1.to_i }
+      when /MRB_ARGS_ARG\((\d+),\s*(\d+)\)/
+        { required: $1.to_i, optional: $2.to_i }
+      when /MRB_ARGS_ANY/
+        { required: 0, optional: -1 }
+      else
+        { required: 0, optional: 0 }
+      end
+    end
+  end
+
+  # Parses /// doc comments from C++ files
+  class DocParser
+    def parse_file(filepath)
+      entries = []
+      current_entry = nil
+      current_module = nil
+      current_class = nil
+      last_tag = nil
+
+      File.readlines(filepath, encoding: 'utf-8').each_with_index do |line, index|
+        line_num = index + 1
+
+        # Parse doc comment tags
+        if line =~ %r{^///\s*@(\w+)\s*(.*)$}
+          tag = $1
+          value = $2.strip
+
+          case tag
+          when 'module'
+            current_module = value
+            current_class = nil
+          when 'class'
+            current_class = value
+          when 'function', 'classmethod', 'method', 'constant'
+            current_entry = DocEntry.new(tag.to_sym, value, line_num)
+            current_entry.parent = current_class || current_module
+            entries << current_entry
+          when 'description'
+            current_entry&.description = value
+          when 'signature'
+            current_entry&.signature = value
+          when 'param'
+            if current_entry && value =~ /^(\w+)\s+\[([^\]]+)\]\s*(.*)$/
+              current_entry.params << {
+                'name' => $1,
+                'type' => $2,
+                'description' => $3.strip
+              }
+            elsif current_entry && value =~ /^(\w+)\s+\[([^\]]+)\]\s*\(optional(?:,\s*default:\s*([^)]+))?\)\s*(.*)$/
+              current_entry.params << {
+                'name' => $1,
+                'type' => $2,
+                'optional' => true,
+                'default' => $3,
+                'description' => $4.strip
+              }.compact
+            end
+          when 'returns'
+            if current_entry && value =~ /^\[([^\]]+)\]\s*(.*)$/
+              current_entry.returns = { 'type' => $1 }
+              current_entry.returns['description'] = $2.strip unless $2.strip.empty?
+            end
+          when 'raises'
+            if current_entry && value =~ /^\[([^\]]+)\]\s*(.*)$/
+              current_entry.raises << "#{$1} #{$2}".strip
+            end
+          when 'example'
+            current_entry&.example = value
+          when 'alias'
+            current_entry&.aliases << value
+          end
+          last_tag = tag
+
+        # Continue previous tag (multi-line)
+        elsif line =~ %r{^///\s?(.*)$}
+          continuation = $1
+          if current_entry && last_tag == 'example' && current_entry.example
+            current_entry.example += "\n" + continuation
+          elsif current_entry && last_tag == 'description' && current_entry.description
+            current_entry.description += ' ' + continuation.strip
+          end
+
+        # Parse existing signature comments: // GMR::Module.function(args)
+        elsif line =~ %r{^//\s*(GMR(?:::\w+)*)[.#](\w+[?=]?)\(([^)]*)\)\s*$}
+          module_path = $1
+          func_name = $2
+          args = $3
+
+          # If we have a pending entry without signature, use this
+          if current_entry && current_entry.signature.nil?
+            current_entry.signature = "#{func_name}(#{args})"
+            current_entry.parent ||= module_path
+          end
+
+        # Parse existing signature comments: // module.function(args) style
+        elsif line =~ %r{^//\s*(\w+)\.([\w?=]+)\(([^)]*)\)\s*$}
+          func_name = $2
+          args = $3
+          if current_entry && current_entry.signature.nil?
+            current_entry.signature = "#{func_name}(#{args})"
+          end
+        end
+      end
+
+      entries
+    end
+  end
+
+  # Parses mrb_define_* binding registrations
+  class BindingParser
+    PATTERNS = {
+      module_function: /mrb_define_module_function\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*(MRB_ARGS_\w+\([^)]*\))\s*\)/,
+      class_method: /mrb_define_class_method\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*(MRB_ARGS_\w+\([^)]*\))\s*\)/,
+      instance_method: /mrb_define_method\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"\s*,\s*(\w+)\s*,\s*(MRB_ARGS_\w+\([^)]*\))\s*\)/,
+      constant: /mrb_define_const\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"\s*,\s*mrb_fixnum_value\s*\(\s*(\w+)\s*\)\s*\)/,
+      class_def: /(\w+)\s*=\s*mrb_define_class_under\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"/,
+      module_def: /mrb_define_module_under\s*\(\s*mrb\s*,\s*(\w+)\s*,\s*"([^"]+)"\s*\)/
+    }.freeze
+
+    def parse_file(filepath)
+      content = File.read(filepath, encoding: 'utf-8')
+      bindings = []
+
+      # Extract handler argument types from mrb_get_args calls
+      arg_specs = extract_arg_specs(content)
+
+      content.each_line.with_index do |line, index|
+        line_num = index + 1
+
+        PATTERNS.each do |type, pattern|
+          if line =~ pattern
+            binding = create_binding(type, Regexp.last_match, line_num)
+            binding.arg_types = arg_specs[binding.handler] if binding.handler && arg_specs[binding.handler]
+            bindings << binding
+          end
+        end
+      end
+
+      bindings
+    end
+
+    private
+
+    def extract_arg_specs(content)
+      specs = {}
+
+      # Find mrb_get_args calls within handler functions
+      content.scan(/static\s+mrb_value\s+(\w+)\s*\([^)]*\)\s*\{(.*?)(?=^static\s+mrb_value|\z)/m) do |handler, body|
+        if body =~ /mrb_get_args\s*\(\s*mrb\s*,\s*"([^"]+)"/
+          specs[handler] = parse_format_string($1)
+        end
+      end
+
+      specs
+    end
+
+    def parse_format_string(format)
+      types = []
+      optional = false
+
+      format.each_char do |c|
+        if c == '|'
+          optional = true
+        elsif ARG_TYPE_MAP[c]
+          types << { type: ARG_TYPE_MAP[c], optional: optional }
+        end
+      end
+
+      types
+    end
+
+    def create_binding(type, match, line_num)
+      case type
+      when :module_function
+        BindingDef.new(type, match[1], match[2], match[3], match[4], line_num)
+      when :class_method
+        BindingDef.new(type, match[1], match[2], match[3], match[4], line_num)
+      when :instance_method
+        BindingDef.new(type, match[1], match[2], match[3], match[4], line_num)
+      when :constant
+        BindingDef.new(type, match[1], match[2], nil, nil, line_num)
+      when :class_def
+        BindingDef.new(type, match[2], match[3], match[1], nil, line_num)
+      when :module_def
+        BindingDef.new(type, match[1], match[2], nil, nil, line_num)
+      end
+    end
+  end
+
+  # Builds the API model from parsed docs and bindings
+  class APIModel
+    attr_reader :modules, :classes, :constants, :globals
+
+    def initialize
+      @modules = {}
+      @classes = {}
+      @constants = {}
+      @globals = {
+        'lifecycle' => {},
+        'helpers' => {}
+      }
+      @module_vars = {}  # Maps variable names to module paths
+    end
+
+    def add_module_var(var_name, module_path)
+      @module_vars[var_name] = module_path
+    end
+
+    def get_module_path(var_name)
+      @module_vars[var_name]
+    end
+
+    def add_module(path, description = nil)
+      @modules[path] ||= {
+        'description' => description || "TODO: Add description",
+        'functions' => {}
+      }
+    end
+
+    def add_class(path, description = nil)
+      @classes[path] ||= {
+        'kind' => 'class',
+        'description' => description || "TODO: Add description",
+        'classMethods' => {},
+        'instanceMethods' => {}
+      }
+    end
+
+    def add_function(module_path, name, doc)
+      add_module(module_path)
+      @modules[module_path]['functions'][name] = doc
+    end
+
+    def add_class_method(class_path, name, doc)
+      add_class(class_path)
+      @classes[class_path]['classMethods'][name] = doc
+    end
+
+    def add_instance_method(class_path, name, doc)
+      add_class(class_path)
+      @classes[class_path]['instanceMethods'][name] = doc
+    end
+
+    def add_constant(module_path, name, value = nil)
+      @constants[module_path] ||= {}
+      @constants[module_path][name] = value
+    end
+
+    def add_lifecycle(name, doc)
+      @globals['lifecycle'][name] = doc
+    end
+
+    def add_helper(name, doc)
+      @globals['helpers'][name] = doc
+    end
+
+    # Merge modules and classes for output
+    def to_modules_hash
+      result = {}
+
+      @modules.each do |path, data|
+        result[path] = data.dup
+        result[path].delete('functions') if result[path]['functions'].empty?
+      end
+
+      @classes.each do |path, data|
+        result[path] = data.dup
+        result[path].delete('classMethods') if result[path]['classMethods'].empty?
+        result[path].delete('instanceMethods') if result[path]['instanceMethods'].empty?
+      end
+
+      result
+    end
+  end
+
+  # Merges documentation with binding definitions
+  class APIMerger
+    def initialize
+      @model = APIModel.new
+    end
+
+    def merge(doc_entries, binding_entries)
+      # Build module variable mappings from bindings
+      build_module_mappings(binding_entries)
+
+      # Process doc entries
+      doc_entries.each do |entry|
+        process_doc_entry(entry)
+      end
+
+      # Process bindings without docs (generate stubs)
+      process_undocumented_bindings(binding_entries, doc_entries)
+
+      @model
+    end
+
+    private
+
+    def build_module_mappings(bindings)
+      # Map variable names to full module paths
+      @model.add_module_var('gmr', 'GMR')
+      @model.add_module_var('graphics', 'GMR::Graphics')
+      @model.add_module_var('audio', 'GMR::Audio')
+      @model.add_module_var('input', 'GMR::Input')
+      @model.add_module_var('window', 'GMR::Window')
+      @model.add_module_var('time', 'GMR::Time')
+      @model.add_module_var('system', 'GMR::System')
+      @model.add_module_var('collision', 'GMR::Collision')
+
+      # Class variable mappings
+      @model.add_module_var('texture_class', 'GMR::Graphics::Texture')
+      @model.add_module_var('sound_class', 'GMR::Audio::Sound')
+      @model.add_module_var('tilemap_class', 'GMR::Graphics::Tilemap')
+    end
+
+    def process_doc_entry(entry)
+      parent = resolve_parent(entry.parent)
+
+      case entry.kind
+      when :function
+        @model.add_function(parent, entry.name, entry.to_h)
+      when :classmethod
+        @model.add_class_method(parent, entry.name, entry.to_h)
+      when :method
+        @model.add_instance_method(parent, entry.name, entry.to_h)
+      end
+    end
+
+    def resolve_parent(parent_ref)
+      return 'GMR' unless parent_ref
+      return parent_ref if parent_ref.include?('::')
+      @model.get_module_path(parent_ref.downcase) || parent_ref
+    end
+
+    def process_undocumented_bindings(bindings, docs)
+      documented_handlers = docs.map { |d| d.name }.to_set
+
+      bindings.each do |binding|
+        next if binding.type == :class_def || binding.type == :module_def
+        next if documented_handlers.include?(binding.name)
+
+        parent = resolve_binding_parent(binding)
+        stub = generate_stub(binding)
+
+        case binding.type
+        when :module_function
+          @model.add_function(parent, binding.name, stub)
+        when :class_method
+          @model.add_class_method(parent, binding.name, stub)
+        when :instance_method
+          @model.add_instance_method(parent, binding.name, stub)
+        when :constant
+          @model.add_constant(parent, binding.name)
+        end
+      end
+    end
+
+    def resolve_binding_parent(binding)
+      @model.get_module_path(binding.module_var) || 'GMR'
+    end
+
+    def generate_stub(binding)
+      args = binding.parse_args_spec
+      params = []
+
+      if binding.arg_types.any?
+        binding.arg_types.each_with_index do |arg, i|
+          param = {
+            'name' => "arg#{i + 1}",
+            'type' => arg[:type]
+          }
+          param['optional'] = true if arg[:optional]
+          params << param
+        end
+      elsif args[:required] > 0 || args[:optional] > 0
+        args[:required].times { |i| params << { 'name' => "arg#{i + 1}", 'type' => 'any' } }
+        args[:optional].times { |i| params << { 'name' => "arg#{args[:required] + i + 1}", 'type' => 'any', 'optional' => true } }
+      end
+
+      signature = binding.name
+      if params.any?
+        param_names = params.map { |p| p['optional'] ? "[#{p['name']}]" : p['name'] }
+        signature = "#{binding.name}(#{param_names.join(', ')})"
+      end
+
+      {
+        'signature' => signature,
+        'description' => 'TODO: Add documentation',
+        'params' => params,
+        'returns' => { 'type' => 'unknown' }
+      }
+    end
+  end
+
+  # Generates JSON output files
+  class JSONGenerator
+    def initialize(options)
+      @options = options
+    end
+
+    def generate_api_json(model, output_path)
+      # Build types including class references
+      types = TYPE_DEFINITIONS.dup
+
+      model.classes.each do |path, data|
+        class_name = path.split('::').last
+        types[class_name] = {
+          'kind' => 'class',
+          'module' => path,
+          'description' => data['description']
+        }
+      end
+
+      api = {
+        'meta' => {
+          'version' => '1.0.0',
+          'engine' => 'GMR',
+          'mrubyVersion' => @options[:mruby_version],
+          'raylibVersion' => @options[:raylib_version]
+        },
+        'types' => types,
+        'modules' => model.to_modules_hash,
+        'globals' => model.globals
+      }
+
+      write_json(output_path, api)
+    end
+
+    def generate_syntax_json(model, output_path)
+      # Extract function names by module
+      functions = {}
+      model.modules.each do |path, data|
+        next unless data['functions']&.any?
+        functions[path] = data['functions'].keys
+      end
+
+      model.classes.each do |path, data|
+        methods = []
+        methods.concat(data['classMethods'].keys) if data['classMethods']&.any?
+        methods.concat(data['instanceMethods'].keys) if data['instanceMethods']&.any?
+        functions[path] = methods if methods.any?
+      end
+
+      syntax = {
+        'language' => {
+          'id' => 'gmr-ruby',
+          'name' => 'GMR Ruby',
+          'baseLanguage' => 'ruby',
+          'mrubyVersion' => @options[:mruby_version]
+        },
+        'comments' => {
+          'lineComment' => '#',
+          'blockComment' => { 'start' => '=begin', 'end' => '=end' }
+        },
+        'keywords' => {
+          'control' => %w[if elsif else unless then case when while until for loop do begin rescue ensure raise retry return break next redo yield],
+          'definition' => %w[def end class module include extend prepend attr_reader attr_writer attr_accessor alias undef],
+          'modifier' => %w[public private protected],
+          'logical' => %w[and or not in],
+          'special' => %w[self super nil true false __FILE__ __LINE__ __ENCODING__ defined?]
+        },
+        'operators' => {
+          'arithmetic' => %w[+ - * / % **],
+          'comparison' => %w[== != < > <= >= <=> === =~ !~],
+          'assignment' => %w[= += -= *= /= %= **= &&= ||= &= |= ^= <<= >>=],
+          'logical' => %w[&& || !],
+          'bitwise' => %w[& | ^ ~ << >>],
+          'range' => %w[.. ...],
+          'ternary' => %w[? :],
+          'access' => %w[:: . -> => &. ::]
+        },
+        'brackets' => {
+          'pairs' => [['(', ')'], ['[', ']'], ['{', '}'], ['do', 'end']]
+        },
+        'literals' => {
+          'string' => {
+            'singleQuote' => "'",
+            'doubleQuote' => '"',
+            'heredoc' => ['<<-', '<<~', '<<'],
+            'percent' => %w[%q %Q %w %W %i %I %x]
+          },
+          'symbol' => { 'prefix' => ':', 'percent' => '%s' },
+          'regex' => { 'delimiters' => ['/'], 'percent' => '%r', 'flags' => %w[i m x o] },
+          'number' => {
+            'integer' => { 'decimal' => true, 'hexadecimal' => '0x', 'octal' => '0o', 'binary' => '0b', 'separator' => '_' },
+            'float' => { 'decimal' => true, 'scientific' => 'e', 'separator' => '_' }
+          }
+        },
+        'builtins' => {
+          'classes' => %w[Object Class Module BasicObject String Integer Float Numeric Symbol Array Hash Range Regexp Proc Method TrueClass FalseClass NilClass Exception StandardError RuntimeError ArgumentError TypeError NameError NoMethodError Kernel Comparable Enumerable Math Fiber],
+          'methods' => %w[puts print p gets require require_relative load lambda proc raise fail catch throw loop block_given? caller rand srand sleep sprintf format eval instance_eval class_eval module_eval method send public_send respond_to? is_a? kind_of? instance_of? nil? empty? frozen? to_s to_i to_f to_a to_h to_sym inspect clone dup freeze tap each each_with_index map collect select find_all reject reduce inject find detect sort sort_by min max minmax sum length size count first last push pop shift unshift insert delete delete_at flatten compact uniq reverse shuffle sample join split strip chomp chop gsub sub match upcase downcase capitalize swapcase include? index rindex start_with? end_with? any? all? none? one? empty?]
+        },
+        'engine' => {
+          'modules' => model.modules.keys.sort,
+          'classes' => model.classes.keys.sort,
+          'functions' => functions,
+          'constants' => build_constants_section(model),
+          'lifecycleHooks' => %w[init update draw],
+          'aliases' => {
+            'G' => 'GMR::Graphics',
+            'I' => 'GMR::Input',
+            'W' => 'GMR::Window',
+            'T' => 'GMR::Time',
+            'S' => 'GMR::System'
+          }
+        }
+      }
+
+      write_json(output_path, syntax)
+    end
+
+    def generate_version_json(model, output_path)
+      version = {
+        'engine' => {
+          'name' => 'GMR',
+          'fullName' => 'Games Made with Ruby',
+          'version' => @options[:engine_version],
+          'description' => 'A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++'
+        },
+        'language' => {
+          'id' => 'gmr-ruby',
+          'name' => 'GMR Ruby',
+          'baseLanguage' => 'ruby',
+          'mrubyVersion' => @options[:mruby_version],
+          'rubyCompatibility' => '~3.0'
+        },
+        'runtime' => {
+          'raylib' => @options[:raylib_version],
+          'platforms' => %w[windows linux macos web]
+        },
+        'schema' => {
+          'syntax' => '1.0.0',
+          'api' => '1.0.0'
+        }
+      }
+
+      write_json(output_path, version)
+    end
+
+    private
+
+    def build_constants_section(model)
+      # Static constants definition for Input
+      {
+        'GMR::Input' => {
+          'mouse' => %w[MOUSE_LEFT MOUSE_RIGHT MOUSE_MIDDLE MOUSE_SIDE MOUSE_EXTRA MOUSE_FORWARD MOUSE_BACK],
+          'keys' => {
+            'special' => %w[KEY_SPACE KEY_ESCAPE KEY_ENTER KEY_TAB KEY_BACKSPACE KEY_DELETE KEY_INSERT],
+            'arrows' => %w[KEY_UP KEY_DOWN KEY_LEFT KEY_RIGHT],
+            'navigation' => %w[KEY_HOME KEY_END KEY_PAGE_UP KEY_PAGE_DOWN],
+            'modifiers' => %w[KEY_LEFT_SHIFT KEY_RIGHT_SHIFT KEY_LEFT_CONTROL KEY_RIGHT_CONTROL KEY_LEFT_ALT KEY_RIGHT_ALT],
+            'function' => %w[KEY_F1 KEY_F2 KEY_F3 KEY_F4 KEY_F5 KEY_F6 KEY_F7 KEY_F8 KEY_F9 KEY_F10 KEY_F11 KEY_F12],
+            'letters' => %w[KEY_A KEY_B KEY_C KEY_D KEY_E KEY_F KEY_G KEY_H KEY_I KEY_J KEY_K KEY_L KEY_M KEY_N KEY_O KEY_P KEY_Q KEY_R KEY_S KEY_T KEY_U KEY_V KEY_W KEY_X KEY_Y KEY_Z],
+            'numbers' => %w[KEY_0 KEY_1 KEY_2 KEY_3 KEY_4 KEY_5 KEY_6 KEY_7 KEY_8 KEY_9]
+          }
+        }
+      }
+    end
+
+    def write_json(path, data)
+      File.write(path, JSON.pretty_generate(data) + "\n")
+      puts "  Generated: #{path}"
+    end
+  end
+
+  # Main entry point
+  def self.run(options)
+    puts "GMR API Documentation Generator"
+    puts "================================"
+
+    doc_parser = DocParser.new
+    binding_parser = BindingParser.new
+    merger = APIMerger.new
+    generator = JSONGenerator.new(options)
+
+    all_docs = []
+    all_bindings = []
+
+    # Parse all source files
+    puts "\nParsing source files..."
+    options[:sources].each do |src|
+      unless File.exist?(src)
+        warn "  Warning: File not found: #{src}"
+        next
+      end
+
+      puts "  Parsing: #{File.basename(src)}"
+      all_docs.concat(doc_parser.parse_file(src))
+      all_bindings.concat(binding_parser.parse_file(src))
+    end
+
+    puts "\nFound #{all_docs.size} documented entries"
+    puts "Found #{all_bindings.size} binding registrations"
+
+    # Merge documentation with bindings
+    model = merger.merge(all_docs, all_bindings)
+
+    # Ensure output directory exists
+    FileUtils.mkdir_p(options[:output_dir])
+
+    # Generate output files
+    puts "\nGenerating output files..."
+    generator.generate_api_json(model, File.join(options[:output_dir], 'api.json'))
+    generator.generate_syntax_json(model, File.join(options[:output_dir], 'syntax.json'))
+    generator.generate_version_json(model, File.join(options[:output_dir], 'version.json'))
+
+    puts "\nDone!"
+  end
+end
+
+# Parse command line arguments
+options = {
+  sources: [],
+  output_dir: 'engine/language',
+  engine_version: '0.1.0',
+  raylib_version: '5.6-dev',
+  mruby_version: '3.4.0'
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: generate_api_docs.rb [options]"
+
+  opts.on("-s", "--source FILE", "Add source file to parse") do |f|
+    options[:sources] << f
+  end
+
+  opts.on("-o", "--output DIR", "Output directory") do |d|
+    options[:output_dir] = d
+  end
+
+  opts.on("-v", "--version VERSION", "Engine version") do |v|
+    options[:engine_version] = v
+  end
+
+  opts.on("--raylib VERSION", "Raylib version") do |v|
+    options[:raylib_version] = v
+  end
+
+  opts.on("--mruby VERSION", "mRuby version") do |v|
+    options[:mruby_version] = v
+  end
+
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+end.parse!
+
+# If no sources specified, use default binding files
+if options[:sources].empty?
+  script_dir = File.dirname(__FILE__)
+  project_root = File.expand_path('..', script_dir)
+  binding_dir = File.join(project_root, 'src', 'bindings')
+
+  Dir.glob(File.join(binding_dir, '*.cpp')).each do |f|
+    options[:sources] << f
+  end
+
+  # Update output dir to be relative to project root
+  options[:output_dir] = File.join(project_root, 'engine', 'language')
+end
+
+GMRDocs.run(options)

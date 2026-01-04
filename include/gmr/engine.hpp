@@ -17,6 +17,7 @@
 #include "gmr/bindings/audio.hpp"
 #include "gmr/bindings/window.hpp"
 #include "gmr/bindings/util.hpp"
+#include "gmr/bindings/collision.hpp"
 
 // Scripting
 #include "gmr/scripting/script_error.hpp"

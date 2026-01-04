@@ -76,6 +76,7 @@ void init_gmr_modules(mrb_state* mrb) {
     mrb_define_module_under(mrb, gmr, "Window");
     mrb_define_module_under(mrb, gmr, "Time");
     mrb_define_module_under(mrb, gmr, "System");
+    mrb_define_module_under(mrb, gmr, "Collision");
 }
 
 // ============================================================================

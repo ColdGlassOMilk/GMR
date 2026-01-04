@@ -2,6 +2,9 @@
 #define GMR_STATE_HPP
 
 #include "gmr/types.hpp"
+#include <unordered_map>
+#include <vector>
+#include <string>
 
 namespace gmr {
 
@@ -27,6 +30,9 @@ public:
     int virtual_width = 800;
     int virtual_height = 600;
     bool use_virtual_resolution = false;
+
+    // Input action mappings (action_name -> list of key codes)
+    std::unordered_map<std::string, std::vector<int>> input_actions;
 
 private:
     State() = default;

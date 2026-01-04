@@ -1,377 +1,284 @@
-# GMR Demo
-# Interactive particle physics playground
+# GMR Tilemap Demo
+# Top-down explorer showcasing tilemap features
 
 include GMR
 
-# World dimensions (fixed coordinate system)
-WORLD_WIDTH, WORLD_HEIGHT = 960, 640
+# Constants
+TILE_SIZE = 32
+MAP_WIDTH = 60
+MAP_HEIGHT = 40
+SCREEN_WIDTH = 960
+SCREEN_HEIGHT = 640
+
+# Tile indices from tilemap.png (18 tiles wide, 32x32 each)
+GRASS_TILE = 0       # Basic grass
+GRASS_VAR1 = 1       # Grass with small detail
+GRASS_VAR2 = 2       # Grass variant
+GRASS_FLOWER = 3     # Grass with flowers
+STONE_TILE = 6       # Dark stone/brick
+STONE_LIGHT = 7      # Lighter stone
+WOOD_PLANK = 9       # Wood planks
+WOOD_PLANK2 = 10     # Wood planks variant
+DIRT_TILE = 5        # Dirt/path
+WATER_TILE = 57      # Still water (row 3, col 3)
+WATER_EDGE = 56      # Water edge
+ROCK_TILE = 93       # Boulder/rock (row 5)
+TREE_TRUNK = 36      # Tree area (large tree occupies 36-37, 54-55)
 
 def init
-  Window.set_title("GMR Demo")
-  Window.set_size(960, 640)
+  Window.set_title("GMR Tilemap Demo")
+  Window.set_size(SCREEN_WIDTH, SCREEN_HEIGHT)
 
-  update_camera
+  # Set up input action mappings
+  Input.map(:move_left, [:left, :a])
+  Input.map(:move_right, [:right, :d])
+  Input.map(:move_up, [:up, :w])
+  Input.map(:move_down, [:down, :s])
 
-  $time = 0.0
-  $gravity_enabled = false  # Start with gravity OFF
-  $show_connections = true
-  $show_debug_info = true   # Toggle debug info panel
+  # Load tileset texture
+  $tileset = Graphics::Texture.load("assets/tilemap.png")
 
-  # Load logo texture (may fail on some platforms)
-  begin
-    $logo = Graphics::Texture.load("assets/logo.png")
-  rescue
-    $logo = nil
-    puts "Warning: Could not load logo texture"
-  end
+  # Create the tilemap
+  $map = Graphics::Tilemap.new($tileset, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
 
-  # Player controlled attractor/repulsor (world coordinates)
-  $attractor = {
-    x: WORLD_WIDTH / 2.0,
-    y: WORLD_HEIGHT / 2.0,
-    radius: 30,
-    strength: 500,
-    mode: :attract  # :attract or :repel
+  # Build the world
+  build_world
+
+  # Define tile properties
+  define_tile_properties
+
+  # Player starts in center of map
+  $player = {
+    x: MAP_WIDTH * TILE_SIZE / 2.0,
+    y: MAP_HEIGHT * TILE_SIZE / 2.0,
+    speed: 200,
+    in_water: false
   }
 
-  # Starfield background (world coordinates, but extended beyond edges)
-  $stars = []
-  400.times do
-    $stars << {
-      x: rand * WORLD_WIDTH * 1.5 - WORLD_WIDTH * 0.25,
-      y: rand * WORLD_HEIGHT * 1.5 - WORLD_HEIGHT * 0.25,
-      z: rand * 3 + 0.5,
-      brightness: System.random_int(100, 255)
-    }
+  # Camera position
+  $camera = { x: 0.0, y: 0.0 }
+
+  # Update camera initially
+  update_camera
+end
+
+def build_world
+  # Fill entire map with grass base
+  $map.fill(GRASS_TILE)
+
+  # Add some grass variety
+  150.times do
+    x = System.random_int(0, MAP_WIDTH - 1)
+    y = System.random_int(0, MAP_HEIGHT - 1)
+    variant = [GRASS_VAR1, GRASS_VAR2, GRASS_FLOWER][System.random_int(0, 2)]
+    $map.set(x, y, variant)
   end
 
-  # Physics particles (world coordinates)
-  $particles = []
-  spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 40)
+  # Stone structure (like a small building/ruins)
+  $map.fill_rect(8, 12, 6, 5, STONE_TILE)
+  # Hollow out interior
+  $map.fill_rect(9, 13, 4, 3, GRASS_TILE)
 
-  # Orbital rings (world coordinates)
-  $rings = []
-  5.times do |i|
-    $rings << {
-      radius: 80 + i * 40,
-      rotation: rand * 360,
-      speed: (i % 2 == 0 ? 1 : -1) * (30 + i * 10),
-      segments: 8 + i * 4,
-      hue: i * 60
-    }
+  # Another stone structure on the right
+  $map.fill_rect(45, 8, 5, 4, STONE_LIGHT)
+  $map.fill_rect(46, 9, 3, 2, GRASS_TILE)
+
+  # Wood deck/platform
+  $map.fill_rect(25, 25, 6, 4, WOOD_PLANK)
+
+  # Dirt paths connecting areas
+  # Horizontal path
+  $map.fill_rect(14, 14, 25, 2, DIRT_TILE)
+  # Vertical path
+  $map.fill_rect(28, 10, 2, 20, DIRT_TILE)
+
+  # Water pond (larger area)
+  $map.fill_rect(38, 28, 10, 8, WATER_TILE)
+  # Smaller water pool
+  $map.fill_rect(5, 30, 5, 4, WATER_TILE)
+
+  # Scatter rocks as obstacles
+  rock_positions = [
+    [20, 8], [22, 10], [35, 5], [50, 15], [12, 25],
+    [40, 12], [55, 30], [15, 35], [30, 32], [48, 5],
+    [8, 5], [52, 25], [18, 20], [42, 18]
+  ]
+  rock_positions.each do |pos|
+    $map.set(pos[0], pos[1], ROCK_TILE)
   end
 
-  # Floating text particles
-  $text_particles = []
+  # Place some "trees" (using the large tree trunk tile)
+  tree_positions = [
+    [3, 3], [25, 5], [50, 3], [55, 20], [10, 32],
+    [35, 30], [20, 28], [45, 35], [5, 18], [52, 10]
+  ]
+  tree_positions.each do |pos|
+    $map.set(pos[0], pos[1], TREE_TRUNK)
+  end
+end
 
-  # Stats
-  $spawn_count = 40
+def define_tile_properties
+  # Solid tiles (player cannot walk through)
+  $map.define_tile(STONE_TILE, { solid: true })
+  $map.define_tile(STONE_LIGHT, { solid: true })
+  $map.define_tile(ROCK_TILE, { solid: true })
+  $map.define_tile(TREE_TRUNK, { solid: true })
+
+  # Water tiles (special property)
+  $map.define_tile(WATER_TILE, { water: true })
+  $map.define_tile(WATER_EDGE, { water: true })
+
+  # Wood is walkable (no properties needed, defaults to passable)
+  # Grass variants are all walkable
+  # Dirt path is walkable
 end
 
 def update(dt)
-  unless $stars && $particles && $rings && $text_particles && $attractor
+  # Check for reinitialization (hot reload safety)
+  unless $map && $player && $camera
     init
     return
   end
 
-  # Update camera/scaling each frame
+  # Skip game input when console is open
+  return if console_open?
+
+  update_player(dt)
   update_camera
+end
 
-  # Clamp dt to prevent huge jumps when window loses focus
-  dt = [dt, 0.1].min
+def update_player(dt)
+  # Get input direction using action mappings
+  dx, dy = 0, 0
+  dx -= 1 if Input.action_down?(:move_left)
+  dx += 1 if Input.action_down?(:move_right)
+  dy -= 1 if Input.action_down?(:move_up)
+  dy += 1 if Input.action_down?(:move_down)
 
-  $time += dt
-
-  # Convert mouse to world coordinates
-  mouse_world_x = screen_to_world_x(Input.mouse_x)
-  mouse_world_y = screen_to_world_y(Input.mouse_y)
-
-  # Only process game input when console is closed
-  unless console_open?
-    # Update attractor position (in world coordinates)
-    $attractor[:x] = mouse_world_x
-    $attractor[:y] = mouse_world_y
-
-    # Left click = attract, right click = repel
-    if Input.mouse_down?(:left)
-      $attractor[:mode] = :attract
-    elsif Input.mouse_down?(:right)
-      $attractor[:mode] = :repel
-    end
-
-    # Spawn particles on space
-    if Input.key_pressed?(:space)
-      spawn_particle_burst(mouse_world_x, mouse_world_y, 25)
-      spawn_text_particle(mouse_world_x, mouse_world_y, "+25")
-    end
-
-    if Input.key_pressed?(:g)
-      $gravity_enabled = !$gravity_enabled
-      spawn_text_particle(WORLD_WIDTH / 2, 50, $gravity_enabled ? "Gravity ON" : "Gravity OFF")
-    end
-
-    if Input.key_pressed?(:c)
-      $show_connections = !$show_connections
-    end
-
-    if Input.key_pressed?(:r)
-      $particles.clear
-      spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 40)
-      spawn_text_particle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "Reset!")
-    end
-
-    # Fullscreen toggle - disabled on web (handled by shell.html button)
-    if Input.key_pressed?(:f) && System.platform != "web"
-      Window.toggle_fullscreen
-    end
-
-    if Input.key_pressed?(:d)
-      $show_debug_info = !$show_debug_info
-    end
+  # Normalize diagonal movement
+  if dx != 0 && dy != 0
+    dx *= 0.707
+    dy *= 0.707
   end
 
-  mouse_active = !console_open? && (Input.mouse_down?(:left) || Input.mouse_down?(:right))
+  # Calculate speed (slower in water)
+  speed = $player[:in_water] ? $player[:speed] * 0.5 : $player[:speed]
 
-  # Update stars (parallax) - wrap in extended world space
-  $stars.each do |star|
-    star[:x] -= star[:z] * dt * 40
-    if star[:x] < -WORLD_WIDTH * 0.25
-      star[:x] = WORLD_WIDTH * 1.25
-      star[:y] = rand * WORLD_HEIGHT * 1.5 - WORLD_HEIGHT * 0.25
-    end
+  # Try to move (separate X and Y for sliding along walls)
+  if dx != 0
+    new_x = $player[:x] + dx * speed * dt
+    tile_x = (new_x / TILE_SIZE).to_i
+    tile_y = ($player[:y] / TILE_SIZE).to_i
+    $player[:x] = new_x unless $map.solid?(tile_x, tile_y)
   end
 
-  # Update rings
-  $rings.each do |ring|
-    ring[:rotation] += ring[:speed] * dt
+  if dy != 0
+    new_y = $player[:y] + dy * speed * dt
+    tile_x = ($player[:x] / TILE_SIZE).to_i
+    tile_y = (new_y / TILE_SIZE).to_i
+    $player[:y] = new_y unless $map.solid?(tile_x, tile_y)
   end
 
-  # Update particles with physics (all in world coordinates)
-  $particles.each do |p|
-    # Gravity toward bottom (only if enabled)
-    if $gravity_enabled
-      p[:vy] += 150 * dt
-    end
+  # Clamp to map bounds
+  $player[:x] = [[$player[:x], TILE_SIZE].max, (MAP_WIDTH - 1) * TILE_SIZE].min
+  $player[:y] = [[$player[:y], TILE_SIZE].max, (MAP_HEIGHT - 1) * TILE_SIZE].min
 
-    # Attractor/repulsor force
-    if mouse_active
-      dx = $attractor[:x] - p[:x]
-      dy = $attractor[:y] - p[:y]
-      dist = Math.sqrt(dx * dx + dy * dy)
-      if dist > 15 && dist < 400
-        strength = $attractor[:mode] == :attract ? 600 : -800
-        force = strength / (dist * p[:mass])
-        p[:vx] += (dx / dist) * force * dt
-        p[:vy] += (dy / dist) * force * dt
-      end
-    end
+  # Check if player is in water
+  px = ($player[:x] / TILE_SIZE).to_i
+  py = ($player[:y] / TILE_SIZE).to_i
+  $player[:in_water] = $map.water?(px, py)
+end
 
-    # Slight damping
-    p[:vx] *= 0.998
-    p[:vy] *= 0.998
+def update_camera
+  # Center camera on player
+  $camera[:x] = $player[:x] - SCREEN_WIDTH / 2
+  $camera[:y] = $player[:y] - SCREEN_HEIGHT / 2
 
-    # Move
-    p[:x] += p[:vx] * dt * 60
-    p[:y] += p[:vy] * dt * 60
-
-    # Bounce off world boundaries
-    if p[:x] < p[:radius]
-      p[:x] = p[:radius]
-      p[:vx] = -p[:vx] * 0.9
-      p[:hue] = (p[:hue] + 30) % 360
-    elsif p[:x] > WORLD_WIDTH - p[:radius]
-      p[:x] = WORLD_WIDTH - p[:radius]
-      p[:vx] = -p[:vx] * 0.9
-      p[:hue] = (p[:hue] + 30) % 360
-    end
-
-    if p[:y] < p[:radius]
-      p[:y] = p[:radius]
-      p[:vy] = -p[:vy] * 0.9
-    elsif p[:y] > WORLD_HEIGHT - p[:radius]
-      p[:y] = WORLD_HEIGHT - p[:radius]
-      p[:vy] = -p[:vy] * 0.9
-      p[:hue] = (p[:hue] + 15) % 360
-    end
-
-    # Decay
-    p[:life] -= p[:decay]
-    p[:hue] = (p[:hue] + dt * 20) % 360
-  end
-
-  # Remove dead particles
-  $particles.reject! { |p| p[:life] <= 0 }
-
-  # Auto-spawn if we're running low
-  if $particles.length < 10
-    spawn_particle_burst(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 15)
-  end
-
-  # Update text particles
-  $text_particles.each do |tp|
-    tp[:y] += tp[:vy]
-    tp[:vy] -= dt * 2
-    tp[:life] -= dt * 0.8
-  end
-  $text_particles.reject! { |tp| tp[:life] <= 0 }
+  # Clamp camera to map bounds
+  max_x = MAP_WIDTH * TILE_SIZE - SCREEN_WIDTH
+  max_y = MAP_HEIGHT * TILE_SIZE - SCREEN_HEIGHT
+  $camera[:x] = [[$camera[:x], 0].max, max_x].min
+  $camera[:y] = [[$camera[:y], 0].max, max_y].min
 end
 
 def draw
-  unless $stars && $particles && $rings && $text_particles && $attractor
+  # Safety check for hot reload
+  unless $map && $player && $camera
     Graphics.clear([20, 20, 20])
     Graphics.draw_text("Initializing...", 10, 10, 20, [255, 100, 100])
     return
   end
 
-  Graphics.clear([8, 8, 20])
+  # Dark green background (visible if tiles don't cover)
+  Graphics.clear([34, 51, 34])
 
-  # Draw logo centered in world (behind everything)
-  if $logo
-    logo_scale = 0.5 * $scale
-    logo_x = world_to_screen_x(WORLD_WIDTH / 2) - ($logo.width * logo_scale / 2)
-    logo_y = world_to_screen_y(WORLD_HEIGHT / 2) - ($logo.height * logo_scale / 2)
-    $logo.draw_ex(logo_x, logo_y, 0, logo_scale, [255, 255, 255, 40])
-  end
+  # Calculate visible tile region
+  start_tile_x = ($camera[:x] / TILE_SIZE).to_i
+  start_tile_y = ($camera[:y] / TILE_SIZE).to_i
+  tiles_wide = (SCREEN_WIDTH / TILE_SIZE) + 2
+  tiles_tall = (SCREEN_HEIGHT / TILE_SIZE) + 2
 
-  # Draw starfield (world coordinates)
-  $stars.each do |star|
-    b = star[:brightness]
-    sx = world_to_screen_x(star[:x]).to_i
-    sy = world_to_screen_y(star[:y]).to_i
-    size = star[:z] > 2 ? 2 : 1
-    Graphics.draw_rect(sx, sy, size, size, [b, b, (b * 0.9).to_i])
-  end
+  # Calculate draw offset for smooth scrolling
+  draw_x = -($camera[:x] % TILE_SIZE).to_i
+  draw_y = -($camera[:y] % TILE_SIZE).to_i
 
-  # Draw orbital rings (world coordinates)
-  cx = world_to_screen_x(WORLD_WIDTH / 2)
-  cy = world_to_screen_y(WORLD_HEIGHT / 2)
+  # Draw only the visible portion of the map (efficient!)
+  $map.draw_region(draw_x, draw_y, start_tile_x, start_tile_y, tiles_wide, tiles_tall)
 
-  $rings.each do |ring|
-    rgb = hue_to_rgb(ring[:hue] + $time * 30, 0.7, 0.8)
-    scaled_radius = ring[:radius] * $scale
+  # Draw player
+  draw_player
 
-    ring[:segments].times do |i|
-      angle = (i.to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
-      next_angle = ((i + 1).to_f / ring[:segments]) * Math::PI * 2 + ring[:rotation] * Math::PI / 180
+  # Draw UI overlay
+  draw_ui
+end
 
-      x1 = cx + Math.cos(angle) * scaled_radius
-      y1 = cy + Math.sin(angle) * scaled_radius
-      x2 = cx + Math.cos(next_angle) * scaled_radius
-      y2 = cy + Math.sin(next_angle) * scaled_radius
+def draw_player
+  # Convert player world position to screen position
+  screen_x = ($player[:x] - $camera[:x]).to_i
+  screen_y = ($player[:y] - $camera[:y]).to_i
 
-      if i % 2 == 0
-        Graphics.draw_line_thick(x1, y1, x2, y2, [2 * $scale, 1].max, rgb)
-      end
+  # Player size
+  size = 24
 
-      Graphics.draw_circle(x1.to_i, y1.to_i, [3 * $scale, 2].max.to_i, rgb)
-    end
-  end
-
-  # Draw connections between nearby particles
-  max_dist = 120
-
-  if $show_connections && $particles.length > 1
-    $particles.each_with_index do |p1, i|
-      $particles.each_with_index do |p2, j|
-        next if j <= i
-
-        dx = p1[:x] - p2[:x]
-        dy = p1[:y] - p2[:y]
-        dist = Math.sqrt(dx * dx + dy * dy)
-
-        if dist < max_dist
-          alpha = [[((max_dist - dist) / max_dist.to_f * 255).to_i, 0].max, 255].min
-          Graphics.draw_line(
-            world_to_screen_x(p1[:x]).to_i, world_to_screen_y(p1[:y]).to_i,
-            world_to_screen_x(p2[:x]).to_i, world_to_screen_y(p2[:y]).to_i,
-            [120, 200, 255, alpha]
-          )
-        end
-      end
-    end
-  end
-
-  # Draw particles
-  $particles.each do |p|
-    rgb = hue_to_rgb(p[:hue], 0.8, 1.0)
-
-    sx = world_to_screen_x(p[:x]).to_i
-    sy = world_to_screen_y(p[:y]).to_i
-    scaled_radius = (p[:radius] * $scale).to_i
-
-    glow_alpha = (p[:life] * 100).to_i
-    Graphics.draw_circle_gradient(
-      sx, sy, scaled_radius + scaled(8),
-      [rgb[0], rgb[1], rgb[2], glow_alpha],
-      [rgb[0], rgb[1], rgb[2], 0]
-    )
-
-    Graphics.draw_circle(sx, sy, scaled_radius, [rgb[0], rgb[1], rgb[2], (p[:life] * 255).to_i])
-    Graphics.draw_circle(sx, sy, (scaled_radius * 0.4).to_i, [255, 255, 255, (p[:life] * 200).to_i])
-  end
-
-  # Draw attractor/repulsor cursor
-  mouse_active = Input.mouse_down?(:left) || Input.mouse_down?(:right)
-  ax = world_to_screen_x($attractor[:x]).to_i
-  ay = world_to_screen_y($attractor[:y]).to_i
-
-  if mouse_active
-    pulse = (Math.sin($time * 10) + 1) * 0.5
-
-    if $attractor[:mode] == :attract
-      Graphics.draw_circle_gradient(ax, ay, scaled(25), [150, 220, 255, 150], [100, 180, 255, 0])
-      Graphics.draw_circle_outline(ax, ay, scaled($attractor[:radius] + pulse * 10), [100, 200, 255, (100 + pulse * 100).to_i])
-      Graphics.draw_circle_outline(ax, ay, scaled($attractor[:radius] * 0.5), [100, 200, 255, (100 + pulse * 100).to_i])
-    else
-      Graphics.draw_circle_gradient(ax, ay, scaled(30), [255, 100, 50, 150], [255, 50, 0, 0])
-      Graphics.draw_circle_outline(ax, ay, scaled($attractor[:radius] + pulse * 10), [255, 150, 50, (100 + pulse * 100).to_i])
-      Graphics.draw_circle_outline(ax, ay, scaled($attractor[:radius] * 0.5), [255, 150, 50, (100 + pulse * 100).to_i])
-    end
+  # Player color based on water state
+  if $player[:in_water]
+    # Blue tint when in water, with "bobbing" effect
+    bob = (Math.sin(Time.elapsed * 6) * 2).to_i
+    color = [100, 150, 220]
+    Graphics.draw_rect(screen_x - size / 2, screen_y - size / 2 + bob, size, size - 4, color)
   else
-    Graphics.draw_circle_outline(ax, ay, scaled(15), [80, 120, 160, 80])
+    # Normal orange/yellow color
+    color = [255, 180, 80]
+    Graphics.draw_rect(screen_x - size / 2, screen_y - size / 2, size, size, color)
   end
 
-  # Draw floating text particles
-  $text_particles.each do |tp|
-    alpha = (tp[:life] * 255).to_i
-    sx = world_to_screen_x(tp[:x]).to_i - scaled(30)
-    sy = world_to_screen_y(tp[:y]).to_i
-    Graphics.draw_text(tp[:text], sx, sy, scaled(32), [255, 255, 255, alpha])
-  end
+  # Draw a little face/direction indicator
+  Graphics.draw_rect(screen_x - 2, screen_y - 6, 4, 4, [50, 50, 50])
+end
 
-  # UI (screen coordinates, not world)
-  font_size = 32
-  Graphics.draw_text("FPS: #{GMR::Time.fps}", 10, 10, font_size, [255, 255, 255, 200])
-  Graphics.draw_text("Particles: #{$particles.length}", 10, 46, font_size, [255, 255, 255, 200])
+def draw_ui
+  # Semi-transparent background for text readability
+  Graphics.draw_rect(5, 5, 280, 100, [0, 0, 0, 150])
 
-  # Debug info panel (top-right, screen coordinates)
-  if $show_debug_info
-    panel_x = $screen_width - 380
-    panel_y = 10
-    line_height = 36
-    debug_font = 28
+  # FPS
+  Graphics.draw_text("FPS: #{GMR::Time.fps}", 10, 10, 22, [255, 255, 255])
 
-    # Semi-transparent background
-    Graphics.draw_rect(panel_x - 10, panel_y - 5, 380, 230, [0, 0, 0, 180])
+  # Player tile position
+  tile_x = ($player[:x] / TILE_SIZE).to_i
+  tile_y = ($player[:y] / TILE_SIZE).to_i
+  Graphics.draw_text("Position: #{tile_x}, #{tile_y}", 10, 35, 22, [200, 200, 200])
 
-    # Header
-    Graphics.draw_text("=== Build ===", panel_x, panel_y, debug_font, [100, 200, 255])
+  # Current tile properties
+  props = []
+  props << "solid" if $map.solid?(tile_x, tile_y)
+  props << "water" if $map.water?(tile_x, tile_y)
+  props_text = props.empty? ? "walkable" : props.join(", ")
+  Graphics.draw_text("Tile: #{props_text}", 10, 60, 22, [180, 220, 180])
 
-    # Build details
-    Graphics.draw_text("Platform: #{System.platform}", panel_x, panel_y + line_height, debug_font, [200, 200, 200])
-    Graphics.draw_text("Build: #{System.build_type}", panel_x, panel_y + line_height * 2, debug_font, [200, 200, 200])
-    Graphics.draw_text("Scripts: #{System.compiled_scripts? ? 'Compiled' : 'Interpreted'}", panel_x, panel_y + line_height * 3, debug_font, [200, 200, 200])
+  # World coordinates (smaller text)
+  Graphics.draw_text("World: #{$player[:x].to_i}, #{$player[:y].to_i}", 10, 85, 18, [150, 150, 150])
 
-    # GPU info
-    Graphics.draw_text("=== GPU ===", panel_x, panel_y + line_height * 4 + 10, debug_font, [100, 200, 255])
-
-    renderer = System.gpu_renderer
-    renderer = renderer[0...22] + "..." if renderer.length > 25
-    Graphics.draw_text(renderer, panel_x, panel_y + line_height * 5 + 10, debug_font, [200, 200, 200])
-  end
-
-  # Instructions (bottom-left, screen coordinates)
-  instructions_font = 28
-  Graphics.draw_text("LMB: Attract | RMB: Repel | Space: Spawn", 10, $screen_height - 70, instructions_font, [180, 180, 180, 220])
-  Graphics.draw_text("G: Gravity (#{$gravity_enabled ? 'ON' : 'OFF'}) | C: Lines | R: Reset | D: Debug", 10, $screen_height - 38, instructions_font, [180, 180, 180, 220])
+  # Controls hint at bottom
+  Graphics.draw_rect(5, SCREEN_HEIGHT - 35, 400, 30, [0, 0, 0, 150])
+  Graphics.draw_text("WASD/Arrows: Move | `: Console | Water slows movement", 10, SCREEN_HEIGHT - 30, 18, [180, 180, 180])
 end

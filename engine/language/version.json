@@ -14,7 +14,12 @@
   },
   "runtime": {
     "raylib": "5.6-dev",
-    "platforms": ["windows", "linux", "macos", "web"]
+    "platforms": [
+      "windows",
+      "linux",
+      "macos",
+      "web"
+    ]
   },
   "schema": {
     "syntax": "1.0.0",
