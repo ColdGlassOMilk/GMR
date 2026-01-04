@@ -4,6 +4,7 @@
 #include <mruby/array.h>
 #include <mruby/class.h>
 #include <mruby/error.h>
+#include <mruby/internal.h>
 
 namespace gmr {
 namespace scripting {
@@ -27,8 +28,8 @@ std::optional<ScriptError> capture_exception(mrb_state* mrb) {
         error.message = std::string(RSTRING_PTR(msg), RSTRING_LEN(msg));
     }
 
-    // Get backtrace
-    mrb_value bt = mrb_exc_backtrace(mrb, exc);
+    // Get backtrace by calling the backtrace method on the exception
+    mrb_value bt = mrb_funcall(mrb, exc, "backtrace", 0);
     if (mrb_array_p(bt)) {
         mrb_int len = RARRAY_LEN(bt);
         for (mrb_int i = 0; i < len; ++i) {

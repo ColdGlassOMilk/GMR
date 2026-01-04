@@ -49,6 +49,7 @@ set(SOURCES
     src/bindings/console.cpp
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
+    src/scripting/script_error.cpp
 )
 
 # Create executable
