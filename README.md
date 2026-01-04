@@ -159,22 +159,24 @@ cmake --preset web-release && cmake --build build-web
 Edit `scripts/main.rb`:
 
 ```ruby
+include GMR
+
 def init
-  GMR::Window.set_title("My Game")
+  Window.set_title("My Game")
   $x, $y = 160, 120
 end
 
 def update(dt)
-  $x += 100 * dt if GMR::Input.key_down?(:right)
-  $x -= 100 * dt if GMR::Input.key_down?(:left)
-  $y -= 100 * dt if GMR::Input.key_down?(:up)
-  $y += 100 * dt if GMR::Input.key_down?(:down)
+  $x += 100 * dt if Input.key_down?(:right)
+  $x -= 100 * dt if Input.key_down?(:left)
+  $y -= 100 * dt if Input.key_down?(:up)
+  $y += 100 * dt if Input.key_down?(:down)
 end
 
 def draw
-  GMR::Graphics.clear([20, 20, 40])
-  GMR::Graphics.draw_circle($x, $y, 8, [100, 200, 255])
-  GMR::Graphics.draw_text("Arrow keys to move!", 10, 10, 20, [255, 255, 255])
+  Graphics.clear([20, 20, 40])
+  Graphics.draw_circle($x, $y, 8, [100, 200, 255])
+  Graphics.draw_text("Arrow keys to move!", 10, 10, 20, [255, 255, 255])
 end
 ```
 
