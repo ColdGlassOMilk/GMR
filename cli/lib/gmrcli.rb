@@ -23,6 +23,7 @@ require_relative "gmrcli/commands/setup"
 require_relative "gmrcli/commands/build"
 require_relative "gmrcli/commands/run"
 require_relative "gmrcli/commands/new"
+require_relative "gmrcli/commands/docs"
 
 module Gmrcli
   class << self

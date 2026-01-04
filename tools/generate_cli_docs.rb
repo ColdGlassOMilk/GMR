@@ -2,10 +2,11 @@
 # frozen_string_literal: true
 
 # GMR CLI Documentation Generator
-# Parses gmrcli Ruby files and generates markdown documentation
+# Parses gmrcli Ruby files and generates markdown and HTML documentation
 #
 # Usage: ruby generate_cli_docs.rb [options]
-#   -o, --output DIR     Output directory (default: docs/cli)
+#   -o, --output DIR     Output directory for markdown (default: docs/cli)
+#   --html DIR           Generate HTML docs to directory (dark theme)
 
 require 'optparse'
 require 'fileutils'
@@ -367,6 +368,438 @@ module GMRCliDocs
     end
   end
 
+  # Generates HTML documentation with dark theme
+  class HTMLGenerator
+    # Shared CSS (same theme as API docs)
+    DARK_THEME_CSS = <<~CSS
+      :root {
+        --bg-primary: #1a1b26;
+        --bg-secondary: #24283b;
+        --bg-tertiary: #414868;
+        --text-primary: #c0caf5;
+        --text-secondary: #a9b1d6;
+        --text-muted: #565f89;
+        --accent-blue: #7aa2f7;
+        --accent-cyan: #7dcfff;
+        --accent-green: #9ece6a;
+        --accent-magenta: #bb9af7;
+        --accent-orange: #ff9e64;
+        --accent-red: #f7768e;
+        --accent-yellow: #e0af68;
+        --border-color: #3b4261;
+        --code-bg: #1f2335;
+        --link-color: #7aa2f7;
+        --link-hover: #7dcfff;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+
+      .nav {
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 2rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .nav-content {
+        max-width: 1000px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+      }
+
+      .nav-brand {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--accent-magenta);
+        text-decoration: none;
+      }
+
+      .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+      .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; }
+      .nav-links a:hover, .nav-links a.active { color: var(--accent-blue); }
+
+      h1 {
+        font-size: 2.5rem;
+        color: var(--accent-magenta);
+        margin-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        color: var(--accent-cyan);
+        margin: 2rem 0 1rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      h3 { font-size: 1.25rem; color: var(--accent-green); margin: 1.5rem 0 0.75rem; }
+      p { margin-bottom: 1rem; }
+      a { color: var(--link-color); text-decoration: none; }
+      a:hover { color: var(--link-hover); }
+
+      code {
+        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        background: var(--code-bg);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: var(--accent-orange);
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 1rem 0;
+      }
+
+      pre code { background: none; padding: 0; color: var(--text-primary); }
+
+      table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+      th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+      th { background: var(--bg-secondary); color: var(--accent-cyan); font-weight: 600; }
+      tr:hover { background: var(--bg-secondary); }
+
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+
+      .card h3 { margin-top: 0; }
+
+      .command-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-green);
+        border-radius: 0 8px 8px 0;
+        padding: 1.25rem;
+        margin: 1.5rem 0;
+      }
+
+      .option-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-blue);
+        border-radius: 0 8px 8px 0;
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+
+      .label {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .label-default { background: var(--accent-green); color: var(--bg-primary); }
+      .label-alias { background: var(--accent-blue); color: var(--bg-primary); }
+      .label-type { background: var(--accent-magenta); color: var(--bg-primary); }
+
+      .stage-list { list-style: none; counter-reset: stage; }
+      .stage-list li {
+        counter-increment: stage;
+        padding: 0.5rem 0 0.5rem 2.5rem;
+        position: relative;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .stage-list li::before {
+        content: counter(stage);
+        position: absolute;
+        left: 0;
+        width: 1.75rem;
+        height: 1.75rem;
+        background: var(--accent-cyan);
+        color: var(--bg-primary);
+        border-radius: 50%;
+        text-align: center;
+        line-height: 1.75rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+
+      .footer {
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+
+      /* Syntax Highlighting */
+      .hl-keyword { color: #bb9af7; }
+      .hl-string { color: #9ece6a; }
+      .hl-comment { color: #565f89; font-style: italic; }
+      .hl-command { color: #7dcfff; }
+      .hl-flag { color: #ff9e64; }
+    CSS
+
+    def initialize(options)
+      @options = options
+    end
+
+    def generate(parsed_data, output_dir)
+      FileUtils.mkdir_p(output_dir)
+
+      # Write CSS
+      File.write(File.join(output_dir, 'styles.css'), DARK_THEME_CSS)
+      puts "  Generated: #{File.join(output_dir, 'styles.css')}"
+
+      # Generate index
+      generate_index(output_dir, parsed_data)
+
+      # Generate command pages
+      parsed_data[:commands].each do |name, cmd|
+        next if name == 'version' || name == 'info'
+        generate_command_page(output_dir, cmd, parsed_data)
+      end
+
+      # Generate error codes page
+      if parsed_data[:error_codes]&.any?
+        generate_error_codes_page(output_dir, parsed_data[:error_codes])
+      end
+    end
+
+    private
+
+    def html_escape(text)
+      return '' unless text
+      text.to_s.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;').gsub('"', '&quot;')
+    end
+
+    def highlight_bash(code)
+      escaped = html_escape(code)
+      # Comments
+      escaped = escaped.gsub(/(#.*)$/) { "<span class=\"hl-comment\">#{$1}</span>" }
+      # Strings
+      escaped = escaped.gsub(/("(?:[^"\\]|\\.)*")/) { "<span class=\"hl-string\">#{$1}</span>" }
+      # Flags
+      escaped = escaped.gsub(/(--?\w+[-\w]*)/) { "<span class=\"hl-flag\">#{$1}</span>" }
+      # gmrcli command
+      escaped = escaped.gsub(/\b(gmrcli)\b/) { "<span class=\"hl-command\">#{$1}</span>" }
+      escaped
+    end
+
+    def generate_index(output_dir, data)
+      path = File.join(output_dir, 'index.html')
+      File.open(path, 'w') do |f|
+        f.puts html_header('gmrcli Reference', data[:commands].keys)
+
+        f.puts '<div class="container">'
+        f.puts '<h1>gmrcli Reference</h1>'
+        f.puts '<p>Command-line interface for GMR game development.</p>'
+
+        # Commands grid
+        f.puts '<h2>Commands</h2>'
+        f.puts '<div class="card-grid">'
+        data[:commands].each do |name, cmd|
+          default = cmd.default_task ? ' <span class="label label-default">default</span>' : ''
+          aliases = cmd.aliases.map { |a| "<span class=\"label label-alias\">#{html_escape(a)}</span>" }.join(' ')
+          f.puts '<div class="card">'
+          f.puts "<h3><a href=\"#{name}.html\">#{html_escape(name)}</a>#{default} #{aliases}</h3>"
+          f.puts "<p>#{html_escape(cmd.description)}</p>"
+          f.puts '</div>'
+        end
+        f.puts '</div>'
+
+        # Global options
+        if data[:class_options].any?
+          f.puts '<h2>Global Options</h2>'
+          f.puts '<p>These options are available for all commands:</p>'
+          f.puts '<table>'
+          f.puts '<thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>'
+          f.puts '<tbody>'
+          data[:class_options].each do |opt|
+            alias_str = opt.aliases.first ? " (<code>#{html_escape(opt.aliases.first)}</code>)" : ''
+            default = opt.default.nil? ? '-' : "<code>#{html_escape(opt.default.to_s)}</code>"
+            f.puts "<tr><td><code>--#{html_escape(opt.name)}</code>#{alias_str}</td>"
+            f.puts "<td><span class=\"label label-type\">#{opt.type}</span></td>"
+            f.puts "<td>#{default}</td>"
+            f.puts "<td>#{html_escape(opt.description)}</td></tr>"
+          end
+          f.puts '</tbody></table>'
+        end
+
+        # Links
+        f.puts '<h2>See Also</h2>'
+        f.puts '<div class="card-grid">'
+        f.puts '<div class="card"><h3><a href="error-codes.html">Error Codes</a></h3><p>Machine-readable error codes returned by gmrcli.</p></div>'
+        f.puts '<div class="card"><h3><a href="../html/index.html">API Reference</a></h3><p>GMR Ruby API documentation.</p></div>'
+        f.puts '</div>'
+
+        f.puts '</div>'
+        f.puts html_footer
+      end
+      puts "  Generated: #{path}"
+    end
+
+    def generate_command_page(output_dir, cmd, data)
+      path = File.join(output_dir, "#{cmd.name}.html")
+      File.open(path, 'w') do |f|
+        f.puts html_header("gmrcli #{cmd.name}", data[:commands].keys, cmd.name)
+
+        f.puts '<div class="container">'
+        f.puts "<h1>gmrcli #{html_escape(cmd.name)}</h1>"
+        f.puts "<p>#{html_escape(cmd.description)}</p>"
+
+        # Usage
+        f.puts '<h2>Usage</h2>'
+        f.puts '<pre><code>'
+        f.puts highlight_bash("gmrcli #{cmd.name} [options]")
+        f.puts '</code></pre>'
+
+        # Description
+        if cmd.long_desc
+          f.puts '<h2>Description</h2>'
+          f.puts "<p>#{html_escape(cmd.long_desc).gsub("\n", '<br>')}</p>"
+        end
+
+        # Options
+        if cmd.options.any?
+          f.puts '<h2>Options</h2>'
+          f.puts '<table>'
+          f.puts '<thead><tr><th>Option</th><th>Alias</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>'
+          f.puts '<tbody>'
+          cmd.options.each do |opt|
+            alias_str = opt.aliases.first ? "<code>#{html_escape(opt.aliases.first)}</code>" : '-'
+            default = opt.default.nil? ? '-' : "<code>#{html_escape(opt.default.to_s)}</code>"
+            f.puts "<tr><td><code>--#{html_escape(opt.name)}</code></td>"
+            f.puts "<td>#{alias_str}</td>"
+            f.puts "<td><span class=\"label label-type\">#{opt.type}</span></td>"
+            f.puts "<td>#{default}</td>"
+            f.puts "<td>#{html_escape(opt.description)}</td></tr>"
+          end
+          f.puts '</tbody></table>'
+        end
+
+        # Stages
+        if data[:stages] && data[:stages][cmd.name]&.any?
+          f.puts '<h2>Stages</h2>'
+          f.puts '<ul class="stage-list">'
+          data[:stages][cmd.name].each do |stage|
+            f.puts "<li>#{html_escape(stage[:name])}</li>"
+          end
+          f.puts '</ul>'
+        end
+
+        # Examples
+        f.puts '<h2>Examples</h2>'
+        f.puts '<pre><code>'
+        example = "# Basic usage\ngmrcli #{cmd.name}"
+        if cmd.options.any? && cmd.options.first.type == :boolean
+          example += "\n\n# With #{cmd.options.first.name} flag\ngmrcli #{cmd.name} --#{cmd.options.first.name}"
+        end
+        f.puts highlight_bash(example)
+        f.puts '</code></pre>'
+
+        f.puts '</div>'
+        f.puts html_footer
+      end
+      puts "  Generated: #{path}"
+    end
+
+    def generate_error_codes_page(output_dir, codes)
+      path = File.join(output_dir, 'error-codes.html')
+      File.open(path, 'w') do |f|
+        f.puts html_header('Error Codes', [], 'error-codes')
+
+        f.puts '<div class="container">'
+        f.puts '<h1>Error Codes</h1>'
+        f.puts '<p>Machine-readable error codes returned by gmrcli.</p>'
+
+        # Group by category
+        categories = codes.group_by { |c| c[:code].split('.').first }
+
+        categories.each do |category, cat_codes|
+          f.puts "<h2>#{html_escape(category)}</h2>"
+          f.puts '<table>'
+          f.puts '<thead><tr><th>Code</th><th>Exit</th><th>Description</th></tr></thead>'
+          f.puts '<tbody>'
+          cat_codes.sort_by { |c| c[:code] }.each do |code|
+            f.puts "<tr><td><code>#{html_escape(code[:code])}</code></td>"
+            f.puts "<td>#{code[:exit_code]}</td>"
+            f.puts "<td>#{html_escape(code[:description])}</td></tr>"
+          end
+          f.puts '</tbody></table>'
+        end
+
+        f.puts '</div>'
+        f.puts html_footer
+      end
+      puts "  Generated: #{path}"
+    end
+
+    def html_header(title, commands, current = nil)
+      nav_links = commands.map do |name|
+        active = name == current ? ' class="active"' : ''
+        "<a href=\"#{name}.html\"#{active}>#{html_escape(name)}</a>"
+      end.join("\n          ")
+
+      <<~HTML
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>#{html_escape(title)} - gmrcli</title>
+          <link rel="stylesheet" href="styles.css">
+        </head>
+        <body>
+          <nav class="nav">
+            <div class="nav-content">
+              <a href="index.html" class="nav-brand">gmrcli</a>
+              <ul class="nav-links">
+                #{nav_links}
+                <a href="error-codes.html"#{current == 'error-codes' ? ' class="active"' : ''}>Errors</a>
+              </ul>
+            </div>
+          </nav>
+      HTML
+    end
+
+    def html_footer
+      <<~HTML
+          <footer class="footer">
+            <p>Generated by <code>generate_cli_docs.rb</code></p>
+            <p>gmrcli &bull; CLI Reference</p>
+          </footer>
+        </body>
+        </html>
+      HTML
+    end
+  end
+
   # Main entry point
   def self.run(options)
     puts "GMR CLI Documentation Generator"
@@ -422,9 +855,16 @@ module GMRCliDocs
     }
 
     # Generate markdown
-    puts "\nGenerating documentation..."
-    generator = MarkdownGenerator.new(options)
-    generator.generate(parsed_data, options[:output_dir])
+    puts "\nGenerating markdown documentation..."
+    md_generator = MarkdownGenerator.new(options)
+    md_generator.generate(parsed_data, options[:output_dir])
+
+    # Generate HTML if requested
+    if options[:html_dir]
+      puts "\nGenerating HTML documentation..."
+      html_generator = HTMLGenerator.new(options)
+      html_generator.generate(parsed_data, options[:html_dir])
+    end
 
     puts "\nDone!"
   end
@@ -433,14 +873,19 @@ end
 # Parse command line arguments
 options = {
   output_dir: 'docs/cli',
+  html_dir: nil,
   cli_root: nil
 }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: generate_cli_docs.rb [options]"
 
-  opts.on("-o", "--output DIR", "Output directory") do |d|
+  opts.on("-o", "--output DIR", "Output directory for markdown") do |d|
     options[:output_dir] = d
+  end
+
+  opts.on("--html DIR", "Generate HTML docs to directory") do |d|
+    options[:html_dir] = d
   end
 
   opts.on("-c", "--cli-root DIR", "CLI source root directory") do |d|

@@ -84,13 +84,12 @@ Add `-o text` for colored terminal output (JSON is default).
 
 ## Documentation
 
-📚 **[Full Documentation](docs/README.md)**
+📚 **Reference Documentation** (auto-generated from source)
 
-- [Getting Started](docs/getting-started.md) - Installation & first game
-- [CLI Reference](docs/cli/README.md) - All commands & options
-- [API Reference](docs/api/README.md) - Complete Ruby API
-- [Advanced Topics](docs/advanced/README.md) - Bytecode, project structure, IDE setup
-- [Troubleshooting](docs/troubleshooting.md) - Common issues & solutions
+- [CLI Reference](docs/cli/README.md) - All `gmrcli` commands & options
+- [API Reference](docs/api/README.md) - Complete Ruby API documentation
+
+Run `gmrcli docs` to regenerate documentation after modifying source files.
 
 ## Developer Console
 

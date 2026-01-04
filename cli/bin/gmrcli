@@ -209,6 +209,26 @@ module Gmrcli
       end
     end
 
+    # === Docs Command ===
+
+    desc "docs", "Generate all documentation"
+    long_desc <<~DESC
+      Regenerates all API and CLI documentation:
+        - JSON files (engine/language/*.json)
+        - Markdown files (docs/api/*.md, docs/cli/*.md)
+        - HTML files (docs/html/api/*.html, docs/html/cli/*.html)
+
+      This is the same documentation generated during 'gmrcli setup',
+      but can be run independently when you've made changes to:
+        - C++ binding source files (src/bindings/*.cpp)
+        - CLI command files (cli/lib/gmrcli/commands/*.rb)
+    DESC
+    def docs
+      ErrorHandler.wrap(command: "docs") do
+        Commands::Docs.new(options.to_h.transform_keys(&:to_sym)).run
+      end
+    end
+
     # === Info Commands ===
 
     desc "version", "Show gmrcli version"

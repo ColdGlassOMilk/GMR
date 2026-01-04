@@ -3,12 +3,13 @@
 
 # GMR API Documentation Generator
 # Parses C++ binding files and generates api.json, syntax.json, and version.json
-# Optionally generates markdown documentation files
+# Optionally generates markdown and HTML documentation files
 #
 # Usage: ruby generate_api_docs.rb [options]
 #   -s, --source FILE    Add source file to parse (can be repeated)
 #   -o, --output DIR     Output directory (default: engine/language)
 #   -m, --markdown DIR   Generate markdown docs to directory
+#   --html DIR           Generate HTML docs to directory (dark theme)
 #   -v, --version VER    Engine version (default: 0.1.0)
 #   --raylib VER         Raylib version (default: 5.6-dev)
 #   --mruby VER          mRuby version (default: 3.4.0)
@@ -745,6 +746,739 @@ module GMRDocs
     end
   end
 
+  # Generates HTML documentation files with dark theme
+  class HTMLGenerator
+    # Ruby keywords for syntax highlighting
+    RUBY_KEYWORDS = %w[
+      def end class module if else elsif unless case when while until for do
+      begin rescue ensure raise return yield break next redo retry
+      true false nil self super
+      and or not in
+      attr_reader attr_writer attr_accessor
+      require require_relative include extend prepend
+      public private protected
+      lambda proc
+    ].freeze
+
+    # Simple Ruby syntax highlighter
+    # Uses placeholder tokens to avoid regex conflicts with generated HTML
+    def self.highlight_ruby(code)
+      return '' unless code
+
+      # Escape HTML first
+      escaped = code.to_s
+        .gsub('&', '&amp;')
+        .gsub('<', '&lt;')
+        .gsub('>', '&gt;')
+
+      # Use placeholder tokens to avoid regex matching inside generated spans
+      # Format: \x00TYPE\x01content\x02
+      tokens = []
+      token_id = 0
+
+      # Helper to create a token placeholder
+      make_token = lambda do |type, content|
+        id = token_id
+        token_id += 1
+        tokens << [id, type, content]
+        "\x00#{id}\x02"
+      end
+
+      # Comments (must be first to avoid highlighting inside comments)
+      escaped = escaped.gsub(/(#.*)$/) { make_token.call('comment', $1) }
+
+      # Strings (double and single quoted)
+      escaped = escaped.gsub(/("(?:[^"\\]|\\.)*")/) { make_token.call('string', $1) }
+      escaped = escaped.gsub(/('(?:[^'\\]|\\.)*')/) { make_token.call('string', $1) }
+
+      # Symbols (but not :: which is namespace separator)
+      escaped = escaped.gsub(/(?<!:)(:[\w?!]+)/) { make_token.call('symbol', $1) }
+
+      # Numbers
+      escaped = escaped.gsub(/\b(\d+\.?\d*)\b/) { make_token.call('number', $1) }
+
+      # Module/Class names (capitalized words)
+      escaped = escaped.gsub(/\b([A-Z][A-Za-z0-9_]*)\b/) { make_token.call('class', $1) }
+
+      # Keywords (only match whole words not already tokenized)
+      keyword_pattern = /\b(#{RUBY_KEYWORDS.join('|')})\b/
+      escaped = escaped.gsub(keyword_pattern) { make_token.call('keyword', $1) }
+
+      # Method calls (dot-prefixed)
+      escaped = escaped.gsub(/\.(\w+[?!]?)/) { '.' + make_token.call('method', $1) }
+
+      # Instance variables
+      escaped = escaped.gsub(/(@\w+)/) { make_token.call('ivar', $1) }
+
+      # Global variables
+      escaped = escaped.gsub(/(\$\w+)/) { make_token.call('gvar', $1) }
+
+      # Now replace all tokens with actual spans
+      tokens.each do |id, type, content|
+        escaped = escaped.gsub("\x00#{id}\x02", "<span class=\"hl-#{type}\">#{content}</span>")
+      end
+
+      escaped
+    end
+
+    # Shared CSS for all HTML pages
+    DARK_THEME_CSS = <<~CSS
+      :root {
+        --bg-primary: #1a1b26;
+        --bg-secondary: #24283b;
+        --bg-tertiary: #414868;
+        --text-primary: #c0caf5;
+        --text-secondary: #a9b1d6;
+        --text-muted: #565f89;
+        --accent-blue: #7aa2f7;
+        --accent-cyan: #7dcfff;
+        --accent-green: #9ece6a;
+        --accent-magenta: #bb9af7;
+        --accent-orange: #ff9e64;
+        --accent-red: #f7768e;
+        --accent-yellow: #e0af68;
+        --border-color: #3b4261;
+        --code-bg: #1f2335;
+        --link-color: #7aa2f7;
+        --link-hover: #7dcfff;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      /* Navigation */
+      .nav {
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        padding: 1rem 2rem;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .nav-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+      }
+
+      .nav-brand {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--accent-magenta);
+        text-decoration: none;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+        list-style: none;
+      }
+
+      .nav-links a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: color 0.2s;
+      }
+
+      .nav-links a:hover, .nav-links a.active {
+        color: var(--accent-blue);
+      }
+
+      /* Headings */
+      h1 {
+        font-size: 2.5rem;
+        color: var(--accent-magenta);
+        margin-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+      }
+
+      h2 {
+        font-size: 1.75rem;
+        color: var(--accent-cyan);
+        margin: 2rem 0 1rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      h3 {
+        font-size: 1.25rem;
+        color: var(--accent-green);
+        margin: 1.5rem 0 0.75rem;
+      }
+
+      h4 {
+        font-size: 1.1rem;
+        color: var(--accent-orange);
+        margin: 1rem 0 0.5rem;
+      }
+
+      p { margin-bottom: 1rem; }
+
+      a {
+        color: var(--link-color);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      a:hover { color: var(--link-hover); }
+
+      /* Code */
+      code {
+        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        background: var(--code-bg);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: var(--accent-orange);
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 1rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        color: var(--text-primary);
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      th {
+        background: var(--bg-secondary);
+        color: var(--accent-cyan);
+        font-weight: 600;
+      }
+
+      tr:hover { background: var(--bg-secondary); }
+
+      /* Cards */
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+
+      .card h3 { margin-top: 0; }
+
+      /* Function/Method blocks */
+      .function-block {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-green);
+        border-radius: 0 8px 8px 0;
+        padding: 1.25rem;
+        margin: 1.5rem 0;
+      }
+
+      .function-block.class-method {
+        border-left-color: var(--accent-magenta);
+      }
+
+      .function-block.instance-method {
+        border-left-color: var(--accent-cyan);
+      }
+
+      .function-signature {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 1.1rem;
+        color: var(--accent-green);
+        margin-bottom: 0.75rem;
+      }
+
+      .function-block.class-method .function-signature {
+        color: var(--accent-magenta);
+      }
+
+      .function-block.instance-method .function-signature {
+        color: var(--accent-cyan);
+      }
+
+      .function-description {
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+      }
+
+      /* Labels */
+      .label {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .label-optional {
+        background: var(--accent-yellow);
+        color: var(--bg-primary);
+      }
+
+      .label-type {
+        background: var(--accent-blue);
+        color: var(--bg-primary);
+      }
+
+      /* Sidebar */
+      .layout {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .sidebar {
+        width: 250px;
+        flex-shrink: 0;
+        position: sticky;
+        top: 80px;
+        height: fit-content;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+      }
+
+      .sidebar-section {
+        margin-bottom: 1.5rem;
+      }
+
+      .sidebar-title {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.05em;
+      }
+
+      .sidebar-links {
+        list-style: none;
+      }
+
+      .sidebar-links a {
+        display: block;
+        padding: 0.35rem 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      .sidebar-links a:hover,
+      .sidebar-links a.active {
+        color: var(--accent-blue);
+      }
+
+      .content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Breadcrumb */
+      .breadcrumb {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+      }
+
+      .breadcrumb a { color: var(--text-secondary); }
+
+      /* Footer */
+      .footer {
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .layout { flex-direction: column; }
+        .sidebar {
+          width: 100%;
+          position: static;
+          max-height: none;
+        }
+        .nav-content { flex-direction: column; gap: 1rem; }
+      }
+
+      /* Syntax Highlighting */
+      .hl-keyword { color: #bb9af7; font-weight: 500; }
+      .hl-string { color: #9ece6a; }
+      .hl-number { color: #ff9e64; }
+      .hl-comment { color: #565f89; font-style: italic; }
+      .hl-symbol { color: #7dcfff; }
+      .hl-class { color: #7aa2f7; }
+      .hl-method { color: #7aa2f7; }
+      .hl-ivar { color: #f7768e; }
+      .hl-gvar { color: #f7768e; }
+      .hl-const { color: #ff9e64; }
+    CSS
+
+    def initialize(options)
+      @options = options
+    end
+
+    def generate(model, output_dir)
+      FileUtils.mkdir_p(output_dir)
+
+      # Write CSS file
+      File.write(File.join(output_dir, 'styles.css'), DARK_THEME_CSS)
+      puts "  Generated: #{File.join(output_dir, 'styles.css')}"
+
+      # Group modules and classes by output file
+      files = {}
+      MarkdownGenerator::MODULE_FILES.each do |path, filename|
+        files[filename] ||= { modules: [], classes: [] }
+      end
+
+      model.modules.each do |path, data|
+        filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        files[filename] ||= { modules: [], classes: [] }
+        files[filename][:modules] << [path, data]
+      end
+
+      model.classes.each do |path, data|
+        filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        files[filename] ||= { modules: [], classes: [] }
+        files[filename][:classes] << [path, data]
+      end
+
+      # Generate each page
+      nav_items = build_nav_items(model)
+      files.each do |filename, content|
+        next if content[:modules].empty? && content[:classes].empty?
+        generate_page(output_dir, filename, content, nav_items)
+      end
+
+      # Generate index
+      generate_index(output_dir, model, nav_items)
+    end
+
+    private
+
+    def build_nav_items(model)
+      items = []
+      model.modules.keys.sort.each do |path|
+        filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        items << { name: path, file: "#{filename}.html", type: :module }
+      end
+      model.classes.keys.sort.each do |path|
+        filename = MarkdownGenerator::MODULE_FILES[path] || path.downcase.gsub('::', '_')
+        items << { name: path, file: "#{filename}.html", type: :class }
+      end
+      items.uniq { |i| i[:file] }
+    end
+
+    def html_escape(text)
+      return '' unless text
+      text.to_s
+        .gsub('&', '&amp;')
+        .gsub('<', '&lt;')
+        .gsub('>', '&gt;')
+        .gsub('"', '&quot;')
+    end
+
+    def generate_page(output_dir, filename, content, nav_items)
+      path = File.join(output_dir, "#{filename}.html")
+
+      primary = content[:modules].first || content[:classes].first
+      primary_path = primary&.first || filename.capitalize
+      title = primary_path
+      description = MarkdownGenerator::MODULE_DESCRIPTIONS[primary_path] || "API reference for #{primary_path}."
+
+      File.open(path, 'w') do |f|
+        f.puts html_header(title, nav_items, filename)
+
+        f.puts '<div class="container">'
+        f.puts '<div class="layout">'
+
+        # Sidebar
+        f.puts render_sidebar(content, filename)
+
+        # Main content
+        f.puts '<div class="content">'
+        f.puts "<h1>#{html_escape(title)}</h1>"
+        f.puts "<p>#{html_escape(description)}</p>"
+
+        # Modules
+        content[:modules].each do |mod_path, mod_data|
+          render_module(f, mod_path, mod_data)
+        end
+
+        # Classes
+        content[:classes].each do |class_path, class_data|
+          render_class(f, class_path, class_data)
+        end
+
+        f.puts '</div>' # content
+        f.puts '</div>' # layout
+        f.puts '</div>' # container
+
+        f.puts html_footer
+      end
+
+      puts "  Generated: #{path}"
+    end
+
+    def render_sidebar(content, current_file)
+      html = '<aside class="sidebar">'
+
+      # Functions section
+      functions = []
+      content[:modules].each do |_, data|
+        functions.concat(data['functions']&.keys || [])
+      end
+
+      unless functions.empty?
+        html += '<div class="sidebar-section">'
+        html += '<div class="sidebar-title">Functions</div>'
+        html += '<ul class="sidebar-links">'
+        functions.sort.each do |name|
+          html += "<li><a href=\"##{name}\">#{html_escape(name)}</a></li>"
+        end
+        html += '</ul></div>'
+      end
+
+      # Classes section
+      content[:classes].each do |class_path, class_data|
+        class_name = class_path.split('::').last
+        html += '<div class="sidebar-section">'
+        html += "<div class=\"sidebar-title\">#{html_escape(class_name)}</div>"
+        html += '<ul class="sidebar-links">'
+
+        (class_data['classMethods']&.keys || []).sort.each do |name|
+          html += "<li><a href=\"##{class_name}-#{name}\">.#{html_escape(name)}</a></li>"
+        end
+        (class_data['instanceMethods']&.keys || []).sort.each do |name|
+          html += "<li><a href=\"##{class_name}-#{name}\">##{html_escape(name)}</a></li>"
+        end
+
+        html += '</ul></div>'
+      end
+
+      html += '</aside>'
+      html
+    end
+
+    def render_module(f, path, data)
+      return unless data['functions']&.any?
+
+      f.puts '<h2>Functions</h2>'
+
+      data['functions'].each do |name, func|
+        render_function(f, name, func)
+      end
+    end
+
+    def render_class(f, path, data)
+      class_name = path.split('::').last
+      f.puts "<h2>#{html_escape(class_name)}</h2>"
+      desc = data['description'] || MarkdownGenerator::MODULE_DESCRIPTIONS[path]
+      f.puts "<p>#{html_escape(desc)}</p>" if desc
+
+      if data['classMethods']&.any?
+        f.puts '<h3>Class Methods</h3>'
+        data['classMethods'].each do |name, method|
+          render_function(f, name, method, class_name, :class_method)
+        end
+      end
+
+      if data['instanceMethods']&.any?
+        f.puts '<h3>Instance Methods</h3>'
+        data['instanceMethods'].each do |name, method|
+          render_function(f, name, method, class_name, :instance_method)
+        end
+      end
+    end
+
+    def render_function(f, name, func, class_name = nil, method_type = nil)
+      css_class = case method_type
+                  when :class_method then 'function-block class-method'
+                  when :instance_method then 'function-block instance-method'
+                  else 'function-block'
+                  end
+
+      anchor = class_name ? "#{class_name}-#{name}" : name
+      signature = func['signature'] || name
+
+      f.puts "<div class=\"#{css_class}\" id=\"#{html_escape(anchor)}\">"
+      f.puts "<div class=\"function-signature\">#{html_escape(signature)}</div>"
+
+      if func['description']
+        f.puts "<div class=\"function-description\">#{html_escape(func['description'])}</div>"
+      end
+
+      # Parameters
+      if func['params']&.any?
+        f.puts '<h4>Parameters</h4>'
+        f.puts '<table>'
+        f.puts '<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>'
+        f.puts '<tbody>'
+        func['params'].each do |param|
+          optional = param['optional'] ? ' <span class="label label-optional">optional</span>' : ''
+          default = param['default'] ? " (default: <code>#{html_escape(param['default'])}</code>)" : ''
+          f.puts "<tr><td><code>#{html_escape(param['name'])}</code></td>"
+          f.puts "<td><code>#{html_escape(param['type'])}</code>#{optional}#{default}</td>"
+          f.puts "<td>#{html_escape(param['description'])}</td></tr>"
+        end
+        f.puts '</tbody></table>'
+      end
+
+      # Returns
+      if func['returns']
+        ret = func['returns']
+        f.puts '<h4>Returns</h4>'
+        desc = ret['description'] ? " &mdash; #{html_escape(ret['description'])}" : ''
+        f.puts "<p><code>#{html_escape(ret['type'])}</code>#{desc}</p>"
+      end
+
+      # Example
+      if func['example']
+        f.puts '<h4>Example</h4>'
+        f.puts '<pre><code class="language-ruby">'
+        f.puts HTMLGenerator.highlight_ruby(func['example'])
+        f.puts '</code></pre>'
+      end
+
+      f.puts '</div>'
+    end
+
+    def generate_index(output_dir, model, nav_items)
+      path = File.join(output_dir, 'index.html')
+
+      File.open(path, 'w') do |f|
+        f.puts html_header('GMR Ruby API', nav_items, 'index')
+
+        f.puts '<div class="container">'
+        f.puts '<h1>GMR Ruby API Reference</h1>'
+        f.puts "<p>Auto-generated API documentation for GMR #{@options[:engine_version]}.</p>"
+
+        # Modules grid
+        f.puts '<h2>Modules</h2>'
+        f.puts '<div class="card-grid">'
+        model.modules.keys.sort.each do |mod_path|
+          filename = MarkdownGenerator::MODULE_FILES[mod_path] || mod_path.downcase.gsub('::', '_')
+          desc = MarkdownGenerator::MODULE_DESCRIPTIONS[mod_path] || 'API reference'
+          f.puts '<div class="card">'
+          f.puts "<h3><a href=\"#{filename}.html\">#{html_escape(mod_path)}</a></h3>"
+          f.puts "<p>#{html_escape(desc)}</p>"
+          f.puts '</div>'
+        end
+        f.puts '</div>'
+
+        # Classes grid
+        if model.classes.any?
+          f.puts '<h2>Classes</h2>'
+          f.puts '<div class="card-grid">'
+          model.classes.keys.sort.each do |class_path|
+            filename = MarkdownGenerator::MODULE_FILES[class_path] || class_path.downcase.gsub('::', '_')
+            desc = MarkdownGenerator::MODULE_DESCRIPTIONS[class_path] || 'Class reference'
+            f.puts '<div class="card">'
+            f.puts "<h3><a href=\"#{filename}.html\">#{html_escape(class_path)}</a></h3>"
+            f.puts "<p>#{html_escape(desc)}</p>"
+            f.puts '</div>'
+          end
+          f.puts '</div>'
+        end
+
+        # Types table
+        f.puts '<h2>Types</h2>'
+        f.puts '<table>'
+        f.puts '<thead><tr><th>Type</th><th>Description</th></tr></thead>'
+        f.puts '<tbody>'
+        TYPE_DEFINITIONS.each do |type_name, type_def|
+          f.puts "<tr><td><code>#{html_escape(type_name)}</code></td>"
+          f.puts "<td>#{html_escape(type_def['description'])}</td></tr>"
+        end
+        f.puts '</tbody></table>'
+
+        f.puts '</div>'
+        f.puts html_footer
+      end
+
+      puts "  Generated: #{path}"
+    end
+
+    def html_header(title, nav_items, current_file)
+      nav_html = nav_items.map do |item|
+        active = item[:file] == "#{current_file}.html" ? ' class="active"' : ''
+        "<a href=\"#{item[:file]}\"#{active}>#{html_escape(item[:name].split('::').last)}</a>"
+      end.join("\n          ")
+
+      <<~HTML
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>#{html_escape(title)} - GMR API</title>
+          <link rel="stylesheet" href="styles.css">
+        </head>
+        <body>
+          <nav class="nav">
+            <div class="nav-content">
+              <a href="index.html" class="nav-brand">GMR API</a>
+              <ul class="nav-links">
+                #{nav_html}
+              </ul>
+            </div>
+          </nav>
+      HTML
+    end
+
+    def html_footer
+      <<~HTML
+          <footer class="footer">
+            <p>Generated by <code>generate_api_docs.rb</code> from C++ bindings.</p>
+            <p>GMR #{@options[:engine_version]} &bull; Ruby API Reference</p>
+          </footer>
+        </body>
+        </html>
+      HTML
+    end
+  end
+
   # Generates JSON output files
   class JSONGenerator
     def initialize(options)
@@ -964,6 +1698,13 @@ module GMRDocs
       md_generator.generate(model, options[:markdown_dir])
     end
 
+    # Generate HTML documentation if requested
+    if options[:html_dir]
+      puts "\nGenerating HTML documentation..."
+      html_generator = HTMLGenerator.new(options)
+      html_generator.generate(model, options[:html_dir])
+    end
+
     puts "\nDone!"
   end
 end
@@ -973,6 +1714,7 @@ options = {
   sources: [],
   output_dir: 'engine/language',
   markdown_dir: nil,
+  html_dir: nil,
   engine_version: '0.1.0',
   raylib_version: '5.6-dev',
   mruby_version: '3.4.0'
@@ -991,6 +1733,10 @@ OptionParser.new do |opts|
 
   opts.on("-m", "--markdown DIR", "Generate markdown docs to directory") do |d|
     options[:markdown_dir] = d
+  end
+
+  opts.on("--html DIR", "Generate HTML docs to directory") do |d|
+    options[:html_dir] = d
   end
 
   opts.on("-v", "--version VERSION", "Engine version") do |v|

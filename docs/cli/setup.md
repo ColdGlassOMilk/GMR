@@ -1,6 +1,6 @@
 # gmrcli setup
 
-Install all dependencies required to build GMR.
+Set up the GMR development environment
 
 ## Usage
 
@@ -8,76 +8,52 @@ Install all dependencies required to build GMR.
 gmrcli setup [options]
 ```
 
+## Description
+
+Installs all dependencies needed for GMR development:
+      - System packages (gcc, cmake, ninja, mruby)
+      - raylib (built from source)
+      - Emscripten SDK (for web builds)
+      - mruby for web (cross-compiled)
+
+      Use --native-only for faster setup if you don't need web builds.
+
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--native-only` | Skip web/Emscripten (faster setup) |
-| `--web-only` | Only install web/Emscripten |
-| `--clean` | Clean rebuild everything |
+| Option | Alias | Type | Default | Description |
+|--------|-------|------|---------|-------------|
+| `--native_only` | -n | boolean | `false` | Skip web/Emscripten setup (faster) |
+| `--skip_web` |  | boolean | `false` | Same as --native-only |
+| `--web_only` | -w | boolean | `false` | Only setup web/Emscripten (skip native) |
+| `--skip_native` |  | boolean | `false` | Same as --web-only |
+| `--skip_pacman` |  | boolean | `false` | Skip pacman package installation |
+| `--clean` |  | boolean | `false` | Clean everything and start fresh |
+| `--fix_ssl` |  | boolean | `false` | Fix SSL certificate issues |
+
+## Stages
+
+1. Environment Detection
+2. Directory Setup
+3. Generating API Definitions
+4. Installing Packages
+5. Building mruby (native)
+6. Building raylib (native)
+7. Setting up Emscripten
+8. Building raylib (web)
+9. Building mruby (web)
+10. Verification
+11. Complete
 
 ## Examples
 
 ```bash
-# Full setup (native + web)
+# Basic usage
 gmrcli setup
 
-# Native development only (faster)
-gmrcli setup --native-only
-
-# Web development only
-gmrcli setup --web-only
-
-# Force clean rebuild
-gmrcli setup --clean
+# With native_only flag
+gmrcli setup --native_only
 ```
 
-## What Gets Installed
+---
 
-### Native Build
-- **raylib** - Graphics, audio, input library
-- **mruby** - Embedded Ruby interpreter
-
-### Web Build (Emscripten)
-- **emsdk** - Emscripten SDK
-- **raylib (web)** - raylib compiled for WebAssembly
-- **mruby (web)** - mruby compiled for WebAssembly
-
-## Platform Notes
-
-### Windows (MSYS2)
-Run from **MSYS2 MinGW64** terminal, not Command Prompt or PowerShell.
-
-### Linux
-May require `sudo` for installing system packages:
-```bash
-sudo apt install build-essential cmake git
-```
-
-### macOS
-Requires Xcode command line tools:
-```bash
-xcode-select --install
-```
-
-## Timing
-
-| Setup Type | Approximate Time |
-|------------|------------------|
-| Native only | 2-5 minutes |
-| Web only | 10-20 minutes |
-| Full setup | 15-25 minutes |
-
-Web setup downloads ~1GB and compiles raylib/mruby for WebAssembly.
-
-## Troubleshooting
-
-**"gmrcli: command not found"**
-- Run `source ~/.bashrc` or open a new terminal
-- Re-run `./bootstrap.sh`
-
-**Setup taking too long?**
-- Use `--native-only` to skip web setup
-- Web setup can be done later
-
-See [Troubleshooting](../troubleshooting.md) for more solutions.
+*See also: [CLI Reference](README.md)*

@@ -105,8 +105,10 @@ module Gmrcli
         # Documentation
         api_docs = File.join(Platform.gmr_root, "docs", "api")
         cli_docs = File.join(Platform.gmr_root, "docs", "cli")
+        html_docs = File.join(Platform.gmr_root, "docs", "html")
         paths[:api_docs] = api_docs if Dir.exist?(api_docs)
         paths[:cli_docs] = cli_docs if Dir.exist?(cli_docs)
+        paths[:html_docs] = html_docs if Dir.exist?(html_docs)
 
         paths
       end
@@ -246,6 +248,8 @@ module Gmrcli
         binding_dir = File.join(Platform.gmr_root, "src", "bindings")
         api_docs_dir = File.join(Platform.gmr_root, "docs", "api")
         cli_docs_dir = File.join(Platform.gmr_root, "docs", "cli")
+        html_docs_dir = File.join(Platform.gmr_root, "docs", "html")
+        cli_html_dir = File.join(Platform.gmr_root, "docs", "html", "cli")
 
         # Check if generator script exists
         unless File.exist?(generator_script)
@@ -268,7 +272,7 @@ module Gmrcli
         source_args = binding_files.map { |f| "-s \"#{f}\"" }.join(" ")
 
         # Generate JSON definitions
-        JsonEmitter.stage_progress(:api_docs, 20, "Parsing C++ bindings", substage: "parse")
+        JsonEmitter.stage_progress(:api_docs, 15, "Parsing C++ bindings", substage: "parse")
         UI.spinner("Parsing #{binding_files.size} binding files") do
           Shell.run!(
             "ruby \"#{generator_script}\" #{source_args} -o \"#{output_dir}\"",
@@ -278,7 +282,7 @@ module Gmrcli
         end
 
         # Generate API markdown docs
-        JsonEmitter.stage_progress(:api_docs, 50, "Generating API docs", substage: "markdown")
+        JsonEmitter.stage_progress(:api_docs, 30, "Generating API markdown", substage: "markdown")
         UI.spinner("Generating API markdown docs") do
           Shell.run!(
             "ruby \"#{generator_script}\" #{source_args} -o \"#{output_dir}\" -m \"#{api_docs_dir}\"",
@@ -287,12 +291,22 @@ module Gmrcli
           )
         end
 
-        # Generate CLI markdown docs
+        # Generate API HTML docs
+        JsonEmitter.stage_progress(:api_docs, 50, "Generating API HTML", substage: "html")
+        UI.spinner("Generating API HTML docs") do
+          Shell.run!(
+            "ruby \"#{generator_script}\" #{source_args} -o \"#{output_dir}\" --html \"#{html_docs_dir}\"",
+            verbose: verbose?,
+            error_message: "API HTML generation failed"
+          )
+        end
+
+        # Generate CLI docs (markdown + HTML)
         if File.exist?(cli_docs_script)
-          JsonEmitter.stage_progress(:api_docs, 80, "Generating CLI docs", substage: "cli")
-          UI.spinner("Generating CLI markdown docs") do
+          JsonEmitter.stage_progress(:api_docs, 75, "Generating CLI docs", substage: "cli")
+          UI.spinner("Generating CLI docs") do
             Shell.run!(
-              "ruby \"#{cli_docs_script}\" -o \"#{cli_docs_dir}\"",
+              "ruby \"#{cli_docs_script}\" -o \"#{cli_docs_dir}\" --html \"#{cli_html_dir}\"",
               verbose: verbose?,
               error_message: "CLI documentation generation failed"
             )
@@ -314,11 +328,21 @@ module Gmrcli
           # Report markdown docs if generated
           if Dir.exist?(api_docs_dir)
             api_md_count = Dir.glob(File.join(api_docs_dir, "*.md")).size
-            UI.info "  docs/api/: #{api_md_count} files"
+            UI.info "  docs/api/: #{api_md_count} markdown files"
           end
           if Dir.exist?(cli_docs_dir)
             cli_md_count = Dir.glob(File.join(cli_docs_dir, "*.md")).size
-            UI.info "  docs/cli/: #{cli_md_count} files"
+            UI.info "  docs/cli/: #{cli_md_count} markdown files"
+          end
+
+          # Report HTML docs if generated
+          if Dir.exist?(html_docs_dir)
+            html_count = Dir.glob(File.join(html_docs_dir, "*.html")).size
+            UI.info "  docs/html/: #{html_count} HTML files"
+          end
+          if Dir.exist?(cli_html_dir)
+            cli_html_count = Dir.glob(File.join(cli_html_dir, "*.html")).size
+            UI.info "  docs/html/cli/: #{cli_html_count} HTML files"
           end
         else
           UI.warn "Some API definition files may not have been generated"
