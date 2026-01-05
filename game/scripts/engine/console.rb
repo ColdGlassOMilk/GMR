@@ -74,6 +74,9 @@ module Console
       @saved_input = ""
       @backspace_timer = 0
       @capturing = false
+      # Multi-line state
+      @in_multiline = false
+      @multiline_buffer = ""
     end
 
     def toggle
@@ -288,8 +291,8 @@ module Console
       # Input background
       G.draw_rect(0, input_y - 4, width, 28, [25, 30, 45, 255])
 
-      # Prompt
-      prompt = ">> "
+      # Prompt (changes for multi-line mode)
+      prompt = @in_multiline ? ".. " : ">> "
       prompt_color = @open ? [100, 200, 255, 255] : [100, 100, 100, 255]
       G.draw_text(prompt, padding, input_y, font_size, prompt_color)
 
@@ -443,6 +446,107 @@ module Console
     end
 
     def run_ruby_code(code)
+      # Use new REPL backend if available
+      if respond_to?(:__repl_eval)
+        run_ruby_code_repl(code)
+      else
+        run_ruby_code_legacy(code)
+      end
+    end
+
+    def run_ruby_code_repl(code)
+      # Handle multi-line input
+      if @in_multiline
+        @multiline_buffer ||= ""
+        @multiline_buffer += "\n" + code
+
+        # Check if input is complete
+        if __repl_is_complete(@multiline_buffer)
+          code = @multiline_buffer
+          @multiline_buffer = ""
+          @in_multiline = false
+        else
+          # Still incomplete, show continuation prompt
+          return
+        end
+      else
+        # Check if this input is incomplete
+        unless __repl_is_complete(code)
+          @multiline_buffer = code
+          @in_multiline = true
+          return
+        end
+      end
+
+      # Evaluate the code
+      result = __repl_eval(code)
+
+      # Display captured stdout
+      unless result[:stdout].nil? || result[:stdout].empty?
+        result[:stdout].split("\n").each do |line|
+          @history << { type: :info, text: line }
+        end
+      end
+
+      # Display captured stderr
+      unless result[:stderr].nil? || result[:stderr].empty?
+        result[:stderr].split("\n").each do |line|
+          @history << { type: :warn, text: line }
+        end
+      end
+
+      # Handle based on status
+      case result[:status]
+      when "success"
+        display_success(result[:result])
+      when "error"
+        display_error(result[:exception])
+      when "incomplete"
+        # Should not happen since we check above, but handle gracefully
+        @in_multiline = true
+        @multiline_buffer = code
+      when "command_not_found"
+        @history << { type: :error, text: result[:result] || "Unknown command" }
+      when "reentrancy_blocked"
+        @history << { type: :error, text: "Cannot evaluate while another evaluation is in progress" }
+      end
+    end
+
+    def display_success(result_str)
+      return if result_str.nil?
+
+      # Handle special commands
+      if result_str == "__clear__"
+        @history.clear
+        @history << { type: :info, text: "Console cleared." }
+        return
+      end
+
+      # Truncate long results
+      if result_str.length > 500
+        result_str = result_str[0...500] + "... (truncated)"
+      end
+
+      result_str.split("\n").each_with_index do |line, i|
+        prefix = i == 0 ? "=> " : "   "
+        @history << { type: :result, text: "#{prefix}#{line}" }
+      end
+    end
+
+    def display_error(exc)
+      if exc && exc[:class] && exc[:message]
+        @history << { type: :error, text: "#{exc[:class]}: #{exc[:message]}" }
+        if exc[:backtrace]
+          exc[:backtrace].first(5).each do |frame|
+            @history << { type: :error, text: "  #{frame}" }
+          end
+        end
+      else
+        @history << { type: :error, text: "Unknown error" }
+      end
+    end
+
+    def run_ruby_code_legacy(code)
       # Clear output buffer and enable capturing
       $__console_output_buffer.clear
       @capturing = true

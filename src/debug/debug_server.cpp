@@ -22,6 +22,7 @@
 #include "gmr/debug/breakpoint_manager.hpp"
 #include "gmr/debug/variable_inspector.hpp"
 #include "gmr/debug/json_protocol.hpp"
+#include "gmr/repl/repl_session.hpp"
 #include <mruby/proc.h>
 #include <mruby/debug.h>
 #include <cstdio>
@@ -250,7 +251,7 @@ void DebugServer::poll() {
     accept_client();
     read_from_client();
 
-    // Process messages outside of pause loop (breakpoints, etc.)
+    // Process messages outside of pause loop (breakpoints, REPL, etc.)
     for (const auto& msg : pending_messages_) {
         DebugCommand cmd = parse_command(msg);
         if (cmd.type == CommandType::SET_BREAKPOINT) {
@@ -261,6 +262,12 @@ void DebugServer::poll() {
             printf("[Debug] Breakpoint cleared: %s:%d\n", cmd.file.c_str(), cmd.line);
         } else if (cmd.type == CommandType::PAUSE) {
             DebugStateManager::instance().request_pause();
+        } else if (cmd.type == CommandType::REPL_EVAL ||
+                   cmd.type == CommandType::REPL_CHECK_COMPLETE ||
+                   cmd.type == CommandType::REPL_CLEAR_BUFFER ||
+                   cmd.type == CommandType::REPL_LIST_COMMANDS) {
+            // REPL commands can be handled outside pause loop
+            handle_repl_command(cmd, current_mrb_);
         }
     }
     pending_messages_.clear();
@@ -424,6 +431,80 @@ void DebugServer::handle_command(const DebugCommand& cmd, mrb_state* mrb) {
                 std::string result = evaluate_expression(mrb, cmd.expression, cmd.frame_id);
                 std::string response = make_evaluate_response(true, result);
                 send_message(response);
+            }
+            break;
+
+        // REPL commands in pause loop
+        case CommandType::REPL_EVAL:
+        case CommandType::REPL_CHECK_COMPLETE:
+        case CommandType::REPL_CLEAR_BUFFER:
+        case CommandType::REPL_LIST_COMMANDS:
+            handle_repl_command(cmd, mrb);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void DebugServer::handle_repl_command(const DebugCommand& cmd, mrb_state* mrb) {
+    auto& session = gmr::repl::ReplSession::instance();
+
+    // Initialize REPL session if needed
+    if (!session.is_ready() && mrb) {
+        session.init(mrb);
+    }
+
+    // If no mrb_state available, we can't do much
+    if (!session.is_ready()) {
+        send_message("{\"type\":\"repl_result\",\"id\":" + std::to_string(cmd.id) +
+                    ",\"status\":\"error\",\"result\":null,\"exception\":{\"message\":\"REPL not initialized\"}}");
+        return;
+    }
+
+    switch (cmd.type) {
+        case CommandType::REPL_EVAL:
+            {
+                std::string code = cmd.expression;
+
+                // Handle multi-line buffering
+                if (session.has_pending_input()) {
+                    session.append_to_buffer(code);
+                    code = session.get_buffer();
+                }
+
+                // Check if input is complete
+                if (!session.is_input_complete(code)) {
+                    if (!session.has_pending_input()) {
+                        session.append_to_buffer(cmd.expression);
+                    }
+                    send_message(make_repl_incomplete_response(cmd.id, session.get_buffer()));
+                    return;
+                }
+
+                // Clear buffer and evaluate
+                session.clear_buffer();
+                auto result = session.evaluate(code);
+                send_message(make_repl_result_response(cmd.id, result));
+            }
+            break;
+
+        case CommandType::REPL_CHECK_COMPLETE:
+            {
+                bool complete = session.is_input_complete(cmd.expression);
+                send_message(make_repl_complete_check_response(cmd.id, complete));
+            }
+            break;
+
+        case CommandType::REPL_CLEAR_BUFFER:
+            session.clear_buffer();
+            send_message("{\"type\":\"repl_buffer_cleared\",\"id\":" + std::to_string(cmd.id) + "}");
+            break;
+
+        case CommandType::REPL_LIST_COMMANDS:
+            {
+                std::string commands = session.list_commands_formatted();
+                send_message(make_repl_commands_response(cmd.id, commands));
             }
             break;
 

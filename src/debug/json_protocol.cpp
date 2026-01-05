@@ -1,6 +1,7 @@
 #if defined(GMR_DEBUG_ENABLED)
 
 #include "gmr/debug/json_protocol.hpp"
+#include "gmr/repl/repl_session.hpp"
 #include <sstream>
 #include <cctype>
 
@@ -92,6 +93,20 @@ DebugCommand parse_command(const std::string& json) {
         cmd.type = CommandType::EVALUATE;
         cmd.expression = find_string_value(json, "expression");
         cmd.frame_id = find_int_value(json, "frame_id");
+    } else if (type == "repl_eval") {
+        cmd.type = CommandType::REPL_EVAL;
+        cmd.expression = find_string_value(json, "code");
+        cmd.id = find_int_value(json, "id");
+    } else if (type == "repl_check_complete") {
+        cmd.type = CommandType::REPL_CHECK_COMPLETE;
+        cmd.expression = find_string_value(json, "code");
+        cmd.id = find_int_value(json, "id");
+    } else if (type == "repl_clear_buffer") {
+        cmd.type = CommandType::REPL_CLEAR_BUFFER;
+        cmd.id = find_int_value(json, "id");
+    } else if (type == "repl_list_commands") {
+        cmd.type = CommandType::REPL_LIST_COMMANDS;
+        cmd.id = find_int_value(json, "id");
     }
 
     return cmd;
@@ -164,6 +179,90 @@ std::string make_evaluate_response(bool success, const std::string& result) {
 
 std::string make_continued_event() {
     return "{\"type\":\"continued\"}";
+}
+
+static const char* eval_status_to_string(gmr::repl::EvalStatus status) {
+    switch (status) {
+        case gmr::repl::EvalStatus::SUCCESS: return "success";
+        case gmr::repl::EvalStatus::EVAL_ERROR: return "error";
+        case gmr::repl::EvalStatus::INCOMPLETE: return "incomplete";
+        case gmr::repl::EvalStatus::COMMAND_NOT_FOUND: return "command_not_found";
+        case gmr::repl::EvalStatus::REENTRANCY_BLOCKED: return "reentrancy_blocked";
+        default: return "unknown";
+    }
+}
+
+std::string make_repl_result_response(int32_t id, const gmr::repl::EvalResult& result) {
+    std::ostringstream oss;
+    oss << "{";
+    oss << "\"type\":\"repl_result\",";
+    oss << "\"id\":" << id << ",";
+    oss << "\"status\":\"" << eval_status_to_string(result.status) << "\",";
+
+    // Result value
+    if (!result.result.empty()) {
+        oss << "\"result\":\"" << json_escape(result.result) << "\",";
+    } else {
+        oss << "\"result\":null,";
+    }
+
+    // Captured output
+    oss << "\"stdout\":\"" << json_escape(result.stdout_capture) << "\",";
+    oss << "\"stderr\":\"" << json_escape(result.stderr_capture) << "\",";
+
+    // Execution time
+    oss << "\"execution_time_ms\":" << result.execution_time_ms << ",";
+
+    // Exception details
+    oss << "\"exception\":{";
+    if (result.status == gmr::repl::EvalStatus::EVAL_ERROR) {
+        oss << "\"class\":\"" << json_escape(result.exception_class) << "\",";
+        oss << "\"message\":\"" << json_escape(result.exception_message) << "\",";
+        oss << "\"file\":\"" << json_escape(result.source_file) << "\",";
+        oss << "\"line\":" << result.source_line << ",";
+
+        oss << "\"backtrace\":[";
+        for (size_t i = 0; i < result.backtrace.size(); i++) {
+            if (i > 0) oss << ",";
+            oss << "\"" << json_escape(result.backtrace[i]) << "\"";
+        }
+        oss << "]";
+    }
+    oss << "}";
+
+    oss << "}";
+    return oss.str();
+}
+
+std::string make_repl_incomplete_response(int32_t id, const std::string& buffer) {
+    std::ostringstream oss;
+    oss << "{";
+    oss << "\"type\":\"repl_result\",";
+    oss << "\"id\":" << id << ",";
+    oss << "\"status\":\"incomplete\",";
+    oss << "\"buffer\":\"" << json_escape(buffer) << "\"";
+    oss << "}";
+    return oss.str();
+}
+
+std::string make_repl_complete_check_response(int32_t id, bool complete) {
+    std::ostringstream oss;
+    oss << "{";
+    oss << "\"type\":\"repl_complete_check\",";
+    oss << "\"id\":" << id << ",";
+    oss << "\"complete\":" << (complete ? "true" : "false");
+    oss << "}";
+    return oss.str();
+}
+
+std::string make_repl_commands_response(int32_t id, const std::string& commands) {
+    std::ostringstream oss;
+    oss << "{";
+    oss << "\"type\":\"repl_commands\",";
+    oss << "\"id\":" << id << ",";
+    oss << "\"commands\":\"" << json_escape(commands) << "\"";
+    oss << "}";
+    return oss.str();
 }
 
 } // namespace debug

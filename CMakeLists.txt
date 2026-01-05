@@ -305,6 +305,35 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
 endif()
 
+# REPL configuration
+# GMR_REPL_ENABLED: Enable command-only REPL in Release builds (off by default)
+option(GMR_REPL_ENABLED "Enable REPL in Release builds (command-only, no arbitrary Ruby eval)" OFF)
+
+# REPL sources - always compiled, runtime behavior differs by build type
+set(REPL_SOURCES
+    src/repl/repl_session.cpp
+    src/repl/output_capture.cpp
+)
+
+# Multi-line detector only compiled for Debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND REPL_SOURCES src/repl/multiline_detector.cpp)
+endif()
+
+# Add REPL sources
+target_sources(${PROJECT_NAME} PRIVATE ${REPL_SOURCES})
+
+# Add REPL include directory
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/gmr/repl
+)
+
+# Enable REPL availability flag
+if(GMR_REPL_ENABLED OR CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_REPL_AVAILABLE)
+    message(STATUS "REPL enabled")
+endif()
+
 # Ruby debugger - only for native Debug builds (never for Web or Release)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT PLATFORM_WEB)
     message(STATUS "Ruby debugger enabled")

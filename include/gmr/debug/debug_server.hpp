@@ -84,6 +84,9 @@ private:
     // Handle specific commands
     void handle_command(const DebugCommand& cmd, mrb_state* mrb);
 
+    // Handle REPL commands
+    void handle_repl_command(const DebugCommand& cmd, mrb_state* mrb);
+
     // Close client connection
     void close_client();
 
