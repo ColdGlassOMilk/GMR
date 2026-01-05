@@ -5,7 +5,7 @@ require_relative "lib/gmrcli/version"
 Gem::Specification.new do |spec|
   spec.name = "gmrcli"
   spec.version = Gmrcli::VERSION
-  spec.authors = ["GMR Team"]
+  spec.authors = ["GMR Contributors"]
   spec.email = [""]
 
   spec.summary = "CLI utility for GMR (Games Made with Ruby)"

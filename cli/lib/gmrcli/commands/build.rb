@@ -13,6 +13,25 @@ module Gmrcli
     #   build output (build/, release/) is placed
     #
     # This allows multiple projects to share the same GMR engine installation.
+    #
+    # ## Build Size Reporting
+    #
+    # After a successful build, the command reports the size of all build artifacts:
+    #
+    # For native builds:
+    # - Executable size
+    # - Assets folder size (if present)
+    # - Total size
+    #
+    # For web builds:
+    # - HTML file size
+    # - JavaScript file size
+    # - WebAssembly (.wasm) file size
+    # - Data file size
+    # - Total size
+    #
+    # Size information is included in both terminal output and JSON result.
+    #
     class Build
       TARGETS = %w[debug release web clean all].freeze
 
@@ -124,25 +143,169 @@ module Gmrcli
         )
       end
 
-      # Build the final result object for JSON output
+      # Build the final result object for JSON output.
+      #
+      # Returns a hash containing:
+      # - target: The build target (debug, release, web)
+      # - output_path: Path to the main output file
+      # - stages_completed: Array of completed build stage IDs
+      # - artifacts: Array of build artifacts with type, path, and size
+      # - total_size: Total size in bytes of all artifacts
+      # - total_size_human: Human-readable total size (e.g., "2.45 MB")
+      #
+      # @param target [String] Build target (debug, release, web)
+      # @param output_path [String] Path to the main output file
+      # @return [Hash] Build result data
       def build_result(target, output_path)
         artifacts = case target
                     when "web"
                       [
-                        { type: "wasm", path: output_path },
+                        { type: "html", path: output_path },
                         { type: "js", path: output_path.sub(".html", ".js") },
+                        { type: "wasm", path: output_path.sub(".html", ".wasm") },
                         { type: "data", path: output_path.sub(".html", ".data") }
                       ]
                     else
                       [{ type: "executable", path: output_path }]
                     end
 
+        # Add file sizes to artifacts
+        artifacts.each do |artifact|
+          artifact[:size] = File.size(artifact[:path]) if File.exist?(artifact[:path])
+        end
+
+        # Calculate total size and add assets for native builds
+        total_size = artifacts.sum { |a| a[:size] || 0 }
+
+        if target != "web"
+          # For native builds, include assets folder size
+          assets_dir = File.join(release_dir, "assets")
+          if Dir.exist?(assets_dir)
+            assets_size = calculate_directory_size(assets_dir)
+            artifacts << { type: "assets", path: assets_dir, size: assets_size }
+            total_size += assets_size
+          end
+        end
+
         {
           target: target,
           output_path: output_path,
           stages_completed: @stages_completed || [],
-          artifacts: artifacts
+          artifacts: artifacts,
+          total_size: total_size,
+          total_size_human: format_size(total_size)
         }
+      end
+
+      # Calculate total size of a directory recursively.
+      #
+      # Traverses all subdirectories and sums the size of all files.
+      #
+      # @param dir [String] Directory path to calculate size for
+      # @return [Integer] Total size in bytes
+      def calculate_directory_size(dir)
+        return 0 unless Dir.exist?(dir)
+
+        Dir.glob(File.join(dir, "**", "*"))
+           .select { |f| File.file?(f) }
+           .sum { |f| File.size(f) }
+      end
+
+      # Format bytes into human-readable size.
+      #
+      # Converts byte count to appropriate unit (B, KB, MB, GB).
+      #
+      # @example
+      #   format_size(1024)      # => "1.00 KB"
+      #   format_size(1536000)   # => "1.46 MB"
+      #
+      # @param bytes [Integer, nil] Size in bytes
+      # @return [String] Human-readable size string
+      def format_size(bytes)
+        return "0 B" if bytes.nil? || bytes == 0
+
+        units = ["B", "KB", "MB", "GB"]
+        unit_index = 0
+        size = bytes.to_f
+
+        while size >= 1024 && unit_index < units.length - 1
+          size /= 1024
+          unit_index += 1
+        end
+
+        if unit_index == 0
+          "#{size.to_i} #{units[unit_index]}"
+        else
+          "%.2f #{units[unit_index]}" % size
+        end
+      end
+
+      # Display build output sizes in terminal.
+      #
+      # Prints a formatted table showing the size of each build artifact
+      # and the total size. Output format differs for native vs web builds.
+      #
+      # Native build output:
+      #   Build Size:
+      #     Exe      2.45 MB
+      #     Assets   156.32 KB
+      #     ──────────────────────
+      #     Total    2.60 MB
+      #
+      # Web build output:
+      #   Build Size:
+      #     HTML   4.21 KB
+      #     JS     52.18 KB
+      #     WASM   1.82 MB
+      #     Data   312.45 KB
+      #     ────────────────────
+      #     Total  2.18 MB
+      #
+      # @param target [String] Build target ("native" or "web")
+      # @param output_path [String] Path to the main output file
+      def display_build_sizes(target, output_path)
+        UI.blank
+        UI.info "Build Size:"
+
+        if target == "web"
+          # Web build: HTML + JS + WASM + data
+          files = [
+            ["HTML", output_path],
+            ["JS", output_path.sub(".html", ".js")],
+            ["WASM", output_path.sub(".html", ".wasm")],
+            ["Data", output_path.sub(".html", ".data")]
+          ]
+
+          total = 0
+          files.each do |label, path|
+            if File.exist?(path)
+              size = File.size(path)
+              total += size
+              UI.info "  #{label.ljust(6)} #{format_size(size)}"
+            end
+          end
+          UI.info "  #{'─' * 20}"
+          UI.info "  #{'Total'.ljust(6)} #{format_size(total)}"
+        else
+          # Native build: executable + assets
+          total = 0
+
+          if File.exist?(output_path)
+            exe_size = File.size(output_path)
+            total += exe_size
+            UI.info "  #{'Exe'.ljust(8)} #{format_size(exe_size)}"
+          end
+
+          assets_dir = File.join(release_dir, "assets")
+          if Dir.exist?(assets_dir)
+            assets_size = calculate_directory_size(assets_dir)
+            total += assets_size
+            UI.info "  #{'Assets'.ljust(8)} #{format_size(assets_size)}"
+          end
+
+          UI.info "  #{'─' * 22}"
+          UI.info "  #{'Total'.ljust(8)} #{format_size(total)}"
+        end
       end
 
       private
@@ -226,8 +389,10 @@ module Gmrcli
         end
 
         run_stage(:completion, "Complete") do
+          exe_path = File.join(release_dir, gmr_exe)
           UI.success "#{build_type} build complete!"
-          UI.info "Executable: #{File.join(release_dir, gmr_exe)}"
+          UI.info "Executable: #{exe_path}"
+          display_build_sizes("native", exe_path)
         end
       end
 
@@ -386,8 +551,10 @@ module Gmrcli
         end
 
         run_stage(:completion, "Complete") do
+          html_path = File.join(web_release_dir, "gmr.html")
           UI.success "Web build complete!"
-          UI.info "Output: #{File.join(web_release_dir, 'gmr.html')}"
+          UI.info "Output: #{html_path}"
+          display_build_sizes("web", html_path)
           UI.blank
           UI.info "To test locally:"
           UI.command_hint "gmrcli run web", "Start local server"

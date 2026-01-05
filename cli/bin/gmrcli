@@ -72,7 +72,20 @@ module Gmrcli
 
       # Machine-first: Enable JSON by default, disable only if -o text is passed
       # Environment variable GMRCLI_OUTPUT=text also enables text mode (escape hatch)
+      # Exception: 'dev' command defaults to text mode for interactive use
       text_mode = output_format == "text" || ENV["GMRCLI_OUTPUT"] == "text"
+
+      # Dev command defaults to text unless user explicitly requests JSON
+      # Check if user passed -o json, --output json, --output=json, or -ojson
+      argv_str = ARGV.join(" ")
+      explicit_json = argv_str.include?("-o json") ||
+                      argv_str.include?("--output json") ||
+                      argv_str.include?("--output=json") ||
+                      ARGV.any? { |arg| arg == "-ojson" }
+      if ARGV.first == "dev" && !explicit_json && ENV["GMRCLI_OUTPUT"] != "json"
+        text_mode = true
+      end
+
       JsonEmitter.enable! unless text_mode
     end
 
@@ -226,6 +239,75 @@ module Gmrcli
     def docs
       ErrorHandler.wrap(command: "docs") do
         Commands::Docs.new(options.to_h.transform_keys(&:to_sym)).run
+      end
+    end
+
+    # === Dev Command ===
+
+    desc "dev [TARGET]", "Build and run in one command"
+    long_desc <<~DESC
+      Streamlined development workflow that builds and runs.
+
+      Targets:
+        debug   - Build debug and run (default)
+        release - Build release and run
+        web     - Clean, build web, and start server (always cleans)
+
+      Options:
+        --clean     - Clean before building (for fresh native builds)
+        --no-run    - Build only, don't run afterward
+
+      Examples:
+        gmrcli dev              # Build debug, run
+        gmrcli dev --clean      # Clean, build debug, run
+        gmrcli dev release      # Build release, run
+        gmrcli dev web          # Clean, build web, start server
+    DESC
+    option :clean, type: :boolean, default: false,
+                   desc: "Clean before building (use --clean for fresh build)"
+    option :run, type: :boolean, default: true,
+                 desc: "Run after building (use --no-run to skip)"
+    option :port, type: :numeric, default: 8080,
+                  desc: "Port for web server"
+    def dev(target = "debug")
+      ErrorHandler.wrap(command: "dev") do
+        target = target.downcase
+
+        # Validate target
+        unless %w[debug release web].include?(target)
+          raise Error.new(
+            "Unknown dev target: #{target}",
+            code: "DEV.INVALID_TARGET",
+            suggestions: ["Available: debug, release, web"]
+          )
+        end
+
+        builder = Commands::Build.new(options.to_h.transform_keys(&:to_sym))
+        runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
+
+        # Step 1: Clean (always for web, optional for native)
+        should_clean = options[:clean] || target == "web"
+        if should_clean
+          UI.step "Cleaning..."
+          builder.clean
+        end
+
+        # Step 2: Build
+        case target
+        when "debug"   then builder.debug
+        when "release" then builder.release
+        when "web"     then builder.web
+        end
+
+        # Step 3: Run (optional)
+        if options[:run]
+          UI.blank
+          UI.step "Running..."
+          case target
+          when "debug", "release" then runner.native
+          when "web" then runner.web
+          end
+        end
       end
     end
 

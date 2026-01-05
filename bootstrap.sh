@@ -143,7 +143,8 @@ fi
 
 # Get current installed version (if any)
 INSTALLED_VERSION=$(gem list gmrcli --local 2>/dev/null | grep -oP 'gmrcli \(\K[^)]+' || echo "")
-GEMSPEC_VERSION=$(grep -oP "spec\.version\s*=\s*['\"]\\K[^'\"]+" gmrcli.gemspec 2>/dev/null || echo "0.0.0")
+# Extract version from lib/gmrcli/version.rb (gemspec references this constant)
+GEMSPEC_VERSION=$(grep -oP 'VERSION\s*=\s*["\x27]\K[^"\x27]+' lib/gmrcli/version.rb 2>/dev/null || echo "0.0.0")
 
 # Check if we need to reinstall
 NEEDS_INSTALL=false

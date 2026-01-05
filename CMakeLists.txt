@@ -60,7 +60,11 @@ set(SOURCES
     src/bindings/camera.cpp
     src/bindings/transform.cpp
     src/bindings/sprite.cpp
+    src/bindings/node.cpp
+    src/bindings/scene.cpp
     src/transform.cpp
+    src/node.cpp
+    src/scene.cpp
     src/sprite.cpp
     src/draw_queue.cpp
     src/scripting/loader.cpp

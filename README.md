@@ -25,8 +25,7 @@ cd GMR
 ./bootstrap.sh
 
 # Build and run
-gmrcli build -o text
-gmrcli run
+gmrcli dev
 ```
 
 Edit `game/scripts/main.rb` - changes reload automatically!
@@ -54,33 +53,48 @@ def draw
 end
 ```
 
-## CLI Quick Reference
+## CLI
+
+All GMR operations go through `gmrcli`. It outputs structured JSON by default, making it straightforward to integrate with editors, CI systems, and custom tooling. For terminal use, pass `-o text` for human-readable output, or use the `dev` command which defaults to text mode.
 
 ```bash
-gmrcli setup              # Install dependencies
-gmrcli build debug        # Debug build (hot-reload)
-gmrcli build release      # Optimized release build
-gmrcli build web          # WebAssembly build
-gmrcli run                # Run native build
-gmrcli run web            # Start local web server
-gmrcli new my-game        # Create new project
-```
+# Quick development (recommended)
+gmrcli dev                # Build and run
+gmrcli dev --clean        # Fresh build and run
+gmrcli dev web            # Web build and local server
 
-Add `-o text` for colored terminal output (JSON is default).
+# Fine-grained control
+gmrcli build debug        # Debug build only
+gmrcli build release      # Optimized release build
+gmrcli build web          # WebAssembly build only
+gmrcli run                # Run existing build
+gmrcli run web            # Start web server
+
+# Project management
+gmrcli setup              # Install dependencies
+gmrcli new my-game        # Create new project
+gmrcli docs               # Generate documentation
+```
 
 ## API Quick Reference
 
-| Module | Key Functions |
-|--------|---------------|
-| Graphics | `clear`, `draw_rect`, `draw_circle`, `draw_text` |
-| Texture | `load`, `draw`, `draw_ex`, `draw_pro` |
-| Tilemap | `new`, `set`, `fill`, `draw_region`, `solid?` |
+| Module/Class | Key Functions |
+|--------------|---------------|
+| Graphics | `clear`, `draw_rect`, `draw_circle`, `draw_line`, `draw_text`, `measure_text` |
+| Texture | `load`, `draw`, `draw_ex`, `draw_pro`, `width`, `height` |
+| Sprite | `new`, `draw`, `position`, `rotation`, `scale_x/y`, `source_rect`, `alpha` |
+| Tilemap | `new`, `set`, `fill`, `draw_region`, `solid?`, `tile_property` |
+| Camera2D | `target`, `offset`, `zoom`, `follow`, `shake`, `world_to_screen` |
+| Node | `add_child`, `remove_child`, `local_position`, `world_position`, `active?` |
+| Scene | `init`, `update`, `draw`, `unload` + `SceneManager.push/pop/load` |
+| Transform2D | `position`, `rotation`, `scale_x/y`, `parent`, `world_position` |
 | Input | `key_down?`, `key_pressed?`, `mouse_x/y`, `map`, `action_down?` |
-| Audio | `Sound.load`, `play`, `stop`, `set_volume` |
-| Window | `set_size`, `set_title`, `set_fullscreen` |
-| Time | `fps`, `elapsed`, `set_target_fps` |
-| System | `random_int`, `random`, `platform`, `quit` |
-| Collision | `rect_overlap?`, `circle_overlap?`, `point_in_rect?` |
+| Audio | `Sound.load`, `play`, `stop`, `volume=` |
+| Window | `set_size`, `set_title`, `fullscreen`, `width`, `height` |
+| System | `random_int`, `random_float`, `platform`, `quit`, `build_type` |
+| Collision | `rect_overlap?`, `circle_overlap?`, `point_in_rect?`, `distance` |
+| Vec2/Vec3 | `new`, `x`, `y`, `+`, `-`, `*`, `/` |
+| Rect | `new`, `x`, `y`, `w`, `h` |
 
 ## Documentation
 

@@ -52,7 +52,7 @@ void game_loop(void* arg) {
             gmr::scripting::check_error(mrb, "console_update");
         }
 
-        // Always update game - input context is handled in Ruby
+        // Update game
         gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
 
         if (state.use_virtual_resolution) {
@@ -179,7 +179,7 @@ int main() {
                 gmr::scripting::check_error(mrb, "console_update");
             }
 
-            // Always update game - input context is handled in Ruby
+            // Update game
             gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
 
             if (state.use_virtual_resolution) {
@@ -239,7 +239,7 @@ int main() {
             EndDrawing();
         }
     }
-    
+
     // Cleanup (only for native - web doesn't reach here)
     gmr::bindings::cleanup_window();
     gmr::SpriteManager::instance().clear();

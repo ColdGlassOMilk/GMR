@@ -12,6 +12,9 @@
 #include "gmr/bindings/camera.hpp"
 #include "gmr/bindings/transform.hpp"
 #include "gmr/bindings/sprite.hpp"
+#include "gmr/bindings/node.hpp"
+#include "gmr/bindings/scene.hpp"
+#include "gmr/scene.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
 #include <cstdio>
@@ -62,6 +65,12 @@ void Loader::register_all_bindings() {
     // Register Transform2D and Sprite (depend on math types)
     bindings::register_transform(mrb_);
     bindings::register_sprite(mrb_);
+
+    // Register Node (scene graph)
+    bindings::register_node(mrb_);
+
+    // Register Scene and SceneManager
+    bindings::register_scene(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {
@@ -77,7 +86,9 @@ void Loader::load_file(const fs::path& path) {
         return;
     }
 
-    printf("  Loading: %s\n", path.string().c_str());
+    std::string path_str = path.string();
+    std::replace(path_str.begin(), path_str.end(), '\\', '/');
+    printf("  Loading: %s\n", path_str.c_str());
 
     // Create compile context with filename for proper error reporting
     mrbc_context* ctx = mrbc_context_new(mrb_);
@@ -302,6 +313,8 @@ void Loader::load_from_bytecode() {
 
 void Loader::load(const std::string& script_dir) {
     if (mrb_) {
+        // Clear scene stack before closing mruby state
+        SceneManager::instance().clear(mrb_);
         mrb_close(mrb_);
         mrb_ = nullptr;
     }
@@ -330,7 +343,9 @@ void Loader::load(const std::string& script_dir) {
 
     fs::path main_path = script_dir_ / "main.rb";
     if (fs::exists(main_path)) {
-        printf("  Loading: %s (entry point)\n", main_path.string().c_str());
+        std::string main_path_str = main_path.string();
+        std::replace(main_path_str.begin(), main_path_str.end(), '\\', '/');
+        printf("  Loading: %s (entry point)\n", main_path_str.c_str());
         loaded_files_.insert(fs::weakly_canonical(main_path));
 
         FILE* fp = fopen(main_path.string().c_str(), "r");
