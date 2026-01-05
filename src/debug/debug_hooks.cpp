@@ -101,6 +101,9 @@ void install_hooks(mrb_state* mrb) {
     if (mrb) {
 #ifdef MRB_USE_DEBUG_HOOK
         mrb->code_fetch_hook = code_fetch_hook;
+        printf("[Debug] Code fetch hook installed\n");
+#else
+        printf("[Debug] WARNING: MRB_USE_DEBUG_HOOK not defined!\n");
 #endif
     }
 }
