@@ -1,4 +1,4 @@
-# <img src="game/assets/logo.png" height="75" align="middle" /> GMR - Games Made with Ruby
+# <img src="game/assets/logo.png" height="75" align="middle" /> GMR - Game Middleware for Ruby
 
 **A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++.** Build games with hot-reloading Ruby scripts powered by mruby and raylib, deploy natively to Windows/Linux/macOS or compile to WebAssembly for the browser.
 

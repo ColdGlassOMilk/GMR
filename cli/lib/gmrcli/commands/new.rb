@@ -95,7 +95,7 @@ module Gmrcli
       def empty_template(name)
         <<~RUBY
           # #{name}
-          # Created with GMR (Games Made with Ruby)
+          # Created with GMR (Game Middleware for Ruby)
 
           def init
             # Called once at startup
@@ -114,7 +114,7 @@ module Gmrcli
       def basic_template(name)
         <<~RUBY
           # #{name}
-          # Created with GMR (Games Made with Ruby)
+          # Created with GMR (Game Middleware for Ruby)
 
           def init
             @x = 400

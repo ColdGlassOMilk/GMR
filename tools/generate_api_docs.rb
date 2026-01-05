@@ -1734,7 +1734,7 @@ module GMRDocs
       version = {
         'engine' => {
           'name' => 'GMR',
-          'fullName' => 'Games Made with Ruby',
+          'fullName' => 'Game Middleware for Ruby',
           'version' => @options[:engine_version],
           'description' => 'A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++'
         },

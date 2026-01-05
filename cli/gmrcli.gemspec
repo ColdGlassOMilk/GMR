@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["GMR Contributors"]
   spec.email = [""]
 
-  spec.summary = "CLI utility for GMR (Games Made with Ruby)"
+  spec.summary = "CLI utility for GMR (Game Middleware for Ruby)"
   spec.description = "Build, run, and deploy GMR games from the command line"
   spec.homepage = "https://github.com/ColdGlassOMilk/gmr"
   spec.license = "MIT"
