@@ -341,6 +341,11 @@ void DebugServer::enter_pause_loop(mrb_state* mrb, const char* file, int32_t lin
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
+    // Send continued event to notify IDE that execution resumed
+    if (client_socket_ != INVALID_SOCKET_VALUE) {
+        send_message(make_continued_event());
+    }
+
     current_mrb_ = nullptr;
 }
 

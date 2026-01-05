@@ -162,6 +162,10 @@ std::string make_evaluate_response(bool success, const std::string& result) {
     return oss.str();
 }
 
+std::string make_continued_event() {
+    return "{\"type\":\"continued\"}";
+}
+
 } // namespace debug
 } // namespace gmr
 
