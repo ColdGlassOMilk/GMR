@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>  // For message pumping during pause
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <sys/socket.h>
@@ -30,6 +31,18 @@
 
 namespace gmr {
 namespace debug {
+
+// Pump Windows messages to keep the window responsive during pause
+#ifdef _WIN32
+static void pump_windows_messages() {
+    MSG msg;
+    // Process all pending messages without blocking
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+#endif
 
 DebugServer::DebugServer() = default;
 
@@ -304,6 +317,11 @@ void DebugServer::enter_pause_loop(mrb_state* mrb, const char* file, int32_t lin
 
     // Pause loop - poll for commands
     while (!should_resume_ && running_) {
+#ifdef _WIN32
+        // Pump Windows messages to keep the window responsive
+        pump_windows_messages();
+#endif
+
         read_from_client();
 
         // Process pending messages
