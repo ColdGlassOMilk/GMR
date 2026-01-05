@@ -307,7 +307,7 @@ endif()
 # Ruby debugger - only for native Debug builds (never for Web or Release)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT PLATFORM_WEB)
     message(STATUS "Ruby debugger enabled")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_DEBUG_ENABLED)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_DEBUG_ENABLED MRB_USE_DEBUG_HOOK)
 
     # Debug server sources
     set(DEBUG_SOURCES
