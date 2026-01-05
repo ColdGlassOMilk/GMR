@@ -192,8 +192,23 @@ module Gmrcli
       end
     end
 
-    # Alias 'run' to 'start' for convenience
-    map "run" => :start
+    # === Run Command (alias for start) ===
+
+    desc "run [TARGET]", "Run the game (alias for 'start')"
+    long_desc <<~DESC
+      Run GMR with the current project's scripts.
+
+      This is an alias for the 'start' command. See 'gmrcli help start' for full details.
+    DESC
+    option :project, type: :string, aliases: "-p",
+                     desc: "Path to project directory"
+    option :port, type: :numeric, default: 8080,
+                  desc: "Port for web server"
+    option :topmost, type: :boolean, default: false,
+                     desc: "Keep game window on top of other windows"
+    def run(target = "")
+      start(target)
+    end
 
     # === New Command ===
 
