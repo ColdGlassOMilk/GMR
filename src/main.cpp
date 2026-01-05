@@ -139,7 +139,12 @@ int main() {
     
 #else
     // Native platform initialization
+#if defined(GMR_DEBUG_ENABLED)
+    // Debug builds: window stays on top of IDE for easier debugging
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_WINDOW_TOPMOST);
+#else
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+#endif
     InitWindow(state.screen_width, state.screen_height, "GMR");
     InitAudioDevice();
     SetTargetFPS(60);
