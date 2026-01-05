@@ -143,6 +143,21 @@
       "module": "Rect",
       "description": "TODO: Add description"
     },
+    "Node": {
+      "kind": "class",
+      "module": "Node",
+      "description": "TODO: Add description"
+    },
+    "Scene": {
+      "kind": "class",
+      "module": "GMR::Scene",
+      "description": "TODO: Add description"
+    },
+    "SceneManager": {
+      "kind": "class",
+      "module": "GMR::SceneManager",
+      "description": "TODO: Add description"
+    },
     "Sprite": {
       "kind": "class",
       "module": "Sprite",
@@ -2553,6 +2568,332 @@
         }
       }
     },
+    "Node": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new Node with default transform.",
+          "returns": {
+            "type": "Node",
+            "description": "The new node"
+          },
+          "example": "node = Node.new"
+        },
+        "add_child": {
+          "description": "Add a child node. Removes from previous parent if any. Cycle detection prevents a node from becoming its own ancestor.",
+          "params": [
+            {
+              "name": "child",
+              "type": "Node",
+              "description": "The node to add as a child"
+            }
+          ],
+          "returns": {
+            "type": "Node",
+            "description": "self for chaining"
+          },
+          "example": "root.add_child(child)"
+        },
+        "remove_child": {
+          "description": "Remove a child node. The child becomes a root node.",
+          "params": [
+            {
+              "name": "child",
+              "type": "Node",
+              "description": "The node to remove"
+            }
+          ],
+          "returns": {
+            "type": "Node",
+            "description": "self for chaining"
+          },
+          "example": "root.remove_child(child)"
+        },
+        "parent": {
+          "description": "Get the parent node, or nil if this is a root.",
+          "returns": {
+            "type": "Node, nil",
+            "description": "The parent node"
+          },
+          "example": "if node.parent then puts \"has parent\" end"
+        },
+        "children": {
+          "description": "Get an array of child nodes.",
+          "returns": {
+            "type": "Array<Node>",
+            "description": "Array of children (empty if none)"
+          },
+          "example": "node.children.each { |c| puts c.local_position }"
+        },
+        "child_count": {
+          "description": "Get the number of children.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of children"
+          },
+          "example": "puts node.child_count"
+        },
+        "local_position": {
+          "description": "Get the local position relative to parent.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The local position"
+          },
+          "example": "pos = node.local_position"
+        },
+        "local_rotation": {
+          "description": "Get the local rotation in degrees.",
+          "returns": {
+            "type": "Float",
+            "description": "The local rotation"
+          },
+          "example": "angle = node.local_rotation"
+        },
+        "local_scale": {
+          "description": "Get the local scale.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The local scale"
+          },
+          "example": "scale = node.local_scale"
+        },
+        "local_position=": {
+          "description": "Set the local position relative to parent.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The new local position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "node.local_position = Vec2.new(100, 50)"
+        },
+        "local_rotation=": {
+          "description": "Set the local rotation in degrees.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The new local rotation"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "node.local_rotation = 45"
+        },
+        "local_scale=": {
+          "description": "Set the local scale.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The new local scale"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "node.local_scale = Vec2.new(2, 2)"
+        },
+        "world_position": {
+          "description": "Get the world position after hierarchy composition. Call Node.update_world_transforms(root) first to ensure accuracy.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The world position"
+          },
+          "example": "pos = child.world_position"
+        },
+        "world_rotation": {
+          "description": "Get the world rotation in degrees after hierarchy composition.",
+          "returns": {
+            "type": "Float",
+            "description": "The world rotation"
+          },
+          "example": "angle = child.world_rotation"
+        },
+        "world_scale": {
+          "description": "Get the world scale after hierarchy composition.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The world scale"
+          },
+          "example": "scale = child.world_scale"
+        },
+        "active": {
+          "description": "Get the active flag of this node (ignores parent state).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if this node is active"
+          },
+          "example": "if node.active then ... end"
+        },
+        "active=": {
+          "description": "Set the active flag of this node.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "true to activate, false to deactivate"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The value that was set"
+          },
+          "example": "node.active = false"
+        },
+        "active?": {
+          "description": "Check if this node is active in the full hierarchy. Returns false if this node or any ancestor is inactive.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if active in hierarchy"
+          },
+          "example": "if node.active? then update(node) end"
+        },
+        "Node.update_world_transforms": {
+          "description": "Update world transforms for a node and all descendants. Call this on the root before reading world_position/rotation/scale.",
+          "params": [
+            {
+              "name": "root",
+              "type": "Node",
+              "description": "The root node to start from"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Node.update_world_transforms(root)"
+        }
+      }
+    },
+    "GMR::Scene": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "init": {
+          "description": "Called once when the scene becomes active. Override to initialize scene state."
+        },
+        "update": {
+          "description": "Called every frame while this scene is on top of the stack. Override to update game logic.",
+          "params": [
+            {
+              "name": "dt",
+              "type": "Float",
+              "description": "Delta time in seconds since last frame"
+            }
+          ]
+        },
+        "draw": {
+          "description": "Called every frame while this scene is on top of the stack. Override to draw scene content."
+        },
+        "unload": {
+          "description": "Stack-based scene lifecycle manager. Use load to switch scenes (clears stack), push to add a scene on top, and pop to return to the previous scene."
+        }
+      }
+    },
+    "GMR::SceneManager": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "load": {
+          "description": "Clear the scene stack and load a new scene. Calls unload on all existing scenes (top to bottom), then init on the new scene.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The scene to load"
+            }
+          ],
+          "example": "GMR::SceneManager.load(TitleScene.new)"
+        },
+        "register": {
+          "description": "Alias for load. Clear the scene stack and load a new scene.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The scene to load"
+            }
+          ],
+          "example": "GMR::SceneManager.register(TitleScene.new)"
+        },
+        "push": {
+          "description": "Push a new scene onto the stack. The current scene is paused (no longer receives update/draw). Calls init on the new scene.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The scene to push"
+            }
+          ],
+          "example": "GMR::SceneManager.push(PauseScene.new)"
+        },
+        "pop": {
+          "description": "Remove the top scene from the stack. Calls unload on the removed scene. The previous scene resumes receiving update/draw calls.",
+          "example": "GMR::SceneManager.pop"
+        },
+        "update": {
+          "description": "Call update on the top scene. Call this from your game's update function.",
+          "params": [
+            {
+              "name": "dt",
+              "type": "Float",
+              "description": "Delta time in seconds"
+            }
+          ],
+          "example": "def update(dt)\n  GMR::SceneManager.update(dt)\r\nend\r"
+        },
+        "draw": {
+          "description": "Call draw on the top scene. Call this from your game's draw function.",
+          "example": "def draw\n  GMR::SceneManager.draw\r\nend\r"
+        },
+        "add_overlay": {
+          "description": "Add an overlay scene that renders on top of the main scene. Overlays receive update and draw calls. Multiple overlays can be active.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The overlay scene to add"
+            }
+          ],
+          "example": "GMR::SceneManager.add_overlay(MinimapOverlay.new)"
+        },
+        "remove_overlay": {
+          "description": "Remove an overlay scene.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The overlay scene to remove"
+            }
+          ],
+          "example": "GMR::SceneManager.remove_overlay(@minimap)"
+        },
+        "has_overlay?": {
+          "description": "Check if an overlay is currently active.",
+          "params": [
+            {
+              "name": "scene",
+              "type": "GMR::Scene",
+              "description": "The overlay scene to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the overlay is active"
+          },
+          "example": "if GMR::SceneManager.has_overlay?(@minimap)"
+        }
+      }
+    },
     "Sprite": {
       "kind": "class",
       "description": "TODO: Add description",
@@ -2790,6 +3131,29 @@
             "description": "The value that was set"
           },
           "example": "sprite.origin_y = 16  # Pivot 16px from top"
+        },
+        "origin": {
+          "description": "Get the origin (pivot point) as a Vec2.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The origin vector"
+          },
+          "example": "origin = sprite.origin"
+        },
+        "origin=": {
+          "description": "Set the origin (pivot point) using a Vec2.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The new origin vector"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "sprite.origin = Vec2.new(16, 16)"
         },
         "center_origin": {
           "description": "Set the origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.",

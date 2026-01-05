@@ -6,6 +6,10 @@
 #include <mruby/error.h>
 #include <mruby/internal.h>
 
+#if defined(GMR_DEBUG_ENABLED)
+#include "gmr/debug/debug_server.hpp"
+#endif
+
 namespace gmr {
 namespace scripting {
 
@@ -72,6 +76,24 @@ bool check_error(mrb_state* mrb, const char* context) {
     if (!mrb || !mrb->exc) {
         return false;
     }
+
+#if defined(GMR_DEBUG_ENABLED)
+    // Notify debugger of exception before handling it
+    auto& debug_server = gmr::debug::DebugServer::instance();
+    if (debug_server.is_connected()) {
+        // Capture exception info before it's cleared
+        auto error = capture_exception(mrb);
+        if (error) {
+            debug_server.pause_on_exception(
+                mrb,
+                error->exception_class.c_str(),
+                error->message.c_str(),
+                error->file.c_str(),
+                error->line
+            );
+        }
+    }
+#endif
 
     // Delegate to Loader for centralized error handling
     Loader::instance().handle_exception(mrb, context);

@@ -6,6 +6,10 @@
 #include "raylib.h"
 #include <cstdio>
 
+#if defined(GMR_DEBUG_ENABLED)
+#include "gmr/debug/debug_server.hpp"
+#endif
+
 #ifdef PLATFORM_WEB
 #include <emscripten/emscripten.h>
 #endif
@@ -144,6 +148,13 @@ int main() {
     auto& loader = gmr::scripting::Loader::instance();
     loader.load("game/scripts");
 
+#if defined(GMR_DEBUG_ENABLED)
+    // Start the Ruby debug server
+    if (gmr::debug::DebugServer::instance().start(5678)) {
+        printf("Ruby debugger listening on port 5678\n");
+    }
+#endif
+
     double last_time = GetTime();
     
     while (!WindowShouldClose()) {
@@ -163,7 +174,12 @@ int main() {
         
         // Hot reload
         loader.reload_if_changed();
-        
+
+#if defined(GMR_DEBUG_ENABLED)
+        // Poll debug server for commands
+        gmr::debug::DebugServer::instance().poll();
+#endif
+
         if (auto* mrb = loader.mrb()) {
             // Reset draw queue for new frame
             gmr::DrawQueue::instance().begin_frame();
@@ -240,6 +256,11 @@ int main() {
         }
     }
 
+#if defined(GMR_DEBUG_ENABLED)
+    // Stop the debug server
+    gmr::debug::DebugServer::instance().stop();
+#endif
+
     // Cleanup (only for native - web doesn't reach here)
     gmr::bindings::cleanup_window();
     gmr::SpriteManager::instance().clear();
@@ -247,7 +268,7 @@ int main() {
     gmr::DrawQueue::instance().clear();
     gmr::SoundManager::instance().clear();
     gmr::TextureManager::instance().clear();
-    
+
     CloseAudioDevice();
     CloseWindow();
 #endif

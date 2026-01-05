@@ -11,6 +11,7 @@ Command-line interface for GMR game development.
 | [start](start.md) (default) (alias: run) | Run the game |
 | [new](new.md) | Create a new GMR game project |
 | [docs](docs.md) | Generate all documentation |
+| [dev](dev.md) | Build and run in one command |
 | [version](version.md) | Show gmrcli version |
 | [info](info.md) | Show environment information |
 

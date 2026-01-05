@@ -22,6 +22,9 @@ Auto-generated API documentation for GMR 0.1.0.
 | [GMR::Audio::Sound](audio.md) | Loaded audio file for playback. |
 | [GMR::Graphics::Texture](graphics.md) | Loaded image textures for drawing sprites. |
 | [GMR::Graphics::Tilemap](graphics.md) | Tilemap rendering from Tiled JSON exports. |
+| [GMR::Scene](gmr_scene.md) | Class reference |
+| [GMR::SceneManager](gmr_scenemanager.md) | Class reference |
+| [Node](node.md) | Class reference |
 | [Rect](types.md) | Rectangle for bounds and collision areas. |
 | [Sprite](sprite.md) | Drawable 2D sprite with built-in transform properties. |
 | [Transform2D](transform.md) | 2D transform with position, rotation, scale, and hierarchy. |

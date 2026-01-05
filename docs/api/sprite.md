@@ -290,6 +290,38 @@ sprite.origin_y = 16  # Pivot 16px from top
 
 ---
 
+### origin
+
+Get the origin (pivot point) as a Vec2.
+
+**Returns:** `Vec2` - The origin vector
+
+**Example:**
+```ruby
+origin = sprite.origin
+```
+
+---
+
+### origin=
+
+Set the origin (pivot point) using a Vec2.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| value | Vec2 | The new origin vector |
+
+**Returns:** `Vec2` - The value that was set
+
+**Example:**
+```ruby
+sprite.origin = Vec2.new(16, 16)
+```
+
+---
+
 ### center_origin
 
 Set the origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.

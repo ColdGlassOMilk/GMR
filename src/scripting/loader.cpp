@@ -24,6 +24,10 @@
 #include <cctype>
 #include "raylib.h"
 
+#if defined(GMR_DEBUG_ENABLED)
+#include "gmr/debug/debug_hooks.hpp"
+#endif
+
 // Include compiled scripts only in release builds
 #if !defined(DEBUG) && defined(GMR_USE_COMPILED_SCRIPTS)
 #include "gmr/scripting/compiled_scripts.hpp"
@@ -328,6 +332,11 @@ void Loader::load(const std::string& script_dir) {
         fprintf(stderr, "Failed to open mruby state\n");
         return;
     }
+
+#if defined(GMR_DEBUG_ENABLED)
+    // Install debug hooks for breakpoints and stepping
+    gmr::debug::install_hooks(mrb_);
+#endif
 
     script_dir_ = script_dir;
     register_all_bindings();

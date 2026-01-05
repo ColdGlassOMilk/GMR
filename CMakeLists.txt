@@ -304,6 +304,28 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
 endif()
 
+# Ruby debugger - only for native Debug builds (never for Web or Release)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT PLATFORM_WEB)
+    message(STATUS "Ruby debugger enabled")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_DEBUG_ENABLED)
+
+    # Debug server sources
+    set(DEBUG_SOURCES
+        src/debug/debug_state.cpp
+        src/debug/debug_hooks.cpp
+        src/debug/debug_server.cpp
+        src/debug/breakpoint_manager.cpp
+        src/debug/variable_inspector.cpp
+        src/debug/json_protocol.cpp
+    )
+    target_sources(${PROJECT_NAME} PRIVATE ${DEBUG_SOURCES})
+
+    # Debug headers
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_SOURCE_DIR}/include/gmr/debug
+    )
+endif()
+
 # Compile Ruby scripts to bytecode for Release builds and Web builds
 if(CMAKE_BUILD_TYPE STREQUAL "Release" OR PLATFORM_WEB)
     message(STATUS "Enabling compiled script bytecode")

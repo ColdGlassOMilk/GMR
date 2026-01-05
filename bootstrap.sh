@@ -206,10 +206,11 @@ else
 
         echo ""
         # Use -o text for interactive terminal output
+        # Note: Command must come before options due to Thor's default_task behavior
         if [[ "$setup_type" =~ ^[Nn]$ ]]; then
-            exec gmrcli -o text setup --native-only
+            exec gmrcli setup --native-only -o text
         else
-            exec gmrcli -o text setup
+            exec gmrcli setup -o text
         fi
     fi
 fi

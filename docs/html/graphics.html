@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMR::Graphics - GMR API</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-content">
+      <a href="index.html" class="nav-brand">GMR API</a>
+      <ul class="nav-links">
+        <a href="core.html">GMR</a>
+          <a href="collision.html">Collision</a>
+          <a href="graphics.html" class="active">Graphics</a>
+          <a href="input.html">Input</a>
+          <a href="system.html">System</a>
+          <a href="window.html">Window</a>
+      </ul>
+    </div>
+  </nav>
+<div class="container">
+<div class="layout">
+<aside class="sidebar"><div class="sidebar-section"><div class="sidebar-title">Texture</div><ul class="sidebar-links"><li><a href="#Texture-load">.load</a></li><li><a href="#Texture-draw">#draw</a></li><li><a href="#Texture-draw_ex">#draw_ex</a></li><li><a href="#Texture-draw_pro">#draw_pro</a></li><li><a href="#Texture-height">#height</a></li><li><a href="#Texture-width">#width</a></li></ul></div><div class="sidebar-section"><div class="sidebar-title">Tilemap</div><ul class="sidebar-links"><li><a href="#Tilemap-new">.new</a></li><li><a href="#Tilemap-damage">#damage</a></li><li><a href="#Tilemap-define_tile">#define_tile</a></li><li><a href="#Tilemap-draw_region">#draw_region</a></li><li><a href="#Tilemap-fill">#fill</a></li><li><a href="#Tilemap-fill_rect">#fill_rect</a></li><li><a href="#Tilemap-get">#get</a></li><li><a href="#Tilemap-hazard?">#hazard?</a></li><li><a href="#Tilemap-ladder?">#ladder?</a></li><li><a href="#Tilemap-platform?">#platform?</a></li><li><a href="#Tilemap-set">#set</a></li><li><a href="#Tilemap-slippery?">#slippery?</a></li><li><a href="#Tilemap-solid?">#solid?</a></li><li><a href="#Tilemap-tile_height">#tile_height</a></li><li><a href="#Tilemap-tile_properties">#tile_properties</a></li><li><a href="#Tilemap-tile_property">#tile_property</a></li><li><a href="#Tilemap-tile_width">#tile_width</a></li><li><a href="#Tilemap-wall?">#wall?</a></li><li><a href="#Tilemap-water?">#water?</a></li></ul></div><div class="sidebar-section"><div class="sidebar-title">Functions</div><ul class="sidebar-links"><li><a href="#clear">clear</a></li><li><a href="#draw_circle">draw_circle</a></li><li><a href="#draw_circle_gradient">draw_circle_gradient</a></li><li><a href="#draw_circle_outline">draw_circle_outline</a></li><li><a href="#draw_line">draw_line</a></li><li><a href="#draw_line_thick">draw_line_thick</a></li><li><a href="#draw_rect">draw_rect</a></li><li><a href="#draw_rect_outline">draw_rect_outline</a></li><li><a href="#draw_rect_rotated">draw_rect_rotated</a></li><li><a href="#draw_text">draw_text</a></li><li><a href="#draw_triangle">draw_triangle</a></li><li><a href="#draw_triangle_outline">draw_triangle_outline</a></li><li><a href="#measure_text">measure_text</a></li></ul></div></aside>
+<div class="content">
+<h1>GMR::Graphics</h1>
+<p>Drawing primitives, textures, and rendering.</p>
+<h2>Functions</h2>
+<div class="function-block" id="clear">
+<div class="function-signature">clear(color)</div>
+<div class="function-description">Clear the screen with a solid color</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>The background color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.clear([<span class="integer">20</span>, <span class="integer">20</span>, <span class="integer">40</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_rect">
+<div class="function-signature">draw_rect(x, y, w, h, color)</div>
+<div class="function-description">Draw a filled rectangle</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>X position (left edge)</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Y position (top edge)</td></tr>
+<tr><td><code>w</code></td>
+<td><code>Integer</code></td>
+<td>Width in pixels</td></tr>
+<tr><td><code>h</code></td>
+<td><code>Integer</code></td>
+<td>Height in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Fill color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_rect(<span class="integer">100</span>, <span class="integer">100</span>, <span class="integer">50</span>, <span class="integer">30</span>, [<span class="integer">255</span>, <span class="integer">0</span>, <span class="integer">0</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_rect_outline">
+<div class="function-signature">draw_rect_outline(x, y, w, h, color)</div>
+<div class="function-description">Draw a rectangle outline (not filled)</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>X position (left edge)</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Y position (top edge)</td></tr>
+<tr><td><code>w</code></td>
+<td><code>Integer</code></td>
+<td>Width in pixels</td></tr>
+<tr><td><code>h</code></td>
+<td><code>Integer</code></td>
+<td>Height in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Outline color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_rect_outline(<span class="integer">100</span>, <span class="integer">100</span>, <span class="integer">50</span>, <span class="integer">30</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_rect_rotated">
+<div class="function-signature">draw_rect_rotated(x, y, w, h, angle, color)</div>
+<div class="function-description">Draw a filled rectangle rotated around its center</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Float</code></td>
+<td>X position (center)</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Float</code></td>
+<td>Y position (center)</td></tr>
+<tr><td><code>w</code></td>
+<td><code>Float</code></td>
+<td>Width in pixels</td></tr>
+<tr><td><code>h</code></td>
+<td><code>Float</code></td>
+<td>Height in pixels</td></tr>
+<tr><td><code>angle</code></td>
+<td><code>Float</code></td>
+<td>Rotation angle in degrees</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Fill color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_rect_rotated(<span class="integer">160</span>, <span class="integer">120</span>, <span class="integer">40</span>, <span class="integer">20</span>, <span class="float">45.0</span>, [<span class="integer">0</span>, <span class="integer">255</span>, <span class="integer">0</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_line">
+<div class="function-signature">draw_line(x1, y1, x2, y2, color)</div>
+<div class="function-description">Draw a line between two points</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x1</code></td>
+<td><code>Integer</code></td>
+<td>Start X position</td></tr>
+<tr><td><code>y1</code></td>
+<td><code>Integer</code></td>
+<td>Start Y position</td></tr>
+<tr><td><code>x2</code></td>
+<td><code>Integer</code></td>
+<td>End X position</td></tr>
+<tr><td><code>y2</code></td>
+<td><code>Integer</code></td>
+<td>End Y position</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Line color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_line(<span class="integer">0</span>, <span class="integer">0</span>, <span class="integer">100</span>, <span class="integer">100</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_line_thick">
+<div class="function-signature">draw_line_thick(x1, y1, x2, y2, thickness, color)</div>
+<div class="function-description">Draw a thick line between two points</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x1</code></td>
+<td><code>Float</code></td>
+<td>Start X position</td></tr>
+<tr><td><code>y1</code></td>
+<td><code>Float</code></td>
+<td>Start Y position</td></tr>
+<tr><td><code>x2</code></td>
+<td><code>Float</code></td>
+<td>End X position</td></tr>
+<tr><td><code>y2</code></td>
+<td><code>Float</code></td>
+<td>End Y position</td></tr>
+<tr><td><code>thickness</code></td>
+<td><code>Float</code></td>
+<td>Line thickness in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Line color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_line_thick(<span class="integer">0</span>, <span class="integer">0</span>, <span class="integer">100</span>, <span class="integer">100</span>, <span class="float">3.0</span>, [<span class="integer">255</span>, <span class="integer">200</span>, <span class="integer">100</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_circle">
+<div class="function-signature">draw_circle(x, y, radius, color)</div>
+<div class="function-description">Draw a filled circle</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>Center X position</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Center Y position</td></tr>
+<tr><td><code>radius</code></td>
+<td><code>Integer</code></td>
+<td>Circle radius in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Fill color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_circle(<span class="integer">160</span>, <span class="integer">120</span>, <span class="integer">25</span>, [<span class="integer">100</span>, <span class="integer">200</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_circle_outline">
+<div class="function-signature">draw_circle_outline(x, y, radius, color)</div>
+<div class="function-description">Draw a circle outline</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>Center X position</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Center Y position</td></tr>
+<tr><td><code>radius</code></td>
+<td><code>Integer</code></td>
+<td>Circle radius in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Outline color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_circle_outline(<span class="integer">160</span>, <span class="integer">120</span>, <span class="integer">25</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_circle_gradient">
+<div class="function-signature">draw_circle_gradient(x, y, radius, inner_color, outer_color)</div>
+<div class="function-description">Draw a circle with a radial gradient from inner to outer color</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>Center X position</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Center Y position</td></tr>
+<tr><td><code>radius</code></td>
+<td><code>Integer</code></td>
+<td>Circle radius in pixels</td></tr>
+<tr><td><code>inner_color</code></td>
+<td><code>Color</code></td>
+<td>Color at center</td></tr>
+<tr><td><code>outer_color</code></td>
+<td><code>Color</code></td>
+<td>Color at edge</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_circle_gradient(<span class="integer">160</span>, <span class="integer">120</span>, <span class="integer">50</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>], [<span class="integer">255</span>, <span class="integer">0</span>, <span class="integer">0</span>, <span class="integer">0</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_triangle">
+<div class="function-signature">draw_triangle(x1, y1, x2, y2, x3, y3, color)</div>
+<div class="function-description">Draw a filled triangle</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x1</code></td>
+<td><code>Float</code></td>
+<td>First vertex X</td></tr>
+<tr><td><code>y1</code></td>
+<td><code>Float</code></td>
+<td>First vertex Y</td></tr>
+<tr><td><code>x2</code></td>
+<td><code>Float</code></td>
+<td>Second vertex X</td></tr>
+<tr><td><code>y2</code></td>
+<td><code>Float</code></td>
+<td>Second vertex Y</td></tr>
+<tr><td><code>x3</code></td>
+<td><code>Float</code></td>
+<td>Third vertex X</td></tr>
+<tr><td><code>y3</code></td>
+<td><code>Float</code></td>
+<td>Third vertex Y</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Fill color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_triangle(<span class="integer">100</span>, <span class="integer">50</span>, <span class="integer">50</span>, <span class="integer">150</span>, <span class="integer">150</span>, <span class="integer">150</span>, [<span class="integer">255</span>, <span class="integer">0</span>, <span class="integer">0</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_triangle_outline">
+<div class="function-signature">draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)</div>
+<div class="function-description">Draw a triangle outline</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x1</code></td>
+<td><code>Float</code></td>
+<td>First vertex X</td></tr>
+<tr><td><code>y1</code></td>
+<td><code>Float</code></td>
+<td>First vertex Y</td></tr>
+<tr><td><code>x2</code></td>
+<td><code>Float</code></td>
+<td>Second vertex X</td></tr>
+<tr><td><code>y2</code></td>
+<td><code>Float</code></td>
+<td>Second vertex Y</td></tr>
+<tr><td><code>x3</code></td>
+<td><code>Float</code></td>
+<td>Third vertex X</td></tr>
+<tr><td><code>y3</code></td>
+<td><code>Float</code></td>
+<td>Third vertex Y</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Outline color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_triangle_outline(<span class="integer">100</span>, <span class="integer">50</span>, <span class="integer">50</span>, <span class="integer">150</span>, <span class="integer">150</span>, <span class="integer">150</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="draw_text">
+<div class="function-signature">draw_text(text, x, y, size, color)</div>
+<div class="function-description">Draw text at a position</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>text</code></td>
+<td><code>String</code></td>
+<td>The text to draw</td></tr>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>X position (left edge)</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Y position (top edge)</td></tr>
+<tr><td><code>size</code></td>
+<td><code>Integer</code></td>
+<td>Font size in pixels</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>Text color</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+<span class="constant">GMR</span>::<span class="constant">Graphics</span>.draw_text(<span class="string"><span class="delimiter">&quot;</span><span class="content">Hello!</span><span class="delimiter">&quot;</span></span>, <span class="integer">10</span>, <span class="integer">10</span>, <span class="integer">20</span>, [<span class="integer">255</span>, <span class="integer">255</span>, <span class="integer">255</span>])
+</code></pre>
+</div>
+<div class="function-block" id="measure_text">
+<div class="function-signature">measure_text(text, size)</div>
+<div class="function-description">A loaded image texture for drawing sprites and images</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>text</code></td>
+<td><code>String</code></td>
+<td>The text to measure</td></tr>
+<tr><td><code>size</code></td>
+<td><code>Integer</code></td>
+<td>Font size in pixels</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>Integer</code> &mdash; Width in pixels</p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+width = <span class="constant">GMR</span>::<span class="constant">Graphics</span>.measure_text(<span class="string"><span class="delimiter">&quot;</span><span class="content">Hello</span><span class="delimiter">&quot;</span></span>, <span class="integer">20</span>)
+</code></pre>
+</div>
+<h2>Texture</h2>
+<p>TODO: Add description</p>
+<h3>Class Methods</h3>
+<div class="function-block class-method" id="Texture-load">
+<div class="function-signature">load</div>
+<div class="function-description">Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>path</code></td>
+<td><code>String</code></td>
+<td>Path to the image file (relative to game root)</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>Texture</code> &mdash; The loaded texture object</p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+sprite = <span class="constant">GMR</span>::<span class="constant">Graphics</span>::<span class="constant">Texture</span>.load(<span class="string"><span class="delimiter">&quot;</span><span class="content">assets/player.png</span><span class="delimiter">&quot;</span></span>)
+</code></pre>
+</div>
+<h3>Instance Methods</h3>
+<div class="function-block instance-method" id="Texture-width">
+<div class="function-signature">width</div>
+<div class="function-description">Get the texture width in pixels</div>
+<h4>Returns</h4>
+<p><code>Integer</code> &mdash; Width in pixels</p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+puts sprite.width
+</code></pre>
+</div>
+<div class="function-block instance-method" id="Texture-height">
+<div class="function-signature">height</div>
+<div class="function-description">Get the texture height in pixels</div>
+<h4>Returns</h4>
+<p><code>Integer</code> &mdash; Height in pixels</p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+puts sprite.height
+</code></pre>
+</div>
+<div class="function-block instance-method" id="Texture-draw">
+<div class="function-signature">draw</div>
+<div class="function-description">Draw the texture at a position, optionally with a color tint</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Integer</code></td>
+<td>X position (left edge)</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Integer</code></td>
+<td>Y position (top edge)</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>(optional, default: [255, 255, 255]) Color tint (multiplied with texture)</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+sprite.draw(<span class="integer">100</span>, <span class="integer">100</span>)
+</code></pre>
+</div>
+<div class="function-block instance-method" id="Texture-draw_ex">
+<div class="function-signature">draw_ex</div>
+<div class="function-description">Draw the texture with rotation and scaling</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>x</code></td>
+<td><code>Float</code></td>
+<td>X position</td></tr>
+<tr><td><code>y</code></td>
+<td><code>Float</code></td>
+<td>Y position</td></tr>
+<tr><td><code>rotation</code></td>
+<td><code>Float</code></td>
+<td>Rotation angle in degrees</td></tr>
+<tr><td><code>scale</code></td>
+<td><code>Float</code></td>
+<td>Scale multiplier (1.0 = original size)</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>(optional, default: [255, 255, 255]) Color tint</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+sprite.draw_ex(<span class="integer">160</span>, <span class="integer">120</span>, <span class="float">45.0</span>, <span class="float">2.0</span>)
+</code></pre>
+</div>
+<div class="function-block instance-method" id="Texture-draw_pro">
+<div class="function-signature">draw_pro</div>
+<div class="function-description">A tile-based map for efficient rendering of large worlds using a tileset texture</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>sx</code></td>
+<td><code>Float</code></td>
+<td>Source X (top-left of region)</td></tr>
+<tr><td><code>sy</code></td>
+<td><code>Float</code></td>
+<td>Source Y (top-left of region)</td></tr>
+<tr><td><code>sw</code></td>
+<td><code>Float</code></td>
+<td>Source width</td></tr>
+<tr><td><code>sh</code></td>
+<td><code>Float</code></td>
+<td>Source height</td></tr>
+<tr><td><code>dx</code></td>
+<td><code>Float</code></td>
+<td>Destination X (center)</td></tr>
+<tr><td><code>dy</code></td>
+<td><code>Float</code></td>
+<td>Destination Y (center)</td></tr>
+<tr><td><code>dw</code></td>
+<td><code>Float</code></td>
+<td>Destination width</td></tr>
+<tr><td><code>dh</code></td>
+<td><code>Float</code></td>
+<td>Destination height</td></tr>
+<tr><td><code>rotation</code></td>
+<td><code>Float</code></td>
+<td>Rotation angle in degrees</td></tr>
+<tr><td><code>color</code></td>
+<td><code>Color</code></td>
+<td>(optional, default: [255, 255, 255]) Color tint</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>nil</code></p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+sprite.draw_pro(<span class="integer">0</span>, <span class="integer">0</span>, <span class="integer">32</span>, <span class="integer">32</span>, <span class="integer">160</span>, <span class="integer">120</span>, <span class="integer">64</span>, <span class="integer">64</span>, <span class="integer">0</span>)
+</code></pre>
+</div>
+<h2>Tilemap</h2>
+<p>TODO: Add description</p>
+<h3>Class Methods</h3>
+<div class="function-block class-method" id="Tilemap-new">
+<div class="function-signature">new(tileset:, tile_width:, tile_height:, width:, height:)</div>
+<div class="function-description">Create a new tilemap with the specified dimensions. All tiles are initialized to -1 (empty/transparent).</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>tileset</code></td>
+<td><code>Texture</code></td>
+<td>The tileset texture containing all tile graphics</td></tr>
+<tr><td><code>tile_width</code></td>
+<td><code>Integer</code></td>
+<td>Width of each tile in pixels</td></tr>
+<tr><td><code>tile_height</code></td>
+<td><code>Integer</code></td>
+<td>Height of each tile in pixels</td></tr>
+<tr><td><code>width</code></td>
+<td><code>Integer</code></td>
+<td>Map width in tiles</td></tr>
+<tr><td><code>height</code></td>
+<td><code>Integer</code></td>
+<td>Map height in tiles</td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>Tilemap</code> &mdash; The new tilemap object</p>
+<h4>Example</h4>
+<pre><code class="language-ruby">
+tileset = <span class="constant">GMR</span>::<span class="constant">Graphics</span>::<span class="constant">Texture</span>.load(<span class="string"><span class="delimiter">&quot;</span><span class="content">assets/tiles.png</span><span class="delimiter">&quot;</span></span>)
+map = <span class="constant">GMR</span>::<span class="constant">Graphics</span>::<span class="constant">Tilemap</span>.new(tileset, <span class="integer">16</span>, <span class="integer">16</span>, <span class="integer">100</span>, <span class="integer">50</span>)
+</code></pre>
+</div>
+<h3>Instance Methods</h3>
+<div class="function-block instance-method" id="Tilemap-tile_width">
+<div class="function-signature">tile_width</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-tile_height">
+<div class="function-signature">tile_height</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-get">
+<div class="function-signature">get(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-set">
+<div class="function-signature">set(arg1, arg2, arg3)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg3</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-fill">
+<div class="function-signature">fill(arg1)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-fill_rect">
+<div class="function-signature">fill_rect(arg1, arg2, arg3, arg4, arg5)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg3</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg4</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg5</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-draw_region">
+<div class="function-signature">draw_region(arg1, arg2, arg3, arg4, arg5, arg6, [arg7])</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg3</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg4</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg5</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg6</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg7</code></td>
+<td><code>Array</code> <span class="label label-optional">optional</span></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-define_tile">
+<div class="function-signature">define_tile(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Hash</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-tile_properties">
+<div class="function-signature">tile_properties(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-tile_property">
+<div class="function-signature">tile_property(arg1, arg2, arg3)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg3</code></td>
+<td><code>Symbol</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-solid?">
+<div class="function-signature">solid?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-wall?">
+<div class="function-signature">wall?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>any</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>any</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-hazard?">
+<div class="function-signature">hazard?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-platform?">
+<div class="function-signature">platform?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-ladder?">
+<div class="function-signature">ladder?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-water?">
+<div class="function-signature">water?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-slippery?">
+<div class="function-signature">slippery?(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+<div class="function-block instance-method" id="Tilemap-damage">
+<div class="function-signature">damage(arg1, arg2)</div>
+<div class="function-description">TODO: Add documentation</div>
+<h4>Parameters</h4>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>arg1</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+<tr><td><code>arg2</code></td>
+<td><code>Integer</code></td>
+<td></td></tr>
+</tbody></table>
+<h4>Returns</h4>
+<p><code>unknown</code></p>
+</div>
+</div>
+</div>
+</div>
+  <footer class="footer">
+    <p>Generated by GMRCli Docs</p>
+    <p>GMR 0.1.0 &bull; Ruby API Reference</p>
+  </footer>
+</body>
+</html>
