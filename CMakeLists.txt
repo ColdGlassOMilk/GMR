@@ -328,6 +328,17 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include/gmr/repl
 )
 
+# Console module - built-in dev console (always compiled)
+set(CONSOLE_SOURCES
+    src/console/console_module.cpp
+)
+target_sources(${PROJECT_NAME} PRIVATE ${CONSOLE_SOURCES})
+
+# Add console include directory
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/include/gmr/console
+)
+
 # Enable REPL availability flag
 if(GMR_REPL_ENABLED OR CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_REPL_AVAILABLE)

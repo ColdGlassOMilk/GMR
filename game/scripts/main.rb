@@ -8,6 +8,37 @@ include GMR
 # =============================================================================
 
 def init
+  # Enable the built-in console with custom styling
+  # The console is toggled with the backtick (`) key
+  GMR::Console.enable({
+    background: "#141820",
+    foreground: "#ffffff",
+    prompt_color: [100, 200, 255],
+    result_color: [120, 255, 150],
+    error_color: [255, 100, 100],
+    height: 300,
+    font_size: 14
+  })
+
+  # Register some demo commands
+  GMR::Console.register_command("spawn", "Spawn an entity (demo)") do |args|
+    type = args[0] || "enemy"
+    "Spawning #{type} (demo command)"
+  end
+
+  GMR::Console.register_command("teleport", "Teleport to x,y (demo)") do |args|
+    if args.length >= 2
+      x, y = args[0].to_i, args[1].to_i
+      "Teleported to #{x}, #{y} (demo command)"
+    else
+      "Usage: teleport <x> <y>"
+    end
+  end
+
+  GMR::Console.register_command("fps", "Show current FPS") do
+    "FPS: #{GMR::Time.fps}"
+  end
+
   # Load the main game scene
   @game_scene = GameScene.new
   SceneManager.load(@game_scene)

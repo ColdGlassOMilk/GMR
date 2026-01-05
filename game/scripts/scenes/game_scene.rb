@@ -36,7 +36,7 @@ class GameScene < GMR::Scene
   end
 
   def update(dt)
-    return if console_open?
+    return if GMR::Console.open?
 
     update_player(dt)
     update_camera(dt)

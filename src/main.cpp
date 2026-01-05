@@ -3,6 +3,7 @@
 #include "gmr/draw_queue.hpp"
 #include "gmr/sprite.hpp"
 #include "gmr/transform.hpp"
+#include "gmr/console/console_module.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
@@ -49,16 +50,14 @@ void game_loop(void* arg) {
         // Update camera system (before Ruby update)
         gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
 
-        // Console update (handles its own input)
-        mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
-        if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
-            mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
-                        mrb_float_value(mrb, dt));
-            gmr::scripting::check_error(mrb, "console_update");
-        }
+        // Built-in console update (handles its own input)
+        auto& console = gmr::console::ConsoleModule::instance();
+        bool console_consumed = console.update(static_cast<float>(dt));
 
-        // Update game
-        gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
+        // Update game (skip if console consumed input)
+        if (!console_consumed || !console.is_open()) {
+            gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
+        }
 
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
@@ -66,33 +65,29 @@ void game_loop(void* arg) {
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
-            // Draw console on render target
-            mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
-            if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
-                mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                gmr::scripting::check_error(mrb, "console_draw");
-            }
-            
+            // Draw built-in console on render target
+            console.draw();
+
             EndTextureMode();
-            
+
             BeginDrawing();
             ClearBackground(::Color{0, 0, 0, 255});
-            
+
             float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
             float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
             float scale = (scale_x < scale_y) ? scale_x : scale_y;
-            
+
             int scaled_width = static_cast<int>(state.virtual_width * scale);
             int scaled_height = static_cast<int>(state.virtual_height * scale);
             int offset_x = (GetScreenWidth() - scaled_width) / 2;
             int offset_y = (GetScreenHeight() - scaled_height) / 2;
-            
-            Rectangle source = {0, 0, static_cast<float>(state.virtual_width), 
+
+            Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                -static_cast<float>(state.virtual_height)};
             Rectangle dest = {static_cast<float>(offset_x), static_cast<float>(offset_y),
                               static_cast<float>(scaled_width), static_cast<float>(scaled_height)};
-            
-            DrawTexturePro(gmr::bindings::get_render_target().texture, source, dest, 
+
+            DrawTexturePro(gmr::bindings::get_render_target().texture, source, dest,
                           Vector2{0, 0}, 0.0f, ::Color{255, 255, 255, 255});
             EndDrawing();
         } else {
@@ -101,12 +96,8 @@ void game_loop(void* arg) {
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
-            // Draw console on top
-            mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
-            if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
-                mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                gmr::scripting::check_error(mrb, "console_draw");
-            }
+            // Draw built-in console on top
+            console.draw();
 
             EndDrawing();
         }
@@ -201,16 +192,14 @@ int main(int argc, char* argv[]) {
             // Update camera system (before Ruby update)
             gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
 
-            // Console update (handles its own input)
-            mrb_sym console_update_sym = mrb_intern_cstr(mrb, "console_update");
-            if (mrb_respond_to(mrb, mrb_top_self(mrb), console_update_sym)) {
-                mrb_funcall(mrb, mrb_top_self(mrb), "console_update", 1,
-                            mrb_float_value(mrb, dt));
-                gmr::scripting::check_error(mrb, "console_update");
-            }
+            // Built-in console update (handles its own input)
+            auto& console = gmr::console::ConsoleModule::instance();
+            bool console_consumed = console.update(static_cast<float>(dt));
 
-            // Update game
-            gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
+            // Update game (skip if console consumed input)
+            if (!console_consumed || !console.is_open()) {
+                gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
+            }
 
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
@@ -218,12 +207,8 @@ int main(int argc, char* argv[]) {
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
-                // Draw console on render target
-                mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
-                if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
-                    mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                    gmr::scripting::check_error(mrb, "console_draw");
-                }
+                // Draw built-in console on render target
+                console.draw();
 
                 EndTextureMode();
 
@@ -253,12 +238,8 @@ int main(int argc, char* argv[]) {
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
-                // Draw console on top
-                mrb_sym console_draw_sym = mrb_intern_cstr(mrb, "console_draw");
-                if (mrb_respond_to(mrb, mrb_top_self(mrb), console_draw_sym)) {
-                    mrb_funcall(mrb, mrb_top_self(mrb), "console_draw", 0);
-                    gmr::scripting::check_error(mrb, "console_draw");
-                }
+                // Draw built-in console on top
+                console.draw();
 
                 EndDrawing();
             }
@@ -274,6 +255,9 @@ int main(int argc, char* argv[]) {
     // Stop the debug server
     gmr::debug::DebugServer::instance().stop();
 #endif
+
+    // Shutdown console module
+    gmr::console::ConsoleModule::instance().shutdown();
 
     // Cleanup (only for native - web doesn't reach here)
     gmr::bindings::cleanup_window();

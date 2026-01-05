@@ -16,6 +16,7 @@
 #include "gmr/bindings/node.hpp"
 #include "gmr/bindings/scene.hpp"
 #include "gmr/scene.hpp"
+#include "gmr/console/console_module.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
 #include <cstdio>
@@ -76,6 +77,9 @@ void Loader::register_all_bindings() {
 
     // Register Scene and SceneManager
     bindings::register_scene(mrb_);
+
+    // Register built-in console module (GMR::Console)
+    console::register_console_module(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {
