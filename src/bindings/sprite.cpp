@@ -926,6 +926,41 @@ static mrb_value mrb_sprite_class_count(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Animation
+// ============================================================================
+
+/// @method play_animation
+/// @description Convenience method to create and play a sprite animation.
+///   Creates a GMR::SpriteAnimation, calls play, and returns it for chaining.
+/// @param frames: [Array<Integer>, Range] Frame indices to cycle through
+/// @param fps: [Float] Frames per second (default: 12)
+/// @param loop: [Boolean] Whether to loop (default: true)
+/// @param frame_width: [Integer] Width of each frame (optional)
+/// @param frame_height: [Integer] Height of each frame (optional)
+/// @param columns: [Integer] Frames per row in spritesheet (default: 1)
+/// @returns [SpriteAnimation] The animation instance (already playing)
+/// @example sprite.play_animation(frames: 0..5, fps: 10, loop: false)
+///   .on_complete { sprite.state = :idle }
+/// @example sprite.play_animation(frames: [0, 1, 2, 3], fps: 12)
+static mrb_value mrb_sprite_play_animation(mrb_state* mrb, mrb_value self) {
+    mrb_value kwargs;
+    mrb_get_args(mrb, "H", &kwargs);
+
+    // Get GMR::SpriteAnimation class
+    RClass* gmr = mrb_module_get(mrb, "GMR");
+    RClass* anim_class = mrb_class_get_under(mrb, gmr, "SpriteAnimation");
+
+    // Create animation with sprite and options
+    mrb_value args[2] = { self, kwargs };
+    mrb_value anim = mrb_obj_new(mrb, anim_class, 2, args);
+
+    // Call play on the animation
+    mrb_funcall(mrb, anim, "play", 0);
+
+    return anim;
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -996,6 +1031,9 @@ void register_sprite(mrb_state* mrb) {
 
     // Draw
     mrb_define_method(mrb, sprite_class, "draw", mrb_sprite_draw, MRB_ARGS_NONE());
+
+    // Animation
+    mrb_define_method(mrb, sprite_class, "play_animation", mrb_sprite_play_animation, MRB_ARGS_REQ(1));
 
     // Class methods
     mrb_define_class_method(mrb, sprite_class, "count", mrb_sprite_class_count, MRB_ARGS_NONE());
