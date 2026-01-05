@@ -13,7 +13,8 @@ module Gmrcli
       def initialize(options = {})
         @options = {
           project: nil,
-          port: 8080
+          port: 8080,
+          topmost: false
         }.merge(options)
 
         # Determine project directory early
@@ -38,12 +39,16 @@ module Gmrcli
         UI.info "Project: #{project_dir}"
         UI.blank
 
+        # Build command-line arguments
+        args = []
+        args << "--topmost" if options[:topmost]
+
         # Run gmr.exe with the project directory as working directory
         Dir.chdir(project_dir) do
           if Platform.windows?
-            exec("\"#{exe_path}\"")
+            exec("\"#{exe_path}\"", *args)
           else
-            exec(exe_path)
+            exec(exe_path, *args)
           end
         end
       end

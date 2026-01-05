@@ -1,5 +1,6 @@
 #include "gmr/scripting/loader.hpp"
 #include "gmr/scripting/helpers.hpp"
+#include "gmr/output/ndjson.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/bindings/graphics.hpp"
 #include "gmr/bindings/input.hpp"
@@ -206,8 +207,6 @@ void Loader::reload_file(const fs::path& path) {
         return;
     }
 
-    printf("  Reloading: %s\n", path.filename().string().c_str());
-
     mrbc_context* ctx = mrbc_context_new(mrb_);
     mrbc_filename(mrb_, ctx, path.filename().string().c_str());
 
@@ -408,6 +407,12 @@ void Loader::reload_if_changed() {
         return;
     }
 
+    // Collect file names for NDJSON event
+    std::vector<std::string> file_names;
+    for (const auto& file : changed_files) {
+        file_names.push_back(file.filename().string());
+    }
+
     // Check for new files that weren't loaded yet
     bool has_new_files = false;
     for (const auto& file : changed_files) {
@@ -419,14 +424,13 @@ void Loader::reload_if_changed() {
 
     // New files require full reload (dependency order matters)
     if (has_new_files) {
-        printf("\n*** Hot reload (new files - full reload) ***\n");
+        // Emit NDJSON event for full reload (state not preserved, init will run)
+        output::emit_hot_reload_event("full", file_names, false, true);
         load(script_dir_.string());
         return;
     }
 
     // Selective reload - keep VM alive, only reload changed files
-    printf("\n*** Hot reload (selective) ***\n");
-
     // Capture init content BEFORE reload
     std::string old_init = extract_init_content();
 
@@ -439,14 +443,15 @@ void Loader::reload_if_changed() {
 
     // Check if init changed
     std::string new_init = extract_init_content();
+    bool init_changed = (old_init != new_init && !new_init.empty());
 
-    if (old_init != new_init && !new_init.empty()) {
-        printf("  init() changed - reinitializing\n");
+    if (init_changed) {
         safe_call(mrb_, "init");
         last_init_content_ = new_init;
-    } else {
-        printf("  State preserved\n");
     }
+
+    // Emit NDJSON event for selective reload
+    output::emit_hot_reload_event("selective", file_names, !init_changed, init_changed);
 #else
     // Hot reload disabled in release or web builds
     (void)last_check_time_; // suppress unused variable warning

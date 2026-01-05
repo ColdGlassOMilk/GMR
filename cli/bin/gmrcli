@@ -173,6 +173,8 @@ module Gmrcli
                      desc: "Path to project directory"
     option :port, type: :numeric, default: 8080,
                   desc: "Port for web server"
+    option :topmost, type: :boolean, default: false,
+                     desc: "Keep game window on top of other windows"
     def start(target = "")
       ErrorHandler.wrap(command: "run") do
         runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
@@ -269,6 +271,8 @@ module Gmrcli
                  desc: "Run after building (use --no-run to skip)"
     option :port, type: :numeric, default: 8080,
                   desc: "Port for web server"
+    option :topmost, type: :boolean, default: false,
+                     desc: "Keep game window on top of other windows"
     def dev(target = "debug")
       ErrorHandler.wrap(command: "dev") do
         target = target.downcase

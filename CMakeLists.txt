@@ -70,6 +70,7 @@ set(SOURCES
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
     src/scripting/script_error.cpp
+    src/output/ndjson.cpp
 )
 
 # Create executable

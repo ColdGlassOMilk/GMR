@@ -5,6 +5,7 @@
 #include "gmr/transform.hpp"
 #include "raylib.h"
 #include <cstdio>
+#include <cstring>
 
 #if defined(GMR_DEBUG_ENABLED)
 #include "gmr/debug/debug_server.hpp"
@@ -118,10 +119,19 @@ void game_loop(void* arg) {
 }
 #endif
 
-int main() {
+int main(int argc, char* argv[]) {
     auto& state = gmr::State::instance();
-    
+
+    // Parse command-line arguments
+    bool window_topmost = false;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--topmost") == 0) {
+            window_topmost = true;
+        }
+    }
+
 #ifdef PLATFORM_WEB
+    (void)window_topmost; // Unused on web
     // Web-specific initialization
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(state.screen_width, state.screen_height, "GMR");
@@ -139,12 +149,11 @@ int main() {
     
 #else
     // Native platform initialization
-#if defined(GMR_DEBUG_ENABLED)
-    // Debug builds: window stays on top of IDE for easier debugging
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_WINDOW_TOPMOST);
-#else
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
-#endif
+    unsigned int config_flags = FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT;
+    if (window_topmost) {
+        config_flags |= FLAG_WINDOW_TOPMOST;
+    }
+    SetConfigFlags(config_flags);
     InitWindow(state.screen_width, state.screen_height, "GMR");
     InitAudioDevice();
     SetTargetFPS(60);
