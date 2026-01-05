@@ -497,10 +497,12 @@ module Gmrcli
 
             conf.cc do |cc|
               cc.flags = %w(-O2)
+              cc.defines = %w(MRB_USE_DEBUG_HOOK)
             end
 
             conf.cxx do |cxx|
               cxx.flags = %w(-O2)
+              cxx.defines = %w(MRB_USE_DEBUG_HOOK)
             end
 
             # mrbc compiler - required for compiling Ruby source to bytecode
