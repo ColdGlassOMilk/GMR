@@ -1,5 +1,6 @@
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
+#include "gmr/input/input_manager.hpp"
 #include <mruby/variable.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
@@ -281,6 +282,11 @@ void StateMachineManager::update(mrb_state* mrb, float dt) {
 // ============================================================================
 
 void StateMachineManager::clear(mrb_state* mrb) {
+    // Unregister input bindings for all state machines
+    for (auto& [handle, machine] : machines_) {
+        input::InputManager::instance().unregister_state_machine_bindings(mrb, handle);
+    }
+
     // Unregister all Ruby objects from GC
     for (auto& [handle, machine] : machines_) {
         if (!mrb_nil_p(machine.ruby_machine_obj)) {

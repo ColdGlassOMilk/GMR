@@ -1,8 +1,12 @@
 #include "gmr/bindings/input.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/input/input_manager.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
 #include <vector>
+
+// Namespace alias to avoid confusion with gmr::bindings::input
+namespace gmr_input = gmr::input;
 
 namespace gmr {
 namespace bindings {
@@ -26,7 +30,7 @@ static bool check_keys_any(mrb_state* mrb, mrb_value arg, CheckFn check_fn) {
 }
 
 // ============================================================================
-// GMR::Input Module Functions
+// GMR::Input Module Functions - Mouse
 // ============================================================================
 
 // GMR::Input.mouse_x
@@ -92,6 +96,10 @@ static mrb_value mrb_input_mouse_wheel(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, GetMouseWheelMove());
 }
 
+// ============================================================================
+// GMR::Input Module Functions - Keyboard
+// ============================================================================
+
 // GMR::Input.key_down?(key) - accepts integer, symbol, or array of either
 static mrb_value mrb_input_key_down(mrb_state* mrb, mrb_value) {
     mrb_value arg;
@@ -131,34 +139,169 @@ static mrb_value mrb_input_get_char_pressed(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
-// Action Mapping System
+// Action Mapping System - Helpers
 // ============================================================================
 
-// Helper to parse keys from array into vector of key codes
-static std::vector<int> parse_keys_array(mrb_state* mrb, mrb_value arr) {
-    std::vector<int> keys;
-    if (mrb_array_p(arr)) {
-        mrb_int len = RARRAY_LEN(arr);
+// Parse keys from array/single value into InputBinding vector
+static std::vector<gmr_input::InputBinding> parse_bindings_from_keys(mrb_state* mrb, mrb_value keys) {
+    std::vector<gmr_input::InputBinding> bindings;
+
+    if (mrb_array_p(keys)) {
+        mrb_int len = RARRAY_LEN(keys);
         for (mrb_int i = 0; i < len; i++) {
-            mrb_value item = mrb_ary_ref(mrb, arr, i);
-            keys.push_back(parse_key_arg(mrb, item));
+            mrb_value item = mrb_ary_ref(mrb, keys, i);
+            gmr_input::InputBinding binding;
+            binding.source = gmr_input::InputSource::Keyboard;
+            binding.code = parse_key_arg(mrb, item);
+            bindings.push_back(binding);
         }
-    } else {
+    } else if (!mrb_nil_p(keys)) {
         // Single key
-        keys.push_back(parse_key_arg(mrb, arr));
+        gmr_input::InputBinding binding;
+        binding.source = gmr_input::InputSource::Keyboard;
+        binding.code = parse_key_arg(mrb, keys);
+        bindings.push_back(binding);
     }
-    return keys;
+
+    return bindings;
 }
 
+// Parse mouse button(s) into InputBinding vector
+static std::vector<gmr_input::InputBinding> parse_bindings_from_mouse(mrb_state* mrb, mrb_value mouse) {
+    std::vector<gmr_input::InputBinding> bindings;
+
+    if (mrb_array_p(mouse)) {
+        mrb_int len = RARRAY_LEN(mouse);
+        for (mrb_int i = 0; i < len; i++) {
+            mrb_value item = mrb_ary_ref(mrb, mouse, i);
+            gmr_input::InputBinding binding;
+            binding.source = gmr_input::InputSource::Mouse;
+            binding.code = parse_mouse_button_arg(mrb, item);
+            bindings.push_back(binding);
+        }
+    } else if (!mrb_nil_p(mouse)) {
+        // Single button
+        gmr_input::InputBinding binding;
+        binding.source = gmr_input::InputSource::Mouse;
+        binding.code = parse_mouse_button_arg(mrb, mouse);
+        bindings.push_back(binding);
+    }
+
+    return bindings;
+}
+
+// ============================================================================
+// Action Mapping System - Traditional API
+// ============================================================================
+
 // GMR::Input.map(action_name, keys) - Map an action to one or more keys
-static mrb_value mrb_input_map(mrb_state* mrb, mrb_value) {
+// This is the backward-compatible API
+static mrb_value mrb_input_map_simple(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_value keys;
     mrb_get_args(mrb, "no", &action_sym, &keys);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
-    auto& state = State::instance();
-    state.input_actions[action_name] = parse_keys_array(mrb, keys);
+    std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_keys(mrb, keys);
+
+    gmr_input::InputManager::instance().define_action(action_name, bindings);
+
+    return mrb_nil_value();
+}
+
+// ============================================================================
+// Action Mapping System - Block DSL
+// ============================================================================
+
+// Builder data for block DSL
+struct InputMapBuilderData {
+    bool active;
+};
+
+static void input_builder_free(mrb_state* mrb, void* ptr) {
+    if (ptr) {
+        mrb_free(mrb, ptr);
+    }
+}
+
+static const mrb_data_type input_builder_data_type = {
+    "Input::MapBuilder", input_builder_free
+};
+
+static RClass* input_builder_class = nullptr;
+
+// GMR::Input::MapBuilder#action - Define an action with bindings
+// action :name, keys: [...], key: :x, mouse: :left
+static mrb_value mrb_input_builder_action(mrb_state* mrb, mrb_value self) {
+    mrb_sym action_sym;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_get_args(mrb, "n|H", &action_sym, &kwargs);
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    std::vector<gmr_input::InputBinding> bindings;
+
+    if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        // Parse :keys (array of keys)
+        mrb_value keys_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "keys")));
+        if (!mrb_nil_p(keys_val)) {
+            auto key_bindings = parse_bindings_from_keys(mrb, keys_val);
+            bindings.insert(bindings.end(), key_bindings.begin(), key_bindings.end());
+        }
+
+        // Parse :key (single key)
+        mrb_value key_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "key")));
+        if (!mrb_nil_p(key_val)) {
+            auto key_bindings = parse_bindings_from_keys(mrb, key_val);
+            bindings.insert(bindings.end(), key_bindings.begin(), key_bindings.end());
+        }
+
+        // Parse :mouse (single or array of mouse buttons)
+        mrb_value mouse_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "mouse")));
+        if (!mrb_nil_p(mouse_val)) {
+            auto mouse_bindings = parse_bindings_from_mouse(mrb, mouse_val);
+            bindings.insert(bindings.end(), mouse_bindings.begin(), mouse_bindings.end());
+        }
+    }
+
+    gmr_input::InputManager::instance().define_action(action_name, bindings);
+
+    return self;
+}
+
+// GMR::Input.map - supports both traditional and block DSL
+// Traditional: GMR::Input.map(:action, [:a, :left])
+// Block DSL: GMR::Input.map { action :move, keys: [:a, :left] }
+static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
+    mrb_value block = mrb_nil_value();
+    mrb_sym action_sym = 0;
+    mrb_value keys = mrb_nil_value();
+
+    // Parse optional symbol, optional keys, optional block
+    mrb_get_args(mrb, "|no&", &action_sym, &keys, &block);
+
+    if (!mrb_nil_p(block) && action_sym == 0) {
+        // Block DSL form: GMR::Input.map { ... }
+        mrb_value builder = mrb_obj_new(mrb, input_builder_class, 0, nullptr);
+
+        InputMapBuilderData* data = static_cast<InputMapBuilderData*>(
+            mrb_malloc(mrb, sizeof(InputMapBuilderData)));
+        data->active = true;
+        mrb_data_init(builder, data, &input_builder_data_type);
+
+        mrb_yield(mrb, block, builder);
+
+        return mrb_nil_value();
+    }
+
+    if (action_sym != 0) {
+        // Traditional form: GMR::Input.map(:action, keys)
+        const char* action_name = mrb_sym_name(mrb, action_sym);
+        std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_keys(mrb, keys);
+        gmr_input::InputManager::instance().define_action(action_name, bindings);
+    }
 
     return mrb_nil_value();
 }
@@ -169,31 +312,20 @@ static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value) {
     mrb_get_args(mrb, "n", &action_sym);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
-    auto& state = State::instance();
-    state.input_actions.erase(action_name);
+    gmr_input::InputManager::instance().remove_action(action_name);
 
     return mrb_nil_value();
 }
 
 // GMR::Input.clear_mappings - Remove all action mappings
 static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value) {
-    auto& state = State::instance();
-    state.input_actions.clear();
+    gmr_input::InputManager::instance().clear_actions();
     return mrb_nil_value();
 }
 
-// Helper to check action keys
-template<typename CheckFn>
-static bool check_action_any(const std::string& action_name, CheckFn check_fn) {
-    auto& state = State::instance();
-    auto it = state.input_actions.find(action_name);
-    if (it == state.input_actions.end()) return false;
-
-    for (int key : it->second) {
-        if (check_fn(key)) return true;
-    }
-    return false;
-}
+// ============================================================================
+// Action Query Functions (using InputManager)
+// ============================================================================
 
 // GMR::Input.action_down?(action_name)
 static mrb_value mrb_input_action_down(mrb_state* mrb, mrb_value) {
@@ -201,7 +333,7 @@ static mrb_value mrb_input_action_down(mrb_state* mrb, mrb_value) {
     mrb_get_args(mrb, "n", &action_sym);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
-    bool result = check_action_any(action_name, [](int key) { return IsKeyDown(key); });
+    bool result = gmr_input::InputManager::instance().action_down(action_name);
     return to_mrb_bool(mrb, result);
 }
 
@@ -211,7 +343,7 @@ static mrb_value mrb_input_action_pressed(mrb_state* mrb, mrb_value) {
     mrb_get_args(mrb, "n", &action_sym);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
-    bool result = check_action_any(action_name, [](int key) { return IsKeyPressed(key); });
+    bool result = gmr_input::InputManager::instance().action_pressed(action_name);
     return to_mrb_bool(mrb, result);
 }
 
@@ -221,8 +353,68 @@ static mrb_value mrb_input_action_released(mrb_state* mrb, mrb_value) {
     mrb_get_args(mrb, "n", &action_sym);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
-    bool result = check_action_any(action_name, [](int key) { return IsKeyReleased(key); });
+    bool result = gmr_input::InputManager::instance().action_released(action_name);
     return to_mrb_bool(mrb, result);
+}
+
+// ============================================================================
+// Standalone Callback System
+// ============================================================================
+
+// GMR::Input.on(action, when: :pressed, context: nil) { ... }
+// Returns callback ID for later removal
+static mrb_value mrb_input_on(mrb_state* mrb, mrb_value) {
+    mrb_sym action_sym;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n|H&", &action_sym, &kwargs, &block);
+
+    if (mrb_nil_p(block)) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "GMR::Input.on requires a block");
+        return mrb_nil_value();
+    }
+
+    const char* action_name = mrb_sym_name(mrb, action_sym);
+    gmr_input::InputPhase phase = gmr_input::InputPhase::Pressed;
+    mrb_value context = mrb_nil_value();
+
+    if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        // Parse :when (phase)
+        mrb_value when_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "when")));
+        phase = parse_input_phase(mrb, when_val);
+
+        // Parse :context (object for instance_exec)
+        mrb_value context_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "context")));
+        if (!mrb_nil_p(context_val)) {
+            context = context_val;
+        }
+    }
+
+    int callback_id = gmr_input::InputManager::instance().on(mrb, action_name, phase, block, context);
+
+    return mrb_fixnum_value(callback_id);
+}
+
+// GMR::Input.off(id_or_action) - Remove callback by ID or all callbacks for action
+static mrb_value mrb_input_off(mrb_state* mrb, mrb_value) {
+    mrb_value arg;
+    mrb_get_args(mrb, "o", &arg);
+
+    if (mrb_fixnum_p(arg)) {
+        // Remove by ID
+        int callback_id = static_cast<int>(mrb_fixnum(arg));
+        gmr_input::InputManager::instance().off(mrb, callback_id);
+    } else if (mrb_symbol_p(arg)) {
+        // Remove all callbacks for action
+        const char* action_name = mrb_sym_name(mrb, mrb_symbol(arg));
+        gmr_input::InputManager::instance().off_all(mrb, action_name);
+    } else {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected callback ID (integer) or action name (symbol)");
+    }
+
+    return mrb_nil_value();
 }
 
 // ============================================================================
@@ -330,7 +522,7 @@ static void register_key_constants(mrb_state* mrb, RClass* input) {
 void register_input(mrb_state* mrb) {
     RClass* input = get_gmr_submodule(mrb, "Input");
 
-    // Module functions
+    // Mouse functions
     mrb_define_module_function(mrb, input, "mouse_x", mrb_input_mouse_x, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "mouse_y", mrb_input_mouse_y, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "mouse_down?", mrb_input_mouse_down, MRB_ARGS_REQ(1));
@@ -338,19 +530,34 @@ void register_input(mrb_state* mrb) {
     mrb_define_module_function(mrb, input, "mouse_released?", mrb_input_mouse_released, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "mouse_wheel", mrb_input_mouse_wheel, MRB_ARGS_NONE());
 
+    // Keyboard functions
     mrb_define_module_function(mrb, input, "key_down?", mrb_input_key_down, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "key_pressed?", mrb_input_key_pressed, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "key_released?", mrb_input_key_released, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "key_pressed", mrb_input_get_key_pressed, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "char_pressed", mrb_input_get_char_pressed, MRB_ARGS_NONE());
 
-    // Action mapping functions
-    mrb_define_module_function(mrb, input, "map", mrb_input_map, MRB_ARGS_REQ(2));
+    // Action mapping - supports both traditional and block DSL
+    mrb_define_module_function(mrb, input, "map", mrb_input_map,
+        MRB_ARGS_OPT(2) | MRB_ARGS_BLOCK());
     mrb_define_module_function(mrb, input, "unmap", mrb_input_unmap, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "clear_mappings", mrb_input_clear_mappings, MRB_ARGS_NONE());
+
+    // Action query functions
     mrb_define_module_function(mrb, input, "action_down?", mrb_input_action_down, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "action_pressed?", mrb_input_action_pressed, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "action_released?", mrb_input_action_released, MRB_ARGS_REQ(1));
+
+    // Callback system
+    mrb_define_module_function(mrb, input, "on", mrb_input_on,
+        MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1) | MRB_ARGS_BLOCK());
+    mrb_define_module_function(mrb, input, "off", mrb_input_off, MRB_ARGS_REQ(1));
+
+    // Register MapBuilder internal class
+    input_builder_class = mrb_define_class_under(mrb, input, "MapBuilder", mrb->object_class);
+    MRB_SET_INSTANCE_TT(input_builder_class, MRB_TT_CDATA);
+    mrb_define_method(mrb, input_builder_class, "action", mrb_input_builder_action,
+        MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1));
 
     // Register key constants
     register_key_constants(mrb, input);

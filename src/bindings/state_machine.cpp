@@ -1,6 +1,7 @@
 #include "gmr/bindings/state_machine.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
+#include "gmr/input/input_manager.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
@@ -389,6 +390,59 @@ static mrb_value mrb_builder_exit(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
+/// @method on_input
+/// @description Define an input-driven transition from this state.
+/// @param action [Symbol] The input action that triggers the transition
+/// @param target [Symbol] The target state
+/// @param when: [Symbol] Input phase (:pressed, :released, :held) - default :pressed
+/// @param if: [Proc] Optional condition (must return truthy for transition to occur)
+/// @example
+///   state :idle do
+///     on_input :jump, :air
+///     on_input :attack, :attack, when: :pressed, if: -> { @stamina > 0 }
+///   end
+static mrb_value mrb_builder_on_input(mrb_state* mrb, mrb_value self) {
+    mrb_sym action_sym, target_sym;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_get_args(mrb, "nn|H", &action_sym, &target_sym, &kwargs);
+
+    BuilderData* data = get_builder_data(mrb, self);
+    if (!data || data->current_state == 0) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "on_input must be called inside state block");
+        return self;
+    }
+
+    // Build the input binding
+    input::StateMachineInputBinding binding;
+    binding.machine = data->machine_handle;
+    binding.current_state = data->current_state;
+    binding.action = mrb_sym_name(mrb, action_sym);
+    binding.target_state = target_sym;
+    binding.phase = input::InputPhase::Pressed;  // Default
+
+    // Parse optional kwargs
+    if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        // Parse :when (phase)
+        mrb_value when_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "when")));
+        if (!mrb_nil_p(when_val)) {
+            binding.phase = parse_input_phase(mrb, when_val);
+        }
+
+        // Parse :if (condition)
+        mrb_value if_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "if")));
+        if (!mrb_nil_p(if_val)) {
+            binding.condition = if_val;
+        }
+    }
+
+    // Register with InputManager
+    input::InputManager::instance().register_state_machine_binding(mrb, binding);
+
+    return self;
+}
+
 // ============================================================================
 // Object#state_machine Mixin
 // ============================================================================
@@ -453,6 +507,8 @@ void register_state_machine(mrb_state* mrb) {
     mrb_define_method(mrb, builder_class, "animate", mrb_builder_animate,
         MRB_ARGS_REQ(1));
     mrb_define_method(mrb, builder_class, "on", mrb_builder_on,
+        MRB_ARGS_ARG(2, 1));
+    mrb_define_method(mrb, builder_class, "on_input", mrb_builder_on_input,
         MRB_ARGS_ARG(2, 1));
     mrb_define_method(mrb, builder_class, "enter", mrb_builder_enter,
         MRB_ARGS_BLOCK());

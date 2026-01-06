@@ -5,6 +5,7 @@
 #include "gmr/transform.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
+#include "gmr/input/input_manager.hpp"
 #include "gmr/console/console_module.hpp"
 #include "raylib.h"
 #include <cstdio>
@@ -54,6 +55,9 @@ void game_loop(void* arg) {
 
         // Update animation system (tweens and sprite animations)
         gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
+
+        // Poll input and dispatch events to callbacks and state machines
+        gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
         // Update state machine system
         gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
@@ -202,6 +206,9 @@ int main(int argc, char* argv[]) {
 
             // Update animation system (tweens and sprite animations)
             gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
+
+            // Poll input and dispatch events to callbacks and state machines
+            gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
             // Update state machine system
             gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));

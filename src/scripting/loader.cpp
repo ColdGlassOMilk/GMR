@@ -22,6 +22,7 @@
 #include "gmr/scene.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
+#include "gmr/input/input_manager.hpp"
 #include "gmr/console/console_module.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
@@ -340,6 +341,8 @@ void Loader::load(const std::string& script_dir) {
         animation::AnimationManager::instance().clear(mrb_);
         // Clear state machines before closing mruby state
         state_machine::StateMachineManager::instance().clear(mrb_);
+        // Clear input callbacks and bindings before closing mruby state
+        input::InputManager::instance().clear(mrb_);
         mrb_close(mrb_);
         mrb_ = nullptr;
     }

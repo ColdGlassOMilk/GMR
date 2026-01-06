@@ -54,6 +54,23 @@ int parse_key_arg(mrb_state* mrb, mrb_value arg);
 int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg);
 
 } // namespace bindings
+
+// Forward declaration of InputPhase from gmr::input module
+namespace input {
+    enum class InputPhase;
+}
+
+namespace bindings {
+
+// ============================================================================
+// Input Phase Parsing (for event-driven input system)
+// ============================================================================
+
+// Parse input phase from symbol (:pressed, :released, :held)
+// Returns Pressed if symbol is unknown or nil
+gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg);
+
+} // namespace bindings
 } // namespace gmr
 
 #endif

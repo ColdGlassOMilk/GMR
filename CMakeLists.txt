@@ -69,6 +69,7 @@ set(SOURCES
     src/animation/easing.cpp
     src/animation/animation_manager.cpp
     src/state_machine/state_machine_manager.cpp
+    src/input/input_manager.cpp
     src/transform.cpp
     src/node.cpp
     src/scene.cpp

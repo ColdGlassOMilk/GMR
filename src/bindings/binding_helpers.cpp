@@ -1,4 +1,5 @@
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/input/input_event.hpp"
 #include "raylib.h"
 #include <cstring>
 
@@ -191,6 +192,31 @@ int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg) {
 
     mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected mouse button (integer) or symbol");
     return -1;
+}
+
+// ============================================================================
+// Input Phase Parsing
+// ============================================================================
+
+gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg) {
+    // Default to Pressed if nil or not a symbol
+    if (mrb_nil_p(arg)) {
+        return gmr::input::InputPhase::Pressed;
+    }
+
+    if (!mrb_symbol_p(arg)) {
+        return gmr::input::InputPhase::Pressed;
+    }
+
+    const char* name = mrb_sym_name(mrb, mrb_symbol(arg));
+
+    if (strcmp(name, "pressed") == 0) return gmr::input::InputPhase::Pressed;
+    if (strcmp(name, "released") == 0) return gmr::input::InputPhase::Released;
+    if (strcmp(name, "held") == 0) return gmr::input::InputPhase::Held;
+    if (strcmp(name, "down") == 0) return gmr::input::InputPhase::Held;  // Alias for held
+
+    // Unknown phase, default to pressed
+    return gmr::input::InputPhase::Pressed;
 }
 
 } // namespace bindings
