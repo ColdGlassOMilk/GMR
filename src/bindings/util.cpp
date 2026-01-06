@@ -36,26 +36,50 @@ namespace bindings {
 // GMR::System Module Functions
 // ============================================================================
 
-// GMR::System.random_int(min, max)
+/// @module GMR::System
+/// @description System utilities and build information. Provides random number generation,
+///   platform detection, GPU information, and error state queries.
+/// @example puts "Running on #{GMR::System.platform}"
+///   puts "GPU: #{GMR::System.gpu_renderer}"
+
+/// @function random_int
+/// @description Generate a random integer within an inclusive range.
+/// @param min [Integer] Minimum value (inclusive)
+/// @param max [Integer] Maximum value (inclusive)
+/// @returns [Integer] Random integer between min and max
+/// @example dice = GMR::System.random_int(1, 6)
 static mrb_value mrb_system_random_int(mrb_state* mrb, mrb_value) {
     mrb_int min, max;
     mrb_get_args(mrb, "ii", &min, &max);
     return mrb_fixnum_value(GetRandomValue(min, max));
 }
 
-// GMR::System.random_float
+/// @function random_float
+/// @description Generate a random float between 0.0 and 1.0.
+/// @returns [Float] Random float in range [0.0, 1.0]
+/// @example chance = GMR::System.random_float
+///   critical_hit = chance > 0.9
 static mrb_value mrb_system_random_float(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, static_cast<double>(GetRandomValue(0, RAND_MAX)) / RAND_MAX);
 }
 
-// GMR::System.quit
+/// @function quit
+/// @description Immediately exit the application. Closes the window and terminates
+///   the process.
+/// @returns [nil]
+/// @example GMR::System.quit  # Exit the game
 static mrb_value mrb_system_quit(mrb_state*, mrb_value) {
     CloseWindow();
     exit(0);
     return mrb_nil_value();
 }
 
-// GMR::System.platform
+/// @function platform
+/// @description Get the current platform identifier.
+/// @returns [String] Platform name: "windows", "macos", "linux", "web", or "unknown"
+/// @example if GMR::System.platform == "web"
+///   # Disable desktop-only features
+/// end
 static mrb_value mrb_system_platform(mrb_state* mrb, mrb_value) {
 #if defined(PLATFORM_WEB)
     return mrb_str_new_cstr(mrb, "web");
@@ -70,7 +94,12 @@ static mrb_value mrb_system_platform(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-// GMR::System.build_type
+/// @function build_type
+/// @description Get the build configuration type.
+/// @returns [String] Build type: "debug", "release", or "unknown"
+/// @example if GMR::System.build_type == "debug"
+///   enable_debug_overlay
+/// end
 static mrb_value mrb_system_build_type(mrb_state* mrb, mrb_value) {
 #if defined(DEBUG)
     return mrb_str_new_cstr(mrb, "debug");
@@ -81,7 +110,10 @@ static mrb_value mrb_system_build_type(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-// GMR::System.compiled_scripts?
+/// @function compiled_scripts?
+/// @description Check if scripts were precompiled into the binary.
+/// @returns [Boolean] true if scripts are compiled in, false if loading from files
+/// @example puts "Scripts compiled: #{GMR::System.compiled_scripts?}"
 static mrb_value mrb_system_compiled_scripts(mrb_state* mrb, mrb_value) {
 #if defined(GMR_USE_COMPILED_SCRIPTS)
     return mrb_true_value();
@@ -90,12 +122,18 @@ static mrb_value mrb_system_compiled_scripts(mrb_state* mrb, mrb_value) {
 #endif
 }
 
-// GMR::System.raylib_version
+/// @function raylib_version
+/// @description Get the version of the underlying Raylib graphics library.
+/// @returns [String] Raylib version string (e.g., "5.0")
+/// @example puts "Raylib: #{GMR::System.raylib_version}"
 static mrb_value mrb_system_raylib_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, RAYLIB_VERSION);
 }
 
-// GMR::System.gpu_vendor
+/// @function gpu_vendor
+/// @description Get the GPU vendor name from OpenGL.
+/// @returns [String] GPU vendor name (e.g., "NVIDIA Corporation") or "unknown"
+/// @example puts "GPU Vendor: #{GMR::System.gpu_vendor}"
 static mrb_value mrb_system_gpu_vendor(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* vendor = getGLString(GL_VENDOR);
@@ -106,7 +144,10 @@ static mrb_value mrb_system_gpu_vendor(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "unknown");
 }
 
-// GMR::System.gpu_renderer
+/// @function gpu_renderer
+/// @description Get the GPU renderer name from OpenGL.
+/// @returns [String] GPU renderer name (e.g., "GeForce RTX 3080") or "WebGL"
+/// @example puts "GPU: #{GMR::System.gpu_renderer}"
 static mrb_value mrb_system_gpu_renderer(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* renderer = getGLString(GL_RENDERER);
@@ -117,7 +158,10 @@ static mrb_value mrb_system_gpu_renderer(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "WebGL");
 }
 
-// GMR::System.gl_version
+/// @function gl_version
+/// @description Get the OpenGL version string.
+/// @returns [String] OpenGL version (e.g., "4.6.0") or "WebGL 2.0"
+/// @example puts "OpenGL: #{GMR::System.gl_version}"
 static mrb_value mrb_system_gl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* version = getGLString(GL_VERSION);
@@ -128,7 +172,10 @@ static mrb_value mrb_system_gl_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "WebGL 2.0");
 }
 
-// GMR::System.glsl_version
+/// @function glsl_version
+/// @description Get the GLSL (shader language) version string.
+/// @returns [String] GLSL version (e.g., "4.60") or "GLSL ES 3.00"
+/// @example puts "GLSL: #{GMR::System.glsl_version}"
 static mrb_value mrb_system_glsl_version(mrb_state* mrb, mrb_value) {
 #if !defined(PLATFORM_WEB)
     const char* version = getGLString(GL_SHADING_LANGUAGE_VERSION);
@@ -139,8 +186,15 @@ static mrb_value mrb_system_glsl_version(mrb_state* mrb, mrb_value) {
     return mrb_str_new_cstr(mrb, "GLSL ES 3.00");
 }
 
-// GMR::System.last_error
-// Returns the last script error as a hash, or nil if no error
+/// @function last_error
+/// @description Get details about the last script error. Returns nil if no error occurred.
+/// @returns [Hash, nil] Error hash with keys :class, :message, :file, :line, :backtrace, or nil
+/// @example error = GMR::System.last_error
+///   if error
+///     puts "#{error[:class]}: #{error[:message]}"
+///     puts "  at #{error[:file]}:#{error[:line]}"
+///     error[:backtrace].each { |line| puts "    #{line}" }
+///   end
 static mrb_value mrb_system_last_error(mrb_state* mrb, mrb_value) {
     auto& loader = gmr::scripting::Loader::instance();
     const auto& error = loader.last_error();
@@ -183,7 +237,12 @@ static mrb_value mrb_system_last_error(mrb_state* mrb, mrb_value) {
     return hash;
 }
 
-// GMR::System.in_error_state?
+/// @function in_error_state?
+/// @description Check if the scripting engine is currently in an error state.
+/// @returns [Boolean] true if an unhandled error has occurred
+/// @example if GMR::System.in_error_state?
+///   show_error_screen
+/// end
 static mrb_value mrb_system_in_error_state(mrb_state*, mrb_value) {
     auto& loader = gmr::scripting::Loader::instance();
     return loader.in_error_state() ? mrb_true_value() : mrb_false_value();

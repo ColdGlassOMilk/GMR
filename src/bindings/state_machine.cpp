@@ -444,6 +444,257 @@ static mrb_value mrb_builder_on_input(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
+// PendingInputTransition (for fluent .hold/.release modifiers)
+// ============================================================================
+
+struct PendingTransitionData {
+    std::string action;
+    bool forced;
+    StateMachineHandle machine;
+    mrb_sym current_state;
+};
+
+static void pending_transition_free(mrb_state* mrb, void* ptr) {
+    if (ptr) {
+        PendingTransitionData* data = static_cast<PendingTransitionData*>(ptr);
+        data->~PendingTransitionData();
+        mrb_free(mrb, ptr);
+    }
+}
+
+static const mrb_data_type pending_transition_data_type = {
+    "StateMachine::PendingTransition", pending_transition_free
+};
+
+static RClass* pending_transition_class = nullptr;
+
+static PendingTransitionData* get_pending_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<PendingTransitionData*>(
+        mrb_data_get_ptr(mrb, self, &pending_transition_data_type));
+}
+
+// Helper: Register input binding with specified phase
+static void register_input_binding_with_phase(
+    mrb_state* mrb,
+    const std::string& action,
+    mrb_sym target_state,
+    input::InputPhase phase,
+    mrb_value condition,
+    bool forced,
+    StateMachineHandle machine,
+    mrb_sym current_state
+) {
+    input::StateMachineInputBinding binding;
+    binding.machine = machine;
+    binding.current_state = current_state;
+    binding.action = action;
+    binding.target_state = target_state;
+    binding.phase = phase;
+    binding.condition = condition;
+    binding.forced = forced;
+
+    input::InputManager::instance().register_state_machine_binding(mrb, binding);
+}
+
+// Create a pending transition object
+static mrb_value create_pending_transition(mrb_state* mrb, BuilderData* builder,
+                                            const std::string& action, bool forced) {
+    mrb_value obj = mrb_obj_new(mrb, pending_transition_class, 0, nullptr);
+
+    void* ptr = mrb_malloc(mrb, sizeof(PendingTransitionData));
+    PendingTransitionData* data = new (ptr) PendingTransitionData();
+    data->action = action;
+    data->forced = forced;
+    data->machine = builder->machine_handle;
+    data->current_state = builder->current_state;
+
+    mrb_data_init(obj, data, &pending_transition_data_type);
+    return obj;
+}
+
+// PendingTransition#hold - Register with :held phase
+static mrb_value mrb_pending_transition_hold(mrb_state* mrb, mrb_value self) {
+    mrb_sym target;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
+
+    PendingTransitionData* data = get_pending_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    // Parse condition from kwargs or block
+    mrb_value condition = mrb_nil_value();
+    if (!mrb_nil_p(block)) {
+        condition = block;
+    } else if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        mrb_value if_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "if")));
+        if (!mrb_nil_p(if_val)) {
+            condition = if_val;
+        }
+    }
+
+    register_input_binding_with_phase(mrb, data->action, target,
+        input::InputPhase::Held, condition, data->forced,
+        data->machine, data->current_state);
+
+    return mrb_nil_value();
+}
+
+// PendingTransition#release - Register with :released phase
+static mrb_value mrb_pending_transition_release(mrb_state* mrb, mrb_value self) {
+    mrb_sym target;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
+
+    PendingTransitionData* data = get_pending_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    // Parse condition from kwargs or block
+    mrb_value condition = mrb_nil_value();
+    if (!mrb_nil_p(block)) {
+        condition = block;
+    } else if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        mrb_value if_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "if")));
+        if (!mrb_nil_p(if_val)) {
+            condition = if_val;
+        }
+    }
+
+    register_input_binding_with_phase(mrb, data->action, target,
+        input::InputPhase::Released, condition, data->forced,
+        data->machine, data->current_state);
+
+    return mrb_nil_value();
+}
+
+// PendingTransition#press - Register with :pressed phase (explicit)
+static mrb_value mrb_pending_transition_press(mrb_state* mrb, mrb_value self) {
+    mrb_sym target;
+    mrb_value kwargs = mrb_nil_value();
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
+
+    PendingTransitionData* data = get_pending_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    // Parse condition from kwargs or block
+    mrb_value condition = mrb_nil_value();
+    if (!mrb_nil_p(block)) {
+        condition = block;
+    } else if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        mrb_value if_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "if")));
+        if (!mrb_nil_p(if_val)) {
+            condition = if_val;
+        }
+    }
+
+    register_input_binding_with_phase(mrb, data->action, target,
+        input::InputPhase::Pressed, condition, data->forced,
+        data->machine, data->current_state);
+
+    return mrb_nil_value();
+}
+
+// ============================================================================
+// Builder method_missing (Verb-Style Input Transitions)
+// ============================================================================
+
+// Reserved method names that should NOT be treated as input actions
+static bool is_reserved_method(const char* name) {
+    static const char* reserved[] = {
+        "state", "on", "on_input", "animate", "enter", "exit",
+        "initialize", "method_missing", "respond_to_missing?"
+    };
+    for (const char* r : reserved) {
+        if (strcmp(name, r) == 0) return true;
+    }
+    return false;
+}
+
+/// Builder#method_missing - Verb-style input transition
+/// Usage: jump :air
+///        attack.hold :charge
+///        die! :dead
+static mrb_value mrb_builder_method_missing(mrb_state* mrb, mrb_value self) {
+    mrb_sym method_sym;
+    mrb_value* argv;
+    mrb_int argc;
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n*&", &method_sym, &argv, &argc, &block);
+
+    const char* method_name = mrb_sym_name(mrb, method_sym);
+    size_t name_len = strlen(method_name);
+
+    // Check for reserved methods
+    if (is_reserved_method(method_name)) {
+        mrb_raisef(mrb, E_NOMETHOD_ERROR,
+            "undefined method `%s' for StateMachine::Builder", method_name);
+        return mrb_nil_value();
+    }
+
+    BuilderData* data = get_builder_data(mrb, self);
+    if (!data || data->current_state == 0) {
+        mrb_raisef(mrb, E_RUNTIME_ERROR,
+            "Input action '%s' must be called inside a state block", method_name);
+        return mrb_nil_value();
+    }
+
+    // Check for forced transition: action! :target
+    bool forced = (name_len > 0 && method_name[name_len - 1] == '!');
+    std::string action_name = forced
+        ? std::string(method_name, name_len - 1)
+        : method_name;
+
+    // No arguments = return PendingTransition for fluent .hold/.release
+    if (argc == 0) {
+        return create_pending_transition(mrb, data, action_name, forced);
+    }
+
+    // First argument must be target state
+    if (!mrb_symbol_p(argv[0])) {
+        mrb_raisef(mrb, E_ARGUMENT_ERROR,
+            "Expected target state symbol for '%s'", method_name);
+        return mrb_nil_value();
+    }
+
+    mrb_sym target_state = mrb_symbol(argv[0]);
+
+    // Parse optional condition from kwargs or block
+    mrb_value condition = mrb_nil_value();
+    if (!mrb_nil_p(block)) {
+        condition = block;
+    } else if (argc >= 2 && mrb_hash_p(argv[1])) {
+        mrb_value if_val = mrb_hash_get(mrb, argv[1],
+            mrb_symbol_value(mrb_intern_lit(mrb, "if")));
+        if (!mrb_nil_p(if_val)) {
+            condition = if_val;
+        }
+    }
+
+    // Register the input binding with default phase (:pressed)
+    register_input_binding_with_phase(mrb, action_name, target_state,
+        input::InputPhase::Pressed, condition, forced,
+        data->machine_handle, data->current_state);
+
+    return self;
+}
+
+/// Builder#respond_to_missing? - For Ruby introspection
+static mrb_value mrb_builder_respond_to_missing(mrb_state* mrb, mrb_value self) {
+    mrb_sym method_sym;
+    mrb_get_args(mrb, "n|o", &method_sym);
+
+    const char* method_name = mrb_sym_name(mrb, method_sym);
+
+    // Return false for reserved methods, true for anything else
+    return is_reserved_method(method_name) ? mrb_false_value() : mrb_true_value();
+}
+
+// ============================================================================
 // Object#state_machine Mixin
 // ============================================================================
 
@@ -514,6 +765,24 @@ void register_state_machine(mrb_state* mrb) {
         MRB_ARGS_BLOCK());
     mrb_define_method(mrb, builder_class, "exit", mrb_builder_exit,
         MRB_ARGS_BLOCK());
+
+    // Verb-style DSL via method_missing
+    mrb_define_method(mrb, builder_class, "method_missing",
+        mrb_builder_method_missing, MRB_ARGS_ANY());
+    mrb_define_method(mrb, builder_class, "respond_to_missing?",
+        mrb_builder_respond_to_missing, MRB_ARGS_ANY());
+
+    // GMR::StateMachine::PendingTransition (for fluent .hold/.release)
+    pending_transition_class = mrb_define_class_under(mrb, state_machine_class,
+        "PendingTransition", mrb->object_class);
+    MRB_SET_INSTANCE_TT(pending_transition_class, MRB_TT_CDATA);
+
+    mrb_define_method(mrb, pending_transition_class, "hold",
+        mrb_pending_transition_hold, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1) | MRB_ARGS_BLOCK());
+    mrb_define_method(mrb, pending_transition_class, "release",
+        mrb_pending_transition_release, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1) | MRB_ARGS_BLOCK());
+    mrb_define_method(mrb, pending_transition_class, "press",
+        mrb_pending_transition_press, MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1) | MRB_ARGS_BLOCK());
 
     // Add state_machine to Object for DSL sugar
     mrb_define_method(mrb, mrb->object_class, "state_machine",

@@ -90,27 +90,52 @@ RenderTexture2D& get_render_target() {
 // GMR::Window Module Functions
 // ============================================================================
 
-// GMR::Window.width (virtual resolution width)
+/// @module GMR::Window
+/// @description Window management and display settings. Controls window size, fullscreen,
+///   virtual resolution, and provides monitor information.
+/// @example GMR::Window.set_title("My Game")
+///   GMR::Window.set_virtual_resolution(320, 240)
+
+/// @function width
+/// @description Get the logical width of the game screen. Returns virtual resolution
+///   width if set, otherwise the actual window width.
+/// @returns [Integer] Screen width in pixels
+/// @example screen_w = GMR::Window.width
 static mrb_value mrb_window_width(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(State::instance().screen_width);
 }
 
-// GMR::Window.height (virtual resolution height)
+/// @function height
+/// @description Get the logical height of the game screen. Returns virtual resolution
+///   height if set, otherwise the actual window height.
+/// @returns [Integer] Screen height in pixels
+/// @example screen_h = GMR::Window.height
 static mrb_value mrb_window_height(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(State::instance().screen_height);
 }
 
-// GMR::Window.actual_width (real window size)
+/// @function actual_width
+/// @description Get the actual window width in pixels, ignoring virtual resolution.
+/// @returns [Integer] Actual window width
+/// @example real_w = GMR::Window.actual_width
 static mrb_value mrb_window_actual_width(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetScreenWidth());
 }
 
-// GMR::Window.actual_height (real window size)
+/// @function actual_height
+/// @description Get the actual window height in pixels, ignoring virtual resolution.
+/// @returns [Integer] Actual window height
+/// @example real_h = GMR::Window.actual_height
 static mrb_value mrb_window_actual_height(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetScreenHeight());
 }
 
-// GMR::Window.set_size(w, h)
+/// @function set_size
+/// @description Set the window size. Has no effect in fullscreen mode.
+/// @param w [Integer] Window width in pixels
+/// @param h [Integer] Window height in pixels
+/// @returns [nil]
+/// @example GMR::Window.set_size(1280, 720)
 static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value) {
     mrb_int w, h;
     mrb_get_args(mrb, "ii", &w, &h);
@@ -131,7 +156,11 @@ static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Window.set_title(title)
+/// @function set_title
+/// @description Set the window title bar text.
+/// @param title [String] The window title
+/// @returns [nil]
+/// @example GMR::Window.set_title("My Awesome Game")
 static mrb_value mrb_window_set_title(mrb_state* mrb, mrb_value) {
     const char* title;
     mrb_get_args(mrb, "z", &title);
@@ -139,7 +168,10 @@ static mrb_value mrb_window_set_title(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Window.toggle_fullscreen
+/// @function toggle_fullscreen
+/// @description Toggle between fullscreen and windowed mode.
+/// @returns [Boolean] true
+/// @example GMR::Window.toggle_fullscreen
 static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
@@ -197,7 +229,11 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
     return mrb_true_value();
 }
 
-// GMR::Window.fullscreen = bool
+/// @function fullscreen=
+/// @description Set fullscreen mode on or off.
+/// @param fullscreen [Boolean] true for fullscreen, false for windowed
+/// @returns [Boolean] The fullscreen state that was set
+/// @example GMR::Window.fullscreen = true
 static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
     mrb_bool fullscreen;
     mrb_get_args(mrb, "b", &fullscreen);
@@ -258,12 +294,24 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, fullscreen);
 }
 
-// GMR::Window.fullscreen?
+/// @function fullscreen?
+/// @description Check if the window is currently in fullscreen mode.
+/// @returns [Boolean] true if fullscreen
+/// @example if GMR::Window.fullscreen?
+///   show_windowed_mode_button
+/// end
 static mrb_value mrb_window_is_fullscreen(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, State::instance().is_fullscreen);
 }
 
-// GMR::Window.set_virtual_resolution(w, h)
+/// @function set_virtual_resolution
+/// @description Set a virtual resolution for pixel-perfect rendering. The game renders
+///   to this resolution and scales to fit the window with letterboxing.
+/// @param w [Integer] Virtual width in pixels
+/// @param h [Integer] Virtual height in pixels
+/// @returns [Boolean] true
+/// @example # Render at 320x240 for retro-style game
+///   GMR::Window.set_virtual_resolution(320, 240)
 static mrb_value mrb_window_set_virtual_resolution(mrb_state* mrb, mrb_value) {
     mrb_int w, h;
     mrb_get_args(mrb, "ii", &w, &h);
@@ -288,7 +336,10 @@ static mrb_value mrb_window_set_virtual_resolution(mrb_state* mrb, mrb_value) {
     return mrb_true_value();
 }
 
-// GMR::Window.clear_virtual_resolution
+/// @function clear_virtual_resolution
+/// @description Disable virtual resolution and render directly at window size.
+/// @returns [Boolean] true
+/// @example GMR::Window.clear_virtual_resolution
 static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
@@ -309,12 +360,21 @@ static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value) 
     return mrb_true_value();
 }
 
-// GMR::Window.virtual_resolution?
+/// @function virtual_resolution?
+/// @description Check if virtual resolution is currently enabled.
+/// @returns [Boolean] true if virtual resolution is active
+/// @example if GMR::Window.virtual_resolution?
+///   puts "Using virtual resolution"
+/// end
 static mrb_value mrb_window_is_virtual_resolution(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, State::instance().use_virtual_resolution);
 }
 
-// GMR::Window.set_filter_point
+/// @function set_filter_point
+/// @description Set nearest-neighbor (point) filtering for virtual resolution scaling.
+///   Produces crisp, pixelated look. Only works when virtual resolution is enabled.
+/// @returns [nil]
+/// @example GMR::Window.set_filter_point  # For pixel art games
 static mrb_value mrb_window_set_filter_point(mrb_state* mrb, mrb_value) {
     if (State::instance().use_virtual_resolution) {
         SetTextureFilter(render_target.texture, TEXTURE_FILTER_POINT);
@@ -322,7 +382,11 @@ static mrb_value mrb_window_set_filter_point(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Window.set_filter_bilinear
+/// @function set_filter_bilinear
+/// @description Set bilinear filtering for virtual resolution scaling.
+///   Produces smoother, blended scaling. Only works when virtual resolution is enabled.
+/// @returns [nil]
+/// @example GMR::Window.set_filter_bilinear  # For smoother scaling
 static mrb_value mrb_window_set_filter_bilinear(mrb_state* mrb, mrb_value) {
     if (State::instance().use_virtual_resolution) {
         SetTextureFilter(render_target.texture, TEXTURE_FILTER_BILINEAR);
@@ -330,33 +394,52 @@ static mrb_value mrb_window_set_filter_bilinear(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Window.monitor_count
+/// @function monitor_count
+/// @description Get the number of connected monitors.
+/// @returns [Integer] Number of monitors
+/// @example count = GMR::Window.monitor_count
 static mrb_value mrb_window_monitor_count(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetMonitorCount());
 }
 
-// GMR::Window.monitor_width(index)
+/// @function monitor_width
+/// @description Get the width of a specific monitor.
+/// @param index [Integer] Monitor index (0-based)
+/// @returns [Integer] Monitor width in pixels
+/// @example w = GMR::Window.monitor_width(0)  # Primary monitor
 static mrb_value mrb_window_monitor_width(mrb_state* mrb, mrb_value) {
     mrb_int monitor;
     mrb_get_args(mrb, "i", &monitor);
     return mrb_fixnum_value(GetMonitorWidth(monitor));
 }
 
-// GMR::Window.monitor_height(index)
+/// @function monitor_height
+/// @description Get the height of a specific monitor.
+/// @param index [Integer] Monitor index (0-based)
+/// @returns [Integer] Monitor height in pixels
+/// @example h = GMR::Window.monitor_height(0)
 static mrb_value mrb_window_monitor_height(mrb_state* mrb, mrb_value) {
     mrb_int monitor;
     mrb_get_args(mrb, "i", &monitor);
     return mrb_fixnum_value(GetMonitorHeight(monitor));
 }
 
-// GMR::Window.monitor_refresh_rate(index)
+/// @function monitor_refresh_rate
+/// @description Get the refresh rate of a specific monitor.
+/// @param index [Integer] Monitor index (0-based)
+/// @returns [Integer] Refresh rate in Hz
+/// @example hz = GMR::Window.monitor_refresh_rate(0)
 static mrb_value mrb_window_monitor_refresh_rate(mrb_state* mrb, mrb_value) {
     mrb_int monitor;
     mrb_get_args(mrb, "i", &monitor);
     return mrb_fixnum_value(GetMonitorRefreshRate(monitor));
 }
 
-// GMR::Window.monitor_name(index)
+/// @function monitor_name
+/// @description Get the name of a specific monitor.
+/// @param index [Integer] Monitor index (0-based)
+/// @returns [String] Monitor name
+/// @example name = GMR::Window.monitor_name(0)
 static mrb_value mrb_window_monitor_name(mrb_state* mrb, mrb_value) {
     mrb_int monitor;
     mrb_get_args(mrb, "i", &monitor);
@@ -367,22 +450,45 @@ static mrb_value mrb_window_monitor_name(mrb_state* mrb, mrb_value) {
 // GMR::Time Module Functions
 // ============================================================================
 
-// GMR::Time.delta
+/// @module GMR::Time
+/// @description Time and frame rate utilities. Provides delta time for frame-independent
+///   movement, elapsed time tracking, and FPS management.
+/// @example # Frame-independent movement
+///   player.x += speed * GMR::Time.delta
+
+/// @function delta
+/// @description Get the time elapsed since the last frame in seconds. Use this for
+///   frame-independent movement and animation.
+/// @returns [Float] Delta time in seconds
+/// @example # Move at 100 pixels per second regardless of frame rate
+///   player.x += 100 * GMR::Time.delta
 static mrb_value mrb_time_delta(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, GetFrameTime());
 }
 
-// GMR::Time.elapsed
+/// @function elapsed
+/// @description Get the total time elapsed since the game started in seconds.
+/// @returns [Float] Total elapsed time in seconds
+/// @example # Flash effect every 0.5 seconds
+///   visible = (GMR::Time.elapsed % 1.0) < 0.5
 static mrb_value mrb_time_elapsed(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, GetTime());
 }
 
-// GMR::Time.fps
+/// @function fps
+/// @description Get the current frames per second.
+/// @returns [Integer] Current FPS
+/// @example puts "FPS: #{GMR::Time.fps}"
 static mrb_value mrb_time_fps(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetFPS());
 }
 
-// GMR::Time.set_target_fps(fps)
+/// @function set_target_fps
+/// @description Set the target frame rate. The game will try to maintain this FPS.
+///   Set to 0 for unlimited frame rate.
+/// @param fps [Integer] Target frames per second
+/// @returns [nil]
+/// @example GMR::Time.set_target_fps(60)  # Lock to 60 FPS
 static mrb_value mrb_time_set_target_fps(mrb_state* mrb, mrb_value) {
     mrb_int fps;
     mrb_get_args(mrb, "i", &fps);

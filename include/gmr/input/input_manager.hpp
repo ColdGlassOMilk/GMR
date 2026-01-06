@@ -2,6 +2,7 @@
 #define GMR_INPUT_MANAGER_HPP
 
 #include "gmr/input/input_event.hpp"
+#include "gmr/input/input_context.hpp"
 #include <mruby.h>
 #include <unordered_map>
 #include <vector>
@@ -14,12 +15,16 @@ class InputManager {
 public:
     static InputManager& instance();
 
-    // === Action Management ===
+    // === Action Management (Global Context) ===
     void define_action(const std::string& name, const std::vector<InputBinding>& bindings);
     void remove_action(const std::string& name);
     void clear_actions();
     ActionDefinition* get_action(const std::string& name);
     const std::unordered_map<std::string, ActionDefinition>& get_all_actions() const { return actions_; }
+
+    // === Action Management (Named Context) ===
+    void define_action_in_context(const std::string& context, const std::string& action,
+                                   const std::vector<InputBinding>& bindings);
 
     // === Callback Registration ===
     // Returns callback ID for later removal

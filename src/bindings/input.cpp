@@ -11,6 +11,23 @@ namespace gmr_input = gmr::input;
 namespace gmr {
 namespace bindings {
 
+/// @module GMR::Input
+/// @description Handles keyboard, mouse, and action-based input. Supports both raw input
+///   polling and an action mapping system for game-agnostic input handling.
+///   Actions can be queried, have callbacks attached, and be organized into contexts.
+/// @example # Raw input polling
+///   if GMR::Input.key_pressed?(:space)
+///     player.jump
+///   end
+/// @example # Action-based input
+///   input do |i|
+///     i.jump :space
+///     i.attack :z, mouse: :left
+///   end
+///   if GMR::Input.action_pressed?(:jump)
+///     player.jump
+///   end
+
 // ============================================================================
 // Helper: Check if any key in array/single value matches a condition
 // ============================================================================
@@ -33,7 +50,11 @@ static bool check_keys_any(mrb_state* mrb, mrb_value arg, CheckFn check_fn) {
 // GMR::Input Module Functions - Mouse
 // ============================================================================
 
-// GMR::Input.mouse_x
+/// @function mouse_x
+/// @description Get the mouse X position in virtual resolution coordinates.
+///   Automatically accounts for letterboxing when using virtual resolution.
+/// @returns [Integer] Mouse X position
+/// @example x = GMR::Input.mouse_x
 static mrb_value mrb_input_mouse_x(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
@@ -50,7 +71,11 @@ static mrb_value mrb_input_mouse_x(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetMouseX());
 }
 
-// GMR::Input.mouse_y
+/// @function mouse_y
+/// @description Get the mouse Y position in virtual resolution coordinates.
+///   Automatically accounts for letterboxing when using virtual resolution.
+/// @returns [Integer] Mouse Y position
+/// @example y = GMR::Input.mouse_y
 static mrb_value mrb_input_mouse_y(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
@@ -67,7 +92,13 @@ static mrb_value mrb_input_mouse_y(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(GetMouseY());
 }
 
-// GMR::Input.mouse_down?(button) - accepts integer or symbol
+/// @function mouse_down?
+/// @description Check if a mouse button is currently held down.
+/// @param button [Symbol, Integer] The button to check (:left, :right, :middle, or constant)
+/// @returns [Boolean] true if the button is held
+/// @example if GMR::Input.mouse_down?(:left)
+///   player.aim
+/// end
 static mrb_value mrb_input_mouse_down(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -75,7 +106,13 @@ static mrb_value mrb_input_mouse_down(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, IsMouseButtonDown(button));
 }
 
-// GMR::Input.mouse_pressed?(button)
+/// @function mouse_pressed?
+/// @description Check if a mouse button was just pressed this frame.
+/// @param button [Symbol, Integer] The button to check (:left, :right, :middle, or constant)
+/// @returns [Boolean] true if the button was just pressed
+/// @example if GMR::Input.mouse_pressed?(:left)
+///   player.shoot
+/// end
 static mrb_value mrb_input_mouse_pressed(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -83,7 +120,13 @@ static mrb_value mrb_input_mouse_pressed(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, IsMouseButtonPressed(button));
 }
 
-// GMR::Input.mouse_released?(button)
+/// @function mouse_released?
+/// @description Check if a mouse button was just released this frame.
+/// @param button [Symbol, Integer] The button to check (:left, :right, :middle, or constant)
+/// @returns [Boolean] true if the button was just released
+/// @example if GMR::Input.mouse_released?(:left)
+///   bow.release_arrow
+/// end
 static mrb_value mrb_input_mouse_released(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -91,7 +134,11 @@ static mrb_value mrb_input_mouse_released(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, IsMouseButtonReleased(button));
 }
 
-// GMR::Input.mouse_wheel
+/// @function mouse_wheel
+/// @description Get the mouse wheel movement this frame. Positive values indicate
+///   scrolling up/forward, negative values indicate scrolling down/backward.
+/// @returns [Float] Wheel movement amount
+/// @example zoom += GMR::Input.mouse_wheel * 0.1
 static mrb_value mrb_input_mouse_wheel(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, GetMouseWheelMove());
 }
@@ -100,7 +147,17 @@ static mrb_value mrb_input_mouse_wheel(mrb_state* mrb, mrb_value) {
 // GMR::Input Module Functions - Keyboard
 // ============================================================================
 
-// GMR::Input.key_down?(key) - accepts integer, symbol, or array of either
+/// @function key_down?
+/// @description Check if a key is currently held down. Accepts a single key or
+///   an array of keys (returns true if any key in the array is held).
+/// @param key [Symbol, Integer, Array] The key(s) to check (:space, :a, :left, etc.)
+/// @returns [Boolean] true if the key (or any key in array) is held
+/// @example if GMR::Input.key_down?(:left)
+///   player.x -= speed
+/// end
+/// @example if GMR::Input.key_down?([:a, :left])  # Either key works
+///   player.move_left
+/// end
 static mrb_value mrb_input_key_down(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -108,7 +165,14 @@ static mrb_value mrb_input_key_down(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.key_pressed?(key) - accepts integer, symbol, or array of either
+/// @function key_pressed?
+/// @description Check if a key was just pressed this frame. Accepts a single key or
+///   an array of keys (returns true if any key in the array was just pressed).
+/// @param key [Symbol, Integer, Array] The key(s) to check
+/// @returns [Boolean] true if the key (or any key in array) was just pressed
+/// @example if GMR::Input.key_pressed?(:space)
+///   player.jump
+/// end
 static mrb_value mrb_input_key_pressed(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -116,7 +180,14 @@ static mrb_value mrb_input_key_pressed(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.key_released?(key) - accepts integer, symbol, or array of either
+/// @function key_released?
+/// @description Check if a key was just released this frame. Accepts a single key or
+///   an array of keys (returns true if any key in the array was just released).
+/// @param key [Symbol, Integer, Array] The key(s) to check
+/// @returns [Boolean] true if the key (or any key in array) was just released
+/// @example if GMR::Input.key_released?(:shift)
+///   player.stop_running
+/// end
 static mrb_value mrb_input_key_released(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -124,14 +195,28 @@ static mrb_value mrb_input_key_released(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.key_pressed (returns the key code of the last key pressed)
+/// @function key_pressed
+/// @description Get the key code of the last key pressed this frame.
+///   Useful for text input or detecting any key press.
+/// @returns [Integer, nil] Key code, or nil if no key was pressed
+/// @example key = GMR::Input.key_pressed
+///   if key
+///     puts "Key code: #{key}"
+///   end
 static mrb_value mrb_input_get_key_pressed(mrb_state* mrb, mrb_value) {
     int key = GetKeyPressed();
     if (key == 0) return mrb_nil_value();
     return mrb_fixnum_value(key);
 }
 
-// GMR::Input.char_pressed (returns the character code of the last char pressed)
+/// @function char_pressed
+/// @description Get the Unicode character code of the last character pressed this frame.
+///   Useful for text input fields. Returns the character, not the key code.
+/// @returns [Integer, nil] Unicode character code, or nil if no character was pressed
+/// @example char = GMR::Input.char_pressed
+///   if char
+///     @text += char.chr(Encoding::UTF_8)
+///   end
 static mrb_value mrb_input_get_char_pressed(mrb_state* mrb, mrb_value) {
     int ch = GetCharPressed();
     if (ch == 0) return mrb_nil_value();
@@ -271,9 +356,21 @@ static mrb_value mrb_input_builder_action(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
-// GMR::Input.map - supports both traditional and block DSL
-// Traditional: GMR::Input.map(:action, [:a, :left])
-// Block DSL: GMR::Input.map { action :move, keys: [:a, :left] }
+/// @function map
+/// @description Map an action name to input bindings. Supports two forms:
+///   Traditional form maps a single action to keys directly.
+///   Block form allows defining multiple actions with a DSL.
+/// @param action [Symbol] (optional) The action name for traditional form
+/// @param keys [Symbol, Array] (optional) Key(s) to bind for traditional form
+/// @returns [nil]
+/// @example # Traditional form
+///   GMR::Input.map(:jump, :space)
+///   GMR::Input.map(:move_left, [:a, :left])
+/// @example # Block DSL form
+///   GMR::Input.map do |i|
+///     i.action :jump, key: :space
+///     i.action :attack, keys: [:z, :x], mouse: :left
+///   end
 static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
     mrb_value block = mrb_nil_value();
     mrb_sym action_sym = 0;
@@ -306,7 +403,11 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
-// GMR::Input.unmap(action_name) - Remove an action mapping
+/// @function unmap
+/// @description Remove an action mapping by name.
+/// @param action [Symbol] The action name to remove
+/// @returns [nil]
+/// @example GMR::Input.unmap(:jump)
 static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_get_args(mrb, "n", &action_sym);
@@ -317,7 +418,10 @@ static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Input.clear_mappings - Remove all action mappings
+/// @function clear_mappings
+/// @description Remove all action mappings.
+/// @returns [nil]
+/// @example GMR::Input.clear_mappings
 static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value) {
     gmr_input::InputManager::instance().clear_actions();
     return mrb_nil_value();
@@ -327,7 +431,13 @@ static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value) {
 // Action Query Functions (using InputManager)
 // ============================================================================
 
-// GMR::Input.action_down?(action_name)
+/// @function action_down?
+/// @description Check if a mapped action is currently active (any bound input is held).
+/// @param action [Symbol] The action name to check
+/// @returns [Boolean] true if the action is active
+/// @example if GMR::Input.action_down?(:move_left)
+///   player.x -= speed
+/// end
 static mrb_value mrb_input_action_down(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_get_args(mrb, "n", &action_sym);
@@ -337,7 +447,13 @@ static mrb_value mrb_input_action_down(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.action_pressed?(action_name)
+/// @function action_pressed?
+/// @description Check if a mapped action was just triggered this frame.
+/// @param action [Symbol] The action name to check
+/// @returns [Boolean] true if the action was just triggered
+/// @example if GMR::Input.action_pressed?(:jump)
+///   player.jump
+/// end
 static mrb_value mrb_input_action_pressed(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_get_args(mrb, "n", &action_sym);
@@ -347,7 +463,13 @@ static mrb_value mrb_input_action_pressed(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Input.action_released?(action_name)
+/// @function action_released?
+/// @description Check if a mapped action was just released this frame.
+/// @param action [Symbol] The action name to check
+/// @returns [Boolean] true if the action was just released
+/// @example if GMR::Input.action_released?(:charge_attack)
+///   player.release_charge
+/// end
 static mrb_value mrb_input_action_released(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_get_args(mrb, "n", &action_sym);
@@ -361,8 +483,20 @@ static mrb_value mrb_input_action_released(mrb_state* mrb, mrb_value) {
 // Standalone Callback System
 // ============================================================================
 
-// GMR::Input.on(action, when: :pressed, context: nil) { ... }
-// Returns callback ID for later removal
+/// @function on
+/// @description Register a callback for an action. The callback fires when the action
+///   reaches the specified phase. Returns an ID for later removal with `off`.
+/// @param action [Symbol] The action name to listen for
+/// @param when [Symbol] (optional, default: :pressed) Phase: :pressed, :down, or :released
+/// @param context [Object] (optional) Object to use as self in the callback block
+/// @returns [Integer] Callback ID for later removal
+/// @example # Simple callback
+///   GMR::Input.on(:jump) { player.jump }
+/// @example # With phase and context
+///   id = GMR::Input.on(:attack, when: :released, context: player) do
+///     release_charge_attack
+///   end
+///   GMR::Input.off(id)  # Remove later
 static mrb_value mrb_input_on(mrb_state* mrb, mrb_value) {
     mrb_sym action_sym;
     mrb_value kwargs = mrb_nil_value();
@@ -397,7 +531,13 @@ static mrb_value mrb_input_on(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(callback_id);
 }
 
-// GMR::Input.off(id_or_action) - Remove callback by ID or all callbacks for action
+/// @function off
+/// @description Remove input callback(s). Pass an ID to remove a specific callback,
+///   or an action name to remove all callbacks for that action.
+/// @param id_or_action [Integer, Symbol] Callback ID or action name
+/// @returns [nil]
+/// @example GMR::Input.off(callback_id)  # Remove specific callback
+/// @example GMR::Input.off(:jump)        # Remove all :jump callbacks
 static mrb_value mrb_input_off(mrb_state* mrb, mrb_value) {
     mrb_value arg;
     mrb_get_args(mrb, "o", &arg);
@@ -418,8 +558,410 @@ static mrb_value mrb_input_off(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Input Context Builder (Verb-Style DSL)
+// ============================================================================
+
+// Builder data for verb-style context DSL
+struct InputContextBuilderData {
+    std::string context_name;
+    bool is_global;
+};
+
+static void context_builder_free(mrb_state* mrb, void* ptr) {
+    if (ptr) {
+        InputContextBuilderData* data = static_cast<InputContextBuilderData*>(ptr);
+        data->~InputContextBuilderData();
+        mrb_free(mrb, ptr);
+    }
+}
+
+static const mrb_data_type context_builder_data_type = {
+    "Input::ContextBuilder", context_builder_free
+};
+
+static RClass* context_builder_class = nullptr;
+
+static InputContextBuilderData* get_context_builder_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<InputContextBuilderData*>(
+        mrb_data_get_ptr(mrb, self, &context_builder_data_type));
+}
+
+// Helper: Parse bindings from mixed arguments (array of keys, single key, hash with mouse:)
+static std::vector<gmr_input::InputBinding> parse_bindings_from_args(
+    mrb_state* mrb, mrb_value* argv, mrb_int argc)
+{
+    std::vector<gmr_input::InputBinding> bindings;
+
+    for (mrb_int i = 0; i < argc; i++) {
+        if (mrb_array_p(argv[i])) {
+            // Array of keys: [:a, :left]
+            auto key_bindings = parse_bindings_from_keys(mrb, argv[i]);
+            bindings.insert(bindings.end(), key_bindings.begin(), key_bindings.end());
+        } else if (mrb_hash_p(argv[i])) {
+            // Hash with mouse: or gamepad:
+            mrb_value mouse_val = mrb_hash_get(mrb, argv[i],
+                mrb_symbol_value(mrb_intern_lit(mrb, "mouse")));
+            if (!mrb_nil_p(mouse_val)) {
+                auto mouse_bindings = parse_bindings_from_mouse(mrb, mouse_val);
+                bindings.insert(bindings.end(), mouse_bindings.begin(), mouse_bindings.end());
+            }
+        } else if (mrb_symbol_p(argv[i]) || mrb_fixnum_p(argv[i])) {
+            // Single key
+            auto key_bindings = parse_bindings_from_keys(mrb, argv[i]);
+            bindings.insert(bindings.end(), key_bindings.begin(), key_bindings.end());
+        }
+    }
+
+    return bindings;
+}
+
+// Input::ContextBuilder#method_missing - Verb-style action definition
+// Usage: move_left [:a, :left]
+//        jump :space
+//        attack mouse: :left
+static mrb_value mrb_context_builder_method_missing(mrb_state* mrb, mrb_value self) {
+    mrb_sym method_sym;
+    mrb_value* argv;
+    mrb_int argc;
+    mrb_value block = mrb_nil_value();
+    mrb_get_args(mrb, "n*&", &method_sym, &argv, &argc, &block);
+
+    const char* action_name = mrb_sym_name(mrb, method_sym);
+
+    // Parse bindings from arguments
+    std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_args(mrb, argv, argc);
+
+    // Get builder data
+    InputContextBuilderData* data = get_context_builder_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid context builder");
+        return mrb_nil_value();
+    }
+
+    // Register action in appropriate context
+    if (data->is_global) {
+        gmr_input::InputManager::instance().define_action(action_name, bindings);
+    } else {
+        gmr_input::InputManager::instance().define_action_in_context(
+            data->context_name, action_name, bindings);
+    }
+
+    return self;
+}
+
+// Input::ContextBuilder#respond_to_missing? - For Ruby introspection
+static mrb_value mrb_context_builder_respond_to_missing(mrb_state* mrb, mrb_value self) {
+    // We respond to any method (they become action names)
+    return mrb_true_value();
+}
+
+// Create a context builder object
+static mrb_value create_context_builder(mrb_state* mrb, const std::string& context_name, bool is_global) {
+    mrb_value obj = mrb_obj_new(mrb, context_builder_class, 0, nullptr);
+
+    // Allocate and initialize data using placement new
+    void* ptr = mrb_malloc(mrb, sizeof(InputContextBuilderData));
+    InputContextBuilderData* data = new (ptr) InputContextBuilderData();
+    data->context_name = context_name;
+    data->is_global = is_global;
+
+    mrb_data_init(obj, data, &context_builder_data_type);
+    return obj;
+}
+
+// ============================================================================
+// Context Management (GMR::Input module functions)
+// ============================================================================
+
+/// @function push_context
+/// @description Push a named input context onto the stack. Actions defined in
+///   this context become active. Previous contexts remain on the stack.
+/// @param name [Symbol] The context name to push
+/// @returns [nil]
+/// @example GMR::Input.push_context(:menu)
+///   # :menu actions are now active, game actions still on stack
+static mrb_value mrb_input_push_context(mrb_state* mrb, mrb_value) {
+    mrb_sym name_sym;
+    mrb_get_args(mrb, "n", &name_sym);
+
+    const char* name = mrb_sym_name(mrb, name_sym);
+    gmr_input::ContextStack::instance().push(name);
+
+    return mrb_nil_value();
+}
+
+/// @function pop_context
+/// @description Pop the current input context from the stack, returning to
+///   the previous context.
+/// @returns [nil]
+/// @example GMR::Input.pop_context  # Return to previous context
+static mrb_value mrb_input_pop_context(mrb_state* mrb, mrb_value) {
+    gmr_input::ContextStack::instance().pop();
+    return mrb_nil_value();
+}
+
+/// @function set_context
+/// @description Replace the entire context stack with a single context.
+///   Clears the stack and sets the named context as the only active context.
+/// @param name [Symbol] The context name to set
+/// @returns [nil]
+/// @example GMR::Input.set_context(:gameplay)
+static mrb_value mrb_input_set_context(mrb_state* mrb, mrb_value) {
+    mrb_sym name_sym;
+    mrb_get_args(mrb, "n", &name_sym);
+
+    const char* name = mrb_sym_name(mrb, name_sym);
+    gmr_input::ContextStack::instance().set(name);
+
+    return mrb_nil_value();
+}
+
+/// @function current_context
+/// @description Get the name of the current active input context.
+/// @returns [Symbol, nil] Current context name, or nil if no context is active
+/// @example context = GMR::Input.current_context
+static mrb_value mrb_input_current_context(mrb_state* mrb, mrb_value) {
+    std::string name = gmr_input::ContextStack::instance().current_name();
+    if (name.empty()) {
+        return mrb_nil_value();
+    }
+    return mrb_symbol_value(mrb_intern_cstr(mrb, name.c_str()));
+}
+
+/// @function has_context?
+/// @description Check if a named input context exists (has been defined).
+/// @param name [Symbol] The context name to check
+/// @returns [Boolean] true if the context exists
+/// @example if GMR::Input.has_context?(:menu)
+///   GMR::Input.push_context(:menu)
+/// end
+static mrb_value mrb_input_has_context(mrb_state* mrb, mrb_value) {
+    mrb_sym name_sym;
+    mrb_get_args(mrb, "n", &name_sym);
+
+    const char* name = mrb_sym_name(mrb, name_sym);
+    bool result = gmr_input::ContextStack::instance().has(name);
+
+    return to_mrb_bool(mrb, result);
+}
+
+// ============================================================================
+// Top-Level DSL Functions (input { } and input_context :name { })
+// ============================================================================
+
+/// @function input
+/// @parent Kernel
+/// @description Define global input actions using a verb-style DSL. Actions defined
+///   here are always available regardless of context.
+/// @returns [nil]
+/// @example input do |i|
+///   i.jump :space
+///   i.move_left [:a, :left]
+///   i.attack :z, mouse: :left
+/// end
+static mrb_value mrb_input_dsl_block(mrb_state* mrb, mrb_value self) {
+    mrb_value block;
+    mrb_get_args(mrb, "&", &block);
+
+    if (mrb_nil_p(block)) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "input requires a block");
+        return mrb_nil_value();
+    }
+
+    // Create builder for global context
+    mrb_value builder = create_context_builder(mrb, "", true);
+    mrb_yield(mrb, block, builder);
+
+    return mrb_nil_value();
+}
+
+/// @function input_context
+/// @parent Kernel
+/// @description Define input actions for a named context. Context-specific actions
+///   are only active when that context is pushed onto the stack.
+/// @param name [Symbol] The context name
+/// @returns [nil]
+/// @example input_context :menu do |i|
+///   i.confirm :enter
+///   i.cancel :escape
+///   i.navigate_up :up
+///   i.navigate_down :down
+/// end
+static mrb_value mrb_input_context_dsl_block(mrb_state* mrb, mrb_value self) {
+    mrb_sym name_sym;
+    mrb_value block;
+    mrb_get_args(mrb, "n&", &name_sym, &block);
+
+    if (mrb_nil_p(block)) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "input_context requires a block");
+        return mrb_nil_value();
+    }
+
+    const char* context_name = mrb_sym_name(mrb, name_sym);
+
+    // Create builder for named context
+    mrb_value builder = create_context_builder(mrb, context_name, false);
+    mrb_yield(mrb, block, builder);
+
+    return mrb_nil_value();
+}
+
+// ============================================================================
 // Key Constants Registration
 // ============================================================================
+
+/// @constant MOUSE_LEFT
+/// @description Left mouse button constant.
+/// @constant MOUSE_RIGHT
+/// @description Right mouse button constant.
+/// @constant MOUSE_MIDDLE
+/// @description Middle mouse button (scroll wheel click) constant.
+/// @constant MOUSE_SIDE
+/// @description Side mouse button constant.
+/// @constant MOUSE_EXTRA
+/// @description Extra mouse button constant.
+/// @constant MOUSE_FORWARD
+/// @description Forward navigation mouse button constant.
+/// @constant MOUSE_BACK
+/// @description Back navigation mouse button constant.
+/// @constant KEY_SPACE
+/// @description Spacebar key constant.
+/// @constant KEY_ESCAPE
+/// @description Escape key constant.
+/// @constant KEY_ENTER
+/// @description Enter/Return key constant.
+/// @constant KEY_TAB
+/// @description Tab key constant.
+/// @constant KEY_BACKSPACE
+/// @description Backspace key constant.
+/// @constant KEY_DELETE
+/// @description Delete key constant.
+/// @constant KEY_INSERT
+/// @description Insert key constant.
+/// @constant KEY_UP
+/// @description Up arrow key constant.
+/// @constant KEY_DOWN
+/// @description Down arrow key constant.
+/// @constant KEY_LEFT
+/// @description Left arrow key constant.
+/// @constant KEY_RIGHT
+/// @description Right arrow key constant.
+/// @constant KEY_HOME
+/// @description Home key constant.
+/// @constant KEY_END
+/// @description End key constant.
+/// @constant KEY_PAGE_UP
+/// @description Page Up key constant.
+/// @constant KEY_PAGE_DOWN
+/// @description Page Down key constant.
+/// @constant KEY_LEFT_SHIFT
+/// @description Left Shift key constant.
+/// @constant KEY_RIGHT_SHIFT
+/// @description Right Shift key constant.
+/// @constant KEY_LEFT_CONTROL
+/// @description Left Control key constant.
+/// @constant KEY_RIGHT_CONTROL
+/// @description Right Control key constant.
+/// @constant KEY_LEFT_ALT
+/// @description Left Alt key constant.
+/// @constant KEY_RIGHT_ALT
+/// @description Right Alt key constant.
+/// @constant KEY_F1
+/// @description F1 function key constant.
+/// @constant KEY_F2
+/// @description F2 function key constant.
+/// @constant KEY_F3
+/// @description F3 function key constant.
+/// @constant KEY_F4
+/// @description F4 function key constant.
+/// @constant KEY_F5
+/// @description F5 function key constant.
+/// @constant KEY_F6
+/// @description F6 function key constant.
+/// @constant KEY_F7
+/// @description F7 function key constant.
+/// @constant KEY_F8
+/// @description F8 function key constant.
+/// @constant KEY_F9
+/// @description F9 function key constant.
+/// @constant KEY_F10
+/// @description F10 function key constant.
+/// @constant KEY_F11
+/// @description F11 function key constant.
+/// @constant KEY_F12
+/// @description F12 function key constant.
+/// @constant KEY_A
+/// @description A key constant.
+/// @constant KEY_B
+/// @description B key constant.
+/// @constant KEY_C
+/// @description C key constant.
+/// @constant KEY_D
+/// @description D key constant.
+/// @constant KEY_E
+/// @description E key constant.
+/// @constant KEY_F
+/// @description F key constant.
+/// @constant KEY_G
+/// @description G key constant.
+/// @constant KEY_H
+/// @description H key constant.
+/// @constant KEY_I
+/// @description I key constant.
+/// @constant KEY_J
+/// @description J key constant.
+/// @constant KEY_K
+/// @description K key constant.
+/// @constant KEY_L
+/// @description L key constant.
+/// @constant KEY_M
+/// @description M key constant.
+/// @constant KEY_N
+/// @description N key constant.
+/// @constant KEY_O
+/// @description O key constant.
+/// @constant KEY_P
+/// @description P key constant.
+/// @constant KEY_Q
+/// @description Q key constant.
+/// @constant KEY_R
+/// @description R key constant.
+/// @constant KEY_S
+/// @description S key constant.
+/// @constant KEY_T
+/// @description T key constant.
+/// @constant KEY_U
+/// @description U key constant.
+/// @constant KEY_V
+/// @description V key constant.
+/// @constant KEY_W
+/// @description W key constant.
+/// @constant KEY_X
+/// @description X key constant.
+/// @constant KEY_Y
+/// @description Y key constant.
+/// @constant KEY_Z
+/// @description Z key constant.
+/// @constant KEY_0
+/// @description 0 number key constant.
+/// @constant KEY_1
+/// @description 1 number key constant.
+/// @constant KEY_2
+/// @description 2 number key constant.
+/// @constant KEY_3
+/// @description 3 number key constant.
+/// @constant KEY_4
+/// @description 4 number key constant.
+/// @constant KEY_5
+/// @description 5 number key constant.
+/// @constant KEY_6
+/// @description 6 number key constant.
+/// @constant KEY_7
+/// @description 7 number key constant.
+/// @constant KEY_8
+/// @description 8 number key constant.
+/// @constant KEY_9
+/// @description 9 number key constant.
 
 static void register_key_constants(mrb_state* mrb, RClass* input) {
     // Mouse buttons
@@ -553,14 +1095,35 @@ void register_input(mrb_state* mrb) {
         MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1) | MRB_ARGS_BLOCK());
     mrb_define_module_function(mrb, input, "off", mrb_input_off, MRB_ARGS_REQ(1));
 
-    // Register MapBuilder internal class
+    // Context management
+    mrb_define_module_function(mrb, input, "push_context", mrb_input_push_context, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "pop_context", mrb_input_pop_context, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, input, "set_context", mrb_input_set_context, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "current_context", mrb_input_current_context, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, input, "has_context?", mrb_input_has_context, MRB_ARGS_REQ(1));
+
+    // Register MapBuilder internal class (legacy block DSL)
     input_builder_class = mrb_define_class_under(mrb, input, "MapBuilder", mrb->object_class);
     MRB_SET_INSTANCE_TT(input_builder_class, MRB_TT_CDATA);
     mrb_define_method(mrb, input_builder_class, "action", mrb_input_builder_action,
         MRB_ARGS_REQ(1) | MRB_ARGS_OPT(1));
 
+    // Register ContextBuilder class (verb-style DSL)
+    context_builder_class = mrb_define_class_under(mrb, input, "ContextBuilder", mrb->object_class);
+    MRB_SET_INSTANCE_TT(context_builder_class, MRB_TT_CDATA);
+    mrb_define_method(mrb, context_builder_class, "method_missing",
+        mrb_context_builder_method_missing, MRB_ARGS_ANY());
+    mrb_define_method(mrb, context_builder_class, "respond_to_missing?",
+        mrb_context_builder_respond_to_missing, MRB_ARGS_ANY());
+
     // Register key constants
     register_key_constants(mrb, input);
+
+    // Register top-level DSL functions on Kernel
+    mrb_define_method(mrb, mrb->kernel_module, "input",
+        mrb_input_dsl_block, MRB_ARGS_BLOCK());
+    mrb_define_method(mrb, mrb->kernel_module, "input_context",
+        mrb_input_context_dsl_block, MRB_ARGS_REQ(1) | MRB_ARGS_BLOCK());
 }
 
 } // namespace bindings

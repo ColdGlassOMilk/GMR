@@ -47,7 +47,7 @@ struct InputCallback {
     InputCallback() = default;
 };
 
-// State machine input subscription (for on_input DSL)
+// State machine input subscription (for on_input DSL and verb-style DSL)
 struct StateMachineInputBinding {
     StateMachineHandle machine{INVALID_HANDLE};
     mrb_sym current_state{0};               // State this binding belongs to
@@ -55,6 +55,7 @@ struct StateMachineInputBinding {
     mrb_sym target_state{0};                // State to transition to
     InputPhase phase{InputPhase::Pressed};  // When to trigger
     mrb_value condition{mrb_nil_value()};   // Optional if: condition
+    bool forced{false};                     // Skip condition check (for action! syntax)
 
     StateMachineInputBinding() = default;
 };

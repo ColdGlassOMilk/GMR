@@ -23,6 +23,15 @@ void InputManager::define_action(const std::string& name,
     actions_[name] = def;
 }
 
+void InputManager::define_action_in_context(const std::string& context,
+                                             const std::string& action,
+                                             const std::vector<InputBinding>& bindings) {
+    ActionDefinition def;
+    def.name = action;
+    def.bindings = bindings;
+    ContextStack::instance().define(context).actions[action] = def;
+}
+
 void InputManager::remove_action(const std::string& name) {
     actions_.erase(name);
 }
@@ -229,8 +238,8 @@ void InputManager::dispatch_to_state_machines(mrb_state* mrb, const std::string&
         // Check if we're in the correct state for this binding
         if (machine->current_state != binding->current_state) continue;
 
-        // Check condition if present
-        if (!mrb_nil_p(binding->condition)) {
+        // Check condition if present (skip if forced)
+        if (!binding->forced && !mrb_nil_p(binding->condition)) {
             mrb_value result = mrb_funcall(mrb, machine->owner,
                                            "instance_exec", 1, binding->condition);
             if (mrb->exc) {
@@ -246,27 +255,39 @@ void InputManager::dispatch_to_state_machines(mrb_state* mrb, const std::string&
 }
 
 void InputManager::poll_and_dispatch(mrb_state* mrb) {
-    // Process all actions
-    for (auto& [name, action] : actions_) {
-        // Check each phase and dispatch if active
-        // Order: Pressed first, then Released, then Held
-        // This ensures one-shot events fire before continuous ones
+    auto& context_stack = ContextStack::instance();
 
-        if (check_action_phase(action, InputPhase::Pressed)) {
-            dispatch_callbacks(mrb, name, InputPhase::Pressed);
-            dispatch_to_state_machines(mrb, name, InputPhase::Pressed);
-        }
+    // Helper lambda to process actions from a map
+    auto process_actions = [&](std::unordered_map<std::string, ActionDefinition>& actions) {
+        for (auto& [name, action] : actions) {
+            // Check each phase and dispatch if active
+            // Order: Pressed first, then Released, then Held
+            // This ensures one-shot events fire before continuous ones
 
-        if (check_action_phase(action, InputPhase::Released)) {
-            dispatch_callbacks(mrb, name, InputPhase::Released);
-            dispatch_to_state_machines(mrb, name, InputPhase::Released);
-        }
+            if (check_action_phase(action, InputPhase::Pressed)) {
+                dispatch_callbacks(mrb, name, InputPhase::Pressed);
+                dispatch_to_state_machines(mrb, name, InputPhase::Pressed);
+            }
 
-        if (check_action_phase(action, InputPhase::Held)) {
-            dispatch_callbacks(mrb, name, InputPhase::Held);
-            dispatch_to_state_machines(mrb, name, InputPhase::Held);
+            if (check_action_phase(action, InputPhase::Released)) {
+                dispatch_callbacks(mrb, name, InputPhase::Released);
+                dispatch_to_state_machines(mrb, name, InputPhase::Released);
+            }
+
+            if (check_action_phase(action, InputPhase::Held)) {
+                dispatch_callbacks(mrb, name, InputPhase::Held);
+                dispatch_to_state_machines(mrb, name, InputPhase::Held);
+            }
         }
+    };
+
+    // Process actions from current context (if any)
+    if (InputContext* ctx = context_stack.current()) {
+        process_actions(ctx->actions);
     }
+
+    // Also process global actions (actions_ is the legacy global storage)
+    process_actions(actions_);
 }
 
 // ============================================================================
@@ -295,6 +316,9 @@ void InputManager::clear(mrb_state* mrb) {
 
     // Clear actions
     actions_.clear();
+
+    // Clear context stack
+    ContextStack::instance().clear_all();
 }
 
 } // namespace input

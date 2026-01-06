@@ -6,11 +6,31 @@
 namespace gmr {
 namespace bindings {
 
+/// @module GMR::Collision
+/// @description Geometry collision detection utilities. Provides fast tests for
+///   point, rectangle, and circle collisions, as well as tile-based collision helpers.
+/// @example # Check if player is touching enemy
+///   if GMR::Collision.rect_overlap?(player.x, player.y, 32, 32,
+///                                    enemy.x, enemy.y, 32, 32)
+///     player.take_damage
+///   end
+
 // ============================================================================
 // Point Tests
 // ============================================================================
 
-// GMR::Collision.point_in_rect?(px, py, rx, ry, rw, rh)
+/// @function point_in_rect?
+/// @description Check if a point is inside a rectangle.
+/// @param px [Float] Point X coordinate
+/// @param py [Float] Point Y coordinate
+/// @param rx [Float] Rectangle X position (top-left)
+/// @param ry [Float] Rectangle Y position (top-left)
+/// @param rw [Float] Rectangle width
+/// @param rh [Float] Rectangle height
+/// @returns [Boolean] true if the point is inside the rectangle
+/// @example if GMR::Collision.point_in_rect?(mouse_x, mouse_y, btn.x, btn.y, btn.w, btn.h)
+///   button_hovered = true
+/// end
 static mrb_value mrb_collision_point_in_rect(mrb_state* mrb, mrb_value) {
     mrb_float px, py, rx, ry, rw, rh;
     mrb_get_args(mrb, "ffffff", &px, &py, &rx, &ry, &rw, &rh);
@@ -18,7 +38,17 @@ static mrb_value mrb_collision_point_in_rect(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Collision.point_in_circle?(px, py, cx, cy, radius)
+/// @function point_in_circle?
+/// @description Check if a point is inside a circle.
+/// @param px [Float] Point X coordinate
+/// @param py [Float] Point Y coordinate
+/// @param cx [Float] Circle center X coordinate
+/// @param cy [Float] Circle center Y coordinate
+/// @param radius [Float] Circle radius
+/// @returns [Boolean] true if the point is inside the circle
+/// @example if GMR::Collision.point_in_circle?(x, y, orb.x, orb.y, orb.radius)
+///   orb.collect
+/// end
 static mrb_value mrb_collision_point_in_circle(mrb_state* mrb, mrb_value) {
     mrb_float px, py, cx, cy, radius;
     mrb_get_args(mrb, "fffff", &px, &py, &cx, &cy, &radius);
@@ -32,7 +62,21 @@ static mrb_value mrb_collision_point_in_circle(mrb_state* mrb, mrb_value) {
 // Rectangle Tests
 // ============================================================================
 
-// GMR::Collision.rect_overlap?(x1, y1, w1, h1, x2, y2, w2, h2)
+/// @function rect_overlap?
+/// @description Check if two rectangles overlap (AABB collision).
+/// @param x1 [Float] First rectangle X position
+/// @param y1 [Float] First rectangle Y position
+/// @param w1 [Float] First rectangle width
+/// @param h1 [Float] First rectangle height
+/// @param x2 [Float] Second rectangle X position
+/// @param y2 [Float] Second rectangle Y position
+/// @param w2 [Float] Second rectangle width
+/// @param h2 [Float] Second rectangle height
+/// @returns [Boolean] true if the rectangles overlap
+/// @example if GMR::Collision.rect_overlap?(player.x, player.y, 32, 48,
+///                                          platform.x, platform.y, 64, 16)
+///   player.on_ground = true
+/// end
 static mrb_value mrb_collision_rect_overlap(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, w1, h1, x2, y2, w2, h2;
     mrb_get_args(mrb, "ffffffff", &x1, &y1, &w1, &h1, &x2, &y2, &w2, &h2);
@@ -40,7 +84,21 @@ static mrb_value mrb_collision_rect_overlap(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Collision.rect_contains?(outer_x, outer_y, outer_w, outer_h, inner_x, inner_y, inner_w, inner_h)
+/// @function rect_contains?
+/// @description Check if the outer rectangle fully contains the inner rectangle.
+/// @param outer_x [Float] Outer rectangle X position
+/// @param outer_y [Float] Outer rectangle Y position
+/// @param outer_w [Float] Outer rectangle width
+/// @param outer_h [Float] Outer rectangle height
+/// @param inner_x [Float] Inner rectangle X position
+/// @param inner_y [Float] Inner rectangle Y position
+/// @param inner_w [Float] Inner rectangle width
+/// @param inner_h [Float] Inner rectangle height
+/// @returns [Boolean] true if the inner rectangle is fully inside the outer rectangle
+/// @example if GMR::Collision.rect_contains?(screen_x, screen_y, screen_w, screen_h,
+///                                           entity.x, entity.y, entity.w, entity.h)
+///   entity.draw  # Only draw if fully on screen
+/// end
 static mrb_value mrb_collision_rect_contains(mrb_state* mrb, mrb_value) {
     mrb_float ox, oy, ow, oh, ix, iy, iw, ih;
     mrb_get_args(mrb, "ffffffff", &ox, &oy, &ow, &oh, &ix, &iy, &iw, &ih);
@@ -52,7 +110,19 @@ static mrb_value mrb_collision_rect_contains(mrb_state* mrb, mrb_value) {
 // Circle Tests
 // ============================================================================
 
-// GMR::Collision.circle_overlap?(x1, y1, r1, x2, y2, r2)
+/// @function circle_overlap?
+/// @description Check if two circles overlap.
+/// @param x1 [Float] First circle center X
+/// @param y1 [Float] First circle center Y
+/// @param r1 [Float] First circle radius
+/// @param x2 [Float] Second circle center X
+/// @param y2 [Float] Second circle center Y
+/// @param r2 [Float] Second circle radius
+/// @returns [Boolean] true if the circles overlap
+/// @example if GMR::Collision.circle_overlap?(ball1.x, ball1.y, ball1.r,
+///                                            ball2.x, ball2.y, ball2.r)
+///   bounce_balls(ball1, ball2)
+/// end
 static mrb_value mrb_collision_circle_overlap(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, r1, x2, y2, r2;
     mrb_get_args(mrb, "ffffff", &x1, &y1, &r1, &x2, &y2, &r2);
@@ -63,7 +133,20 @@ static mrb_value mrb_collision_circle_overlap(mrb_state* mrb, mrb_value) {
     return to_mrb_bool(mrb, result);
 }
 
-// GMR::Collision.circle_rect_overlap?(cx, cy, cr, rx, ry, rw, rh)
+/// @function circle_rect_overlap?
+/// @description Check if a circle overlaps with a rectangle.
+/// @param cx [Float] Circle center X
+/// @param cy [Float] Circle center Y
+/// @param cr [Float] Circle radius
+/// @param rx [Float] Rectangle X position
+/// @param ry [Float] Rectangle Y position
+/// @param rw [Float] Rectangle width
+/// @param rh [Float] Rectangle height
+/// @returns [Boolean] true if the circle and rectangle overlap
+/// @example if GMR::Collision.circle_rect_overlap?(ball.x, ball.y, ball.r,
+///                                                  wall.x, wall.y, wall.w, wall.h)
+///   ball.bounce
+/// end
 static mrb_value mrb_collision_circle_rect_overlap(mrb_state* mrb, mrb_value) {
     mrb_float cx, cy, cr, rx, ry, rw, rh;
     mrb_get_args(mrb, "fffffff", &cx, &cy, &cr, &rx, &ry, &rw, &rh);
@@ -84,7 +167,21 @@ static mrb_value mrb_collision_circle_rect_overlap(mrb_state* mrb, mrb_value) {
 // Tile Helpers
 // ============================================================================
 
-// GMR::Collision.rect_tiles(x, y, w, h, tile_size) - Returns array of [tx, ty] pairs
+/// @function rect_tiles
+/// @description Get all tile coordinates that a rectangle overlaps. Useful for
+///   tile-based collision detection.
+/// @param x [Float] Rectangle X position
+/// @param y [Float] Rectangle Y position
+/// @param w [Float] Rectangle width
+/// @param h [Float] Rectangle height
+/// @param tile_size [Integer] Size of each tile in pixels
+/// @returns [Array<Array<Integer>>] Array of [tx, ty] tile coordinate pairs
+/// @example tiles = GMR::Collision.rect_tiles(player.x, player.y, 32, 48, 16)
+///   tiles.each do |tx, ty|
+///     if tilemap.solid?(tx, ty)
+///       # Handle collision with this tile
+///     end
+///   end
 static mrb_value mrb_collision_rect_tiles(mrb_state* mrb, mrb_value) {
     mrb_float x, y, w, h;
     mrb_int tile_size;
@@ -111,7 +208,14 @@ static mrb_value mrb_collision_rect_tiles(mrb_state* mrb, mrb_value) {
     return result;
 }
 
-// GMR::Collision.tile_rect(tx, ty, tile_size) - Returns [x, y, w, h]
+/// @function tile_rect
+/// @description Convert tile coordinates to a world-space rectangle.
+/// @param tx [Integer] Tile X coordinate
+/// @param ty [Integer] Tile Y coordinate
+/// @param tile_size [Integer] Size of each tile in pixels
+/// @returns [Array<Integer>] Rectangle as [x, y, width, height]
+/// @example x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)
+///   # Returns [80, 48, 16, 16]
 static mrb_value mrb_collision_tile_rect(mrb_state* mrb, mrb_value) {
     mrb_int tx, ty, tile_size;
     mrb_get_args(mrb, "iii", &tx, &ty, &tile_size);
@@ -128,7 +232,17 @@ static mrb_value mrb_collision_tile_rect(mrb_state* mrb, mrb_value) {
 // Distance Helpers
 // ============================================================================
 
-// GMR::Collision.distance(x1, y1, x2, y2)
+/// @function distance
+/// @description Calculate the Euclidean distance between two points.
+/// @param x1 [Float] First point X
+/// @param y1 [Float] First point Y
+/// @param x2 [Float] Second point X
+/// @param y2 [Float] Second point Y
+/// @returns [Float] Distance between the points
+/// @example dist = GMR::Collision.distance(player.x, player.y, enemy.x, enemy.y)
+///   if dist < attack_range
+///     attack_enemy(enemy)
+///   end
 static mrb_value mrb_collision_distance(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2;
     mrb_get_args(mrb, "ffff", &x1, &y1, &x2, &y2);
@@ -137,7 +251,19 @@ static mrb_value mrb_collision_distance(mrb_state* mrb, mrb_value) {
     return mrb_float_value(mrb, std::sqrt(dx * dx + dy * dy));
 }
 
-// GMR::Collision.distance_squared(x1, y1, x2, y2)
+/// @function distance_squared
+/// @description Calculate the squared distance between two points. Faster than
+///   distance() since it avoids the square root. Use for comparisons.
+/// @param x1 [Float] First point X
+/// @param y1 [Float] First point Y
+/// @param x2 [Float] Second point X
+/// @param y2 [Float] Second point Y
+/// @returns [Float] Squared distance between the points
+/// @example # More efficient for distance comparisons
+///   dist_sq = GMR::Collision.distance_squared(a.x, a.y, b.x, b.y)
+///   if dist_sq < range * range
+///     in_range = true
+///   end
 static mrb_value mrb_collision_distance_squared(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2;
     mrb_get_args(mrb, "ffff", &x1, &y1, &x2, &y2);

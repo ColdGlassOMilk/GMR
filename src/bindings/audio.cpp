@@ -5,6 +5,19 @@
 namespace gmr {
 namespace bindings {
 
+/// @module GMR::Audio
+/// @description Audio playback module. Load and play sound effects and music.
+
+/// @class GMR::Audio::Sound
+/// @description A loaded sound that can be played, stopped, and have its volume adjusted.
+///   Sounds are loaded once and can be played multiple times. Use for sound effects.
+/// @example sound = GMR::Audio::Sound.load("assets/jump.wav")
+///   sound.play
+/// @example # Adjust volume
+///   music = GMR::Audio::Sound.load("assets/bgm.ogg")
+///   music.volume = 0.5
+///   music.play
+
 // ============================================================================
 // GMR::Audio::Sound Class
 // ============================================================================
@@ -30,7 +43,12 @@ static SoundData* get_sound_data(mrb_state* mrb, mrb_value self) {
     return static_cast<SoundData*>(mrb_data_get_ptr(mrb, self, &sound_data_type));
 }
 
-// GMR::Audio::Sound.load(path) - class method
+/// @classmethod load
+/// @description Load a sound file from disk. Supports WAV, OGG, MP3, and other formats.
+/// @param path [String] Path to the audio file
+/// @returns [Sound] The loaded sound object
+/// @raises [RuntimeError] If the file cannot be loaded
+/// @example jump_sound = GMR::Audio::Sound.load("assets/sfx/jump.wav")
 static mrb_value mrb_sound_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
     mrb_get_args(mrb, "z", &path);
@@ -53,7 +71,10 @@ static mrb_value mrb_sound_load(mrb_state* mrb, mrb_value klass) {
     return obj;
 }
 
-// sound.play
+/// @method play
+/// @description Play the sound. Can be called multiple times for overlapping playback.
+/// @returns [nil]
+/// @example sound.play
 static mrb_value mrb_sound_play(mrb_state* mrb, mrb_value self) {
     SoundData* data = get_sound_data(mrb, self);
     if (data) {
@@ -62,7 +83,10 @@ static mrb_value mrb_sound_play(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
-// sound.stop
+/// @method stop
+/// @description Stop the sound if it's currently playing.
+/// @returns [nil]
+/// @example sound.stop
 static mrb_value mrb_sound_stop(mrb_state* mrb, mrb_value self) {
     SoundData* data = get_sound_data(mrb, self);
     if (data) {
@@ -71,7 +95,11 @@ static mrb_value mrb_sound_stop(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
-// sound.volume = value
+/// @method volume=
+/// @description Set the playback volume for this sound.
+/// @param value [Float] Volume level from 0.0 (silent) to 1.0 (full volume)
+/// @returns [Float] The volume that was set
+/// @example sound.volume = 0.5  # Half volume
 static mrb_value mrb_sound_set_volume(mrb_state* mrb, mrb_value self) {
     mrb_float volume;
     mrb_get_args(mrb, "f", &volume);
