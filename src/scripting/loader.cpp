@@ -18,7 +18,9 @@
 #include "gmr/bindings/ease.hpp"
 #include "gmr/bindings/tween.hpp"
 #include "gmr/bindings/sprite_animation.hpp"
+#include "gmr/bindings/state_machine.hpp"
 #include "gmr/scene.hpp"
+#include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/console/console_module.hpp"
 #include <mruby/compile.h>
@@ -86,6 +88,9 @@ void Loader::register_all_bindings() {
     bindings::register_ease(mrb_);
     bindings::register_tween(mrb_);
     bindings::register_sprite_animation(mrb_);
+
+    // Register State Machine system (GMR::StateMachine)
+    bindings::register_state_machine(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);
@@ -333,6 +338,8 @@ void Loader::load(const std::string& script_dir) {
         SceneManager::instance().clear(mrb_);
         // Clear animations before closing mruby state
         animation::AnimationManager::instance().clear(mrb_);
+        // Clear state machines before closing mruby state
+        state_machine::StateMachineManager::instance().clear(mrb_);
         mrb_close(mrb_);
         mrb_ = nullptr;
     }
