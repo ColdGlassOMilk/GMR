@@ -65,6 +65,7 @@ set(SOURCES
     src/bindings/ease.cpp
     src/bindings/tween.cpp
     src/bindings/sprite_animation.cpp
+    src/bindings/animator.cpp
     src/bindings/state_machine.cpp
     src/animation/easing.cpp
     src/animation/animation_manager.cpp

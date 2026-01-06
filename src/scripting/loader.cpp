@@ -19,6 +19,7 @@
 #include "gmr/bindings/tween.hpp"
 #include "gmr/bindings/sprite_animation.hpp"
 #include "gmr/bindings/state_machine.hpp"
+#include "gmr/bindings/animator.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
@@ -85,10 +86,11 @@ void Loader::register_all_bindings() {
     // Register Scene and SceneManager
     bindings::register_scene(mrb_);
 
-    // Register Animation system (GMR::Ease, GMR::Tween, GMR::SpriteAnimation)
+    // Register Animation system (GMR::Ease, GMR::Tween, GMR::SpriteAnimation, GMR::Animator)
     bindings::register_ease(mrb_);
     bindings::register_tween(mrb_);
     bindings::register_sprite_animation(mrb_);
+    bindings::register_animator(mrb_);
 
     // Register State Machine system (GMR::StateMachine)
     bindings::register_state_machine(mrb_);

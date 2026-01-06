@@ -346,7 +346,8 @@ static mrb_value mrb_ease_apply(mrb_state* mrb, mrb_value) {
 
 void register_ease(mrb_state* mrb) {
     RClass* gmr = get_gmr_module(mrb);
-    RClass* ease = mrb_define_module_under(mrb, gmr, "Ease");
+    RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
+    RClass* ease = mrb_define_module_under(mrb, animation, "Ease");
 
     // Linear
     mrb_define_module_function(mrb, ease, "linear", mrb_ease_linear, MRB_ARGS_NONE());

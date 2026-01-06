@@ -1,5 +1,6 @@
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/sprite.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/string.h>
 #include <algorithm>
 #include <cmath>
@@ -66,7 +67,9 @@ bool AnimationManager::same_target(mrb_state* mrb, mrb_value a, mrb_value b) {
 
 void AnimationManager::cancel_tweens_for(mrb_state* mrb, mrb_value target) {
     for (auto& [handle, tween] : tweens_) {
-        if (tween.active && same_target(mrb, tween.target, target)) {
+        if (!tween.active) continue;
+        if (mrb_nil_p(tween.target)) continue;  // Skip invalid targets
+        if (same_target(mrb, tween.target, target)) {
             tween.cancelled = true;
             tween.active = false;
         }
@@ -76,9 +79,9 @@ void AnimationManager::cancel_tweens_for(mrb_state* mrb, mrb_value target) {
 void AnimationManager::cancel_tweens_for_property(mrb_state* mrb, mrb_value target,
                                                    const std::string& property) {
     for (auto& [handle, tween] : tweens_) {
-        if (tween.active &&
-            tween.property == property &&
-            same_target(mrb, tween.target, target)) {
+        if (!tween.active) continue;
+        if (mrb_nil_p(tween.target)) continue;  // Skip invalid targets
+        if (tween.property == property && same_target(mrb, tween.target, target)) {
             tween.cancelled = true;
             tween.active = false;
         }
@@ -111,20 +114,88 @@ SpriteAnimationState* AnimationManager::get_animation(SpriteAnimationHandle hand
 }
 
 // ============================================================================
+// Animator Management
+// ============================================================================
+
+AnimatorHandle AnimationManager::create_animator() {
+    AnimatorHandle handle = next_animator_id_++;
+    animators_[handle] = AnimatorState();
+    return handle;
+}
+
+void AnimationManager::destroy_animator(AnimatorHandle handle) {
+    auto it = animators_.find(handle);
+    if (it != animators_.end()) {
+        animators_.erase(it);
+    }
+}
+
+AnimatorState* AnimationManager::get_animator(AnimatorHandle handle) {
+    auto it = animators_.find(handle);
+    if (it != animators_.end()) {
+        return &it->second;
+    }
+    return nullptr;
+}
+
+void AnimationManager::update_animators(mrb_state* mrb) {
+    for (auto& [handle, animator] : animators_) {
+        if (!animator.active) continue;
+
+        // Check if current animation finished
+        SpriteAnimationHandle current = animator.current_handle();
+        if (current == INVALID_HANDLE) continue;
+
+        SpriteAnimationState* anim = get_animation(current);
+        if (!anim || !anim->completed) continue;
+
+        // Animation just completed - invoke per-animation callback if registered
+        std::string completed_anim_name = animator.current_animation;
+        auto callback_it = animator.on_complete_callbacks.find(completed_anim_name);
+        if (callback_it != animator.on_complete_callbacks.end() && !mrb_nil_p(callback_it->second)) {
+            invoke_callback(mrb, callback_it->second);
+        }
+
+        // Also invoke legacy global on_complete callback (backwards compatibility)
+        if (!mrb_nil_p(animator.on_complete)) {
+            invoke_callback(mrb, animator.on_complete);
+        }
+
+        // Handle queued animation transition (for FinishCurrent mode)
+        if (!animator.queued_animation.empty()) {
+            if (animator.can_transition(animator.queued_animation)) {
+                // Stop current
+                anim->playing = false;
+
+                // Start queued animation
+                auto queued_it = animator.animations.find(animator.queued_animation);
+                if (queued_it != animator.animations.end()) {
+                    SpriteAnimationState* queued_anim = get_animation(queued_it->second.animation);
+                    if (queued_anim) {
+                        queued_anim->current_frame_index = 0;
+                        queued_anim->elapsed = 0.0f;
+                        queued_anim->playing = true;
+                        queued_anim->completed = false;
+                    }
+                }
+                animator.current_animation = animator.queued_animation;
+            }
+            animator.queued_animation.clear();
+        }
+
+        // Reset the completed flag so we don't fire callback again next frame
+        anim->completed = false;
+    }
+}
+
+// ============================================================================
 // Property Access via Ruby Duck Typing
 // ============================================================================
 
 float AnimationManager::get_property_value(mrb_state* mrb, mrb_value target,
                                             const std::string& property) {
-    // Call the getter method (e.g., "x", "alpha", "rotation")
-    mrb_value result = mrb_funcall(mrb, target, property.c_str(), 0);
-
-    if (mrb->exc) {
-        // Clear exception and return 0
-        mrb->exc = nullptr;
-        return 0.0f;
-    }
-
+    // Call the getter method (e.g., "x", "alpha", "rotation") - protected
+    mrb_value result = scripting::safe_method_call(mrb, target, property.c_str());
     return static_cast<float>(mrb_as_float(mrb, result));
 }
 
@@ -133,14 +204,9 @@ void AnimationManager::set_property_value(mrb_state* mrb, mrb_value target,
     // Build setter method name (e.g., "x=", "alpha=", "rotation=")
     std::string setter = property + "=";
 
-    // Call the setter
+    // Call the setter - protected
     mrb_value val = mrb_float_value(mrb, value);
-    mrb_funcall(mrb, target, setter.c_str(), 1, val);
-
-    if (mrb->exc) {
-        // Clear exception silently
-        mrb->exc = nullptr;
-    }
+    scripting::safe_method_call(mrb, target, setter.c_str(), {val});
 }
 
 // ============================================================================
@@ -150,25 +216,16 @@ void AnimationManager::set_property_value(mrb_state* mrb, mrb_value target,
 void AnimationManager::invoke_callback(mrb_state* mrb, mrb_value callback) {
     if (mrb_nil_p(callback)) return;
 
-    mrb_funcall(mrb, callback, "call", 0);
-
-    if (mrb->exc) {
-        // Log error and clear exception
-        mrb->exc = nullptr;
-    }
+    scripting::safe_method_call(mrb, callback, "call");
 }
 
 void AnimationManager::invoke_callback_with_args(mrb_state* mrb, mrb_value callback,
                                                   mrb_value* args, int argc) {
     if (mrb_nil_p(callback)) return;
 
-    // Use mrb_funcall_argv for variable args
-    mrb_funcall_argv(mrb, callback, mrb_intern_lit(mrb, "call"), argc, args);
-
-    if (mrb->exc) {
-        // Log error and clear exception
-        mrb->exc = nullptr;
-    }
+    // Build args vector for safe call
+    std::vector<mrb_value> args_vec(args, args + argc);
+    scripting::safe_method_call(mrb, callback, "call", args_vec);
 }
 
 // ============================================================================
@@ -215,11 +272,21 @@ void AnimationManager::update(mrb_state* mrb, float dt) {
         }
     }
 
+    // Update animators (check for queued transitions)
+    update_animators(mrb);
+
     // Cleanup finished tweens/animations
     cleanup_finished(mrb);
 }
 
 void AnimationManager::update_tween(mrb_state* mrb, TweenState& tween, float dt) {
+    // Validate target before any property access
+    if (mrb_nil_p(tween.target)) {
+        tween.cancelled = true;
+        tween.active = false;
+        return;
+    }
+
     // Handle delay
     if (tween.delay_remaining > 0.0f) {
         tween.delay_remaining -= dt;
@@ -358,8 +425,15 @@ void AnimationManager::clear(mrb_state* mrb) {
         }
     }
 
+    for (auto& [handle, animator] : animators_) {
+        if (!mrb_nil_p(animator.ruby_animator_obj)) {
+            mrb_gc_unregister(mrb, animator.ruby_animator_obj);
+        }
+    }
+
     tweens_.clear();
     animations_.clear();
+    animators_.clear();
 
     // Don't reset IDs - keeps handles unique across reloads
 }

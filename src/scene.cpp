@@ -12,24 +12,20 @@ SceneManager& SceneManager::instance() {
 void SceneManager::call_init(mrb_state* mrb, Scene& scene) {
     if (scene.initialized) return;
 
-    mrb_funcall(mrb, scene.object, "init", 0);
-    scripting::check_error(mrb, "Scene#init");
+    scripting::safe_method_call(mrb, scene.object, "init");
     scene.initialized = true;
 }
 
 void SceneManager::call_unload(mrb_state* mrb, Scene& scene) {
-    mrb_funcall(mrb, scene.object, "unload", 0);
-    scripting::check_error(mrb, "Scene#unload");
+    scripting::safe_method_call(mrb, scene.object, "unload");
 }
 
 void SceneManager::call_update(mrb_state* mrb, Scene& scene, float dt) {
-    mrb_funcall(mrb, scene.object, "update", 1, mrb_float_value(mrb, dt));
-    scripting::check_error(mrb, "Scene#update");
+    scripting::safe_method_call(mrb, scene.object, "update", {mrb_float_value(mrb, dt)});
 }
 
 void SceneManager::call_draw(mrb_state* mrb, Scene& scene) {
-    mrb_funcall(mrb, scene.object, "draw", 0);
-    scripting::check_error(mrb, "Scene#draw");
+    scripting::safe_method_call(mrb, scene.object, "draw");
 }
 
 void SceneManager::load(mrb_state* mrb, mrb_value scene_obj) {

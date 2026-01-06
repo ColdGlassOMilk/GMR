@@ -82,8 +82,23 @@ struct TweenData {
 static void tween_free(mrb_state* mrb, void* ptr) {
     TweenData* data = static_cast<TweenData*>(ptr);
     if (data) {
-        // Note: Don't destroy_tween here - the AnimationManager handles lifecycle
-        // The tween may already be removed or in use
+        // LIFECYCLE: AnimationManager owns tween lifecycle, not Ruby.
+        //
+        // Tweens are automatically cleaned up by the manager when:
+        // - They complete naturally (duration elapsed)
+        // - cancel() is called explicitly
+        // - cancel_all() is called (e.g., scene transitions)
+        // - The manager's clear() method is called
+        //
+        // The Ruby wrapper is just a handle for control (pause/resume/cancel).
+        // We do NOT call destroy_tween here because:
+        // 1. The tween may have already completed and been removed
+        // 2. Multiple Ruby references to same handle would cause double-free
+        // 3. Tweens may outlive Ruby references intentionally (fire-and-forget)
+        //
+        // This design allows patterns like:
+        //   Tween.to(@sprite, :alpha, 0, duration: 1.0)  # No variable stored
+        //
         mrb_free(mrb, data);
     }
 }
@@ -596,7 +611,8 @@ static mrb_value mrb_tween_count(mrb_state* mrb, mrb_value) {
 
 void register_tween(mrb_state* mrb) {
     RClass* gmr = get_gmr_module(mrb);
-    RClass* tween_class = mrb_define_class_under(mrb, gmr, "Tween", mrb->object_class);
+    RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
+    RClass* tween_class = mrb_define_class_under(mrb, animation, "Tween", mrb->object_class);
     MRB_SET_INSTANCE_TT(tween_class, MRB_TT_CDATA);
 
     // Class methods

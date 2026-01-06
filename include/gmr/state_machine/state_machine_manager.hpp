@@ -57,12 +57,11 @@ private:
     StateMachineManager& operator=(const StateMachineManager&) = delete;
 
     // Transition logic
-    void perform_transition(mrb_state* mrb, StateMachineState& machine,
+    void perform_transition(mrb_state* mrb, StateMachineHandle handle,
                            mrb_sym from_state, mrb_sym to_state);
 
-    // Check conditional transition
-    bool check_condition(mrb_state* mrb, StateMachineState& machine,
-                        const TransitionDefinition& trans);
+    // Check conditional transition (uses handle to avoid reference invalidation)
+    bool check_condition(mrb_state* mrb, StateMachineHandle handle, mrb_value condition);
 
     // Callback invocation
     void invoke_callback(mrb_state* mrb, mrb_value callback, mrb_value owner);

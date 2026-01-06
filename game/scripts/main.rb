@@ -1,102 +1,78 @@
-# GMR Engine - Main Entry Point
-# Delegates to SceneManager for gameplay
-
 include GMR
 
-# =============================================================================
-# Global Entry Points
-# =============================================================================
+# MVP Demo: Animation + State Machine + Input Binding
+# Testing all three systems together with oak_woods character
+
+FRAME_WIDTH = 56
+FRAME_HEIGHT = 56
+COLUMNS = 7
 
 def init
-  # Enable the built-in console with custom styling
-  # The console is toggled with the backtick (`) key
-  GMR::Console.enable({
-    background: "#141820",
-    foreground: "#ffffff",
-    prompt_color: [100, 200, 255],
-    result_color: [120, 255, 150],
-    error_color: [255, 100, 100],
-    height: 300,
-    font_size: 14
-  })
+  # Input mapping
+  Input.map(:move_left, [:left, :a])
+  Input.map(:move_right, [:right, :d])
+  Input.map(:jump, :space)
 
-  # Register some demo commands
-  GMR::Console.register_command("spawn", "Spawn an entity (demo)") do |args|
-    type = args[0] || "enemy"
-    "Spawning #{type} (demo command)"
-  end
+  # Load character spritesheet
+  @char_tex = Graphics::Texture.load("assets/oak_woods/character/char_blue.png")
+  @sprite = Graphics::Sprite.new(@char_tex)
+  @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
+  @sprite.x = 400.0
+  @sprite.y = 300.0
 
-  GMR::Console.register_command("teleport", "Teleport to x,y (demo)") do |args|
-    if args.length >= 2
-      x, y = args[0].to_i, args[1].to_i
-      "Teleported to #{x}, #{y} (demo command)"
-    else
-      "Usage: teleport <x> <y>"
+  # Animator - manages spritesheet animations
+  @animator = Animation::Animator.new(@sprite,
+    columns: COLUMNS,
+    frame_width: FRAME_WIDTH,
+    frame_height: FRAME_HEIGHT)
+
+  # Define animations (based on spritesheet layout)
+  # Row 0: Idle (frames 0-6)
+  # Row 2: Run (frames 14-20)
+  @animator.add(:idle, frames: 0..5, fps: 8)
+  @animator.add(:run, frames: 14..19, fps: 12)
+  @animator.play(:idle)
+
+  # State machine for character states
+  animator = @animator
+
+  state_machine do
+    state :idle do
+      enter { animator.play(:idle) }
+      on :move, :running
+    end
+
+    state :running do
+      enter { animator.play(:run) }
+      on :stop, :idle
     end
   end
-
-  GMR::Console.register_command("fps", "Show current FPS") do
-    "FPS: #{GMR::Time.fps}"
-  end
-
-  # Load the main game scene
-  @game_scene = GameScene.new
-  SceneManager.load(@game_scene)
-
-  # Add minimap overlay (set_game_scene AFTER add_overlay since add_overlay calls init)
-  @minimap = MinimapOverlay.new
-  SceneManager.add_overlay(@minimap)
-  @minimap.set_game_scene(@game_scene)
 end
 
 def update(dt)
-  # Delegate to scene manager
-  SceneManager.update(dt)
+  # Check for movement
+  moving = Input.action_down?(:move_left) || Input.action_down?(:move_right)
+
+  # Trigger state machine transitions
+  if moving
+    state_machine.trigger(:move)
+  else
+    state_machine.trigger(:stop)
+  end
+
+  # Apply movement
+  speed = 200.0
+  if Input.action_down?(:move_left)
+    @sprite.x -= speed * dt
+    @sprite.flip_x = true
+  end
+  if Input.action_down?(:move_right)
+    @sprite.x += speed * dt
+    @sprite.flip_x = false
+  end
 end
 
 def draw
-  # Delegate to scene manager
-  SceneManager.draw
-end
-
-# =============================================================================
-# Utility Functions (available globally)
-# =============================================================================
-
-def lerp(a, b, t)
-  a + (b - a) * t
-end
-
-def clamp(val, min, max)
-  val < min ? min : (val > max ? max : val)
-end
-
-def ease_in_out(t)
-  t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
-end
-
-def lerp_color(c1, c2, t)
-  [
-    lerp(c1[0], c2[0], t).to_i,
-    lerp(c1[1], c2[1], t).to_i,
-    lerp(c1[2], c2[2], t).to_i
-  ]
-end
-
-def hue_to_rgb(h, s, v)
-  h = h % 360
-  c = v * s
-  x = c * (1 - ((h / 60.0) % 2 - 1).abs)
-  m = v - c
-
-  r, g, b = case (h / 60).to_i
-            when 0 then [c, x, 0]
-            when 1 then [x, c, 0]
-            when 2 then [0, c, x]
-            when 3 then [0, x, c]
-            when 4 then [x, 0, c]
-            else [c, 0, x]
-            end
-
-  [((r + m) * 255).to_i, ((g + m) * 255).to_i, ((b + m) * 255).to_i]
+  Graphics.clear([50, 80, 50])
+  @sprite.draw
 end

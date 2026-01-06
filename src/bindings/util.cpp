@@ -37,39 +37,8 @@ namespace bindings {
 // ============================================================================
 
 /// @module GMR::System
-/// @description System utilities and build information. Provides random number generation,
-///   platform detection, GPU information, and error state queries.
-/// @example # Random enemy spawning with varied attributes
-///   class EnemySpawner
-///     ENEMY_TYPES = [:goblin, :skeleton, :orc, :demon]
-///
-///     def spawn_wave(count)
-///       count.times do
-///         # Random spawn position on screen edges
-///         edge = GMR::System.random_int(0, 3)
-///         case edge
-///         when 0 then x, y = GMR::System.random_int(0, 800), 0        # Top
-///         when 1 then x, y = 800, GMR::System.random_int(0, 600)      # Right
-///         when 2 then x, y = GMR::System.random_int(0, 800), 600      # Bottom
-///         when 3 then x, y = 0, GMR::System.random_int(0, 600)        # Left
-///         end
-///
-///         # Random enemy type with weighted probability
-///         type_roll = GMR::System.random_float
-///         type = if type_roll < 0.4
-///           :goblin      # 40% chance
-///         elsif type_roll < 0.7
-///           :skeleton    # 30% chance
-///         elsif type_roll < 0.9
-///           :orc         # 20% chance
-///         else
-///           :demon       # 10% chance
-///         end
-///
-///         @enemies << Enemy.new(x, y, type)
-///       end
-///     end
-///   end
+/// @description System utilities and build information. Provides platform detection,
+///   GPU information, and error state queries.
 /// @example # Platform-specific features
 ///   class Game
 ///     def init
@@ -148,27 +117,6 @@ namespace bindings {
 ///       end
 ///     end
 ///   end
-
-/// @function random_int
-/// @description Generate a random integer within an inclusive range.
-/// @param min [Integer] Minimum value (inclusive)
-/// @param max [Integer] Maximum value (inclusive)
-/// @returns [Integer] Random integer between min and max
-/// @example dice = GMR::System.random_int(1, 6)
-static mrb_value mrb_system_random_int(mrb_state* mrb, mrb_value) {
-    mrb_int min, max;
-    mrb_get_args(mrb, "ii", &min, &max);
-    return mrb_fixnum_value(GetRandomValue(min, max));
-}
-
-/// @function random_float
-/// @description Generate a random float between 0.0 and 1.0.
-/// @returns [Float] Random float in range [0.0, 1.0]
-/// @example chance = GMR::System.random_float
-///   critical_hit = chance > 0.9
-static mrb_value mrb_system_random_float(mrb_state* mrb, mrb_value) {
-    return mrb_float_value(mrb, static_cast<double>(GetRandomValue(0, RAND_MAX)) / RAND_MAX);
-}
 
 /// @function quit
 /// @description Immediately exit the application. Closes the window and terminates
@@ -362,8 +310,6 @@ static mrb_value mrb_system_in_error_state(mrb_state*, mrb_value) {
 void register_util(mrb_state* mrb) {
     RClass* system = get_gmr_submodule(mrb, "System");
 
-    mrb_define_module_function(mrb, system, "random_int", mrb_system_random_int, MRB_ARGS_REQ(2));
-    mrb_define_module_function(mrb, system, "random_float", mrb_system_random_float, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, system, "quit", mrb_system_quit, MRB_ARGS_NONE());
 
     // Build info

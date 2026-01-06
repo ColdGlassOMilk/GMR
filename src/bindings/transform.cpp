@@ -1,6 +1,8 @@
 #include "gmr/bindings/transform.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
@@ -179,7 +181,9 @@ static TransformData* get_transform_data(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -193,8 +197,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -601,8 +605,10 @@ static mrb_value mrb_transform_world_position(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 void register_transform(mrb_state* mrb) {
-    // Transform2D class (top-level)
-    RClass* transform_class = mrb_define_class(mrb, "Transform2D", mrb->object_class);
+    // Transform2D class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* transform_class = mrb_define_class_under(mrb, graphics, "Transform2D", mrb->object_class);
     MRB_SET_INSTANCE_TT(transform_class, MRB_TT_CDATA);
 
     // Constructor

@@ -1,5 +1,6 @@
 #include "gmr/input/input_manager.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "raylib.h"
 #include <algorithm>
 
@@ -206,14 +207,10 @@ void InputManager::dispatch_callbacks(mrb_state* mrb, const std::string& action,
     for (auto* cb : to_invoke) {
         if (!mrb_nil_p(cb->context)) {
             // instance_exec on context object
-            mrb_funcall(mrb, cb->context, "instance_exec", 1, cb->callback);
+            scripting::safe_method_call(mrb, cb->context, "instance_exec", {cb->callback});
         } else {
             // Direct call
-            mrb_funcall(mrb, cb->callback, "call", 0);
-        }
-
-        if (mrb->exc) {
-            mrb->exc = nullptr;  // Clear exception, continue
+            scripting::safe_method_call(mrb, cb->callback, "call");
         }
     }
 }
@@ -240,12 +237,8 @@ void InputManager::dispatch_to_state_machines(mrb_state* mrb, const std::string&
 
         // Check condition if present (skip if forced)
         if (!binding->forced && !mrb_nil_p(binding->condition)) {
-            mrb_value result = mrb_funcall(mrb, machine->owner,
-                                           "instance_exec", 1, binding->condition);
-            if (mrb->exc) {
-                mrb->exc = nullptr;
-                continue;
-            }
+            mrb_value result = scripting::safe_method_call(mrb, machine->owner,
+                                                           "instance_exec", {binding->condition});
             if (!mrb_test(result)) continue;
         }
 

@@ -17,6 +17,7 @@ using SpriteHandle = int32_t;
 using TweenHandle = int32_t;
 using SpriteAnimationHandle = int32_t;
 using StateMachineHandle = int32_t;
+using AnimatorHandle = int32_t;
 
 constexpr int32_t INVALID_HANDLE = -1;
 

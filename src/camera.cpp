@@ -1,4 +1,5 @@
 #include "gmr/camera.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/variable.h>
@@ -137,26 +138,17 @@ Vec2 CameraManager::get_target_position(mrb_state* mrb, mrb_value target) {
     // Try position method
     mrb_sym pos_sym = mrb_intern_cstr(mrb, "position");
     if (mrb_respond_to(mrb, target, pos_sym)) {
-        mrb_value pos = mrb_funcall(mrb, target, "position", 0);
-
-        // Check if exception was raised
-        if (mrb->exc) {
-            mrb->exc = nullptr;
-            return {0.0f, 0.0f};
-        }
+        mrb_value pos = scripting::safe_method_call(mrb, target, "position");
 
         // Try to extract Vec2 from returned value
         // Check if it's a Vec2 by looking for x and y methods
         mrb_sym x_sym = mrb_intern_cstr(mrb, "x");
         mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
         if (mrb_respond_to(mrb, pos, x_sym) && mrb_respond_to(mrb, pos, y_sym)) {
-            mrb_value x = mrb_funcall(mrb, pos, "x", 0);
-            mrb_value y = mrb_funcall(mrb, pos, "y", 0);
-            if (!mrb->exc) {
-                return {static_cast<float>(mrb_as_float(mrb,x)),
-                        static_cast<float>(mrb_as_float(mrb,y))};
-            }
-            mrb->exc = nullptr;
+            mrb_value x = scripting::safe_method_call(mrb, pos, "x");
+            mrb_value y = scripting::safe_method_call(mrb, pos, "y");
+            return {static_cast<float>(mrb_as_float(mrb, x)),
+                    static_cast<float>(mrb_as_float(mrb, y))};
         }
     }
 
@@ -164,13 +156,10 @@ Vec2 CameraManager::get_target_position(mrb_state* mrb, mrb_value target) {
     mrb_sym x_sym = mrb_intern_cstr(mrb, "x");
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
     if (mrb_respond_to(mrb, target, x_sym) && mrb_respond_to(mrb, target, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, target, "x", 0);
-        mrb_value y = mrb_funcall(mrb, target, "y", 0);
-        if (!mrb->exc) {
-            return {static_cast<float>(mrb_as_float(mrb,x)),
-                    static_cast<float>(mrb_as_float(mrb,y))};
-        }
-        mrb->exc = nullptr;
+        mrb_value x = scripting::safe_method_call(mrb, target, "x");
+        mrb_value y = scripting::safe_method_call(mrb, target, "y");
+        return {static_cast<float>(mrb_as_float(mrb, x)),
+                static_cast<float>(mrb_as_float(mrb, y))};
     }
 
     // Target doesn't respond to position or x/y - return current target

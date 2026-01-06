@@ -3,6 +3,7 @@
 
 #include "gmr/animation/tween.hpp"
 #include "gmr/animation/sprite_animation.hpp"
+#include "gmr/animation/animator.hpp"
 #include <mruby.h>
 #include <unordered_map>
 #include <vector>
@@ -58,6 +59,17 @@ public:
     // Get sprite animation state by handle (returns nullptr if not found)
     SpriteAnimationState* get_animation(SpriteAnimationHandle handle);
 
+    // === Animator Management ===
+
+    // Create a new animator, returns handle
+    AnimatorHandle create_animator();
+
+    // Destroy an animator by handle
+    void destroy_animator(AnimatorHandle handle);
+
+    // Get animator state by handle (returns nullptr if not found)
+    AnimatorState* get_animator(AnimatorHandle handle);
+
     // === Cleanup ===
 
     // Clear all tweens and animations (for hot reload/cleanup)
@@ -66,6 +78,7 @@ public:
     // === Debug Info ===
     size_t tween_count() const { return tweens_.size(); }
     size_t animation_count() const { return animations_.size(); }
+    size_t animator_count() const { return animators_.size(); }
 
     // === Property Access (public for bindings) ===
     float get_property_value(mrb_state* mrb, mrb_value target, const std::string& property);
@@ -80,6 +93,7 @@ private:
     // Update helpers
     void update_tween(mrb_state* mrb, TweenState& tween, float dt);
     void update_animation(mrb_state* mrb, SpriteAnimationState& anim, float dt);
+    void update_animators(mrb_state* mrb);
 
     // Callback invocation with exception handling
     void invoke_callback(mrb_state* mrb, mrb_value callback);
@@ -95,16 +109,19 @@ private:
     // Storage
     std::unordered_map<TweenHandle, TweenState> tweens_;
     std::unordered_map<SpriteAnimationHandle, SpriteAnimationState> animations_;
+    std::unordered_map<AnimatorHandle, AnimatorState> animators_;
 
     // ID generators
     TweenHandle next_tween_id_{0};
     SpriteAnimationHandle next_anim_id_{0};
+    AnimatorHandle next_animator_id_{0};
 
     // Deferred operations (to avoid mutation during iteration)
     std::vector<TweenHandle> tweens_to_complete_;
     std::vector<SpriteAnimationHandle> animations_to_complete_;
     std::vector<TweenHandle> tweens_to_remove_;
     std::vector<SpriteAnimationHandle> animations_to_remove_;
+    std::vector<AnimatorHandle> animators_to_remove_;
 };
 
 } // namespace animation

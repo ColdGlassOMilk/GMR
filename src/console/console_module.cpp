@@ -1,5 +1,6 @@
 #include "gmr/console/console_module.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
 #include <mruby/compile.h>
@@ -129,11 +130,6 @@ void ConsoleModule::toggle() {
 
 bool ConsoleModule::update(float dt) {
     if (!enabled_ || !initialized_) {
-        // Debug: show why we're returning early
-        static int debug_count = 0;
-        if (debug_count++ < 5) {
-            printf("[Console] update() early return: enabled=%d, initialized=%d\n", enabled_, initialized_);
-        }
         return false;
     }
 
@@ -624,7 +620,7 @@ std::string ConsoleModule::cmd_vars(const std::vector<std::string>&) {
         ctx);
 
     if (mrb_->exc) {
-        mrb_->exc = nullptr;
+        scripting::safe_clear_exception(mrb_, "console /vars command");
         mrbc_context_free(mrb_, ctx);
         return "Error listing variables";
     }
@@ -650,7 +646,8 @@ std::string ConsoleModule::cmd_vars(const std::vector<std::string>&) {
                         }
                         println("  " + std::string(var_name) + " = " + val_str, OutputType::RESULT);
                     }
-                    mrb_->exc = nullptr;
+                    // Clear any exception from mrb_inspect failure
+                    scripting::safe_clear_exception(mrb_, "console /vars inspect");
                 }
             }
         }
@@ -912,11 +909,8 @@ static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value) {
         console.init(mrb);
     }
 
-    printf("[Console] enable() called, initialized=%d\n", console.is_initialized());
-
     // Apply styling options if provided
     if (!mrb_nil_p(opts) && mrb_hash_p(opts)) {
-        printf("[Console] Parsing options hash\n");
         ConsoleStyle style = console.style();
 
         // Colors
@@ -1098,8 +1092,11 @@ static mrb_value mrb_console_register_command(mrb_state* mrb, mrb_value) {
             if (mrb->exc) {
                 mrb_value exc = mrb_obj_value(mrb->exc);
                 mrb_value msg = mrb_inspect(mrb, exc);
-                mrb->exc = nullptr;
-                return std::string(RSTRING_PTR(msg), RSTRING_LEN(msg));
+                std::string error_str = mrb_string_p(msg)
+                    ? std::string(RSTRING_PTR(msg), RSTRING_LEN(msg))
+                    : "Error executing command";
+                scripting::safe_clear_exception(mrb, "console command handler");
+                return error_str;
             }
 
             if (mrb_nil_p(result)) {
@@ -1174,8 +1171,6 @@ static mrb_value mrb_console_ruby_eval_allowed(mrb_state*, mrb_value) {
 }
 
 void register_console_module(mrb_state* mrb) {
-    printf("[Console] register_console_module called\n");
-
     // Initialize the Ruby commands hash
     g_ruby_commands = mrb_nil_value();
 
@@ -1211,9 +1206,6 @@ void register_console_module(mrb_state* mrb) {
 
     // Initialize the console module with mruby state
     ConsoleModule::instance().init(mrb);
-    printf("[Console] Module registered, initialized=%d, enabled=%d\n",
-           ConsoleModule::instance().is_initialized(),
-           ConsoleModule::instance().is_enabled());
 }
 
 } // namespace console

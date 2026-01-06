@@ -2,6 +2,7 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/bindings/sprite.hpp"
 #include "gmr/animation/animation_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/sprite.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -98,6 +99,9 @@ struct SpriteAnimationData {
 static void sprite_animation_free(mrb_state* mrb, void* ptr) {
     SpriteAnimationData* data = static_cast<SpriteAnimationData*>(ptr);
     if (data) {
+        // LIFECYCLE: Ruby wrapper owns the animation handle.
+        // When Ruby GC collects this object, we must clean up the native animation.
+        animation::AnimationManager::instance().destroy_animation(data->handle);
         mrb_free(mrb, data);
     }
 }
@@ -114,7 +118,7 @@ static SpriteAnimationData* get_animation_data(mrb_state* mrb, mrb_value self) {
 // Helper: Get SpriteHandle from Ruby Sprite object
 // ============================================================================
 
-// Forward declare sprite data type from sprite.cpp
+// Forward declare sprite data type from sprite.cpp for type-safe access
 extern const mrb_data_type sprite_data_type;
 
 struct SpriteBindingData {
@@ -122,7 +126,8 @@ struct SpriteBindingData {
 };
 
 static SpriteHandle get_sprite_handle(mrb_state* mrb, mrb_value sprite_val) {
-    void* ptr = mrb_data_get_ptr(mrb, sprite_val, nullptr);
+    // TYPE-SAFE: Use &sprite_data_type instead of nullptr to verify type
+    void* ptr = mrb_data_get_ptr(mrb, sprite_val, &sprite_data_type);
     if (ptr) {
         SpriteBindingData* data = static_cast<SpriteBindingData*>(ptr);
         return data->handle;
@@ -196,11 +201,9 @@ static mrb_value mrb_sprite_animation_initialize(mrb_state* mrb, mrb_value self)
             anim->frames.push_back(static_cast<int>(mrb_fixnum(frame)));
         }
     } else if (mrb_range_p(frames_val)) {
-        // Convert Range to array
-        mrb_value arr = mrb_funcall(mrb, frames_val, "to_a", 0);
-        if (mrb->exc) {
-            mrb->exc = nullptr;
-        } else {
+        // Convert Range to array (protected)
+        mrb_value arr = scripting::safe_method_call(mrb, frames_val, "to_a");
+        if (mrb_array_p(arr)) {
             mrb_int len = RARRAY_LEN(arr);
             for (mrb_int i = 0; i < len; i++) {
                 mrb_value frame = mrb_ary_ref(mrb, arr, i);
@@ -555,8 +558,10 @@ static mrb_value mrb_sprite_animation_count(mrb_state* mrb, mrb_value) {
 // ============================================================================
 
 void register_sprite_animation(mrb_state* mrb) {
+    // SpriteAnimation class under GMR::Animation
     RClass* gmr = get_gmr_module(mrb);
-    RClass* anim_class = mrb_define_class_under(mrb, gmr, "SpriteAnimation", mrb->object_class);
+    RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
+    RClass* anim_class = mrb_define_class_under(mrb, animation, "SpriteAnimation", mrb->object_class);
     MRB_SET_INSTANCE_TT(anim_class, MRB_TT_CDATA);
 
     // Constructor

@@ -1,6 +1,7 @@
 #include "gmr/bindings/input.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/input/input_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
 #include <vector>
@@ -476,7 +477,8 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
         data->active = true;
         mrb_data_init(builder, data, &input_builder_data_type);
 
-        mrb_yield(mrb, block, builder);
+        // Use safe_yield to catch exceptions in input mapping DSL
+        scripting::safe_yield(mrb, block, builder);
 
         return mrb_nil_value();
     }
@@ -858,7 +860,8 @@ static mrb_value mrb_input_dsl_block(mrb_state* mrb, mrb_value self) {
 
     // Create builder for global context
     mrb_value builder = create_context_builder(mrb, "", true);
-    mrb_yield(mrb, block, builder);
+    // Use safe_yield to catch exceptions in input DSL
+    scripting::safe_yield(mrb, block, builder);
 
     return mrb_nil_value();
 }
@@ -889,7 +892,8 @@ static mrb_value mrb_input_context_dsl_block(mrb_state* mrb, mrb_value self) {
 
     // Create builder for named context
     mrb_value builder = create_context_builder(mrb, context_name, false);
-    mrb_yield(mrb, block, builder);
+    // Use safe_yield to catch exceptions in input context DSL
+    scripting::safe_yield(mrb, block, builder);
 
     return mrb_nil_value();
 }

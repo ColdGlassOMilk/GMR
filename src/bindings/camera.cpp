@@ -1,6 +1,8 @@
 #include "gmr/bindings/camera.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "raylib.h"
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -139,8 +141,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -161,14 +163,14 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym) &&
         mrb_respond_to(mrb, val, w_sym) && mrb_respond_to(mrb, val, h_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
-        mrb_value w = mrb_funcall(mrb, val, "w", 0);
-        mrb_value h = mrb_funcall(mrb, val, "h", 0);
-        return {static_cast<float>(mrb_as_float(mrb,x)),
-                static_cast<float>(mrb_as_float(mrb,y)),
-                static_cast<float>(mrb_as_float(mrb,w)),
-                static_cast<float>(mrb_as_float(mrb,h))};
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
+        mrb_value w = scripting::safe_method_call(mrb, val, "w");
+        mrb_value h = scripting::safe_method_call(mrb, val, "h");
+        return {static_cast<float>(mrb_as_float(mrb, x)),
+                static_cast<float>(mrb_as_float(mrb, y)),
+                static_cast<float>(mrb_as_float(mrb, w)),
+                static_cast<float>(mrb_as_float(mrb, h))};
     }
 
     mrb_raise(mrb, E_TYPE_ERROR, "Expected Rect or object with x/y/w/h methods");
@@ -180,7 +182,9 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -479,7 +483,9 @@ static mrb_value mrb_camera_bounds(mrb_state* mrb, mrb_value self) {
     Camera2DState* cam = CameraManager::instance().get(data->handle);
     if (!cam || !cam->has_bounds) return mrb_nil_value();
 
-    RClass* rect_class = mrb_class_get(mrb, "Rect");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* rect_class = mrb_class_get_under(mrb, graphics, "Rect");
     mrb_value args[4] = {
         mrb_float_value(mrb, cam->bounds.x),
         mrb_float_value(mrb, cam->bounds.y),
@@ -654,17 +660,12 @@ static mrb_value mrb_camera_use(mrb_state* mrb, mrb_value self) {
     // Enter camera mode
     BeginMode2D(raylib_cam);
 
-    // Yield to block (protected to ensure EndMode2D is called)
-    mrb_value result = mrb_yield(mrb, block, mrb_nil_value());
+    // Yield to block - use safe_yield to catch exceptions
+    // We must call EndMode2D regardless of whether an exception occurs
+    mrb_value result = scripting::safe_yield(mrb, block, mrb_nil_value());
 
-    // Exit camera mode
+    // Exit camera mode (always called, even if block raised)
     EndMode2D();
-
-    // Check for exception after EndMode2D
-    if (mrb->exc) {
-        // Re-raise the exception
-        mrb_exc_raise(mrb, mrb_obj_value(mrb->exc));
-    }
 
     return result;
 }
@@ -715,8 +716,10 @@ static mrb_value mrb_camera_class_current(mrb_state* mrb, mrb_value klass) {
 // ============================================================================
 
 void register_camera(mrb_state* mrb) {
-    // Camera2D class (top-level)
-    RClass* camera_class = mrb_define_class(mrb, "Camera2D", mrb->object_class);
+    // Camera2D class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* camera_class = mrb_define_class_under(mrb, graphics, "Camera2D", mrb->object_class);
     MRB_SET_INSTANCE_TT(camera_class, MRB_TT_CDATA);
 
     // Initialize class variable (mrb_cv_set needs mrb_value, not RClass*)

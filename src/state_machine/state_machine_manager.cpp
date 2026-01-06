@@ -1,9 +1,11 @@
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/input/input_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/variable.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
+#include <mruby/class.h>
 
 namespace gmr {
 namespace state_machine {
@@ -50,17 +52,23 @@ bool StateMachineManager::trigger(mrb_state* mrb, StateMachineHandle handle, mrb
     const TransitionDefinition* trans = machine->find_transition(event);
     if (!trans) return false;  // Silent ignore (design decision)
 
-    // Check condition if present
-    if (!mrb_nil_p(trans->condition)) {
-        if (!check_condition(mrb, *machine, *trans)) {
-            return false;  // Condition not met, ignore
-        }
-    }
-
-    // Perform the transition
+    // Cache transition info before any callbacks
     mrb_sym from = machine->current_state;
     mrb_sym to = trans->target_state;
-    perform_transition(mrb, *machine, from, to);
+    mrb_value condition = trans->condition;
+
+    // Check condition if present (pass handle, not reference, to avoid invalidation)
+    if (!mrb_nil_p(condition)) {
+        if (!check_condition(mrb, handle, condition)) {
+            return false;  // Condition not met or machine destroyed
+        }
+        // Re-get machine after condition check (callback might have changed things)
+        machine = get(handle);
+        if (!machine || !machine->active) return false;
+    }
+
+    // Perform the transition (using handle, not reference)
+    perform_transition(mrb, handle, from, to);
     return true;
 }
 
@@ -74,105 +82,124 @@ void StateMachineManager::set_state(mrb_state* mrb, StateMachineHandle handle, m
     }
 
     mrb_sym from = machine->current_state;
-    perform_transition(mrb, *machine, from, state);
+    perform_transition(mrb, handle, from, state);
 }
 
-void StateMachineManager::perform_transition(mrb_state* mrb, StateMachineState& machine,
+void StateMachineManager::perform_transition(mrb_state* mrb, StateMachineHandle handle,
                                              mrb_sym from_state, mrb_sym to_state) {
+    StateMachineState* machine = get(handle);
+    if (!machine) return;
+
+    // Cache owner before any operations that might trigger GC
+    mrb_value owner = machine->owner;
+    if (mrb_nil_p(owner)) return;
+
     // 1. Call exit callback on current state (if we have a current state)
     if (from_state != 0) {
-        StateDefinition* from_def = machine.get_state_def(from_state);
+        StateDefinition* from_def = machine->get_state_def(from_state);
         if (from_def && !mrb_nil_p(from_def->exit_callback)) {
-            invoke_callback(mrb, from_def->exit_callback, machine.owner);
+            // Cache callback before call (in case machine gets invalidated)
+            mrb_value exit_cb = from_def->exit_callback;
+            invoke_callback(mrb, exit_cb, owner);
+            // Re-get machine pointer after callback (it might have been moved)
+            machine = get(handle);
+            if (!machine) return;
         }
     }
 
     // 2. Stop current animation
-    stop_current_animation(/* need handle */ INVALID_HANDLE);
+    stop_current_animation(handle);
+
+    // Re-get machine after stop_current_animation
+    machine = get(handle);
+    if (!machine) return;
 
     // 3. Update current state
-    machine.current_state = to_state;
+    machine->current_state = to_state;
 
     // 4. Start animation for new state (if defined)
-    StateDefinition* to_def = machine.get_state_def(to_state);
+    StateDefinition* to_def = machine->get_state_def(to_state);
     if (to_def) {
         if (to_def->animation_name != 0) {
-            // Find the handle for this machine
-            for (auto& [h, m] : machines_) {
-                if (&m == &machine) {
-                    play_animation(mrb, h, to_def->animation_name);
-                    break;
-                }
-            }
+            play_animation(mrb, handle, to_def->animation_name);
+            // Re-get machine after play_animation
+            machine = get(handle);
+            if (!machine) return;
+            to_def = machine->get_state_def(to_state);
+            if (!to_def) return;
         }
 
         // 5. Call enter callback
         if (!mrb_nil_p(to_def->enter_callback)) {
-            invoke_callback(mrb, to_def->enter_callback, machine.owner);
+            // Cache callback before call
+            mrb_value enter_cb = to_def->enter_callback;
+            invoke_callback(mrb, enter_cb, owner);
         }
     }
 }
 
-bool StateMachineManager::check_condition(mrb_state* mrb, StateMachineState& machine,
-                                          const TransitionDefinition& trans) {
-    if (mrb_nil_p(trans.condition)) return true;
+bool StateMachineManager::check_condition(mrb_state* mrb, StateMachineHandle handle, mrb_value condition) {
+    // Early return if no condition
+    if (mrb_nil_p(condition)) return true;
 
-    // Execute the condition proc in the owner's context using instance_exec
-    mrb_value result = mrb_funcall(mrb, machine.owner, "instance_exec",
-                                   1, trans.condition);
+    // Get machine fresh (don't use stale references)
+    StateMachineState* machine = get(handle);
+    if (!machine) return false;  // Machine destroyed, don't transition
+    if (mrb_nil_p(machine->owner)) return true;  // No owner, allow transition
 
-    if (mrb->exc) {
-        // Clear exception and treat as false
-        mrb->exc = nullptr;
-        return false;
-    }
+    // Cache owner before callback (owner is GC-protected via ruby_machine_obj's @owner)
+    mrb_value owner = machine->owner;
 
+    // Execute the condition proc in the owner's context using instance_exec (protected)
+    // IMPORTANT: Must use safe_instance_exec - mrb_funcall_with_block for proper block passing
+    // Note: After this call, machine pointer may be invalid (don't use it)
+    mrb_value result = scripting::safe_instance_exec(mrb, owner, condition);
     return mrb_test(result);
 }
 
 void StateMachineManager::invoke_callback(mrb_state* mrb, mrb_value callback, mrb_value owner) {
     if (mrb_nil_p(callback)) return;
+    if (mrb_nil_p(owner)) return;  // Safety check - owner must be valid
 
-    // Execute the callback proc in the owner's context using instance_exec
-    mrb_funcall(mrb, owner, "instance_exec", 1, callback);
-
-    if (mrb->exc) {
-        // Clear exception silently
-        mrb->exc = nullptr;
-    }
+    // Execute the callback proc in the owner's context using instance_exec (protected)
+    // IMPORTANT: Must use safe_instance_exec - mrb_funcall_with_block for proper block passing
+    scripting::safe_instance_exec(mrb, owner, callback);
 }
 
 // ============================================================================
 // Sprite Detection
 // ============================================================================
 
-// Forward declaration for sprite data extraction
-struct SpriteBindingData {
-    SpriteHandle handle;
-};
-
 void StateMachineManager::detect_sprite(mrb_state* mrb, StateMachineHandle handle) {
     StateMachineState* machine = get(handle);
     if (!machine) return;
 
-    // Try to get @sprite instance variable from owner
-    mrb_value sprite_val = mrb_iv_get(mrb, machine->owner, mrb_intern_lit(mrb, "@sprite"));
-    if (mrb_nil_p(sprite_val)) {
-        machine->sprite_handle = INVALID_HANDLE;
+    // Default to invalid - sprite detection is optional
+    machine->sprite_handle = INVALID_HANDLE;
+
+    // Check if owner is valid
+    if (mrb_nil_p(machine->owner)) {
         return;
     }
 
-    // Store sprite reference
+    // Try to get @sprite instance variable from owner
+    // This is optional - state machine works without a sprite
+    mrb_value sprite_val = mrb_iv_get(mrb, machine->owner, mrb_intern_lit(mrb, "@sprite"));
+    if (mrb_nil_p(sprite_val)) {
+        return;
+    }
+
+    // Store sprite reference for GC protection
     machine->sprite_ref = sprite_val;
 
-    // Extract SpriteHandle from Ruby Sprite object
-    void* ptr = mrb_data_get_ptr(mrb, sprite_val, nullptr);
-    if (ptr) {
-        SpriteBindingData* data = static_cast<SpriteBindingData*>(ptr);
-        machine->sprite_handle = data->handle;
-    } else {
-        machine->sprite_handle = INVALID_HANDLE;
+    // Also store in instance variable on the machine wrapper for GC protection
+    if (!mrb_nil_p(machine->ruby_machine_obj)) {
+        mrb_iv_set(mrb, machine->ruby_machine_obj,
+            mrb_intern_cstr(mrb, "@_sprite_ref"), sprite_val);
     }
+
+    // For now, don't try to extract the handle - we can add this later if needed
+    // The state machine can work without direct sprite handle access
 }
 
 // ============================================================================
@@ -187,12 +214,20 @@ struct SpriteAnimationBindingData {
 void StateMachineManager::cache_animations(mrb_state* mrb, StateMachineHandle handle) {
     StateMachineState* machine = get(handle);
     if (!machine) return;
+    if (mrb_nil_p(machine->owner)) return;  // Owner must be valid
 
     // Try to get @animations hash from owner
     mrb_value anims_hash = mrb_iv_get(mrb, machine->owner, mrb_intern_lit(mrb, "@animations"));
     if (mrb_nil_p(anims_hash) || !mrb_hash_p(anims_hash)) {
         return;  // No @animations hash, that's okay
     }
+
+    // Get the SpriteAnimation class for type validation
+    // This prevents type confusion crashes if @animations contains non-SpriteAnimation objects
+    RClass* gmr_module = mrb_module_get(mrb, "GMR");
+    if (!gmr_module) return;
+    RClass* sprite_anim_class = mrb_class_get_under(mrb, gmr_module, "SpriteAnimation");
+    if (!sprite_anim_class) return;
 
     // Iterate over all states that have animation names
     for (auto& [state_sym, state_def] : machine->states) {
@@ -204,7 +239,15 @@ void StateMachineManager::cache_animations(mrb_state* mrb, StateMachineHandle ha
 
         if (mrb_nil_p(anim_val)) continue;
 
-        // Extract SpriteAnimationHandle from Ruby SpriteAnimation object
+        // TYPE SAFETY: Verify this is actually a SpriteAnimation before extracting data
+        // This prevents crashes from type confusion (e.g., @animations[:idle] = "wrong type")
+        if (!mrb_obj_is_kind_of(mrb, anim_val, sprite_anim_class)) {
+            continue;  // Skip non-SpriteAnimation values
+        }
+
+        // Now safe to extract - we know it's the correct type
+        // Still use nullptr for data_type since sprite_animation_data_type is static in another file
+        // but the class check above ensures type safety
         void* ptr = mrb_data_get_ptr(mrb, anim_val, nullptr);
         if (ptr) {
             SpriteAnimationBindingData* data = static_cast<SpriteAnimationBindingData*>(ptr);
@@ -262,17 +305,39 @@ void StateMachineManager::stop_current_animation(StateMachineHandle handle) {
 void StateMachineManager::update(mrb_state* mrb, float dt) {
     (void)dt;  // State machines are event-driven, no time-based updates
 
-    // Initialize machines that haven't entered initial state yet
-    for (auto& [handle, machine] : machines_) {
+    // Collect handles to process FIRST (NOT references - safe if map is modified)
+    // This prevents iterator invalidation when callbacks create/destroy state machines
+    std::vector<StateMachineHandle> handles_to_init;
+    for (const auto& [handle, machine] : machines_) {
         if (machine.active && !machine.initialized && machine.initial_state != 0) {
-            // Detect sprite if not already set
-            if (machine.sprite_handle == INVALID_HANDLE) {
-                detect_sprite(mrb, handle);
-            }
+            handles_to_init.push_back(handle);
+        }
+    }
 
-            // Enter initial state
-            set_state(mrb, handle, machine.initial_state);
-            machine.initialized = true;
+    // Process collected handles (safe even if map is modified during callbacks)
+    for (StateMachineHandle handle : handles_to_init) {
+        StateMachineState* machine = get(handle);
+        if (!machine || machine->initialized) continue;  // Skip if destroyed or already done
+
+        // Detect sprite if not already set
+        if (machine->sprite_handle == INVALID_HANDLE) {
+            detect_sprite(mrb, handle);
+        }
+
+        // Re-get after detect_sprite (might have triggered GC/map modification)
+        machine = get(handle);
+        if (!machine) continue;
+
+        // Cache initial_state before set_state (callbacks could modify machine)
+        mrb_sym initial = machine->initial_state;
+
+        // Enter initial state
+        set_state(mrb, handle, initial);
+
+        // Re-get after set_state (callbacks might have modified map)
+        machine = get(handle);
+        if (machine) {
+            machine->initialized = true;
         }
     }
 }

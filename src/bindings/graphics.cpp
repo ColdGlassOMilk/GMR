@@ -380,7 +380,9 @@ static void texture_free(mrb_state* mrb, void* ptr) {
     mrb_free(mrb, ptr);
 }
 
-static const mrb_data_type texture_data_type = {
+// NOTE: extern const - exported for type-safe mrb_data_get_ptr in other bindings
+// (e.g., sprite.cpp needs to extract TextureHandle from Texture objects)
+extern const mrb_data_type texture_data_type = {
     "GMR::Graphics::Texture", texture_free
 };
 

@@ -1,6 +1,8 @@
 #include "gmr/bindings/node.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/node.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/array.h>
@@ -167,9 +169,11 @@ static NodeData* get_node_data(mrb_state* mrb, mrb_value self) {
     return static_cast<NodeData*>(mrb_data_get_ptr(mrb, self, &node_data_type));
 }
 
-// Helper: Create Vec2 Ruby Object
+// Helper: Create Vec2 Ruby Object (GMR::Mathf::Vec2)
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -180,8 +184,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -192,6 +196,24 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
 
 // Store RClass pointer for creating Node objects from C
 static RClass* node_class_ptr = nullptr;
+
+// Helper: Create Ruby Node wrapper for an existing handle without calling initialize
+// This avoids the wasteful pattern of: create -> destroy -> reassign
+static mrb_value wrap_existing_node(mrb_state* mrb, NodeHandle handle) {
+    if (!node_class_ptr || handle == INVALID_NODE_HANDLE) {
+        return mrb_nil_value();
+    }
+
+    // Allocate Ruby object without calling initialize
+    mrb_value obj = mrb_obj_value(mrb_obj_alloc(mrb, MRB_TT_CDATA, node_class_ptr));
+
+    // Allocate and initialize wrapper data
+    NodeData* data = static_cast<NodeData*>(mrb_malloc(mrb, sizeof(NodeData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &node_data_type);
+
+    return obj;
+}
 
 // ============================================================================
 // Constructor
@@ -272,16 +294,8 @@ static mrb_value mrb_node_parent(mrb_state* mrb, mrb_value self) {
     NodeHandle parent_handle = NodeManager::instance().get_handle(node->parent);
     if (parent_handle == INVALID_NODE_HANDLE) return mrb_nil_value();
 
-    // Create a new Ruby Node wrapper for the parent
-    mrb_value parent_obj = mrb_obj_new(mrb, node_class_ptr, 0, nullptr);
-    NodeData* parent_data = get_node_data(mrb, parent_obj);
-    if (parent_data) {
-        // The initialize created a new node, destroy it and use the real one
-        NodeManager::instance().destroy(parent_data->handle);
-        parent_data->handle = parent_handle;
-    }
-
-    return parent_obj;
+    // Create Ruby wrapper for existing node (no wasteful create/destroy)
+    return wrap_existing_node(mrb, parent_handle);
 }
 
 /// @method children
@@ -301,13 +315,11 @@ static mrb_value mrb_node_children(mrb_state* mrb, mrb_value self) {
         NodeHandle child_handle = NodeManager::instance().get_handle(node->children[i]);
         if (child_handle == INVALID_NODE_HANDLE) continue;
 
-        mrb_value child_obj = mrb_obj_new(mrb, node_class_ptr, 0, nullptr);
-        NodeData* child_data = get_node_data(mrb, child_obj);
-        if (child_data) {
-            NodeManager::instance().destroy(child_data->handle);
-            child_data->handle = child_handle;
+        // Create Ruby wrapper for existing node (no wasteful create/destroy)
+        mrb_value child_obj = wrap_existing_node(mrb, child_handle);
+        if (!mrb_nil_p(child_obj)) {
+            mrb_ary_push(mrb, children_array, child_obj);
         }
-        mrb_ary_push(mrb, children_array, child_obj);
     }
 
     return children_array;
@@ -560,7 +572,10 @@ static mrb_value mrb_node_class_update_world_transforms(mrb_state* mrb, mrb_valu
 // ============================================================================
 
 void register_node(mrb_state* mrb) {
-    RClass* node_class = mrb_define_class(mrb, "Node", mrb->object_class);
+    // Node class under GMR::Core
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* core = mrb_module_get_under(mrb, gmr, "Core");
+    RClass* node_class = mrb_define_class_under(mrb, core, "Node", mrb->object_class);
     MRB_SET_INSTANCE_TT(node_class, MRB_TT_CDATA);
     node_class_ptr = node_class;
 

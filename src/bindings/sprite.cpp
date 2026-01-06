@@ -4,6 +4,7 @@
 #include "gmr/transform.hpp"
 #include "gmr/draw_queue.hpp"
 #include "gmr/resources/texture_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/types.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -136,7 +137,10 @@ static void sprite_free(mrb_state* mrb, void* ptr) {
     }
 }
 
-static const mrb_data_type sprite_data_type = {
+// NOTE: extern const - exported for type-safe mrb_data_get_ptr in other bindings
+// In C++, const at namespace scope has internal linkage by default, so we need
+// explicit extern to allow other translation units to link against this symbol.
+extern const mrb_data_type sprite_data_type = {
     "Sprite", sprite_free
 };
 
@@ -149,7 +153,9 @@ static SpriteData* get_sprite_data(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -163,8 +169,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -185,10 +191,10 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym) &&
         mrb_respond_to(mrb, val, w_sym) && mrb_respond_to(mrb, val, h_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
-        mrb_value w = mrb_funcall(mrb, val, "w", 0);
-        mrb_value h = mrb_funcall(mrb, val, "h", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
+        mrb_value w = scripting::safe_method_call(mrb, val, "w");
+        mrb_value h = scripting::safe_method_call(mrb, val, "h");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y)),
                 static_cast<float>(mrb_as_float(mrb, w)),
@@ -212,6 +218,23 @@ static TransformHandle get_transform_handle(mrb_state* mrb, mrb_value val) {
     void* ptr = mrb_data_get_ptr(mrb, val, nullptr);
     if (ptr) {
         TransformData* data = static_cast<TransformData*>(ptr);
+        return data->handle;
+    }
+    return INVALID_HANDLE;
+}
+
+// Forward declaration for texture data type (defined in graphics.cpp)
+extern const mrb_data_type texture_data_type;
+
+// Helper to get TextureHandle from Ruby Texture object
+static TextureHandle get_texture_handle_from_value(mrb_state* mrb, mrb_value texture_val) {
+    struct TextureData {
+        TextureHandle handle;
+    };
+
+    void* ptr = mrb_data_get_ptr(mrb, texture_val, &texture_data_type);
+    if (ptr) {
+        TextureData* data = static_cast<TextureData*>(ptr);
         return data->handle;
     }
     return INVALID_HANDLE;
@@ -244,12 +267,12 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
     SpriteHandle handle = SpriteManager::instance().create();
     SpriteState* s = SpriteManager::instance().get(handle);
 
-    // Get texture handle from Ruby Texture object
-    // Texture objects store handle in @handle instance variable
-    mrb_sym handle_sym = mrb_intern_cstr(mrb, "@handle");
-    mrb_value handle_val = mrb_iv_get(mrb, texture_val, handle_sym);
-    if (!mrb_nil_p(handle_val)) {
-        s->texture = static_cast<TextureHandle>(mrb_fixnum(handle_val));
+    // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
+    s->texture = get_texture_handle_from_value(mrb, texture_val);
+    if (s->texture == INVALID_HANDLE) {
+        SpriteManager::instance().destroy(handle);
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid or nil texture object passed to Sprite.new");
+        return mrb_nil_value();
     }
 
     // Parse keyword arguments
@@ -819,12 +842,13 @@ static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
     SpriteState* s = SpriteManager::instance().get(data->handle);
     if (!s) return mrb_nil_value();
 
-    // Get texture handle from Ruby Texture object
-    mrb_sym handle_sym = mrb_intern_cstr(mrb, "@handle");
-    mrb_value handle_val = mrb_iv_get(mrb, texture_val, handle_sym);
-    if (!mrb_nil_p(handle_val)) {
-        s->texture = static_cast<TextureHandle>(mrb_fixnum(handle_val));
+    // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
+    TextureHandle tex_handle = get_texture_handle_from_value(mrb, texture_val);
+    if (tex_handle == INVALID_HANDLE) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid or nil texture object");
+        return mrb_nil_value();
     }
+    s->texture = tex_handle;
 
     // Store texture reference to prevent GC
     mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@texture"), texture_val);
@@ -842,7 +866,9 @@ static mrb_value mrb_sprite_source_rect(mrb_state* mrb, mrb_value self) {
     SpriteState* s = SpriteManager::instance().get(data->handle);
     if (!s || !s->use_source_rect) return mrb_nil_value();
 
-    RClass* rect_class = mrb_class_get(mrb, "Rect");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* rect_class = mrb_class_get_under(mrb, graphics, "Rect");
     mrb_value args[4] = {
         mrb_float_value(mrb, s->source_rect.x),
         mrb_float_value(mrb, s->source_rect.y),
@@ -1032,8 +1058,8 @@ static mrb_value mrb_sprite_play_animation(mrb_state* mrb, mrb_value self) {
     mrb_value args[2] = { self, kwargs };
     mrb_value anim = mrb_obj_new(mrb, anim_class, 2, args);
 
-    // Call play on the animation
-    mrb_funcall(mrb, anim, "play", 0);
+    // Call play on the animation (protected)
+    scripting::safe_method_call(mrb, anim, "play");
 
     return anim;
 }
@@ -1043,8 +1069,10 @@ static mrb_value mrb_sprite_play_animation(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 void register_sprite(mrb_state* mrb) {
-    // Sprite class (top-level)
-    RClass* sprite_class = mrb_define_class(mrb, "Sprite", mrb->object_class);
+    // Sprite class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* sprite_class = mrb_define_class_under(mrb, graphics, "Sprite", mrb->object_class);
     MRB_SET_INSTANCE_TT(sprite_class, MRB_TT_CDATA);
 
     // Constructor

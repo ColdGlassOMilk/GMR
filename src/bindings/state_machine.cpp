@@ -2,6 +2,7 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/input/input_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
@@ -283,6 +284,10 @@ static RClass* state_machine_class = nullptr;
 static RClass* builder_class = nullptr;
 
 static mrb_value create_machine_object(mrb_state* mrb, StateMachineHandle handle) {
+    if (!state_machine_class) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "StateMachine class not initialized");
+        return mrb_nil_value();
+    }
     mrb_value obj = mrb_obj_new(mrb, state_machine_class, 0, nullptr);
 
     StateMachineData* data = static_cast<StateMachineData*>(
@@ -294,6 +299,10 @@ static mrb_value create_machine_object(mrb_state* mrb, StateMachineHandle handle
 }
 
 static mrb_value create_builder_object(mrb_state* mrb, StateMachineHandle handle) {
+    if (!builder_class) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Builder class not initialized");
+        return mrb_nil_value();
+    }
     mrb_value obj = mrb_obj_new(mrb, builder_class, 0, nullptr);
 
     BuilderData* data = static_cast<BuilderData*>(
@@ -303,6 +312,47 @@ static mrb_value create_builder_object(mrb_state* mrb, StateMachineHandle handle
     mrb_data_init(obj, data, &builder_data_type);
 
     return obj;
+}
+
+// ============================================================================
+// Helper: GC-Safe Callback Storage
+// ============================================================================
+
+// Safely store a callback in the machine's @_callbacks array for GC protection.
+// This function handles null checks and arena protection to prevent GC race conditions.
+static void store_callback_for_gc_protection(mrb_state* mrb, StateMachineHandle handle, mrb_value callback) {
+    if (mrb_nil_p(callback)) return;
+
+    // Get machine fresh (not from stale pointer)
+    state_machine::StateMachineState* machine =
+        state_machine::StateMachineManager::instance().get(handle);
+    if (!machine) return;
+
+    // Validate machine wrapper exists before any mruby operations
+    if (mrb_nil_p(machine->ruby_machine_obj)) return;
+
+    // Use arena to protect temporary objects during this sequence
+    int arena_idx = mrb_gc_arena_save(mrb);
+
+    // Get or create the callbacks array
+    mrb_value callbacks_arr = mrb_iv_get(mrb, machine->ruby_machine_obj,
+        mrb_intern_cstr(mrb, "@_callbacks"));
+
+    if (mrb_nil_p(callbacks_arr)) {
+        callbacks_arr = mrb_ary_new(mrb);
+        // Re-validate machine after mrb_ary_new (could trigger GC)
+        machine = state_machine::StateMachineManager::instance().get(handle);
+        if (!machine || mrb_nil_p(machine->ruby_machine_obj)) {
+            mrb_gc_arena_restore(mrb, arena_idx);
+            return;
+        }
+        mrb_iv_set(mrb, machine->ruby_machine_obj,
+            mrb_intern_cstr(mrb, "@_callbacks"), callbacks_arr);
+    }
+
+    mrb_ary_push(mrb, callbacks_arr, callback);
+
+    mrb_gc_arena_restore(mrb, arena_idx);
 }
 
 // ============================================================================
@@ -320,20 +370,25 @@ static mrb_value mrb_state_machine_attach(mrb_state* mrb, mrb_value) {
 
     auto& manager = state_machine::StateMachineManager::instance();
     StateMachineHandle handle = manager.create();
+
     state_machine::StateMachineState* machine = manager.get(handle);
+    if (!machine) {
+        return mrb_nil_value();
+    }
 
     machine->owner = owner;
 
-    // Auto-detect sprite from @sprite
-    manager.detect_sprite(mrb, handle);
-
-    // Create Ruby wrapper object
+    // Create Ruby wrapper object FIRST (before any mruby calls that could trigger GC)
     mrb_value machine_obj = create_machine_object(mrb, handle);
+
     machine->ruby_machine_obj = machine_obj;
     mrb_gc_register(mrb, machine_obj);
 
-    // Store owner reference to prevent GC
+    // Store owner reference to prevent GC (NOW safe - wrapper is registered)
     mrb_iv_set(mrb, machine_obj, mrb_intern_cstr(mrb, "@owner"), owner);
+
+    // Auto-detect sprite from @sprite (AFTER GC protection is in place)
+    manager.detect_sprite(mrb, handle);
 
     // Create DSL builder and call block
     mrb_value builder = create_builder_object(mrb, handle);
@@ -342,7 +397,17 @@ static mrb_value mrb_state_machine_attach(mrb_state* mrb, mrb_value) {
     mrb_iv_set(mrb, machine_obj, mrb_intern_cstr(mrb, "@_builder"), builder);
 
     if (!mrb_nil_p(block)) {
-        mrb_yield(mrb, block, builder);
+        // Execute block with builder as 'self' using instance_exec
+        // This allows DSL methods like 'state' to be called on the builder
+        // IMPORTANT: Must use safe_instance_exec, not safe_method_call with block as arg
+        scripting::safe_instance_exec(mrb, builder, block);
+    }
+
+    // Re-get machine pointer after executing Ruby code (GC might have moved things)
+    machine = manager.get(handle);
+    if (!machine) {
+        // Machine was destroyed during DSL execution - this is an error
+        return mrb_nil_value();
     }
 
     // Set initial state to first defined state if not set
@@ -457,11 +522,15 @@ static mrb_value mrb_builder_state(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n&", &name, &block);
 
     BuilderData* data = get_builder_data(mrb, self);
-    if (!data) return self;
+    if (!data) {
+        return self;
+    }
 
     state_machine::StateMachineState* machine =
         state_machine::StateMachineManager::instance().get(data->machine_handle);
-    if (!machine) return self;
+    if (!machine) {
+        return self;
+    }
 
     // Create state definition
     state_machine::StateDefinition state_def;
@@ -478,7 +547,10 @@ static mrb_value mrb_builder_state(mrb_state* mrb, mrb_value self) {
 
     // Call block to define state behavior
     if (!mrb_nil_p(block)) {
-        mrb_yield(mrb, block, self);
+        // Execute block with builder as 'self' using instance_exec
+        // This allows DSL methods like 'on', 'enter', 'exit' to be called
+        // IMPORTANT: Must use safe_instance_exec, not safe_method_call with block as arg
+        scripting::safe_instance_exec(mrb, self, block);
     }
 
     data->current_state = 0;
@@ -556,6 +628,9 @@ static mrb_value mrb_builder_on(mrb_state* mrb, mrb_value self) {
             mrb_symbol_value(mrb_intern_lit(mrb, "if")));
         if (!mrb_nil_p(if_val)) {
             trans.condition = if_val;
+
+            // GC protect condition using safe helper (handles arena and null checks)
+            store_callback_for_gc_protection(mrb, data->machine_handle, if_val);
         }
     }
 
@@ -589,8 +664,11 @@ static mrb_value mrb_builder_enter(mrb_state* mrb, mrb_value self) {
     if (!machine) return self;
 
     state_machine::StateDefinition* state_def = machine->get_state_def(data->current_state);
-    if (state_def) {
+    if (state_def && !mrb_nil_p(block)) {
         state_def->enter_callback = block;
+
+        // GC protect callback using safe helper (handles arena and null checks)
+        store_callback_for_gc_protection(mrb, data->machine_handle, block);
     }
 
     return self;
@@ -630,8 +708,11 @@ static mrb_value mrb_builder_exit(mrb_state* mrb, mrb_value self) {
     if (!machine) return self;
 
     state_machine::StateDefinition* state_def = machine->get_state_def(data->current_state);
-    if (state_def) {
+    if (state_def && !mrb_nil_p(block)) {
         state_def->exit_callback = block;
+
+        // GC protect callback using safe helper (handles arena and null checks)
+        store_callback_for_gc_protection(mrb, data->machine_handle, block);
     }
 
     return self;
@@ -681,6 +762,9 @@ static mrb_value mrb_builder_on_input(mrb_state* mrb, mrb_value self) {
             mrb_symbol_value(mrb_intern_lit(mrb, "if")));
         if (!mrb_nil_p(if_val)) {
             binding.condition = if_val;
+
+            // GC protect condition using safe helper (handles arena and null checks)
+            store_callback_for_gc_protection(mrb, data->machine_handle, if_val);
         }
     }
 
@@ -746,6 +830,10 @@ static void register_input_binding_with_phase(
 // Create a pending transition object
 static mrb_value create_pending_transition(mrb_state* mrb, BuilderData* builder,
                                             const std::string& action, bool forced) {
+    if (!pending_transition_class) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "PendingTransition class not initialized");
+        return mrb_nil_value();
+    }
     mrb_value obj = mrb_obj_new(mrb, pending_transition_class, 0, nullptr);
 
     void* ptr = mrb_malloc(mrb, sizeof(PendingTransitionData));
@@ -960,12 +1048,23 @@ static mrb_value mrb_object_state_machine(mrb_state* mrb, mrb_value self) {
     }
 
     // Otherwise, create new state machine with block
-    RClass* gmr = get_gmr_module(mrb);
-    RClass* sm_class = mrb_class_get_under(mrb, gmr, "StateMachine");
+    // Use the static class pointer directly (already initialized during registration)
+    if (!state_machine_class) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "StateMachine class not initialized");
+        return mrb_nil_value();
+    }
 
     mrb_value args[1] = { self };
-    return mrb_funcall_with_block(mrb, mrb_obj_value(sm_class),
+    mrb_value result = mrb_funcall_with_block(mrb, mrb_obj_value(state_machine_class),
         mrb_intern_lit(mrb, "attach"), 1, args, block);
+
+    // Check for exception from attach call
+    if (mrb->exc) {
+        scripting::check_error(mrb, "state_machine");
+        return mrb_nil_value();
+    }
+
+    return result;
 }
 
 // ============================================================================
@@ -974,9 +1073,10 @@ static mrb_value mrb_object_state_machine(mrb_state* mrb, mrb_value self) {
 
 void register_state_machine(mrb_state* mrb) {
     RClass* gmr = get_gmr_module(mrb);
+    RClass* core = mrb_module_get_under(mrb, gmr, "Core");
 
-    // GMR::StateMachine class
-    state_machine_class = mrb_define_class_under(mrb, gmr, "StateMachine", mrb->object_class);
+    // GMR::Core::StateMachine class
+    state_machine_class = mrb_define_class_under(mrb, core, "StateMachine", mrb->object_class);
     MRB_SET_INSTANCE_TT(state_machine_class, MRB_TT_CDATA);
 
     // Class methods
