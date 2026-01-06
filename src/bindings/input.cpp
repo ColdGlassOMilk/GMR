@@ -15,17 +15,105 @@ namespace bindings {
 /// @description Handles keyboard, mouse, and action-based input. Supports both raw input
 ///   polling and an action mapping system for game-agnostic input handling.
 ///   Actions can be queried, have callbacks attached, and be organized into contexts.
-/// @example # Raw input polling
-///   if GMR::Input.key_pressed?(:space)
-///     player.jump
+/// @example # Complete game input setup with contexts for gameplay and menus
+///   class GameScene < GMR::Scene
+///     def init
+///       # Define global gameplay actions
+///       input do |i|
+///         i.move_left [:a, :left]
+///         i.move_right [:d, :right]
+///         i.move_up [:w, :up]
+///         i.move_down [:s, :down]
+///         i.jump :space
+///         i.attack :z, mouse: :left
+///         i.interact :e
+///         i.pause :escape
+///       end
+///
+///       # Define menu-specific context
+///       input_context :menu do |i|
+///         i.confirm :enter
+///         i.cancel :escape
+///         i.nav_up :up
+///         i.nav_down :down
+///       end
+///
+///       # Register callbacks
+///       GMR::Input.on(:pause) { toggle_pause }
+///       GMR::Input.on(:interact) { check_nearby_objects }
+///
+///       @player = Player.new
+///     end
+///
+///     def toggle_pause
+///       if @paused
+///         GMR::Input.pop_context
+///         @paused = false
+///       else
+///         GMR::Input.push_context(:menu)
+///         SceneManager.add_overlay(PauseOverlay.new)
+///         @paused = true
+///       end
+///     end
+///
+///     def update(dt)
+///       return if @paused
+///
+///       # Movement using action queries
+///       dx = 0
+///       dy = 0
+///       dx -= 1 if GMR::Input.action_down?(:move_left)
+///       dx += 1 if GMR::Input.action_down?(:move_right)
+///       dy -= 1 if GMR::Input.action_down?(:move_up)
+///       dy += 1 if GMR::Input.action_down?(:move_down)
+///       @player.move(dx, dy, dt)
+///
+///       # Discrete actions
+///       @player.jump if GMR::Input.action_pressed?(:jump)
+///       @player.attack if GMR::Input.action_pressed?(:attack)
+///     end
 ///   end
-/// @example # Action-based input
-///   input do |i|
-///     i.jump :space
-///     i.attack :z, mouse: :left
+/// @example # Mouse-based aiming and shooting
+///   class Turret
+///     def update(dt)
+///       # Aim at mouse position
+///       mx = GMR::Input.mouse_x
+///       my = GMR::Input.mouse_y
+///       @rotation = Math.atan2(my - @y, mx - @x)
+///
+///       # Fire on click
+///       if GMR::Input.mouse_pressed?(:left)
+///         fire_bullet(@rotation)
+///       end
+///
+///       # Zoom with scroll wheel
+///       zoom_delta = GMR::Input.mouse_wheel
+///       @camera.zoom += zoom_delta * 0.1 if zoom_delta != 0
+///     end
 ///   end
-///   if GMR::Input.action_pressed?(:jump)
-///     player.jump
+/// @example # Text input handling
+///   class TextInput
+///     def initialize
+///       @text = ""
+///       @cursor = 0
+///     end
+///
+///     def update(dt)
+///       # Handle character input
+///       char = GMR::Input.char_pressed
+///       if char
+///         @text.insert(@cursor, char.chr(Encoding::UTF_8))
+///         @cursor += 1
+///       end
+///
+///       # Handle special keys
+///       if GMR::Input.key_pressed?(:backspace) && @cursor > 0
+///         @text.slice!(@cursor - 1)
+///         @cursor -= 1
+///       end
+///       @cursor -= 1 if GMR::Input.key_pressed?(:left) && @cursor > 0
+///       @cursor += 1 if GMR::Input.key_pressed?(:right) && @cursor < @text.length
+///     end
 ///   end
 
 // ============================================================================

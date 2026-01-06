@@ -39,8 +39,115 @@ namespace bindings {
 /// @module GMR::System
 /// @description System utilities and build information. Provides random number generation,
 ///   platform detection, GPU information, and error state queries.
-/// @example puts "Running on #{GMR::System.platform}"
-///   puts "GPU: #{GMR::System.gpu_renderer}"
+/// @example # Random enemy spawning with varied attributes
+///   class EnemySpawner
+///     ENEMY_TYPES = [:goblin, :skeleton, :orc, :demon]
+///
+///     def spawn_wave(count)
+///       count.times do
+///         # Random spawn position on screen edges
+///         edge = GMR::System.random_int(0, 3)
+///         case edge
+///         when 0 then x, y = GMR::System.random_int(0, 800), 0        # Top
+///         when 1 then x, y = 800, GMR::System.random_int(0, 600)      # Right
+///         when 2 then x, y = GMR::System.random_int(0, 800), 600      # Bottom
+///         when 3 then x, y = 0, GMR::System.random_int(0, 600)        # Left
+///         end
+///
+///         # Random enemy type with weighted probability
+///         type_roll = GMR::System.random_float
+///         type = if type_roll < 0.4
+///           :goblin      # 40% chance
+///         elsif type_roll < 0.7
+///           :skeleton    # 30% chance
+///         elsif type_roll < 0.9
+///           :orc         # 20% chance
+///         else
+///           :demon       # 10% chance
+///         end
+///
+///         @enemies << Enemy.new(x, y, type)
+///       end
+///     end
+///   end
+/// @example # Platform-specific features
+///   class Game
+///     def init
+///       case GMR::System.platform
+///       when "web"
+///         # Disable features not available on web
+///         @allow_save_to_disk = false
+///         @fullscreen_key = nil  # Browser handles this
+///         puts "Running in browser mode"
+///       when "windows", "macos", "linux"
+///         @allow_save_to_disk = true
+///         @fullscreen_key = :f11
+///         puts "Running desktop version"
+///       end
+///
+///       # Debug features only in debug builds
+///       if GMR::System.build_type == "debug"
+///         @show_debug_overlay = true
+///         @invincible_mode = false
+///         puts "Debug build - press F3 for debug overlay"
+///       end
+///     end
+///   end
+/// @example # Error handling and recovery
+///   class ErrorScreen
+///     def init
+///       @error = GMR::System.last_error
+///     end
+///
+///     def update(dt)
+///       # Allow retry or quit
+///       if GMR::Input.key_pressed?(:r)
+///         GMR::SceneManager.load(TitleScene.new)  # Try to restart
+///       elsif GMR::Input.key_pressed?(:escape)
+///         GMR::System.quit
+///       end
+///     end
+///
+///     def draw
+///       GMR::Graphics.draw_rect(0, 0, 800, 600, [40, 0, 0])
+///       GMR::Graphics.draw_text("An error occurred!", 100, 50, 32, [255, 100, 100])
+///
+///       if @error
+///         GMR::Graphics.draw_text("#{@error[:class]}: #{@error[:message]}", 100, 120, 18, [255, 200, 200])
+///         GMR::Graphics.draw_text("at #{@error[:file]}:#{@error[:line]}", 100, 145, 14, [200, 200, 200])
+///
+///         y = 180
+///         @error[:backtrace].first(5).each do |line|
+///           GMR::Graphics.draw_text(line, 100, y, 12, [180, 180, 180])
+///           y += 16
+///         end
+///       end
+///
+///       GMR::Graphics.draw_text("[R] Retry   [ESC] Quit", 100, 500, 20, [200, 200, 200])
+///     end
+///   end
+/// @example # System info display for about screen
+///   class AboutScene < GMR::Scene
+///     def draw
+///       GMR::Graphics.draw_text("System Information", 100, 50, 28, [255, 255, 255])
+///
+///       y = 100
+///       info = [
+///         ["Platform", GMR::System.platform],
+///         ["Build", GMR::System.build_type],
+///         ["Raylib", GMR::System.raylib_version],
+///         ["GPU", GMR::System.gpu_renderer],
+///         ["OpenGL", GMR::System.gl_version],
+///         ["GLSL", GMR::System.glsl_version]
+///       ]
+///
+///       info.each do |label, value|
+///         GMR::Graphics.draw_text("#{label}:", 100, y, 16, [180, 180, 180])
+///         GMR::Graphics.draw_text(value, 200, y, 16, [255, 255, 255])
+///         y += 25
+///       end
+///     end
+///   end
 
 /// @function random_int
 /// @description Generate a random integer within an inclusive range.

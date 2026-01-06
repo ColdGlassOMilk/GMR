@@ -23,6 +23,68 @@ static const Color WHITE_COLOR{255, 255, 255, 255};
 
 /// @module GMR::Graphics
 /// @description Drawing primitives and texture management
+/// @example # Complete HUD system with health bar, score, and minimap
+///   class HUD
+///     def initialize(player)
+///       @player = player
+///       @font = GMR::Graphics::Font.load("assets/fonts/pixel.ttf", 16)
+///       @heart_icon = GMR::Graphics::Texture.load("assets/ui/heart.png")
+///     end
+///
+///     def draw
+///       # Health bar background
+///       GMR::Graphics.draw_rect(20, 20, 204, 24, [40, 40, 40])
+///       # Health bar fill (red to green gradient based on health)
+///       health_pct = @player.health / @player.max_health.to_f
+///       bar_color = [
+///         ((1.0 - health_pct) * 255).to_i,
+///         (health_pct * 255).to_i,
+///         0
+///       ]
+///       GMR::Graphics.draw_rect(22, 22, (200 * health_pct).to_i, 20, bar_color)
+///       GMR::Graphics.draw_rect_outline(20, 20, 204, 24, [200, 200, 200])
+///
+///       # Score display
+///       GMR::Graphics.draw_text("Score: #{@player.score}", 650, 20, 24, [255, 255, 255])
+///
+///       # Lives display with icons
+///       @player.lives.times do |i|
+///         GMR::Graphics.draw_texture(@heart_icon, 20 + i * 30, 50)
+///       end
+///     end
+///   end
+/// @example # Debug visualization overlay
+///   class DebugOverlay
+///     def draw
+///       return unless @debug_enabled
+///
+///       # FPS counter
+///       fps = GMR::Time.fps
+///       color = fps >= 55 ? [0, 255, 0] : (fps >= 30 ? [255, 255, 0] : [255, 0, 0])
+///       GMR::Graphics.draw_text("FPS: #{fps}", 10, 10, 16, color)
+///
+///       # Draw collision boxes
+///       @entities.each do |e|
+///         bounds = e.bounds
+///         GMR::Graphics.draw_rect_outline(bounds.x, bounds.y, bounds.w, bounds.h, [255, 0, 255])
+///       end
+///
+///       # Draw entity positions
+///       @entities.each do |e|
+///         GMR::Graphics.draw_circle(e.x, e.y, 3, [255, 255, 0])
+///       end
+///     end
+///   end
+/// @example # Custom progress bar with rounded corners effect
+///   def draw_progress_bar(x, y, width, height, progress, bg_color, fill_color)
+///     # Background
+///     GMR::Graphics.draw_rect(x, y, width, height, bg_color)
+///     # Fill
+///     fill_width = (width * progress).to_i
+///     GMR::Graphics.draw_rect(x, y, fill_width, height, fill_color) if fill_width > 0
+///     # Border
+///     GMR::Graphics.draw_rect_outline(x, y, width, height, [100, 100, 100])
+///   end
 
 /// @function clear
 /// @description Clear the screen with a solid color

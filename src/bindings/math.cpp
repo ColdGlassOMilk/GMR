@@ -14,10 +14,69 @@ namespace bindings {
 /// @class Vec2
 /// @description A 2D vector with x and y components. Used for positions, velocities,
 ///   and directions. Supports arithmetic operations (+, -, *, /).
-/// @example v = Vec2.new(100, 200)
-/// @example v2 = v + Vec2.new(10, 0)   # Add vectors
-/// @example v3 = v * 2.0               # Scale by 2
-/// @example puts v.x, v.y
+/// @example # Player movement with velocity
+///   class Player
+///     def initialize(x, y)
+///       @position = Vec2.new(x, y)
+///       @velocity = Vec2.new(0, 0)
+///       @acceleration = 500  # Pixels per second squared
+///       @max_speed = 200
+///       @friction = 0.9
+///     end
+///
+///     def update(dt)
+///       # Input direction as vector
+///       input = Vec2.new(0, 0)
+///       input = input + Vec2.new(-1, 0) if GMR::Input.key_down?(:left)
+///       input = input + Vec2.new(1, 0) if GMR::Input.key_down?(:right)
+///       input = input + Vec2.new(0, -1) if GMR::Input.key_down?(:up)
+///       input = input + Vec2.new(0, 1) if GMR::Input.key_down?(:down)
+///
+///       # Accelerate in input direction
+///       @velocity = @velocity + input * (@acceleration * dt)
+///
+///       # Apply friction
+///       @velocity = @velocity * @friction
+///
+///       # Clamp to max speed
+///       speed = Math.sqrt(@velocity.x ** 2 + @velocity.y ** 2)
+///       if speed > @max_speed
+///         @velocity = @velocity * (@max_speed / speed)
+///       end
+///
+///       # Update position
+///       @position = @position + @velocity * dt
+///     end
+///
+///     def draw
+///       @sprite.x = @position.x
+///       @sprite.y = @position.y
+///       @sprite.draw
+///     end
+///   end
+/// @example # Direction and distance calculations
+///   class Enemy
+///     def update_ai(player_pos, dt)
+///       # Vector from enemy to player
+///       to_player = player_pos - @position
+///       distance = Math.sqrt(to_player.x ** 2 + to_player.y ** 2)
+///
+///       if distance < 200 && distance > 0
+///         # Move toward player
+///         direction = to_player / distance  # Normalize
+///         @position = @position + direction * (@speed * dt)
+///       end
+///     end
+///   end
+/// @example # Camera smoothing with lerp
+///   class SmoothCamera
+///     def follow(target_pos, dt)
+///       # Lerp toward target position
+///       lerp_factor = 5.0 * dt  # Smoothing speed
+///       diff = target_pos - @position
+///       @position = @position + diff * lerp_factor
+///     end
+///   end
 
 struct Vec2Data {
     float x;
@@ -175,9 +234,45 @@ static mrb_value mrb_vec2_to_s(mrb_state* mrb, mrb_value self) {
 /// @class Vec3
 /// @description A 3D vector with x, y, and z components. Used for 3D positions,
 ///   colors (RGB), and other 3-component values. Supports arithmetic operations.
-/// @example v = Vec3.new(1, 2, 3)
-/// @example v2 = v + Vec3.new(1, 1, 1)  # Add vectors
-/// @example v3 = v * 0.5                 # Scale
+/// @example # Color manipulation for visual effects
+///   class ColorEffects
+///     def initialize
+///       @base_color = Vec3.new(255, 100, 50)  # Orange
+///       @target_color = Vec3.new(50, 100, 255)  # Blue
+///       @flash_color = Vec3.new(255, 255, 255)  # White
+///     end
+///
+///     # Lerp between two colors
+///     def lerp_color(from, to, t)
+///       diff = to - from
+///       from + diff * t
+///     end
+///
+///     # Flash white and return to base color
+///     def damage_flash(sprite, duration)
+///       # Start white, fade back to original
+///       @current_color = @flash_color
+///       GMR::Tween.to(self, :current_color, @base_color, duration: duration)
+///     end
+///
+///     def apply_color(sprite)
+///       sprite.color = [@current_color.x, @current_color.y, @current_color.z]
+///     end
+///   end
+/// @example # 3D position for parallax layers
+///   class ParallaxLayer
+///     def initialize(texture, depth)
+///       @texture = texture
+///       @position = Vec3.new(0, 0, depth)  # Z is depth for parallax factor
+///     end
+///
+///     def update(camera_x, camera_y)
+///       # Deeper layers move slower (lower Z = further back)
+///       parallax_factor = 1.0 / (@position.z + 1)
+///       @draw_x = -camera_x * parallax_factor
+///       @draw_y = -camera_y * parallax_factor
+///     end
+///   end
 
 struct Vec3Data {
     float x;
@@ -350,8 +445,72 @@ static mrb_value mrb_vec3_to_s(mrb_state* mrb, mrb_value self) {
 /// @class Rect
 /// @description A rectangle with position (x, y) and dimensions (w, h).
 ///   Used for bounds, source rectangles, collision areas, and UI layout.
-/// @example rect = Rect.new(10, 20, 100, 50)  # x, y, width, height
-/// @example puts rect.x, rect.y, rect.w, rect.h
+/// @example # Entity bounds for collision
+///   class Entity
+///     def initialize(x, y, width, height)
+///       @x, @y = x, y
+///       @width, @height = width, height
+///     end
+///
+///     def bounds
+///       Rect.new(@x, @y, @width, @height)
+///     end
+///
+///     def collides_with?(other)
+///       a = bounds
+///       b = other.bounds
+///       # AABB collision
+///       a.x < b.x + b.w && a.x + a.w > b.x &&
+///       a.y < b.y + b.h && a.y + a.h > b.y
+///     end
+///   end
+/// @example # Sprite sheet source rectangles
+///   class SpriteSheet
+///     def initialize(texture, tile_width, tile_height)
+///       @texture = texture
+///       @tile_w = tile_width
+///       @tile_h = tile_height
+///       @columns = (@texture.width / tile_width).to_i
+///     end
+///
+///     # Get source rect for a specific tile index
+///     def tile_rect(index)
+///       col = index % @columns
+///       row = index / @columns
+///       Rect.new(col * @tile_w, row * @tile_h, @tile_w, @tile_h)
+///     end
+///
+///     def draw_tile(index, x, y)
+///       src = tile_rect(index)
+///       GMR::Graphics.draw_texture_rec(@texture, src, x, y, [255, 255, 255])
+///     end
+///   end
+/// @example # UI layout helper
+///   class UILayoutHelper
+///     def initialize(container)
+///       @container = container  # Rect defining available space
+///       @padding = 10
+///     end
+///
+///     # Divide container into grid cells
+///     def grid_cell(row, col, rows, cols)
+///       cell_w = (@container.w - @padding * (cols + 1)) / cols
+///       cell_h = (@container.h - @padding * (rows + 1)) / rows
+///       x = @container.x + @padding + col * (cell_w + @padding)
+///       y = @container.y + @padding + row * (cell_h + @padding)
+///       Rect.new(x, y, cell_w, cell_h)
+///     end
+///
+///     # Get rect for a row within container
+///     def row_rect(row_index, row_height)
+///       Rect.new(
+///         @container.x + @padding,
+///         @container.y + @padding + row_index * (row_height + @padding),
+///         @container.w - @padding * 2,
+///         row_height
+///       )
+///     end
+///   end
 
 struct RectData {
     float x;

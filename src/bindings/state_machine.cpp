@@ -13,24 +13,219 @@ namespace bindings {
 
 /// @class GMR::StateMachine
 /// @description Lightweight state machine for gameplay logic with automatic animation binding.
-/// @example # Define a state machine on any object
-///   player.state_machine do
-///     state :idle do
-///       animate :idle
-///       on :move, :run
-///       on :jump, :air, if: -> { @stamina > 0 }
-///       enter { puts "Now idle" }
+/// @example # Complete platformer player with state machine controlling animations and behavior
+///   class Player
+///     attr_reader :sprite, :state_machine
+///
+///     def initialize
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/player.png"))
+///       @sprite.source_rect = Rect.new(0, 0, 32, 48)
+///       @velocity_y = 0
+///       @on_ground = false
+///       @stamina = 100
+///
+///       # Animation lookup table for state machine
+///       @animations = {
+///         idle: GMR::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+///         run: GMR::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+///         jump: GMR::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+///         fall: GMR::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8),
+///         attack: GMR::SpriteAnimation.new(@sprite, frames: 24..29, fps: 15, loop: false, columns: 8)
+///       }
+///
+///       setup_state_machine
+///       setup_input
 ///     end
 ///
-///     state :run do
-///       animate :run
-///       on :stop, :idle
+///     def setup_input
+///       input do |i|
+///         i.move_left [:a, :left]
+///         i.move_right [:d, :right]
+///         i.jump :space
+///         i.attack :z
+///       end
+///     end
+///
+///     def setup_state_machine
+///       state_machine do
+///         state :idle do
+///           animate :idle
+///           on :move, :run
+///           on :jump, :jumping, if: -> { @on_ground && @stamina >= 10 }
+///           on :attack, :attacking, if: -> { @stamina >= 20 }
+///           on :fall, :falling
+///         end
+///
+///         state :run do
+///           animate :run
+///           on :stop, :idle
+///           on :jump, :jumping, if: -> { @on_ground && @stamina >= 10 }
+///           on :attack, :attacking, if: -> { @stamina >= 20 }
+///           on :fall, :falling
+///         end
+///
+///         state :jumping do
+///           animate :jump
+///           enter do
+///             @velocity_y = -12
+///             @stamina -= 10
+///             GMR::Audio::Sound.play("assets/jump.wav")
+///           end
+///           on :peak, :falling
+///           on :land, :idle
+///         end
+///
+///         state :falling do
+///           animate :fall
+///           on :land, :idle
+///         end
+///
+///         state :attacking do
+///           animate :attack
+///           enter do
+///             @stamina -= 20
+///             @attack_hitbox_active = true
+///           end
+///           exit { @attack_hitbox_active = false }
+///           on :attack_done, :idle
+///         end
+///       end
+///     end
+///
+///     def update(dt)
+///       # Movement triggers state transitions
+///       if GMR::Input.action_down?(:move_left) || GMR::Input.action_down?(:move_right)
+///         state_machine.trigger(:move)
+///       else
+///         state_machine.trigger(:stop)
+///       end
+///
+///       # Jump and attack input
+///       state_machine.trigger(:jump) if GMR::Input.action_pressed?(:jump)
+///       state_machine.trigger(:attack) if GMR::Input.action_pressed?(:attack)
+///
+///       # Physics checks
+///       state_machine.trigger(:fall) if !@on_ground && @velocity_y > 0
+///       state_machine.trigger(:peak) if @velocity_y >= 0 && state_machine.state == :jumping
+///       state_machine.trigger(:land) if @on_ground
+///
+///       # Attack animation complete check
+///       if state_machine.state == :attacking && @animations[:attack].complete?
+///         state_machine.trigger(:attack_done)
+///       end
 ///     end
 ///   end
+/// @example # Enemy AI with patrol and chase states
+///   class Enemy
+///     def initialize(x, y, patrol_left, patrol_right)
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/enemy.png"))
+///       @sprite.x = x
+///       @sprite.y = y
+///       @patrol_left = patrol_left
+///       @patrol_right = patrol_right
+///       @direction = 1
 ///
-///   # Trigger transitions
-///   player.state_machine.trigger(:move)
-///   player.state_machine.state  # => :run
+///       @animations = {
+///         idle: GMR::SpriteAnimation.new(@sprite, frames: 0..3, fps: 4, columns: 6),
+///         walk: GMR::SpriteAnimation.new(@sprite, frames: 4..9, fps: 8, columns: 6),
+///         chase: GMR::SpriteAnimation.new(@sprite, frames: 10..15, fps: 12, columns: 6),
+///         attack: GMR::SpriteAnimation.new(@sprite, frames: 16..21, fps: 15, loop: false, columns: 6)
+///       }
+///
+///       setup_ai_state_machine
+///     end
+///
+///     def setup_ai_state_machine
+///       state_machine do
+///         state :patrol do
+///           animate :walk
+///           on :see_player, :chase
+///           on :reach_edge, :idle
+///         end
+///
+///         state :idle do
+///           animate :idle
+///           enter { @wait_timer = 1.5 }
+///           on :wait_done, :patrol
+///           on :see_player, :chase
+///         end
+///
+///         state :chase do
+///           animate :chase
+///           enter { GMR::Audio::Sound.play("assets/alert.wav") }
+///           on :lose_player, :patrol
+///           on :in_range, :attack
+///         end
+///
+///         state :attack do
+///           animate :attack
+///           enter { @attack_cooldown = 0.8 }
+///           on :attack_done, :chase
+///         end
+///       end
+///     end
+///
+///     def update(dt, player)
+///       distance = (player.sprite.x - @sprite.x).abs
+///       can_see = distance < 200
+///       in_range = distance < 40
+///
+///       state_machine.trigger(:see_player) if can_see
+///       state_machine.trigger(:lose_player) if !can_see && state_machine.state == :chase
+///       state_machine.trigger(:in_range) if in_range
+///
+///       case state_machine.state
+///       when :patrol
+///         move_patrol(dt)
+///       when :chase
+///         chase_player(dt, player)
+///       when :idle
+///         @wait_timer -= dt
+///         state_machine.trigger(:wait_done) if @wait_timer <= 0
+///       when :attack
+///         @attack_cooldown -= dt
+///         state_machine.trigger(:attack_done) if @attack_cooldown <= 0
+///       end
+///     end
+///   end
+/// @example # Menu system with input-driven state machine
+///   class MenuScreen
+///     def initialize
+///       @selected_index = 0
+///       @options = ["New Game", "Continue", "Options", "Quit"]
+///
+///       input_context :menu do |i|
+///         i.confirm :enter
+///         i.cancel :escape
+///         i.nav_up :up
+///         i.nav_down :down
+///       end
+///
+///       state_machine do
+///         state :main do
+///           on_input :confirm, :confirm_selection
+///           on_input :nav_up, :main
+///           on_input :nav_down, :main
+///           enter { @selected_index = 0 }
+///         end
+///
+///         state :confirm_selection do
+///           enter { handle_selection }
+///           on :back, :main
+///         end
+///       end
+///
+///       GMR::Input.push_context(:menu)
+///     end
+///
+///     def handle_selection
+///       case @selected_index
+///       when 0 then SceneManager.load(GameScene.new)
+///       when 3 then GMR::System.quit
+///       else state_machine.trigger(:back)
+///       end
+///     end
+///   end
 
 // ============================================================================
 // StateMachine Binding Data
@@ -177,6 +372,19 @@ static mrb_value mrb_state_machine_count(mrb_state* mrb, mrb_value) {
 /// @description Trigger an event, causing a transition if one is defined.
 /// @param event [Symbol] The event to trigger
 /// @returns [Boolean] true if a transition occurred
+/// @example # Trigger based on collision detection
+///   def check_collectibles
+///     @collectibles.each do |coin|
+///       if GMR::Collision.rect_rect?(player_bounds, coin.bounds)
+///         coin.state_machine.trigger(:collected)
+///         @score += coin.value
+///       end
+///     end
+///   end
+/// @example # Chain triggers from animation callbacks
+///   @animations[:death].on_complete do
+///     state_machine.trigger(:death_anim_finished)
+///   end
 static mrb_value mrb_state_machine_trigger(mrb_state* mrb, mrb_value self) {
     mrb_sym event;
     mrb_get_args(mrb, "n", &event);
@@ -307,6 +515,19 @@ static mrb_value mrb_builder_animate(mrb_state* mrb, mrb_value self) {
 /// @param event [Symbol] The event that triggers the transition
 /// @param target [Symbol] The target state
 /// @param if: [Proc] Optional condition (must return truthy for transition to occur)
+/// @example # Conditional transition based on game state
+///   state :idle do
+///     on :attack, :light_attack, if: -> { @stamina >= 10 }
+///     on :attack, :exhausted, if: -> { @stamina < 10 }
+///     on :special, :power_attack, if: -> { @power_meter >= 100 }
+///   end
+/// @example # Multiple transitions from same state
+///   state :grounded do
+///     on :jump, :jumping
+///     on :crouch, :crouching
+///     on :damage, :hurt
+///     on :fall, :falling
+///   end
 static mrb_value mrb_builder_on(mrb_state* mrb, mrb_value self) {
     mrb_sym event, target;
     mrb_value kwargs = mrb_nil_value();
@@ -344,6 +565,15 @@ static mrb_value mrb_builder_on(mrb_state* mrb, mrb_value self) {
 
 /// @method enter
 /// @description Set a callback to run when entering this state.
+/// @example # Initialize state-specific data on enter
+///   state :charging do
+///     enter do
+///       @charge_start_time = GMR::Time.total
+///       @charge_particles = ParticleEmitter.new(:charge)
+///       GMR::Audio::Sound.play("assets/charge_start.wav")
+///     end
+///     # ...
+///   end
 static mrb_value mrb_builder_enter(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -368,6 +598,23 @@ static mrb_value mrb_builder_enter(mrb_state* mrb, mrb_value self) {
 
 /// @method exit
 /// @description Set a callback to run when exiting this state.
+/// @example # Clean up state resources on exit
+///   state :charging do
+///     exit do
+///       @charge_particles&.stop
+///       if @charge_level >= 100
+///         GMR::Audio::Sound.play("assets/charge_full.wav")
+///       end
+///     end
+///   end
+/// @example # Cancel pending actions on state exit
+///   state :aiming do
+///     exit do
+///       @aim_line.visible = false
+///       @slowmo_active = false
+///       GMR::Time.scale = 1.0
+///     end
+///   end
 static mrb_value mrb_builder_exit(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);

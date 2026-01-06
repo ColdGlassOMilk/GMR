@@ -172,7 +172,9 @@ A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), an
 **Example:**
 
 ```ruby
-v3 = v * 0.5                 # Scale
+# 3D position for parallax layers
+  class ParallaxLayer
+    def initialize(texture, depth)
 ```
 
 ---

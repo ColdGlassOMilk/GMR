@@ -383,8 +383,30 @@ Time and frame rate utilities. Provides delta time for frame-independent movemen
 **Example:**
 
 ```ruby
-# Frame-independent movement
-  player.x += speed * GMR::Time.delta
+# Debug overlay with FPS and timing info
+  class DebugOverlay
+    def draw
+      y = 10
+      color = [0, 255, 0]
+
+      # Show current FPS
+      fps = GMR::Time.fps
+      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]
+      GMR::Graphics.draw_text("FPS: #{fps}", 10, y, 16, fps_color)
+      y += 20
+
+      # Show frame time
+      frame_ms = (GMR::Time.delta * 1000).round(2)
+      GMR::Graphics.draw_text("Frame: #{frame_ms}ms", 10, y, 16, color)
+      y += 20
+
+      # Show total elapsed time
+      elapsed = GMR::Time.elapsed
+      minutes = (elapsed / 60).to_i
+      seconds = (elapsed % 60).to_i
+      GMR::Graphics.draw_text("Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}", 10, y, 16, color)
+    end
+  end
 ```
 
 ---

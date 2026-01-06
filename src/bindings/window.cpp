@@ -93,8 +93,89 @@ RenderTexture2D& get_render_target() {
 /// @module GMR::Window
 /// @description Window management and display settings. Controls window size, fullscreen,
 ///   virtual resolution, and provides monitor information.
-/// @example GMR::Window.set_title("My Game")
-///   GMR::Window.set_virtual_resolution(320, 240)
+/// @example # Complete display settings menu
+///   class DisplaySettingsScene < GMR::Scene
+///     def init
+///       @resolutions = [[640, 480], [800, 600], [1024, 768], [1280, 720], [1920, 1080]]
+///       @selected_res = 3  # Default to 1280x720
+///       @fullscreen = GMR::Window.fullscreen?
+///       @virtual_res_enabled = false
+///
+///       GMR::Input.push_context(:menu)
+///     end
+///
+///     def update(dt)
+///       # Navigate resolution options
+///       if GMR::Input.action_pressed?(:nav_up) && @selected_res > 0
+///         @selected_res -= 1
+///         GMR::Audio::Sound.play("assets/menu_move.wav")
+///       end
+///       if GMR::Input.action_pressed?(:nav_down) && @selected_res < @resolutions.length - 1
+///         @selected_res += 1
+///         GMR::Audio::Sound.play("assets/menu_move.wav")
+///       end
+///
+///       # Apply resolution
+///       if GMR::Input.action_pressed?(:confirm)
+///         w, h = @resolutions[@selected_res]
+///         GMR::Window.set_size(w, h)
+///         GMR::Audio::Sound.play("assets/menu_select.wav")
+///       end
+///
+///       # Toggle fullscreen
+///       if GMR::Input.key_pressed?(:f)
+///         GMR::Window.toggle_fullscreen
+///       end
+///
+///       # Toggle virtual resolution for pixel-perfect rendering
+///       if GMR::Input.key_pressed?(:v)
+///         if @virtual_res_enabled
+///           GMR::Window.clear_virtual_resolution
+///           @virtual_res_enabled = false
+///         else
+///           GMR::Window.set_virtual_resolution(320, 240)
+///           GMR::Window.set_filter_point  # Crisp pixels
+///           @virtual_res_enabled = true
+///         end
+///       end
+///     end
+///
+///     def draw
+///       GMR::Graphics.draw_text("Display Settings", 100, 50, 32, [255, 255, 255])
+///
+///       @resolutions.each_with_index do |(w, h), i|
+///         color = i == @selected_res ? [255, 255, 0] : [180, 180, 180]
+///         prefix = i == @selected_res ? "> " : "  "
+///         GMR::Graphics.draw_text("#{prefix}#{w} x #{h}", 100, 120 + i * 30, 20, color)
+///       end
+///
+///       y = 320
+///       GMR::Graphics.draw_text("[F] Fullscreen: #{GMR::Window.fullscreen?}", 100, y, 18, [200, 200, 200])
+///       GMR::Graphics.draw_text("[V] Virtual Resolution: #{@virtual_res_enabled}", 100, y + 25, 18, [200, 200, 200])
+///       GMR::Graphics.draw_text("Current: #{GMR::Window.width}x#{GMR::Window.height}", 100, y + 50, 18, [150, 150, 150])
+///       GMR::Graphics.draw_text("Actual: #{GMR::Window.actual_width}x#{GMR::Window.actual_height}", 100, y + 75, 18, [150, 150, 150])
+///     end
+///
+///     def unload
+///       GMR::Input.pop_context
+///     end
+///   end
+/// @example # Retro-style game with virtual resolution
+///   class RetroGame
+///     def init
+///       # Render at 320x240 (classic resolution) but display at window size
+///       GMR::Window.set_virtual_resolution(320, 240)
+///       GMR::Window.set_filter_point  # No smoothing - crisp pixels
+///       GMR::Window.set_title("Pixel Quest")
+///       GMR::Time.set_target_fps(60)
+///     end
+///
+///     def update(dt)
+///       # Game logic works with 320x240 coordinates
+///       @player.x = [@player.x, 0].max
+///       @player.x = [@player.x, GMR::Window.width - 16].min  # Returns 320
+///     end
+///   end
 
 /// @function width
 /// @description Get the logical width of the game screen. Returns virtual resolution
@@ -453,8 +534,81 @@ static mrb_value mrb_window_monitor_name(mrb_state* mrb, mrb_value) {
 /// @module GMR::Time
 /// @description Time and frame rate utilities. Provides delta time for frame-independent
 ///   movement, elapsed time tracking, and FPS management.
-/// @example # Frame-independent movement
-///   player.x += speed * GMR::Time.delta
+/// @example # Frame-independent movement and animation
+///   class Player
+///     SPEED = 200  # Pixels per second
+///
+///     def update
+///       dt = GMR::Time.delta
+///
+///       # Movement works the same at 30fps or 144fps
+///       @x += @vx * SPEED * dt
+///       @y += @vy * SPEED * dt
+///
+///       # Animation timing
+///       @anim_timer += dt
+///       if @anim_timer >= 0.1  # Change frame every 0.1 seconds
+///         @frame = (@frame + 1) % @frame_count
+///         @anim_timer = 0
+///       end
+///     end
+///   end
+/// @example # Time-based effects and cooldowns
+///   class Ability
+///     def initialize
+///       @cooldown = 0
+///       @duration = 0
+///       @active = false
+///     end
+///
+///     def update
+///       dt = GMR::Time.delta
+///
+///       # Decrease cooldown over time
+///       @cooldown -= dt if @cooldown > 0
+///
+///       # Track active duration
+///       if @active
+///         @duration -= dt
+///         if @duration <= 0
+///           @active = false
+///           deactivate_effect
+///         end
+///       end
+///     end
+///
+///     def use
+///       return if @cooldown > 0
+///       @active = true
+///       @duration = 5.0   # Active for 5 seconds
+///       @cooldown = 10.0  # 10 second cooldown
+///       activate_effect
+///     end
+///   end
+/// @example # Debug overlay with FPS and timing info
+///   class DebugOverlay
+///     def draw
+///       y = 10
+///       color = [0, 255, 0]
+///
+///       # Show current FPS
+///       fps = GMR::Time.fps
+///       fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]
+///       GMR::Graphics.draw_text("FPS: #{fps}", 10, y, 16, fps_color)
+///       y += 20
+///
+///       # Show frame time
+///       frame_ms = (GMR::Time.delta * 1000).round(2)
+///       GMR::Graphics.draw_text("Frame: #{frame_ms}ms", 10, y, 16, color)
+///       y += 20
+///
+///       # Show total elapsed time
+///       elapsed = GMR::Time.elapsed
+///       minutes = (elapsed / 60).to_i
+///       seconds = (elapsed % 60).to_i
+///       GMR::Graphics.draw_text("Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}", 10, y, 16, color)
+///     end
+///   end
 
 /// @function delta
 /// @description Get the time elapsed since the last frame in seconds. Use this for

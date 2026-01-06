@@ -16,13 +16,60 @@ namespace bindings {
 /// @description Animates a numeric property on any Ruby object over time.
 ///   Tweens update automatically each frame - no manual update calls needed.
 ///   Creating a new tween for the same target+property cancels the previous one.
-/// @example # Basic tween
-///   GMR::Tween.to(sprite, :x, 400, duration: 0.5)
-/// @example # With easing and callback
-///   GMR::Tween.to(sprite, :alpha, 0.0, duration: 0.25, ease: :out_cubic)
-///     .on_complete { sprite.visible = false }
-/// @example # Animate from a start value
-///   GMR::Tween.from(sprite, :alpha, 0.0, duration: 0.5)  # Fade in
+/// @example # Player death sequence: fade out, disable, trigger camera shake
+///   class Player
+///     def initialize
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/player.png"))
+///       @sprite.alpha = 1.0
+///       @alive = true
+///     end
+///
+///     def die
+///       return unless @alive
+///       @alive = false
+///       GMR::Audio::Sound.play("assets/death.wav")
+///       Camera2D.current.shake(strength: 8, duration: 0.3)
+///       GMR::Tween.to(@sprite, :alpha, 0.0, duration: 0.8, ease: :out_quad)
+///         .on_complete { @sprite.visible = false }
+///     end
+///   end
+/// @example # UI slide-in animation with bounce
+///   class MenuPanel
+///     def initialize
+///       @panel_x = -200  # Start off-screen
+///     end
+///
+///     def show
+///       GMR::Tween.to(self, :panel_x, 50, duration: 0.4, ease: :out_back)
+///     end
+///
+///     def hide
+///       GMR::Tween.to(self, :panel_x, -200, duration: 0.3, ease: :in_quad)
+///     end
+///
+///     def draw
+///       GMR::Graphics.draw_rect(@panel_x, 100, 180, 300, [40, 40, 60])
+///     end
+///   end
+/// @example # Collectible bounce and fade when picked up
+///   class Coin
+///     def initialize(x, y)
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/coin.png"))
+///       @sprite.x = x
+///       @sprite.y = y
+///       @collected = false
+///     end
+///
+///     def collect
+///       return if @collected
+///       @collected = true
+///       GMR::Audio::Sound.play("assets/coin.wav")
+///       # Bounce up while fading
+///       GMR::Tween.to(@sprite, :y, @sprite.y - 40, duration: 0.3, ease: :out_quad)
+///       GMR::Tween.to(@sprite, :alpha, 0.0, duration: 0.3, delay: 0.1)
+///         .on_complete { @sprite.visible = false }
+///     end
+///   end
 
 // ============================================================================
 // Tween Binding Data
@@ -123,8 +170,24 @@ static TweenOptions parse_tween_options(mrb_state* mrb, mrb_value kwargs) {
 /// @param delay: [Float] Delay before starting (default: 0)
 /// @param ease: [Symbol] Easing function (default: :linear)
 /// @returns [Tween] The tween instance for chaining
-/// @example GMR::Tween.to(sprite, :x, 400, duration: 0.5)
-/// @example GMR::Tween.to(sprite, :alpha, 0.0, duration: 0.25, ease: :out_cubic)
+/// @example # Enemy knocked back on hit with damage flash
+///   class Enemy
+///     def take_damage(direction)
+///       @health -= 10
+///       # Knockback in direction of hit
+///       target_x = @sprite.x + direction * 50
+///       GMR::Tween.to(@sprite, :x, target_x, duration: 0.15, ease: :out_quad)
+///       # Flash red then restore color
+///       @sprite.color = [255, 100, 100]
+///       GMR::Tween.to(@sprite, :color_r, 255, duration: 0.2, delay: 0.1)
+///     end
+///   end
+/// @example # Smooth camera zoom for scope/aim mode
+///   def toggle_aim_mode
+///     @aiming = !@aiming
+///     target_zoom = @aiming ? 2.0 : 1.0
+///     GMR::Tween.to(@camera, :zoom, target_zoom, duration: 0.3, ease: :out_cubic)
+///   end
 static mrb_value mrb_tween_to(mrb_state* mrb, mrb_value) {
     mrb_value target;
     mrb_sym property_sym;
@@ -192,8 +255,32 @@ static mrb_value mrb_tween_to(mrb_state* mrb, mrb_value) {
 /// @param delay: [Float] Delay before starting (default: 0)
 /// @param ease: [Symbol] Easing function (default: :linear)
 /// @returns [Tween] The tween instance for chaining
-/// @example GMR::Tween.from(sprite, :alpha, 0.0, duration: 0.5)  # Fade in
-/// @example GMR::Tween.from(sprite, :scale_x, 0.0, duration: 0.3, ease: :out_back)
+/// @example # New scene elements pop in with scale effect
+///   class GameScene < GMR::Scene
+///     def init
+///       @title = Sprite.new(GMR::Graphics::Texture.load("assets/title.png"))
+///       @title.x = 400
+///       @title.y = 100
+///       @title.scale_x = 1.0
+///       @title.scale_y = 1.0
+///       # Pop in from zero scale with overshoot
+///       GMR::Tween.from(@title, :scale_x, 0.0, duration: 0.4, ease: :out_back)
+///       GMR::Tween.from(@title, :scale_y, 0.0, duration: 0.4, ease: :out_back)
+///       # Fade in slightly delayed
+///       GMR::Tween.from(@title, :alpha, 0.0, duration: 0.3, delay: 0.1)
+///     end
+///   end
+/// @example # Toast notification slides in from bottom
+///   class Toast
+///     def show(message)
+///       @message = message
+///       @y = GMR::Window.height  # Start below screen
+///       @target_y = GMR::Window.height - 60
+///       GMR::Tween.from(self, :y, GMR::Window.height, duration: 0.25, ease: :out_cubic)
+///       # Auto-hide after 2 seconds
+///       GMR::Tween.to(self, :y, GMR::Window.height, duration: 0.2, delay: 2.0, ease: :in_quad)
+///     end
+///   end
 static mrb_value mrb_tween_from(mrb_state* mrb, mrb_value) {
     mrb_value target;
     mrb_sym property_sym;
@@ -257,8 +344,24 @@ static mrb_value mrb_tween_from(mrb_state* mrb, mrb_value) {
 /// @method on_complete
 /// @description Set a callback to invoke when the tween completes.
 /// @returns [Tween] self for chaining
-/// @example tween.on_complete { puts "Animation done!" }
-/// @example tween.on_complete { sprite.visible = false }
+/// @example # Sequence of tweens using on_complete for chaining
+///   class Chest
+///     def open
+///       # First: lid opens
+///       GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)
+///         .on_complete do
+///           # Second: spawn item and make it rise
+///           @item.visible = true
+///           @item.y = @lid.y
+///           GMR::Tween.to(@item, :y, @item.y - 50, duration: 0.5, ease: :out_quad)
+///             .on_complete do
+///               # Third: play sparkle sound and enable pickup
+///               GMR::Audio::Sound.play("assets/sparkle.wav")
+///               @item_ready = true
+///             end
+///         end
+///     end
+///   end
 static mrb_value mrb_tween_on_complete(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -282,7 +385,34 @@ static mrb_value mrb_tween_on_complete(mrb_state* mrb, mrb_value self) {
 ///   The callback receives (t, value) where t is normalized progress [0-1]
 ///   and value is the current interpolated value.
 /// @returns [Tween] self for chaining
-/// @example tween.on_update { |t, val| puts "Progress: #{(t * 100).to_i}%" }
+/// @example # Loading bar with progress callback
+///   class LoadingScreen
+///     def initialize
+///       @progress = 0.0
+///       @bar_width = 0
+///     end
+///
+///     def start_loading
+///       GMR::Tween.to(self, :progress, 1.0, duration: 2.0, ease: :linear)
+///         .on_update { |t, val| @bar_width = (val * 400).to_i }
+///         .on_complete { SceneManager.load(GameScene.new) }
+///     end
+///
+///     def draw
+///       GMR::Graphics.draw_rect(100, 300, @bar_width, 30, [100, 200, 100])
+///       GMR::Graphics.draw_rect_outline(100, 300, 400, 30, [200, 200, 200])
+///       GMR::Graphics.draw_text("#{(@progress * 100).to_i}%", 280, 340, 20, [255, 255, 255])
+///     end
+///   end
+/// @example # Color cycling effect on update
+///   def start_rainbow_effect
+///     @hue = 0.0
+///     GMR::Tween.to(self, :hue, 360.0, duration: 3.0, ease: :linear)
+///       .on_update do |t, hue|
+///         r, g, b = hue_to_rgb(hue)
+///         @sprite.color = [r, g, b]
+///       end
+///   end
 static mrb_value mrb_tween_on_update(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -304,7 +434,19 @@ static mrb_value mrb_tween_on_update(mrb_state* mrb, mrb_value self) {
 /// @method cancel
 /// @description Cancel the tween immediately. Does not invoke on_complete.
 /// @returns [nil]
-/// @example tween.cancel
+/// @example # Cancel movement when player hits wall
+///   class Player
+///     def move_to(target_x, target_y)
+///       @move_tween_x = GMR::Tween.to(@sprite, :x, target_x, duration: 0.5)
+///       @move_tween_y = GMR::Tween.to(@sprite, :y, target_y, duration: 0.5)
+///     end
+///
+///     def on_wall_hit
+///       @move_tween_x&.cancel
+///       @move_tween_y&.cancel
+///       Camera2D.current.shake(strength: 3, duration: 0.1)
+///     end
+///   end
 static mrb_value mrb_tween_cancel(mrb_state* mrb, mrb_value self) {
     TweenData* data = get_tween_data(mrb, self);
     if (!data) return mrb_nil_value();
@@ -316,7 +458,27 @@ static mrb_value mrb_tween_cancel(mrb_state* mrb, mrb_value self) {
 /// @method pause
 /// @description Pause the tween. Use resume to continue.
 /// @returns [Tween] self for chaining
-/// @example tween.pause
+/// @example # Pause all UI animations when game pauses
+///   class PauseMenu
+///     def show
+///       @paused_tweens = []
+///       # Store and pause all active UI tweens
+///       @ui_elements.each do |element|
+///         if element.tween&.active?
+///           element.tween.pause
+///           @paused_tweens << element.tween
+///         end
+///       end
+///       GMR::Input.push_context(:pause_menu)
+///     end
+///
+///     def hide
+///       # Resume all paused tweens
+///       @paused_tweens.each(&:resume)
+///       @paused_tweens.clear
+///       GMR::Input.pop_context
+///     end
+///   end
 static mrb_value mrb_tween_pause(mrb_state* mrb, mrb_value self) {
     TweenData* data = get_tween_data(mrb, self);
     if (!data) return self;
@@ -405,7 +567,16 @@ static mrb_value mrb_tween_progress(mrb_state* mrb, mrb_value self) {
 /// @method cancel_all
 /// @description Cancel all active tweens.
 /// @returns [nil]
-/// @example GMR::Tween.cancel_all
+/// @example # Clean slate when transitioning scenes
+///   class GameScene < GMR::Scene
+///     def unload
+///       # Cancel all tweens to prevent callbacks on destroyed objects
+///       GMR::Tween.cancel_all
+///       # Clean up resources
+///       @player = nil
+///       @enemies.clear
+///     end
+///   end
 static mrb_value mrb_tween_cancel_all(mrb_state* mrb, mrb_value) {
     animation::AnimationManager::instance().clear(mrb);
     return mrb_nil_value();

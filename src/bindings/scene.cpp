@@ -10,25 +10,147 @@ namespace bindings {
 /// @description Base class for scenes. Subclass and override lifecycle methods.
 ///   Scenes are managed by GMR::SceneManager using a stack. Only the top scene
 ///   receives update and draw calls.
-/// @example class TitleScene < GMR::Scene
-///   def init
-///     @title = "My Game"
-///   end
+/// @example # Complete game flow: Title -> Gameplay -> Pause -> Game Over
+///   class TitleScene < GMR::Scene
+///     def init
+///       @background = Sprite.new(GMR::Graphics::Texture.load("assets/title_bg.png"))
+///       @title_text = "Adventure Quest"
+///       @blink_timer = 0
+///       @show_prompt = true
+///       GMR::Audio.play_music("assets/title_theme.ogg")
+///     end
 ///
-///   def update(dt)
-///     if GMR::Input.key_pressed?(:enter)
-///       GMR::SceneManager.push(GameScene.new)
+///     def update(dt)
+///       @blink_timer += dt
+///       @show_prompt = (@blink_timer % 1.0) < 0.7
+///
+///       if GMR::Input.key_pressed?(:enter) || GMR::Input.key_pressed?(:space)
+///         GMR::Audio::Sound.play("assets/menu_select.wav")
+///         GMR::SceneManager.load(GameScene.new)
+///       end
+///     end
+///
+///     def draw
+///       @background.draw
+///       GMR::Graphics.draw_text(@title_text, 200, 150, 48, [255, 255, 255])
+///       GMR::Graphics.draw_text("Press ENTER to Start", 250, 400, 24, [200, 200, 200]) if @show_prompt
+///     end
+///
+///     def unload
+///       GMR::Audio.stop_music
 ///     end
 ///   end
 ///
-///   def draw
-///     GMR::Graphics.draw_text(@title, 100, 100, 32, [255, 255, 255])
+///   class GameScene < GMR::Scene
+///     def init
+///       @player = Player.new(100, 300)
+///       @enemies = spawn_enemies
+///       @camera = Camera2D.new
+///       @camera.follow(@player, smoothing: 0.1)
+///       @paused = false
+///
+///       input do |i|
+///         i.pause :escape
+///       end
+///       GMR::Input.on(:pause) { toggle_pause }
+///
+///       GMR::Audio.play_music("assets/gameplay.ogg", volume: 0.5)
+///     end
+///
+///     def toggle_pause
+///       if @paused
+///         GMR::SceneManager.remove_overlay(@pause_overlay)
+///         @paused = false
+///       else
+///         @pause_overlay = PauseOverlay.new
+///         GMR::SceneManager.add_overlay(@pause_overlay)
+///         @paused = true
+///       end
+///     end
+///
+///     def update(dt)
+///       return if @paused
+///       @player.update(dt)
+///       @enemies.each { |e| e.update(dt, @player) }
+///       @camera.update(dt)
+///       check_game_over
+///     end
+///
+///     def draw
+///       @camera.use do
+///         draw_level
+///         @enemies.each(&:draw)
+///         @player.draw
+///       end
+///       draw_hud
+///     end
+///
+///     def check_game_over
+///       if @player.dead?
+///         GMR::SceneManager.push(GameOverScene.new(@player.score))
+///       end
+///     end
 ///   end
 ///
-///   def unload
-///     puts "Title scene unloaded"
+///   class PauseOverlay < GMR::Scene
+///     def init
+///       GMR::Input.push_context(:menu)
+///       @selected = 0
+///       @options = ["Resume", "Options", "Quit to Title"]
+///     end
+///
+///     def update(dt)
+///       @selected -= 1 if GMR::Input.action_pressed?(:nav_up) && @selected > 0
+///       @selected += 1 if GMR::Input.action_pressed?(:nav_down) && @selected < 2
+///
+///       if GMR::Input.action_pressed?(:confirm)
+///         case @selected
+///         when 0 then GMR::SceneManager.remove_overlay(self)
+///         when 2 then GMR::SceneManager.load(TitleScene.new)
+///         end
+///       end
+///     end
+///
+///     def draw
+///       GMR::Graphics.draw_rect(0, 0, 800, 600, [0, 0, 0, 180])
+///       GMR::Graphics.draw_text("PAUSED", 320, 100, 48, [255, 255, 255])
+///       @options.each_with_index do |opt, i|
+///         color = i == @selected ? [255, 255, 0] : [200, 200, 200]
+///         GMR::Graphics.draw_text(opt, 320, 250 + i * 50, 28, color)
+///       end
+///     end
+///
+///     def unload
+///       GMR::Input.pop_context
+///     end
 ///   end
-/// end
+/// @example # Scene with resource loading and cleanup
+///   class LevelScene < GMR::Scene
+///     def initialize(level_number)
+///       @level_number = level_number
+///     end
+///
+///     def init
+///       @textures = {}
+///       @sounds = {}
+///
+///       # Load level-specific resources
+///       @textures[:tileset] = GMR::Graphics::Texture.load("assets/levels/#{@level_number}/tiles.png")
+///       @textures[:background] = GMR::Graphics::Texture.load("assets/levels/#{@level_number}/bg.png")
+///       @sounds[:ambient] = "assets/levels/#{@level_number}/ambient.ogg"
+///
+///       @tilemap = load_tilemap("assets/levels/#{@level_number}/map.json")
+///       GMR::Audio.play_music(@sounds[:ambient], loop: true)
+///     end
+///
+///     def unload
+///       # Clean up level resources
+///       GMR::Tween.cancel_all
+///       GMR::Audio.stop_music
+///       @textures.clear
+///       @tilemap = nil
+///     end
+///   end
 
 // ============================================================================
 // GMR::Scene Base Class Methods (empty defaults)

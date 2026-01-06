@@ -40,7 +40,7 @@ Create a new sprite animation.
 **Example:**
 
 ```ruby
-attack = GMR::SpriteAnimation.new(sprite, frames: 4..7, fps: 15, loop: false)
+# Attack combo with non-looping animation
 ```
 
 ---
@@ -56,7 +56,13 @@ Start or resume the animation.
 **Example:**
 
 ```ruby
-anim.play
+# State machine integration - play animation when entering run state
+  state :run do
+    enter { @animations[:run].play }
+    exit { @animations[:run].stop }
+    on :stop, :idle
+    on :jump, :jumping
+  end
 ```
 
 ---
@@ -104,7 +110,8 @@ Set a callback for when the animation finishes (non-looping only).
 **Example:**
 
 ```ruby
-anim.on_complete { puts "Done!" }
+# Chain attack animation into recovery state
+  def start_attack
 ```
 
 ---
@@ -120,7 +127,7 @@ Set a callback for each frame change. Receives frame index.
 **Example:**
 
 ```ruby
-anim.on_frame_change { |frame| puts "Frame: #{frame}" }
+# Spawn attack hitbox on specific frame
 ```
 
 ---
@@ -194,6 +201,15 @@ Set the frames per second.
 | `value` | `Float` | New FPS |
 
 **Returns:** `Float` - The FPS value
+
+**Example:**
+
+```ruby
+# Speed up animation when player is running fast
+  def update(dt)
+    speed = calculate_movement_speed
+    # Scale animation FPS with movement speed (8-16 fps range)
+```
 
 ---
 

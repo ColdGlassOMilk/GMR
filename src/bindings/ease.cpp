@@ -10,12 +10,90 @@ namespace bindings {
 /// @description Provides easing functions for smooth animations.
 ///   Easing functions control the rate of change during an animation,
 ///   making movements feel more natural and polished.
-/// @example # Using easing with tweens
-///   GMR::Tween.to(sprite, :x, 400, duration: 0.5, ease: :out_cubic)
-///   GMR::Tween.to(sprite, :scale_x, 2.0, duration: 0.3, ease: :out_back)
-/// @example # Manual easing calculation
-///   t = 0.5  # 50% through animation
-///   eased = GMR::Ease.apply(:out_cubic, t)  # => 0.875
+/// @example # Common easing patterns for different UI/game scenarios
+///   class UIAnimations
+///     # Menu item slide in - fast start, gentle stop
+///     def slide_in_menu_item(item, delay)
+///       item.x = -200  # Start off-screen
+///       GMR::Tween.to(item, :x, 50, duration: 0.3, ease: :out_cubic, delay: delay)
+///     end
+///
+///     # Popup appear - overshoot then settle (feels bouncy)
+///     def popup_appear(popup)
+///       popup.scale_x = 0
+///       popup.scale_y = 0
+///       GMR::Tween.to(popup, :scale_x, 1.0, duration: 0.4, ease: :out_back)
+///       GMR::Tween.to(popup, :scale_y, 1.0, duration: 0.4, ease: :out_back)
+///     end
+///
+///     # Button press - quick squash then restore
+///     def button_press(button)
+///       GMR::Tween.to(button, :scale_y, 0.9, duration: 0.05, ease: :out_quad)
+///         .on_complete do
+///           GMR::Tween.to(button, :scale_y, 1.0, duration: 0.15, ease: :out_elastic)
+///         end
+///     end
+///
+///     # Notification bounce in then auto-dismiss
+///     def show_notification(notif)
+///       notif.y = -50
+///       GMR::Tween.to(notif, :y, 20, duration: 0.5, ease: :out_bounce)
+///         .on_complete do
+///           GMR::Tween.to(notif, :y, -50, duration: 0.3, ease: :in_quad, delay: 2.0)
+///         end
+///     end
+///   end
+/// @example # Custom interpolation without tweens
+///   class Projectile
+///     def initialize(start_x, start_y, target_x, target_y)
+///       @start_x, @start_y = start_x, start_y
+///       @target_x, @target_y = target_x, target_y
+///       @elapsed = 0
+///       @duration = 0.5
+///     end
+///
+///     def update(dt)
+///       @elapsed += dt
+///       t = [@elapsed / @duration, 1.0].min  # Clamp to 0-1
+///
+///       # Use easing for arc trajectory
+///       # Horizontal: linear movement
+///       eased_x = GMR::Ease.apply(:linear, t)
+///       # Vertical: parabolic arc using in_out_quad
+///       eased_y = GMR::Ease.apply(:in_out_quad, t)
+///
+///       @x = @start_x + (@target_x - @start_x) * eased_x
+///       @y = @start_y + (@target_y - @start_y) * eased_y - Math.sin(t * Math::PI) * 100  # Arc height
+///     end
+///   end
+/// @example # Easing comparison visualization
+///   class EasingDemo
+///     EASINGS = [:linear, :in_quad, :out_quad, :in_out_quad,
+///                :in_cubic, :out_cubic, :out_back, :out_elastic, :out_bounce]
+///
+///     def initialize
+///       @time = 0
+///       @duration = 2.0
+///     end
+///
+///     def update(dt)
+///       @time += dt
+///       @time = 0 if @time > @duration  # Loop
+///     end
+///
+///     def draw
+///       t = @time / @duration
+///
+///       EASINGS.each_with_index do |ease_name, i|
+///         y = 50 + i * 50
+///         eased = GMR::Ease.apply(ease_name, t)
+///         x = 150 + eased * 400
+///
+///         GMR::Graphics.draw_text(ease_name.to_s, 10, y, 14, [200, 200, 200])
+///         GMR::Graphics.draw_circle(x, y + 8, 8, [100, 200, 255])
+///       end
+///     end
+///   end
 
 // ============================================================================
 // Easing Symbol Getters

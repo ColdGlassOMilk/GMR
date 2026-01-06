@@ -17,16 +17,93 @@ namespace bindings {
 /// @description A 2D camera for scrolling, zooming, and rotating the view.
 ///   Supports smooth following, screen shake, bounds constraints, and coordinate conversion.
 ///   Use the camera.use { } block to render in camera space.
-/// @example # Basic camera setup
-///   @camera = Camera2D.new
-///   @camera.target = Vec2.new(player.x, player.y)
-///   @camera.offset = Vec2.new(400, 300)  # Center of 800x600 screen
-///   @camera.zoom = 1.0
-/// @example # Camera with smooth following
-///   @camera.follow(@player, smoothing: 0.1, deadzone: Rect.new(380, 280, 40, 40))
-/// @example # Rendering with camera
-///   @camera.use do
-///     draw_world()  # All drawing here uses camera transform
+/// @example # Complete platformer camera with player following and bounds
+///   class GameScene < GMR::Scene
+///     def init
+///       @player = Player.new(100, 300)
+///       @world_bounds = Rect.new(0, 0, 3200, 600)  # Large level
+///
+///       # Set up camera centered on screen
+///       @camera = Camera2D.new
+///       @camera.offset = Vec2.new(GMR::Window.width / 2, GMR::Window.height / 2)
+///       @camera.zoom = 1.0
+///
+///       # Follow player with smooth tracking and deadzone
+///       @camera.follow(@player, smoothing: 0.08, deadzone: Rect.new(
+///         GMR::Window.width / 2 - 50,
+///         GMR::Window.height / 2 - 30,
+///         100, 60
+///       ))
+///
+///       # Constrain camera to world bounds
+///       @camera.bounds = @world_bounds
+///     end
+///
+///     def update(dt)
+///       @player.update(dt)
+///       @camera.update(dt)  # Updates follow smoothing
+///     end
+///
+///     def draw
+///       # Draw world in camera space
+///       @camera.use do
+///         draw_background
+///         draw_tilemap
+///         @player.draw
+///         @enemies.each(&:draw)
+///       end
+///
+///       # Draw HUD in screen space (outside camera.use)
+///       draw_hud
+///     end
+///   end
+/// @example # Camera effects: shake on damage, zoom for scope mode
+///   class Player
+///     def take_damage(amount)
+///       @health -= amount
+///       # Screen shake intensity based on damage
+///       Camera2D.current.shake(strength: amount * 0.5, duration: 0.3)
+///       GMR::Audio::Sound.play("assets/hit.wav")
+///     end
+///
+///     def toggle_scope
+///       @scoped = !@scoped
+///       target_zoom = @scoped ? 2.0 : 1.0
+///       # Smooth zoom transition
+///       GMR::Tween.to(Camera2D.current, :zoom, target_zoom, duration: 0.25, ease: :out_cubic)
+///     end
+///   end
+/// @example # Mouse-to-world coordinate conversion for point-and-click
+///   def update(dt)
+///     if GMR::Input.mouse_pressed?(:left)
+///       # Convert screen mouse position to world coordinates
+///       world_pos = @camera.screen_to_world(GMR::Input.mouse_x, GMR::Input.mouse_y)
+///       @player.move_to(world_pos.x, world_pos.y)
+///     end
+///   end
+/// @example # Multiple cameras for minimap
+///   class GameScene < GMR::Scene
+///     def init
+///       @main_camera = Camera2D.new
+///       @main_camera.offset = Vec2.new(400, 300)
+///
+///       @minimap_camera = Camera2D.new
+///       @minimap_camera.zoom = 0.1  # Zoomed out for overview
+///       @minimap_camera.offset = Vec2.new(700, 50)  # Top-right corner
+///     end
+///
+///     def draw
+///       # Main view
+///       @main_camera.use do
+///         draw_world
+///       end
+///
+///       # Minimap overlay
+///       GMR::Graphics.draw_rect(620, 10, 170, 130, [0, 0, 0, 150])
+///       @minimap_camera.use do
+///         draw_world_minimap
+///       end
+///     end
 ///   end
 
 // ============================================================================

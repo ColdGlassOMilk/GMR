@@ -22,21 +22,99 @@ namespace bindings {
 ///   Sprites combine a texture with position, rotation, scale, and origin for easy rendering.
 ///   By default, draw order determines layering (later drawn = on top). Set an explicit z value
 ///   to override this behavior for specific sprites.
-/// @example # Basic sprite usage
-///   tex = GMR::Graphics::Texture.load("assets/player.png")
-///   @player = Sprite.new(tex)
-///   @player.x = 100
-///   @player.y = 200
-///   @player.center_origin
-///   @player.draw
-/// @example # Sprite with explicit z-index
-///   @background = Sprite.new(bg_tex)
-///   @background.z = 0     # Always behind
-///   @player = Sprite.new(player_tex)
-///   @player.z = 10        # Always in front of background
-/// @example # Animated sprite with source rect
-///   @sprite = Sprite.new(spritesheet)
-///   @sprite.source_rect = Rect.new(0, 0, 32, 32)  # First frame
+/// @example # Complete game entity with sprite, animation, and collision
+///   class Player
+///     attr_reader :sprite
+///
+///     def initialize(x, y)
+///       @texture = GMR::Graphics::Texture.load("assets/player.png")
+///       @sprite = Sprite.new(@texture)
+///       @sprite.x = x
+///       @sprite.y = y
+///       @sprite.source_rect = Rect.new(0, 0, 32, 48)
+///       @sprite.center_origin
+///       @sprite.z = 10  # Above background, below UI
+///
+///       @velocity = Vec2.new(0, 0)
+///       @facing_right = true
+///       setup_animations
+///     end
+///
+///     def setup_animations
+///       @animations = {
+///         idle: GMR::SpriteAnimation.new(@sprite, frames: 0..3, fps: 8, columns: 8),
+///         run: GMR::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+///         jump: GMR::SpriteAnimation.new(@sprite, frames: 16..18, fps: 10, loop: false, columns: 8)
+///       }
+///       @animations[:idle].play
+///     end
+///
+///     def update(dt)
+///       # Flip sprite based on direction
+///       @sprite.flip_x = !@facing_right
+///
+///       # Update position
+///       @sprite.x += @velocity.x * dt
+///       @sprite.y += @velocity.y * dt
+///     end
+///
+///     def draw
+///       @sprite.draw
+///     end
+///
+///     def bounds
+///       Rect.new(@sprite.x - 16, @sprite.y - 24, 32, 48)
+///     end
+///   end
+/// @example # Particle effect with many sprites
+///   class ParticleSystem
+///     def initialize(x, y, count: 50)
+///       @texture = GMR::Graphics::Texture.load("assets/particle.png")
+///       @particles = count.times.map do
+///         p = Sprite.new(@texture)
+///         p.x = x
+///         p.y = y
+///         p.alpha = 1.0
+///         p.center_origin
+///         p.scale = GMR::Math.random(0.3, 1.0)
+///         { sprite: p, vx: GMR::Math.random(-100, 100), vy: GMR::Math.random(-150, -50), life: GMR::Math.random(0.5, 1.5) }
+///       end
+///     end
+///
+///     def update(dt)
+///       @particles.each do |p|
+///         p[:sprite].x += p[:vx] * dt
+///         p[:sprite].y += p[:vy] * dt
+///         p[:vy] += 200 * dt  # Gravity
+///         p[:life] -= dt
+///         p[:sprite].alpha = [p[:life] / 0.5, 1.0].min
+///         p[:sprite].visible = p[:life] > 0
+///       end
+///     end
+///
+///     def draw
+///       @particles.each { |p| p[:sprite].draw if p[:sprite].visible }
+///     end
+///   end
+/// @example # Sprite layering with z-index for isometric game
+///   class GameWorld
+///     def initialize
+///       @floor = Sprite.new(floor_tex)
+///       @floor.z = 0  # Always bottom layer
+///
+///       @entities = []
+///       @entities << create_tree(100, 200)
+///       @entities << create_tree(150, 180)
+///       @entities << @player
+///     end
+///
+///     def draw
+///       @floor.draw
+///       # Sort entities by y position for proper layering
+///       @entities.sort_by! { |e| e.sprite.y }
+///       @entities.each { |e| e.sprite.z = e.sprite.y; e.draw }
+///     end
+///   end
 
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;

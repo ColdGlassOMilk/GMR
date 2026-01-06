@@ -16,20 +16,76 @@ namespace bindings {
 /// @class GMR::SpriteAnimation
 /// @description Frame-based animation for sprites. Automatically updates sprite's
 ///   source_rect each frame based on the frame indices and grid layout.
-/// @example # Create and play an animation
-///   walk = GMR::SpriteAnimation.new(sprite,
-///     frames: [0, 1, 2, 3],
-///     fps: 12,
-///     loop: true
-///   )
-///   walk.play
-/// @example # Using a Range for frames
-///   attack = GMR::SpriteAnimation.new(sprite,
-///     frames: 4..7,
-///     fps: 15,
-///     loop: false
-///   )
-///   attack.play.on_complete { puts "Attack done!" }
+/// @example # Platformer character with multiple animations managed by state machine
+///   class Player
+///     def initialize
+///       @texture = GMR::Graphics::Texture.load("assets/player_sheet.png")
+///       @sprite = Sprite.new(@texture)
+///       @sprite.source_rect = Rect.new(0, 0, 32, 32)
+///
+///       # Define all animations (8 columns in spritesheet)
+///       @animations = {
+///         idle: GMR::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+///         run: GMR::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+///         jump: GMR::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+///         fall: GMR::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8),
+///         attack: GMR::SpriteAnimation.new(@sprite, frames: 24..29, fps: 15, loop: false, columns: 8)
+///       }
+///       @current_anim = nil
+///       play_animation(:idle)
+///     end
+///
+///     def play_animation(name)
+///       return if @current_anim == @animations[name]
+///       @current_anim&.stop
+///       @current_anim = @animations[name]
+///       @current_anim.play
+///     end
+///   end
+/// @example # Enemy with death animation that triggers cleanup
+///   class Enemy
+///     def initialize(x, y)
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/enemy.png"))
+///       @sprite.x = x
+///       @sprite.y = y
+///       @health = 50
+///       @alive = true
+///
+///       @walk_anim = GMR::SpriteAnimation.new(@sprite, frames: 0..5, fps: 10, columns: 6)
+///       @death_anim = GMR::SpriteAnimation.new(@sprite, frames: 6..11, fps: 12, loop: false, columns: 6)
+///       @death_anim.on_complete { @sprite.visible = false; @can_remove = true }
+///
+///       @walk_anim.play
+///     end
+///
+///     def take_damage(amount)
+///       @health -= amount
+///       if @health <= 0 && @alive
+///         @alive = false
+///         @walk_anim.stop
+///         @death_anim.play
+///         GMR::Audio::Sound.play("assets/enemy_death.wav")
+///       end
+///     end
+///   end
+/// @example # Animated UI element with frame-based events
+///   class TreasureChest
+///     def initialize
+///       @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/chest.png"))
+///       @open_anim = GMR::SpriteAnimation.new(@sprite, frames: 0..4, fps: 8, loop: false, columns: 5)
+///       @open_anim.on_frame_change do |frame|
+///         # Play sound on specific frames
+///         GMR::Audio::Sound.play("assets/creak.wav") if frame == 2
+///         spawn_particles if frame == 4
+///       end
+///       @open_anim.on_complete { @ready_to_loot = true }
+///     end
+///
+///     def open
+///       @open_anim.play unless @opened
+///       @opened = true
+///     end
+///   end
 
 // ============================================================================
 // SpriteAnimation Binding Data
@@ -87,8 +143,26 @@ static SpriteHandle get_sprite_handle(mrb_state* mrb, mrb_value sprite_val) {
 /// @param frame_width: [Integer] Width of each frame (default: inferred from source_rect)
 /// @param frame_height: [Integer] Height of each frame (default: inferred from source_rect)
 /// @param columns: [Integer] Number of columns in spritesheet (default: 1)
-/// @example walk = GMR::SpriteAnimation.new(sprite, frames: [0,1,2,3], fps: 12)
-/// @example attack = GMR::SpriteAnimation.new(sprite, frames: 4..7, fps: 15, loop: false)
+/// @example # Basic spritesheet setup (4x4 grid, 64x64 frames)
+///   @sprite = Sprite.new(GMR::Graphics::Texture.load("assets/hero.png"))
+///   @sprite.source_rect = Rect.new(0, 0, 64, 64)  # First frame
+///
+///   # Row 0: idle (frames 0-3), Row 1: walk (frames 4-7)
+///   @idle_anim = GMR::SpriteAnimation.new(@sprite,
+///     frames: 0..3,
+///     fps: 8,
+///     loop: true,
+///     frame_width: 64,
+///     frame_height: 64,
+///     columns: 4
+///   )
+/// @example # Attack combo with non-looping animation
+///   @attack_anim = GMR::SpriteAnimation.new(@sprite,
+///     frames: [8, 9, 10, 11, 12],  # Explicit frame list
+///     fps: 18,  # Fast attack animation
+///     loop: false
+///   )
+///   @attack_anim.on_complete { @can_attack_again = true }
 static mrb_value mrb_sprite_animation_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value sprite_val;
     mrb_value kwargs;
@@ -198,7 +272,13 @@ static mrb_value mrb_sprite_animation_initialize(mrb_state* mrb, mrb_value self)
 /// @method play
 /// @description Start or resume the animation.
 /// @returns [SpriteAnimation] self for chaining
-/// @example anim.play
+/// @example # State machine integration - play animation when entering run state
+///   state :run do
+///     enter { @animations[:run].play }
+///     exit { @animations[:run].stop }
+///     on :stop, :idle
+///     on :jump, :jumping
+///   end
 static mrb_value mrb_sprite_animation_play(mrb_state* mrb, mrb_value self) {
     SpriteAnimationData* data = get_animation_data(mrb, self);
     if (!data) return self;
@@ -253,7 +333,16 @@ static mrb_value mrb_sprite_animation_stop(mrb_state* mrb, mrb_value self) {
 /// @method on_complete
 /// @description Set a callback for when the animation finishes (non-looping only).
 /// @returns [SpriteAnimation] self for chaining
-/// @example anim.on_complete { puts "Done!" }
+/// @example # Chain attack animation into recovery state
+///   def start_attack
+///     @attack_anim.stop
+///     @attack_anim.play
+///       .on_complete do
+///         @state_machine.trigger(:attack_finished)
+///         @can_be_hit = true
+///       end
+///     @can_be_hit = false  # Invincible during attack
+///   end
 static mrb_value mrb_sprite_animation_on_complete(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -274,7 +363,21 @@ static mrb_value mrb_sprite_animation_on_complete(mrb_state* mrb, mrb_value self
 /// @method on_frame_change
 /// @description Set a callback for each frame change. Receives frame index.
 /// @returns [SpriteAnimation] self for chaining
-/// @example anim.on_frame_change { |frame| puts "Frame: #{frame}" }
+/// @example # Play footstep sounds on specific walk cycle frames
+///   @walk_anim.on_frame_change do |frame|
+///     if frame == 2 || frame == 6  # Foot contact frames
+///       GMR::Audio::Sound.play("assets/footstep.wav", volume: 0.3)
+///     end
+///   end
+/// @example # Spawn attack hitbox on specific frame
+///   @attack_anim.on_frame_change do |frame|
+///     if frame == 3  # Sword swing frame
+///       spawn_attack_hitbox
+///       GMR::Audio::Sound.play("assets/whoosh.wav")
+///     elsif frame == 5  # End of swing
+///       destroy_attack_hitbox
+///     end
+///   end
 static mrb_value mrb_sprite_animation_on_frame_change(mrb_state* mrb, mrb_value self) {
     mrb_value block;
     mrb_get_args(mrb, "&", &block);
@@ -379,6 +482,12 @@ static mrb_value mrb_sprite_animation_fps(mrb_state* mrb, mrb_value self) {
 /// @description Set the frames per second.
 /// @param value [Float] New FPS
 /// @returns [Float] The FPS value
+/// @example # Speed up animation when player is running fast
+///   def update(dt)
+///     speed = calculate_movement_speed
+///     # Scale animation FPS with movement speed (8-16 fps range)
+///     @run_anim.fps = 8 + (speed / @max_speed) * 8
+///   end
 static mrb_value mrb_sprite_animation_set_fps(mrb_state* mrb, mrb_value self) {
     mrb_float fps;
     mrb_get_args(mrb, "f", &fps);

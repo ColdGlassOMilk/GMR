@@ -9,10 +9,67 @@ namespace bindings {
 /// @module GMR::Collision
 /// @description Geometry collision detection utilities. Provides fast tests for
 ///   point, rectangle, and circle collisions, as well as tile-based collision helpers.
-/// @example # Check if player is touching enemy
-///   if GMR::Collision.rect_overlap?(player.x, player.y, 32, 32,
-///                                    enemy.x, enemy.y, 32, 32)
-///     player.take_damage
+/// @example # Complete collision system for platformer
+///   class CollisionSystem
+///     def check_player_enemies(player, enemies)
+///       player_bounds = player.bounds
+///       enemies.each do |enemy|
+///         next unless enemy.alive?
+///         if GMR::Collision.rect_rect?(player_bounds, enemy.bounds)
+///           if player.attacking? && player.attack_bounds
+///             enemy.take_damage(player.attack_power)
+///           elsif !player.invincible?
+///             player.take_damage(enemy.damage)
+///           end
+///         end
+///       end
+///     end
+///
+///     def check_collectibles(player, items)
+///       items.reject! do |item|
+///         if GMR::Collision.rect_rect?(player.bounds, item.bounds)
+///           item.collect(player)
+///           true
+///         else
+///           false
+///         end
+///       end
+///     end
+///   end
+/// @example # Projectile collision with circle hitbox
+///   class Projectile
+///     def update(dt)
+///       @x += @vx * dt
+///       @y += @vy * dt
+///
+///       @enemies.each do |enemy|
+///         if GMR::Collision.circle_rect?(@x, @y, @radius, enemy.bounds)
+///           enemy.take_damage(@damage)
+///           @alive = false
+///           spawn_hit_effect(@x, @y)
+///           break
+///         end
+///       end
+///     end
+///   end
+/// @example # Mouse hover detection for UI buttons
+///   class Button
+///     def update(dt)
+///       mx = GMR::Input.mouse_x
+///       my = GMR::Input.mouse_y
+///       @hovered = GMR::Collision.point_in_rect?(mx, my, @x, @y, @width, @height)
+///
+///       if @hovered && GMR::Input.mouse_pressed?(:left)
+///         @callback.call
+///         GMR::Audio::Sound.play("assets/click.wav")
+///       end
+///     end
+///
+///     def draw
+///       color = @hovered ? [100, 150, 255] : [80, 80, 120]
+///       GMR::Graphics.draw_rect(@x, @y, @width, @height, color)
+///       GMR::Graphics.draw_text(@label, @x + 10, @y + 8, 20, [255, 255, 255])
+///     end
 ///   end
 
 // ============================================================================

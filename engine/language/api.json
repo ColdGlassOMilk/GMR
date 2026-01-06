@@ -1704,7 +1704,7 @@
             "type": "String",
             "description": "Monitor name"
           },
-          "example": "# Frame-independent movement\n  player.x += speed * GMR::Time.delta"
+          "example": "# Debug overlay with FPS and timing info\n  class DebugOverlay\n    def draw\n      y = 10\n      color = [0, 255, 0]\n\n      # Show current FPS\n      fps = GMR::Time.fps\n      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]\n      GMR::Graphics.draw_text(\"FPS: #{fps}\", 10, y, 16, fps_color)\n      y += 20\n\n      # Show frame time\n      frame_ms = (GMR::Time.delta * 1000).round(2)\n      GMR::Graphics.draw_text(\"Frame: #{frame_ms}ms\", 10, y, 16, color)\n      y += 20\n\n      # Show total elapsed time\n      elapsed = GMR::Time.elapsed\n      minutes = (elapsed / 60).to_i\n      seconds = (elapsed % 60).to_i\n      GMR::Graphics.draw_text(\"Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}\", 10, y, 16, color)\n    end\n  end"
         }
       }
     },
@@ -2927,7 +2927,7 @@
             "type": "String",
             "description": "String in format \"Vec2(x, y)\""
           },
-          "example": "v3 = v * 0.5                 # Scale"
+          "example": "# 3D position for parallax layers\n  class ParallaxLayer\r\n    def initialize(texture, depth)\r"
         }
       }
     },
@@ -3050,7 +3050,7 @@
             "type": "String",
             "description": "String in format \"Vec3(x, y, z)\""
           },
-          "example": "puts rect.x, rect.y, rect.w, rect.h"
+          "example": "# UI layout helper\n  class UILayoutHelper\r\n    def initialize(container)\r"
         }
       }
     },
@@ -3964,7 +3964,7 @@
               "description": "The sprite to animate"
             }
           ],
-          "example": "attack = GMR::SpriteAnimation.new(sprite, frames: 4..7, fps: 15, loop: false)"
+          "example": "# Attack combo with non-looping animation"
         },
         "play": {
           "description": "Start or resume the animation.",
@@ -3972,7 +3972,7 @@
             "type": "SpriteAnimation",
             "description": "self for chaining"
           },
-          "example": "anim.play"
+          "example": "# State machine integration - play animation when entering run state\n  state :run do\n    enter { @animations[:run].play }\n    exit { @animations[:run].stop }\n    on :stop, :idle\n    on :jump, :jumping\n  end"
         },
         "pause": {
           "description": "Pause the animation at the current frame.",
@@ -3996,7 +3996,7 @@
             "type": "SpriteAnimation",
             "description": "self for chaining"
           },
-          "example": "anim.on_complete { puts \"Done!\" }"
+          "example": "# Chain attack animation into recovery state\n  def start_attack"
         },
         "on_frame_change": {
           "description": "Set a callback for each frame change. Receives frame index.",
@@ -4004,7 +4004,7 @@
             "type": "SpriteAnimation",
             "description": "self for chaining"
           },
-          "example": "anim.on_frame_change { |frame| puts \"Frame: #{frame}\" }"
+          "example": "# Spawn attack hitbox on specific frame"
         },
         "playing?": {
           "description": "Check if the animation is currently playing.",
@@ -4060,7 +4060,8 @@
           "returns": {
             "type": "Float",
             "description": "The FPS value"
-          }
+          },
+          "example": "# Speed up animation when player is running fast\n  def update(dt)\n    speed = calculate_movement_speed\n    # Scale animation FPS with movement speed (8-16 fps range)"
         },
         "loop?": {
           "description": "Check if the animation loops.",
@@ -4129,7 +4130,8 @@
           "returns": {
             "type": "Boolean",
             "description": "true if a transition occurred"
-          }
+          },
+          "example": "# Chain triggers from animation callbacks"
         },
         "state": {
           "description": "Define a state with its behavior.",
@@ -4185,13 +4187,16 @@
               "type": "Symbol",
               "description": "The target state"
             }
-          ]
+          ],
+          "example": "# Multiple transitions from same state\n  state :grounded do\r\n    on :jump, :jumping\r\n    on :crouch, :crouching\r\n    on :damage, :hurt\r\n    on :fall, :falling\r\n  end\r"
         },
         "enter": {
-          "description": "Set a callback to run when entering this state."
+          "description": "Set a callback to run when entering this state.",
+          "example": "# Initialize state-specific data on enter\n  state :charging do\r\n    enter do\r"
         },
         "exit": {
-          "description": "Set a callback to run when exiting this state."
+          "description": "Set a callback to run when exiting this state.",
+          "example": "# Cancel pending actions on state exit\n  state :aiming do\r\n    exit do\r"
         },
         "on_input": {
           "description": "Define an input-driven transition from this state.",
@@ -4512,7 +4517,7 @@
             "type": "Tween",
             "description": "The tween instance for chaining"
           },
-          "example": "GMR::Tween.to(sprite, :alpha, 0.0, duration: 0.25, ease: :out_cubic)"
+          "example": "# Smooth camera zoom for scope/aim mode\n  def toggle_aim_mode"
         },
         "from": {
           "description": "Create a tween that animates a property FROM a start value to current. Useful for \"animate in\" effects like fading in from transparent.",
@@ -4537,7 +4542,7 @@
             "type": "Tween",
             "description": "The tween instance for chaining"
           },
-          "example": "GMR::Tween.from(sprite, :scale_x, 0.0, duration: 0.3, ease: :out_back)"
+          "example": "# Toast notification slides in from bottom\n  class Toast\n    def show(message)"
         },
         "on_complete": {
           "description": "Set a callback to invoke when the tween completes.",
@@ -4545,7 +4550,7 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "tween.on_complete { sprite.visible = false }"
+          "example": "# Sequence of tweens using on_complete for chaining\n  class Chest\n    def open\n      # First: lid opens\n      GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)\n        .on_complete do\n          # Second: spawn item and make it rise"
         },
         "on_update": {
           "description": "Set a callback to invoke each frame during the tween. The callback receives (t, value) where t is normalized progress [0-1] and value is the current interpolated value.",
@@ -4553,14 +4558,14 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "tween.on_update { |t, val| puts \"Progress: #{(t * 100).to_i}%\" }"
+          "example": "# Color cycling effect on update\n  def start_rainbow_effect"
         },
         "cancel": {
           "description": "Cancel the tween immediately. Does not invoke on_complete.",
           "returns": {
             "type": "nil"
           },
-          "example": "tween.cancel"
+          "example": "# Cancel movement when player hits wall\n  class Player\n    def move_to(target_x, target_y)"
         },
         "pause": {
           "description": "Pause the tween. Use resume to continue.",
@@ -4568,7 +4573,7 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "tween.pause"
+          "example": "# Pause all UI animations when game pauses\n  class PauseMenu\n    def show"
         },
         "resume": {
           "description": "Resume a paused tween.",
@@ -4613,7 +4618,7 @@
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Tween.cancel_all"
+          "example": "# Clean slate when transitioning scenes\n  class GameScene < GMR::Scene\n    def unload\n      # Cancel all tweens to prevent callbacks on destroyed objects\n      GMR::Tween.cancel_all\n      # Clean up resources"
         },
         "count": {
           "description": "Get the number of active tweens.",

@@ -62,6 +62,12 @@ Trigger an event, causing a transition if one is defined.
 
 **Returns:** `Boolean` - true if a transition occurred
 
+**Example:**
+
+```ruby
+# Chain triggers from animation callbacks
+```
+
 ---
 
 <a id="state"></a>
@@ -131,6 +137,18 @@ Define a transition from this state.
 | `event` | `Symbol` | The event that triggers the transition |
 | `target` | `Symbol` | The target state |
 
+**Example:**
+
+```ruby
+# Multiple transitions from same state
+  state :grounded do
+    on :jump, :jumping
+    on :crouch, :crouching
+    on :damage, :hurt
+    on :fall, :falling
+  end
+```
+
 ---
 
 <a id="enter"></a>
@@ -139,6 +157,14 @@ Define a transition from this state.
 
 Set a callback to run when entering this state.
 
+**Example:**
+
+```ruby
+# Initialize state-specific data on enter
+  state :charging do
+    enter do
+```
+
 ---
 
 <a id="exit"></a>
@@ -146,6 +172,14 @@ Set a callback to run when entering this state.
 ### #exit
 
 Set a callback to run when exiting this state.
+
+**Example:**
+
+```ruby
+# Cancel pending actions on state exit
+  state :aiming do
+    exit do
+```
 
 ---
 

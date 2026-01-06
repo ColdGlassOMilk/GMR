@@ -42,7 +42,8 @@ Create a tween that animates a property TO a target value. The tween starts from
 **Example:**
 
 ```ruby
-GMR::Tween.to(sprite, :alpha, 0.0, duration: 0.25, ease: :out_cubic)
+# Smooth camera zoom for scope/aim mode
+  def toggle_aim_mode
 ```
 
 ---
@@ -66,7 +67,9 @@ Create a tween that animates a property FROM a start value to current. Useful fo
 **Example:**
 
 ```ruby
-GMR::Tween.from(sprite, :scale_x, 0.0, duration: 0.3, ease: :out_back)
+# Toast notification slides in from bottom
+  class Toast
+    def show(message)
 ```
 
 ---
@@ -82,7 +85,13 @@ Set a callback to invoke when the tween completes.
 **Example:**
 
 ```ruby
-tween.on_complete { sprite.visible = false }
+# Sequence of tweens using on_complete for chaining
+  class Chest
+    def open
+      # First: lid opens
+      GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)
+        .on_complete do
+          # Second: spawn item and make it rise
 ```
 
 ---
@@ -98,7 +107,8 @@ Set a callback to invoke each frame during the tween. The callback receives (t, 
 **Example:**
 
 ```ruby
-tween.on_update { |t, val| puts "Progress: #{(t * 100).to_i}%" }
+# Color cycling effect on update
+  def start_rainbow_effect
 ```
 
 ---
@@ -114,7 +124,9 @@ Cancel the tween immediately. Does not invoke on_complete.
 **Example:**
 
 ```ruby
-tween.cancel
+# Cancel movement when player hits wall
+  class Player
+    def move_to(target_x, target_y)
 ```
 
 ---
@@ -130,7 +142,9 @@ Pause the tween. Use resume to continue.
 **Example:**
 
 ```ruby
-tween.pause
+# Pause all UI animations when game pauses
+  class PauseMenu
+    def show
 ```
 
 ---
@@ -218,7 +232,12 @@ Cancel all active tweens.
 **Example:**
 
 ```ruby
-GMR::Tween.cancel_all
+# Clean slate when transitioning scenes
+  class GameScene < GMR::Scene
+    def unload
+      # Cancel all tweens to prevent callbacks on destroyed objects
+      GMR::Tween.cancel_all
+      # Clean up resources
 ```
 
 ---

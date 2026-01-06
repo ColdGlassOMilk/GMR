@@ -13,14 +13,134 @@ namespace bindings {
 /// @description A scene graph node with hierarchical transforms.
 ///   Each node has a local transform (relative to parent) and a world transform
 ///   (computed from the full hierarchy). Nodes form a tree: one parent, many children.
-/// @example # Create a hierarchy
-///   root = Node.new
-///   child = Node.new
-///   root.add_child(child)
-///   root.local_position = Vec2.new(100, 100)
-///   child.local_position = Vec2.new(50, 0)
-///   Node.update_world_transforms(root)
-///   puts child.world_position  # Position relative to root
+/// @example # Character with weapon and particle attachment points
+///   class Character
+///     def initialize(x, y)
+///       @root = Node.new
+///       @root.local_position = Vec2.new(x, y)
+///
+///       # Weapon mount point (offset from character center)
+///       @weapon_node = Node.new
+///       @weapon_node.local_position = Vec2.new(24, 8)  # Right side
+///       @root.add_child(@weapon_node)
+///
+///       # Particle spawn point for effects (above head)
+///       @particle_node = Node.new
+///       @particle_node.local_position = Vec2.new(0, -32)
+///       @root.add_child(@particle_node)
+///
+///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/character.png"))
+///     end
+///
+///     def update(dt)
+///       # Move character
+///       @root.local_position = Vec2.new(@root.local_position.x + @vx * dt,
+///                                        @root.local_position.y + @vy * dt)
+///       # Update all world transforms from root
+///       Node.update_world_transforms(@root)
+///     end
+///
+///     def draw
+///       pos = @root.world_position
+///       @sprite.x = pos.x
+///       @sprite.y = pos.y
+///       @sprite.draw
+///     end
+///
+///     def weapon_position
+///       @weapon_node.world_position  # Get world space position for weapon sprite
+///     end
+///
+///     def spawn_particle_at_head
+///       pos = @particle_node.world_position
+///       ParticleSystem.spawn_at(pos.x, pos.y)
+///     end
+///   end
+/// @example # Rotating turret with barrel
+///   class Turret
+///     def initialize(x, y)
+///       @base = Node.new
+///       @base.local_position = Vec2.new(x, y)
+///
+///       @barrel = Node.new
+///       @barrel.local_position = Vec2.new(32, 0)  # Barrel extends right
+///       @base.add_child(@barrel)
+///
+///       @muzzle = Node.new
+///       @muzzle.local_position = Vec2.new(24, 0)  # Muzzle at end of barrel
+///       @barrel.add_child(@muzzle)
+///
+///       @base_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/turret_base.png"))
+///       @barrel_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/turret_barrel.png"))
+///     end
+///
+///     def aim_at(target_x, target_y)
+///       pos = @base.world_position
+///       dx = target_x - pos.x
+///       dy = target_y - pos.y
+///       @barrel.local_rotation = Math.atan2(dy, dx) * 180 / Math::PI
+///       Node.update_world_transforms(@base)
+///     end
+///
+///     def fire
+///       muzzle_pos = @muzzle.world_position
+///       angle = @barrel.world_rotation
+///       Projectile.spawn(muzzle_pos.x, muzzle_pos.y, angle)
+///       GMR::Audio::Sound.play("assets/cannon_fire.wav")
+///     end
+///
+///     def draw
+///       @base_sprite.x = @base.world_position.x
+///       @base_sprite.y = @base.world_position.y
+///       @base_sprite.draw
+///
+///       @barrel_sprite.x = @barrel.world_position.x
+///       @barrel_sprite.y = @barrel.world_position.y
+///       @barrel_sprite.rotation = @barrel.world_rotation
+///       @barrel_sprite.draw
+///     end
+///   end
+/// @example # UI panel with child elements
+///   class UIPanel
+///     def initialize(x, y)
+///       @panel = Node.new
+///       @panel.local_position = Vec2.new(x, y)
+///
+///       @title = Node.new
+///       @title.local_position = Vec2.new(10, 10)
+///       @panel.add_child(@title)
+///
+///       @content = Node.new
+///       @content.local_position = Vec2.new(10, 40)
+///       @panel.add_child(@content)
+///
+///       @close_btn = Node.new
+///       @close_btn.local_position = Vec2.new(180, 10)
+///       @panel.add_child(@close_btn)
+///     end
+///
+///     def show
+///       @panel.active = true
+///       # Slide in animation
+///       GMR::Tween.to(@panel, :local_position, Vec2.new(@target_x, @target_y),
+///                     duration: 0.3, ease: :out_back)
+///     end
+///
+///     def hide
+///       @panel.active = false
+///     end
+///
+///     def draw
+///       return unless @panel.active?
+///       Node.update_world_transforms(@panel)
+///       # Draw panel background at panel position
+///       pos = @panel.world_position
+///       GMR::Graphics.draw_rect(pos.x, pos.y, 200, 150, [40, 40, 60, 220])
+///       # Draw title at title node position
+///       title_pos = @title.world_position
+///       GMR::Graphics.draw_text("Inventory", title_pos.x, title_pos.y, 20, [255, 255, 255])
+///     end
+///   end
 
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;

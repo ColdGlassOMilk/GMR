@@ -190,7 +190,9 @@ A rectangle with position (x, y) and dimensions (w, h). Used for bounds, source 
 **Example:**
 
 ```ruby
-puts rect.x, rect.y, rect.w, rect.h
+# UI layout helper
+  class UILayoutHelper
+    def initialize(container)
 ```
 
 ---
