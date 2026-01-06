@@ -169,7 +169,7 @@ private:
 
     // State
     bool initialized_ = false;
-    bool enabled_ = true;
+    bool enabled_ = false;  // Must call Console.enable to activate
     bool open_ = false;
     mrb_state* mrb_ = nullptr;
 

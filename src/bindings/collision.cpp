@@ -286,6 +286,76 @@ static mrb_value mrb_collision_tile_rect(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Tilemap Collision Resolution
+// ============================================================================
+
+/// @function tilemap_resolve
+/// @description Resolve collision between a hitbox rectangle and a tilemap's solid tiles.
+///   Returns resolved position and collision flags. This is the recommended way to handle
+///   character-tilemap collisions in platformers.
+/// @param tilemap [Tilemap] The tilemap to check collision against
+/// @param x [Float] Hitbox X position in tilemap local coordinates
+/// @param y [Float] Hitbox Y position in tilemap local coordinates
+/// @param w [Float] Hitbox width
+/// @param h [Float] Hitbox height
+/// @param vx [Float] Current X velocity (for directional checks)
+/// @param vy [Float] Current Y velocity (for directional checks)
+/// @returns [Hash] Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom
+/// @example # In update loop:
+///   local_x = @sprite.x + HITBOX_OFFSET_X - MAP_OFFSET_X
+///   local_y = @sprite.y + HITBOX_OFFSET_Y - MAP_OFFSET_Y
+///   result = Collision.tilemap_resolve(@tilemap, local_x, local_y, HITBOX_W, HITBOX_H, @vx, @vy)
+///   @sprite.x = result[:x] + MAP_OFFSET_X - HITBOX_OFFSET_X
+///   @sprite.y = result[:y] + MAP_OFFSET_Y - HITBOX_OFFSET_Y
+///   @on_ground = result[:bottom]
+static mrb_value mrb_collision_tilemap_resolve(mrb_state* mrb, mrb_value) {
+    mrb_value tilemap_obj;
+    mrb_float x, y, w, h, vx, vy;
+    mrb_get_args(mrb, "offffff", &tilemap_obj, &x, &y, &w, &h, &vx, &vy);
+
+    // Helper to create default result hash
+    auto make_default_result = [&]() {
+        mrb_value result = mrb_hash_new(mrb);
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "x")), mrb_float_value(mrb, x));
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "y")), mrb_float_value(mrb, y));
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vx")), mrb_float_value(mrb, vx));
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vy")), mrb_float_value(mrb, vy));
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "left")), mrb_false_value());
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "right")), mrb_false_value());
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "top")), mrb_false_value());
+        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "bottom")), mrb_false_value());
+        return result;
+    };
+
+    // Get tilemap data
+    TilemapData* tilemap = get_tilemap_from_value(mrb, tilemap_obj);
+    if (!tilemap) {
+        return make_default_result();
+    }
+
+    // Perform collision resolution
+    CollisionResult collision = gmr::collision::tilemap_resolve(
+        static_cast<float>(x), static_cast<float>(y),
+        static_cast<float>(w), static_cast<float>(h),
+        static_cast<float>(vx), static_cast<float>(vy),
+        *tilemap
+    );
+
+    // Build result hash
+    mrb_value result = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "x")), mrb_float_value(mrb, collision.x));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "y")), mrb_float_value(mrb, collision.y));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vx")), mrb_float_value(mrb, collision.vx));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vy")), mrb_float_value(mrb, collision.vy));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "left")), mrb_bool_value(collision.hit_left));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "right")), mrb_bool_value(collision.hit_right));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "top")), mrb_bool_value(collision.hit_top));
+    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "bottom")), mrb_bool_value(collision.hit_bottom));
+
+    return result;
+}
+
+// ============================================================================
 // Distance Helpers
 // ============================================================================
 
@@ -351,6 +421,9 @@ void register_collision(mrb_state* mrb) {
     // Tile helpers
     mrb_define_module_function(mrb, collision, "rect_tiles", mrb_collision_rect_tiles, MRB_ARGS_REQ(5));
     mrb_define_module_function(mrb, collision, "tile_rect", mrb_collision_tile_rect, MRB_ARGS_REQ(3));
+
+    // Tilemap collision resolution
+    mrb_define_module_function(mrb, collision, "tilemap_resolve", mrb_collision_tilemap_resolve, MRB_ARGS_REQ(7));
 
     // Distance helpers
     mrb_define_module_function(mrb, collision, "distance", mrb_collision_distance, MRB_ARGS_REQ(4));

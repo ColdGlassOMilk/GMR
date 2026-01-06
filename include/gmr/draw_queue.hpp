@@ -2,25 +2,100 @@
 #define GMR_DRAW_QUEUE_HPP
 
 #include "gmr/types.hpp"
+#include "gmr/camera.hpp"
 #include <vector>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string>
 
 namespace gmr {
+
+// Color struct for draw commands
+struct DrawColor {
+    uint8_t r{255}, g{255}, b{255}, a{255};
+};
+
+// Tilemap draw parameters
+struct TilemapDrawParams {
+    TilemapHandle handle{INVALID_HANDLE};
+    float offset_x{0};
+    float offset_y{0};
+    DrawColor tint;
+    // Optional region (if not set, draw entire tilemap)
+    bool use_region{false};
+    int32_t region_x{0};
+    int32_t region_y{0};
+    int32_t region_w{0};
+    int32_t region_h{0};
+};
+
+// Rectangle draw parameters
+struct RectDrawParams {
+    float x{0}, y{0}, w{0}, h{0};
+    float rotation{0};
+    DrawColor color;
+    bool filled{true};
+};
+
+// Circle draw parameters
+struct CircleDrawParams {
+    float x{0}, y{0}, radius{0};
+    DrawColor color;
+    DrawColor color2;  // For gradient
+    bool filled{true};
+    bool gradient{false};
+};
+
+// Line draw parameters
+struct LineDrawParams {
+    float x1{0}, y1{0}, x2{0}, y2{0};
+    float thickness{1};
+    DrawColor color;
+};
+
+// Triangle draw parameters
+struct TriangleDrawParams {
+    float x1{0}, y1{0}, x2{0}, y2{0}, x3{0}, y3{0};
+    DrawColor color;
+    bool filled{true};
+};
+
+// Text draw parameters
+struct TextDrawParams {
+    float x{0}, y{0};
+    int font_size{20};
+    DrawColor color;
+    std::string content;
+};
 
 // Draw command for deferred rendering with hybrid z-ordering
 struct DrawCommand {
     enum class Type {
-        SPRITE
-        // Future: RECT, CIRCLE, LINE, TEXT for unified z-sorting
+        SPRITE,
+        TILEMAP,
+        RECT,
+        CIRCLE,
+        LINE,
+        TRIANGLE,
+        TEXT,
+        CAMERA_BEGIN,
+        CAMERA_END
     };
 
-    Type type;
-    float z;              // Final z value (explicit or from draw_order)
-    uint32_t draw_order;  // Insertion order for stable sort
+    Type type{Type::SPRITE};
+    float z{0};
+    uint32_t draw_order{0};
 
     // Type-specific data
-    SpriteHandle sprite_handle;  // For SPRITE type
+    SpriteHandle sprite_handle{INVALID_HANDLE};
+    CameraHandle camera_handle{INVALID_CAMERA_HANDLE};
+    TilemapDrawParams tilemap;
+    RectDrawParams rect;
+    CircleDrawParams circle;
+    LineDrawParams line;
+    TriangleDrawParams triangle;
+    TextDrawParams text;
 
     DrawCommand() = default;
     DrawCommand(Type t, float z_val, uint32_t order, SpriteHandle sprite = INVALID_HANDLE)
@@ -35,6 +110,26 @@ public:
     // Queue a sprite for drawing
     // Uses sprite.z if set, otherwise uses draw_order (later = higher = on top)
     void queue_sprite(SpriteHandle handle);
+
+    // Queue tilemap for drawing
+    void queue_tilemap(TilemapHandle handle, float offset_x, float offset_y, const DrawColor& tint);
+    void queue_tilemap_region(TilemapHandle handle, float offset_x, float offset_y,
+                              int32_t region_x, int32_t region_y, int32_t region_w, int32_t region_h,
+                              const DrawColor& tint);
+
+    // Queue primitives for drawing
+    void queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled = true);
+    void queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color);
+    void queue_circle(float x, float y, float radius, const DrawColor& color, bool filled = true);
+    void queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer);
+    void queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness = 1.0f);
+    void queue_triangle(float x1, float y1, float x2, float y2, float x3, float y3,
+                        const DrawColor& color, bool filled = true);
+    void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color);
+
+    // Queue camera begin/end commands for deferred camera transforms
+    void queue_camera_begin(CameraHandle handle);
+    void queue_camera_end();
 
     // Sort by z and execute all queued draws, then clear
     void flush();
@@ -52,8 +147,18 @@ private:
     DrawQueue() = default;
 
     void draw_sprite(const DrawCommand& cmd);
+    void draw_tilemap(const DrawCommand& cmd);
+    void draw_rect(const DrawCommand& cmd);
+    void draw_circle(const DrawCommand& cmd);
+    void draw_line(const DrawCommand& cmd);
+    void draw_triangle(const DrawCommand& cmd);
+    void draw_text(const DrawCommand& cmd);
+    void apply_camera_begin(CameraHandle handle);
+    void apply_camera_end();
 
     std::vector<DrawCommand> commands_;
+    std::vector<CameraHandle> camera_stack_;  // Track camera nesting during queuing
+    CameraHandle active_camera_{INVALID_CAMERA_HANDLE};  // Current camera during flush
     uint32_t next_draw_order_{0};
 
     // Large base z for draw-order-based sprites to ensure they sort after explicit z

@@ -375,7 +375,8 @@ static mrb_value mrb_input_map_simple(mrb_state* mrb, mrb_value) {
     mrb_value keys;
     mrb_get_args(mrb, "no", &action_sym, &keys);
 
-    const char* action_name = mrb_sym_name(mrb, action_sym);
+    // Save action name immediately - mrb_sym_name pointer can be invalidated
+    std::string action_name = mrb_sym_name(mrb, action_sym);
     std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_keys(mrb, keys);
 
     gmr_input::InputManager::instance().define_action(action_name, bindings);
@@ -411,7 +412,8 @@ static mrb_value mrb_input_builder_action(mrb_state* mrb, mrb_value self) {
     mrb_value kwargs = mrb_nil_value();
     mrb_get_args(mrb, "n|H", &action_sym, &kwargs);
 
-    const char* action_name = mrb_sym_name(mrb, action_sym);
+    // Save action name immediately - mrb_sym_name pointer can be invalidated
+    std::string action_name = mrb_sym_name(mrb, action_sym);
     std::vector<gmr_input::InputBinding> bindings;
 
     if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
@@ -468,6 +470,14 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
     // Parse optional symbol, optional keys, optional block
     mrb_get_args(mrb, "|no&", &action_sym, &keys, &block);
 
+    // IMMEDIATELY save the action name before any other mruby calls
+    // mrb_sym_name returns a pointer to internal mruby string table
+    // which can be invalidated by subsequent mruby operations
+    std::string action_name;
+    if (action_sym != 0) {
+        action_name = mrb_sym_name(mrb, action_sym);
+    }
+
     if (!mrb_nil_p(block) && action_sym == 0) {
         // Block DSL form: GMR::Input.map { ... }
         mrb_value builder = mrb_obj_new(mrb, input_builder_class, 0, nullptr);
@@ -485,7 +495,6 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
 
     if (action_sym != 0) {
         // Traditional form: GMR::Input.map(:action, keys)
-        const char* action_name = mrb_sym_name(mrb, action_sym);
         std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_keys(mrb, keys);
         gmr_input::InputManager::instance().define_action(action_name, bindings);
     }
@@ -716,7 +725,8 @@ static mrb_value mrb_context_builder_method_missing(mrb_state* mrb, mrb_value se
     mrb_value block = mrb_nil_value();
     mrb_get_args(mrb, "n*&", &method_sym, &argv, &argc, &block);
 
-    const char* action_name = mrb_sym_name(mrb, method_sym);
+    // Save action name immediately - mrb_sym_name pointer can be invalidated
+    std::string action_name = mrb_sym_name(mrb, method_sym);
 
     // Parse bindings from arguments
     std::vector<gmr_input::InputBinding> bindings = parse_bindings_from_args(mrb, argv, argc);

@@ -3,6 +3,7 @@
 #include "gmr/state.hpp"
 #include "gmr/resources/texture_manager.hpp"
 #include "gmr/resources/tilemap_manager.hpp"
+#include "gmr/draw_queue.hpp"
 #include "raylib.h"
 #include <cstring>
 
@@ -565,6 +566,14 @@ static TilemapBindingData* get_tilemap_data(mrb_state* mrb, mrb_value self) {
     return static_cast<TilemapBindingData*>(mrb_data_get_ptr(mrb, self, &tilemap_data_type));
 }
 
+// Exposed helper for other modules (like Collision) to access tilemap data
+TilemapData* get_tilemap_from_value(mrb_state* mrb, mrb_value tilemap_obj) {
+    TilemapBindingData* data = static_cast<TilemapBindingData*>(
+        mrb_data_get_ptr(mrb, tilemap_obj, &tilemap_data_type));
+    if (!data) return nullptr;
+    return TilemapManager::instance().get(data->handle);
+}
+
 /// @classmethod new
 /// @description Create a new tilemap with the specified dimensions. All tiles are initialized to -1 (empty/transparent).
 /// @param tileset [Texture] The tileset texture containing all tile graphics
@@ -719,110 +728,54 @@ static mrb_value mrb_tilemap_fill_rect(mrb_state* mrb, mrb_value self) {
 }
 
 // tilemap.draw(x, y) or tilemap.draw(x, y, color)
-// Draws all tiles to the screen
+// Draws all tiles to the screen using deferred rendering
 static mrb_value mrb_tilemap_draw(mrb_state* mrb, mrb_value self) {
-    mrb_int offset_x, offset_y;
+    mrb_float offset_x, offset_y;
     mrb_value color_val = mrb_nil_value();
-    mrb_int argc = mrb_get_args(mrb, "ii|A", &offset_x, &offset_y, &color_val);
+    mrb_int argc = mrb_get_args(mrb, "ff|A", &offset_x, &offset_y, &color_val);
 
     TilemapBindingData* data = get_tilemap_data(mrb, self);
     if (!data) return mrb_nil_value();
 
-    auto* tilemap = TilemapManager::instance().get(data->handle);
-    if (!tilemap) return mrb_nil_value();
-
-    auto* texture = TextureManager::instance().get(tilemap->tileset);
-    if (!texture) return mrb_nil_value();
-
     Color c = (argc > 2) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+    DrawColor tint{c.r, c.g, c.b, c.a};
 
-    // Calculate tileset dimensions (tiles per row in tileset)
-    int tileset_cols = texture->width / tilemap->tile_width;
-
-    // Draw each tile
-    for (int32_t ty = 0; ty < tilemap->height; ++ty) {
-        for (int32_t tx = 0; tx < tilemap->width; ++tx) {
-            int32_t tile_index = tilemap->get(tx, ty);
-            if (tile_index < 0) continue;  // Skip empty tiles
-
-            // Calculate source rectangle from tileset
-            int src_x = (tile_index % tileset_cols) * tilemap->tile_width;
-            int src_y = (tile_index / tileset_cols) * tilemap->tile_height;
-
-            Rectangle source = {
-                static_cast<float>(src_x),
-                static_cast<float>(src_y),
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
-            };
-
-            Rectangle dest = {
-                static_cast<float>(offset_x + tx * tilemap->tile_width),
-                static_cast<float>(offset_y + ty * tilemap->tile_height),
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
-            };
-
-            DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, to_raylib(c));
-        }
-    }
+    // Queue tilemap for deferred rendering
+    DrawQueue::instance().queue_tilemap(
+        data->handle,
+        static_cast<float>(offset_x),
+        static_cast<float>(offset_y),
+        tint
+    );
 
     return mrb_nil_value();
 }
 
 // tilemap.draw_region(x, y, start_tile_x, start_tile_y, tiles_wide, tiles_tall) or with color
-// Draws a portion of the tilemap (for scrolling/culling)
+// Draws a portion of the tilemap (for scrolling/culling) using deferred rendering
 static mrb_value mrb_tilemap_draw_region(mrb_state* mrb, mrb_value self) {
-    mrb_int offset_x, offset_y, start_x, start_y, tiles_w, tiles_h;
+    mrb_float offset_x, offset_y;
+    mrb_int start_x, start_y, tiles_w, tiles_h;
     mrb_value color_val = mrb_nil_value();
-    mrb_int argc = mrb_get_args(mrb, "iiiiii|A", &offset_x, &offset_y, &start_x, &start_y, &tiles_w, &tiles_h, &color_val);
+    mrb_int argc = mrb_get_args(mrb, "ffiiii|A", &offset_x, &offset_y, &start_x, &start_y, &tiles_w, &tiles_h, &color_val);
 
     TilemapBindingData* data = get_tilemap_data(mrb, self);
     if (!data) return mrb_nil_value();
 
-    auto* tilemap = TilemapManager::instance().get(data->handle);
-    if (!tilemap) return mrb_nil_value();
-
-    auto* texture = TextureManager::instance().get(tilemap->tileset);
-    if (!texture) return mrb_nil_value();
-
     Color c = (argc > 6) ? parse_color_value(mrb, color_val, WHITE_COLOR) : WHITE_COLOR;
+    DrawColor tint{c.r, c.g, c.b, c.a};
 
-    // Calculate tileset dimensions
-    int tileset_cols = texture->width / tilemap->tile_width;
-
-    // Draw the specified region
-    for (int32_t ty = 0; ty < tiles_h; ++ty) {
-        int32_t map_y = static_cast<int32_t>(start_y) + ty;
-        if (map_y < 0 || map_y >= tilemap->height) continue;
-
-        for (int32_t tx = 0; tx < tiles_w; ++tx) {
-            int32_t map_x = static_cast<int32_t>(start_x) + tx;
-            if (map_x < 0 || map_x >= tilemap->width) continue;
-
-            int32_t tile_index = tilemap->get(map_x, map_y);
-            if (tile_index < 0) continue;
-
-            int src_x = (tile_index % tileset_cols) * tilemap->tile_width;
-            int src_y = (tile_index / tileset_cols) * tilemap->tile_height;
-
-            Rectangle source = {
-                static_cast<float>(src_x),
-                static_cast<float>(src_y),
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
-            };
-
-            Rectangle dest = {
-                static_cast<float>(offset_x + tx * tilemap->tile_width),
-                static_cast<float>(offset_y + ty * tilemap->tile_height),
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
-            };
-
-            DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, to_raylib(c));
-        }
-    }
+    // Queue tilemap region for deferred rendering
+    DrawQueue::instance().queue_tilemap_region(
+        data->handle,
+        static_cast<float>(offset_x),
+        static_cast<float>(offset_y),
+        static_cast<int32_t>(start_x),
+        static_cast<int32_t>(start_y),
+        static_cast<int32_t>(tiles_w),
+        static_cast<int32_t>(tiles_h),
+        tint
+    );
 
     return mrb_nil_value();
 }

@@ -1,6 +1,7 @@
 #include "gmr/bindings/camera.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/draw_queue.hpp"
 #include "gmr/types.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include "raylib.h"
@@ -621,9 +622,9 @@ static mrb_value mrb_camera_screen_to_world(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 /// @method use
-/// @description Execute a block with this camera's transform applied. All drawing
-///   within the block will be transformed by the camera (position, zoom, rotation).
-///   The camera mode is automatically ended when the block completes.
+/// @description Execute a block with this camera's transform applied. All sprites
+///   drawn within the block will be rendered with the camera transform applied
+///   during the deferred rendering pass. This works correctly with z-ordering.
 /// @returns [Object] The return value of the block
 /// @example camera.use do
 ///   draw_tilemap()
@@ -646,28 +647,44 @@ static mrb_value mrb_camera_use(mrb_state* mrb, mrb_value self) {
     }
 
     CameraData* data = get_camera_data(mrb, self);
-    Camera2DState* cam = CameraManager::instance().get(data->handle);
-    if (!cam) return mrb_nil_value();
+    if (!data) return mrb_nil_value();
 
-    // Build raylib camera with shake offset applied
-    ::Camera2D raylib_cam = {};
-    raylib_cam.target = {cam->target.x, cam->target.y};
-    raylib_cam.offset = {cam->offset.x + cam->shake_offset.x,
-                         cam->offset.y + cam->shake_offset.y};
-    raylib_cam.rotation = cam->rotation;
-    raylib_cam.zoom = cam->zoom;
+    // Queue camera begin command (deferred - applied during DrawQueue::flush)
+    DrawQueue::instance().queue_camera_begin(data->handle);
 
-    // Enter camera mode
-    BeginMode2D(raylib_cam);
-
-    // Yield to block - use safe_yield to catch exceptions
-    // We must call EndMode2D regardless of whether an exception occurs
+    // Yield to block - sprites drawn here will be queued between camera begin/end
     mrb_value result = scripting::safe_yield(mrb, block, mrb_nil_value());
 
-    // Exit camera mode (always called, even if block raised)
-    EndMode2D();
+    // Queue camera end command (deferred)
+    DrawQueue::instance().queue_camera_end();
 
     return result;
+}
+
+/// @method begin
+/// @description Begin camera transform. All subsequent sprite draws will use this
+///   camera until `end` is called. Prefer `use { }` block syntax when possible.
+/// @returns [Camera2D] self for chaining
+/// @example camera.begin
+///   @sprites.each(&:draw)
+///   camera.end
+static mrb_value mrb_camera_begin(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    DrawQueue::instance().queue_camera_begin(data->handle);
+    return self;
+}
+
+/// @method end
+/// @description End camera transform. Should be called after `begin`.
+/// @returns [Camera2D] self for chaining
+static mrb_value mrb_camera_end(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    DrawQueue::instance().queue_camera_end();
+    return self;
 }
 
 // ============================================================================
@@ -757,6 +774,10 @@ void register_camera(mrb_state* mrb) {
 
     // Scoped usage
     mrb_define_method(mrb, camera_class, "use", mrb_camera_use, MRB_ARGS_BLOCK());
+
+    // Explicit begin/end for advanced use
+    mrb_define_method(mrb, camera_class, "begin", mrb_camera_begin, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "end", mrb_camera_end, MRB_ARGS_NONE());
 
     // Class methods
     mrb_define_class_method(mrb, camera_class, "current", mrb_camera_class_current, MRB_ARGS_NONE());
