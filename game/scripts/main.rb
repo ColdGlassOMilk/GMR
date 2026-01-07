@@ -6,8 +6,13 @@ FRAME_WIDTH = 56
 FRAME_HEIGHT = 56
 COLUMNS = 7
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+# Virtual resolution (game renders at this size) - retro 16:9
+VIRTUAL_WIDTH = 320
+VIRTUAL_HEIGHT = 180
+
+# Window size (actual window dimensions)
+WINDOW_WIDTH = 960
+WINDOW_HEIGHT = 540
 
 GRAVITY = 800.0
 MOVE_SPEED = 200.0
@@ -22,6 +27,9 @@ MAP_HEIGHT = 25
 MAP_OFFSET_X = -200.0
 MAP_OFFSET_Y = 0.0
 
+# Camera Y offset to show ground at bottom of screen
+CAMERA_OFFSET_Y = VIRTUAL_HEIGHT * 0.7
+
 # Character hitbox offsets (relative to sprite position)
 CHAR_HITBOX_OFFSET_X = 15
 CHAR_HITBOX_OFFSET_Y = 8
@@ -29,314 +37,49 @@ CHAR_HITBOX_WIDTH = 26
 CHAR_HITBOX_HEIGHT = 48
 
 # === TILE INDEX DEFINITIONS ===
-# Tileset layout analysis (24x24 tiles, 21 columns per row):
-# Row 0: Platform tops with grass
-# Row 1: Platform middles
-# Row 2: Platform bottoms
-# Rows 3-4: Vertical strips, columns
-# Rows 5-6: Long horizontal platforms
-# Rows 7-8: Slopes, decorations
-# Rows 9-10: Small pieces
-
 module Tiles
-  # Main ground platform pieces (3x3 grid starting at row 0, col 0)
-  GROUND_TOP_LEFT     = 0   # Row 0, Col 0 - grass corner top-left
-  GROUND_TOP_CENTER   = 1   # Row 0, Col 1 - grass top middle
-  GROUND_TOP_RIGHT    = 2   # Row 0, Col 2 - grass corner top-right
-  GROUND_MID_LEFT     = 21  # Row 1, Col 0 - dirt left edge
-  GROUND_MID_CENTER   = 22  # Row 1, Col 1 - dirt fill
-  GROUND_MID_RIGHT    = 23  # Row 1, Col 2 - dirt right edge
-  GROUND_BOT_LEFT     = 42  # Row 2, Col 0 - dirt bottom-left
-  GROUND_BOT_CENTER   = 43  # Row 2, Col 1 - dirt bottom
-  GROUND_BOT_RIGHT    = 44  # Row 2, Col 2 - dirt bottom-right
-
-  # Floating platform pieces (3x3 grid starting at row 0, col 3)
-  PLAT_TOP_LEFT       = 3   # Row 0, Col 3
-  PLAT_TOP_CENTER     = 4   # Row 0, Col 4
-  PLAT_TOP_RIGHT      = 5   # Row 0, Col 5
-  PLAT_MID_LEFT       = 24  # Row 1, Col 3
-  PLAT_MID_CENTER     = 25  # Row 1, Col 4
-  PLAT_MID_RIGHT      = 26  # Row 1, Col 5
-  PLAT_BOT_LEFT       = 45  # Row 2, Col 3
-  PLAT_BOT_CENTER     = 46  # Row 2, Col 4
-  PLAT_BOT_RIGHT      = 47  # Row 2, Col 5
-
-  # Single-tile wide column/pillar pieces
-  COLUMN_TOP          = 63  # Row 3, Col 0
-  COLUMN_MID          = 84  # Row 4, Col 0
-  COLUMN_BOT          = 105 # Row 5, Col 0
-
-  # Thin horizontal platform (1 tile high)
-  THIN_LEFT           = 126 # Row 6, Col 0
-  THIN_CENTER         = 127 # Row 6, Col 1
-  THIN_RIGHT          = 128 # Row 6, Col 2
-
-  # Alternative grass tops (row 0, cols 6-8) - for variety
+  GROUND_TOP_LEFT     = 0
+  GROUND_TOP_CENTER   = 1
+  GROUND_TOP_RIGHT    = 2
+  GROUND_MID_LEFT     = 21
+  GROUND_MID_CENTER   = 22
+  GROUND_MID_RIGHT    = 23
+  GROUND_BOT_LEFT     = 42
+  GROUND_BOT_CENTER   = 43
+  GROUND_BOT_RIGHT    = 44
+  PLAT_TOP_LEFT       = 3
+  PLAT_TOP_CENTER     = 4
+  PLAT_TOP_RIGHT      = 5
+  PLAT_MID_LEFT       = 24
+  PLAT_MID_CENTER     = 25
+  PLAT_MID_RIGHT      = 26
+  PLAT_BOT_LEFT       = 45
+  PLAT_BOT_CENTER     = 46
+  PLAT_BOT_RIGHT      = 47
+  COLUMN_TOP          = 63
+  COLUMN_MID          = 84
+  COLUMN_BOT          = 105
+  THIN_LEFT           = 126
+  THIN_CENTER         = 127
+  THIN_RIGHT          = 128
   ALT_TOP_LEFT        = 6
   ALT_TOP_CENTER      = 7
   ALT_TOP_RIGHT       = 8
-
-  # Inner corners (where ground wraps around)
-  INNER_TOP_LEFT      = 9   # Row 0, Col 9
-  INNER_TOP_RIGHT     = 11  # Row 0, Col 11
-  INNER_BOT_LEFT      = 51  # Row 2, Col 9
-  INNER_BOT_RIGHT     = 53  # Row 2, Col 11
-
-  # Small decorative pieces (row 9-10)
-  DECO_GRASS_1        = 189 # Row 9
+  INNER_TOP_LEFT      = 9
+  INNER_TOP_RIGHT     = 11
+  INNER_BOT_LEFT      = 51
+  INNER_BOT_RIGHT     = 53
+  DECO_GRASS_1        = 189
   DECO_GRASS_2        = 190
-  DECO_ROCK_1         = 210 # Row 10
+  DECO_ROCK_1         = 210
   DECO_ROCK_2         = 211
 end
 
-# Seeded random number generator for consistent level generation
-class SeededRandom
-  def initialize(seed)
-    @seed = seed
-    @current = seed
-  end
-
-  def next_int(max)
-    # Linear congruential generator
-    @current = (@current * 1103515245 + 12345) & 0x7FFFFFFF
-    @current % max
-  end
-
-  def next_float
-    next_int(10000) / 10000.0
-  end
-
-  def chance(probability)
-    next_float < probability
-  end
-
-  def reset
-    @current = @seed
-  end
-end
-
-# Level generator that properly places tiles
-class LevelGenerator
-  def initialize(tilemap, seed = 12345)
-    @tilemap = tilemap
-    @rng = SeededRandom.new(seed)
-    @width = MAP_WIDTH
-    @height = MAP_HEIGHT
-    # Track which cells have ground (for proper edge detection)
-    @ground_map = Array.new(@height) { Array.new(@width, false) }
-  end
-
-  def generate
-    @rng.reset
-    clear_map
-
-    # Generate ground floor
-    generate_ground_floor
-
-    # Generate floating platforms
-    generate_platforms
-
-    # Apply proper tile edges
-    apply_tile_edges
-
-    # Add decorations
-    add_decorations
-  end
-
-  private
-
-  def clear_map
-    @height.times do |y|
-      @width.times do |x|
-        @tilemap.set(x, y, -1)
-        @ground_map[y][x] = false
-      end
-    end
-  end
-
-  def generate_ground_floor
-    # Ground starts at row 20 (leaving room for platforms above)
-    ground_y = 20
-
-    # Generate terrain with hills and gaps
-    x = 0
-    while x < @width
-      # Random segment type
-      segment_type = @rng.next_int(100)
-
-      if segment_type < 60
-        # Flat ground segment
-        length = 5 + @rng.next_int(10)
-        length = [@width - x, length].min
-
-        length.times do |i|
-          mark_ground_column(x + i, ground_y, @height - ground_y)
-        end
-        x += length
-
-      elsif segment_type < 75
-        # Gap (no ground)
-        gap_width = 2 + @rng.next_int(3)
-        x += gap_width
-
-      elsif segment_type < 90
-        # Hill/raised section
-        hill_width = 4 + @rng.next_int(6)
-        hill_height = 1 + @rng.next_int(3)
-        hill_width = [@width - x, hill_width].min
-
-        hill_width.times do |i|
-          mark_ground_column(x + i, ground_y - hill_height, @height - (ground_y - hill_height))
-        end
-        x += hill_width
-
-      else
-        # Pit/lower section
-        pit_width = 3 + @rng.next_int(4)
-        pit_depth = 2 + @rng.next_int(2)
-        pit_width = [@width - x, pit_width].min
-
-        pit_width.times do |i|
-          mark_ground_column(x + i, ground_y + pit_depth, @height - (ground_y + pit_depth))
-        end
-        x += pit_width
-      end
-    end
-  end
-
-  def generate_platforms
-    # Generate floating platforms at various heights
-    platform_count = 15 + @rng.next_int(10)
-
-    platform_count.times do
-      plat_x = @rng.next_int(@width - 6)
-      plat_y = 5 + @rng.next_int(12)  # Platforms between y=5 and y=17
-      plat_width = 3 + @rng.next_int(5)
-      plat_height = 1 + @rng.next_int(2)
-
-      # Check if space is clear
-      next unless area_clear?(plat_x, plat_y, plat_width, plat_height)
-
-      # Mark platform area
-      plat_height.times do |dy|
-        plat_width.times do |dx|
-          mark_ground(plat_x + dx, plat_y + dy)
-        end
-      end
-    end
-  end
-
-  def mark_ground_column(x, start_y, height)
-    return if x < 0 || x >= @width
-    height.times do |dy|
-      y = start_y + dy
-      mark_ground(x, y) if y >= 0 && y < @height
-    end
-  end
-
-  def mark_ground(x, y)
-    return if x < 0 || x >= @width || y < 0 || y >= @height
-    @ground_map[y][x] = true
-  end
-
-  def ground?(x, y)
-    return false if x < 0 || x >= @width || y < 0 || y >= @height
-    @ground_map[y][x]
-  end
-
-  def area_clear?(x, y, w, h)
-    # Check area plus 1-tile margin
-    ((y - 1)..(y + h)).each do |cy|
-      ((x - 1)..(x + w)).each do |cx|
-        return false if ground?(cx, cy)
-      end
-    end
-    true
-  end
-
-  def apply_tile_edges
-    @height.times do |y|
-      @width.times do |x|
-        next unless ground?(x, y)
-
-        # Determine neighbors
-        above = ground?(x, y - 1)
-        below = ground?(x, y + 1)
-        left  = ground?(x - 1, y)
-        right = ground?(x + 1, y)
-
-        # Determine tile based on neighbors
-        tile = select_tile(above, below, left, right, x, y)
-        @tilemap.set(x, y, tile)
-      end
-    end
-  end
-
-  def select_tile(above, below, left, right, x, y)
-    # Top edge (no ground above)
-    if !above
-      if !left && !right
-        # Single column
-        return Tiles::PLAT_TOP_CENTER
-      elsif !left
-        # Left edge of top
-        return Tiles::GROUND_TOP_LEFT
-      elsif !right
-        # Right edge of top
-        return Tiles::GROUND_TOP_RIGHT
-      else
-        # Middle of top
-        return Tiles::GROUND_TOP_CENTER
-      end
-    end
-
-    # Bottom edge (no ground below) - rare for platformers but handle it
-    if !below
-      if !left
-        return Tiles::GROUND_BOT_LEFT
-      elsif !right
-        return Tiles::GROUND_BOT_RIGHT
-      else
-        return Tiles::GROUND_BOT_CENTER
-      end
-    end
-
-    # Middle rows (has ground above and below)
-    if !left && !right
-      # Thin vertical column
-      return Tiles::GROUND_MID_CENTER
-    elsif !left
-      # Left edge
-      return Tiles::GROUND_MID_LEFT
-    elsif !right
-      # Right edge
-      return Tiles::GROUND_MID_RIGHT
-    else
-      # Interior fill
-      return Tiles::GROUND_MID_CENTER
-    end
-  end
-
-  def add_decorations
-    # Add small decorative elements on top of ground
-    @width.times do |x|
-      (@height - 1).times do |y|
-        # Find top surfaces
-        next unless ground?(x, y) && !ground?(x, y - 1)
-
-        # Random chance to add decoration
-        if @rng.chance(0.1)
-          deco_tile = @rng.chance(0.5) ? Tiles::DECO_GRASS_1 : Tiles::DECO_GRASS_2
-          # Decorations would go above, but we skip for now as it might overlap with gameplay
-        end
-      end
-    end
-  end
-end
-
 def init
-  # === LEVEL SEED ===
-  @level_seed = 42  # Change this to generate different levels
+  # === WINDOW SETUP ===
+  Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
+  Window.set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+  Window.set_filter_point  # Crisp pixel scaling
 
   # === INPUT MAPPING ===
   Input.map(:move_left, [:left, :a])
@@ -346,7 +89,7 @@ def init
 
   # === CAMERA ===
   @camera = Graphics::Camera2D.new
-  @camera.offset = Mathf::Vec2.new(SCREEN_WIDTH / 2.0, SCREEN_HEIGHT / 2.0)
+  @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, CAMERA_OFFSET_Y)
   @camera.zoom = 1.0
 
   # === PARALLAX BACKGROUNDS ===
@@ -354,9 +97,10 @@ def init
   @bg2_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_2.png")
   @bg3_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_3.png")
 
-  bg_scale = 4.0
+  # Scale backgrounds for retro resolution
+  bg_scale = 1.5
   bg_width = 320.0 * bg_scale
-  @bg_base_y = -50
+  @bg_base_y = -20
 
   @bg1_sprites = []
   3.times do
@@ -407,10 +151,6 @@ def init
     @tilemap.define_tile(tile_id, { solid: true })
   end
 
-  # Generate level
-  # TEMP WEB FIX: Skip procedural generation on web, use simple level
-  # generator = LevelGenerator.new(@tilemap, @level_seed)
-  # generator.generate
   # Create simple flat ground
   (0...MAP_WIDTH).each do |x|
     @tilemap.set(x, 19, Tiles::GROUND_TOP_CENTER)
@@ -421,25 +161,20 @@ def init
   begin
     @char_tex = Graphics::Texture.load("assets/oak_woods/character/char_blue.png")
   rescue
-    # TEMP WEB FIX: Character texture missing on web, use tileset as fallback
     @char_tex = @tileset_tex
   end
   @sprite = Graphics::Sprite.new(@char_tex)
   @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 
-  # Find spawn point (first solid ground from left, at ground level area)
-  begin
-    spawn_x = find_spawn_point
-  rescue
-    spawn_x = 5  # Fallback if tilemap query fails
-  end
+  # Find spawn point
+  spawn_x = 5
   @sprite.x = MAP_OFFSET_X + spawn_x * TILE_SIZE
   @sprite.y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
 
   @velocity_y = 0.0
   @on_ground = false
 
-  # TEMP WEB FIX: Skip animation/state machine setup on web if it fails
+  # === ANIMATION & STATE MACHINE ===
   begin
     @animator = Animation::Animator.new(@sprite,
       columns: COLUMNS,
@@ -482,18 +217,6 @@ def init
   rescue => e
     # Animation/state machine failed, game will run without it
   end
-end
-
-def find_spawn_point
-  # Find first column with ground around y=19-20
-  MAP_WIDTH.times do |x|
-    (18..21).each do |y|
-      if @tilemap.solid?(x, y)
-        return x
-      end
-    end
-  end
-  5  # Default spawn
 end
 
 def do_jump
@@ -544,12 +267,12 @@ def check_tilemap_collision(moving)
   )
 
   # Apply resolved position (convert back to world coordinates)
-  @sprite.x = result[:x] + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
-  @sprite.y = result[:y] + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
-  @velocity_y = result[:vy]
+  @sprite.x = result.x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
+  @sprite.y = result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
+  @velocity_y = result.vy
 
   # Update ground state
-  if result[:bottom]
+  if result.bottom?
     if !@on_ground
       @on_ground = true
       state_machine.trigger(moving ? :land_moving : :land)

@@ -1,10 +1,221 @@
 #include "gmr/bindings/collision.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include <mruby/class.h>
+#include <mruby/data.h>
 #include <cmath>
 #include <algorithm>
 
 namespace gmr {
 namespace bindings {
+
+// ============================================================================
+// CollisionResult Class (Ruby object instead of hash - per CONTRIBUTING.md)
+// ============================================================================
+
+/// @class GMR::CollisionResult
+/// @description Result from tilemap collision resolution containing resolved position,
+///   velocity, and collision flags.
+/// @example
+///   result = GMR::Collision.tilemap_resolve(@tilemap, x, y, w, h, vx, vy)
+///   @sprite.x = result.x
+///   @sprite.y = result.y
+///   @vx = result.vx
+///   @vy = result.vy
+///   @on_ground = result.grounded?  # or result.bottom?
+
+// Internal data structure for CollisionResult
+struct CollisionResultData {
+    float x, y;
+    float vx, vy;
+    bool hit_left, hit_right, hit_top, hit_bottom;
+};
+
+static void collision_result_free(mrb_state*, void* ptr) {
+    delete static_cast<CollisionResultData*>(ptr);
+}
+
+static const mrb_data_type collision_result_data_type = {
+    "CollisionResult", collision_result_free
+};
+
+// Cache class pointer for efficiency
+static RClass* collision_result_class_ptr = nullptr;
+
+static CollisionResultData* get_collision_result_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<CollisionResultData*>(mrb_data_get_ptr(mrb, self, &collision_result_data_type));
+}
+
+// Create a CollisionResult Ruby object from C++ CollisionResult
+static mrb_value create_collision_result(mrb_state* mrb, const CollisionResult& result) {
+    if (!collision_result_class_ptr) {
+        RClass* gmr = get_gmr_module(mrb);
+        collision_result_class_ptr = mrb_class_get_under(mrb, gmr, "CollisionResult");
+    }
+
+    auto* data = new CollisionResultData{
+        result.x, result.y,
+        result.vx, result.vy,
+        result.hit_left, result.hit_right, result.hit_top, result.hit_bottom
+    };
+
+    mrb_value obj = mrb_obj_value(mrb_data_object_alloc(mrb, collision_result_class_ptr, data, &collision_result_data_type));
+    return obj;
+}
+
+// Create a default CollisionResult (no collision, original position)
+static mrb_value create_default_collision_result(mrb_state* mrb, float x, float y, float vx, float vy) {
+    if (!collision_result_class_ptr) {
+        RClass* gmr = get_gmr_module(mrb);
+        collision_result_class_ptr = mrb_class_get_under(mrb, gmr, "CollisionResult");
+    }
+
+    auto* data = new CollisionResultData{
+        x, y, vx, vy,
+        false, false, false, false
+    };
+
+    mrb_value obj = mrb_obj_value(mrb_data_object_alloc(mrb, collision_result_class_ptr, data, &collision_result_data_type));
+    return obj;
+}
+
+/// @method x
+/// @description Get the resolved X position after collision.
+/// @returns [Float] Resolved X position
+static mrb_value mrb_collision_result_x(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_float_value(mrb, data->x);
+}
+
+/// @method y
+/// @description Get the resolved Y position after collision.
+/// @returns [Float] Resolved Y position
+static mrb_value mrb_collision_result_y(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_float_value(mrb, data->y);
+}
+
+/// @method vx
+/// @description Get the resolved X velocity after collision (zeroed if hit wall).
+/// @returns [Float] Resolved X velocity
+static mrb_value mrb_collision_result_vx(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_float_value(mrb, data->vx);
+}
+
+/// @method vy
+/// @description Get the resolved Y velocity after collision (zeroed if hit floor/ceiling).
+/// @returns [Float] Resolved Y velocity
+static mrb_value mrb_collision_result_vy(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_float_value(mrb, data->vy);
+}
+
+/// @method left?
+/// @description Check if collided with a wall on the left.
+/// @returns [Boolean] true if hit left wall
+static mrb_value mrb_collision_result_left(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_left);
+}
+
+/// @method right?
+/// @description Check if collided with a wall on the right.
+/// @returns [Boolean] true if hit right wall
+static mrb_value mrb_collision_result_right(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_right);
+}
+
+/// @method top?
+/// @description Check if collided with a ceiling.
+/// @returns [Boolean] true if hit ceiling
+static mrb_value mrb_collision_result_top(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_top);
+}
+
+/// @method bottom?
+/// @description Check if collided with the ground (landed).
+/// @returns [Boolean] true if hit ground
+static mrb_value mrb_collision_result_bottom(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_bottom);
+}
+
+/// @method grounded?
+/// @description Alias for bottom? - Check if on the ground.
+/// @returns [Boolean] true if on ground
+static mrb_value mrb_collision_result_grounded(mrb_state* mrb, mrb_value self) {
+    return mrb_collision_result_bottom(mrb, self);
+}
+
+/// @method hit_horizontal?
+/// @description Check if collided horizontally (left or right wall).
+/// @returns [Boolean] true if hit any horizontal surface
+static mrb_value mrb_collision_result_hit_horizontal(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_left || data->hit_right);
+}
+
+/// @method hit_vertical?
+/// @description Check if collided vertically (floor or ceiling).
+/// @returns [Boolean] true if hit any vertical surface
+static mrb_value mrb_collision_result_hit_vertical(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_top || data->hit_bottom);
+}
+
+/// @method any?
+/// @description Check if any collision occurred.
+/// @returns [Boolean] true if any collision happened
+static mrb_value mrb_collision_result_any(mrb_state* mrb, mrb_value self) {
+    CollisionResultData* data = get_collision_result_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid CollisionResult");
+        return mrb_nil_value();
+    }
+    return mrb_bool_value(data->hit_left || data->hit_right || data->hit_top || data->hit_bottom);
+}
 
 /// @module GMR::Collision
 /// @description Geometry collision detection utilities. Provides fast tests for
@@ -291,8 +502,8 @@ static mrb_value mrb_collision_tile_rect(mrb_state* mrb, mrb_value) {
 
 /// @function tilemap_resolve
 /// @description Resolve collision between a hitbox rectangle and a tilemap's solid tiles.
-///   Returns resolved position and collision flags. This is the recommended way to handle
-///   character-tilemap collisions in platformers.
+///   Returns a CollisionResult object with resolved position and collision flags.
+///   This is the recommended way to handle character-tilemap collisions in platformers.
 /// @param tilemap [Tilemap] The tilemap to check collision against
 /// @param x [Float] Hitbox X position in tilemap local coordinates
 /// @param y [Float] Hitbox Y position in tilemap local coordinates
@@ -300,37 +511,26 @@ static mrb_value mrb_collision_tile_rect(mrb_state* mrb, mrb_value) {
 /// @param h [Float] Hitbox height
 /// @param vx [Float] Current X velocity (for directional checks)
 /// @param vy [Float] Current Y velocity (for directional checks)
-/// @returns [Hash] Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom
+/// @returns [CollisionResult] Collision result with position, velocity, and collision flags
 /// @example # In update loop:
 ///   local_x = @sprite.x + HITBOX_OFFSET_X - MAP_OFFSET_X
 ///   local_y = @sprite.y + HITBOX_OFFSET_Y - MAP_OFFSET_Y
 ///   result = Collision.tilemap_resolve(@tilemap, local_x, local_y, HITBOX_W, HITBOX_H, @vx, @vy)
-///   @sprite.x = result[:x] + MAP_OFFSET_X - HITBOX_OFFSET_X
-///   @sprite.y = result[:y] + MAP_OFFSET_Y - HITBOX_OFFSET_Y
-///   @on_ground = result[:bottom]
+///   @sprite.x = result.x + MAP_OFFSET_X - HITBOX_OFFSET_X
+///   @sprite.y = result.y + MAP_OFFSET_Y - HITBOX_OFFSET_Y
+///   @on_ground = result.grounded?
 static mrb_value mrb_collision_tilemap_resolve(mrb_state* mrb, mrb_value) {
     mrb_value tilemap_obj;
     mrb_float x, y, w, h, vx, vy;
     mrb_get_args(mrb, "offffff", &tilemap_obj, &x, &y, &w, &h, &vx, &vy);
 
-    // Helper to create default result hash
-    auto make_default_result = [&]() {
-        mrb_value result = mrb_hash_new(mrb);
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "x")), mrb_float_value(mrb, x));
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "y")), mrb_float_value(mrb, y));
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vx")), mrb_float_value(mrb, vx));
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vy")), mrb_float_value(mrb, vy));
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "left")), mrb_false_value());
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "right")), mrb_false_value());
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "top")), mrb_false_value());
-        mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "bottom")), mrb_false_value());
-        return result;
-    };
-
     // Get tilemap data
     TilemapData* tilemap = get_tilemap_from_value(mrb, tilemap_obj);
     if (!tilemap) {
-        return make_default_result();
+        // Return default result (no collision, original position)
+        return create_default_collision_result(mrb,
+            static_cast<float>(x), static_cast<float>(y),
+            static_cast<float>(vx), static_cast<float>(vy));
     }
 
     // Perform collision resolution
@@ -341,18 +541,8 @@ static mrb_value mrb_collision_tilemap_resolve(mrb_state* mrb, mrb_value) {
         *tilemap
     );
 
-    // Build result hash
-    mrb_value result = mrb_hash_new(mrb);
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "x")), mrb_float_value(mrb, collision.x));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "y")), mrb_float_value(mrb, collision.y));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vx")), mrb_float_value(mrb, collision.vx));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "vy")), mrb_float_value(mrb, collision.vy));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "left")), mrb_bool_value(collision.hit_left));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "right")), mrb_bool_value(collision.hit_right));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "top")), mrb_bool_value(collision.hit_top));
-    mrb_hash_set(mrb, result, mrb_symbol_value(mrb_intern_lit(mrb, "bottom")), mrb_bool_value(collision.hit_bottom));
-
-    return result;
+    // Return proper CollisionResult Ruby object (per CONTRIBUTING.md - no hash returns)
+    return create_collision_result(mrb, collision);
 }
 
 // ============================================================================
@@ -404,7 +594,32 @@ static mrb_value mrb_collision_distance_squared(mrb_state* mrb, mrb_value) {
 // ============================================================================
 
 void register_collision(mrb_state* mrb) {
+    RClass* gmr = get_gmr_module(mrb);
     RClass* collision = get_gmr_submodule(mrb, "Collision");
+
+    // CollisionResult class (per CONTRIBUTING.md - proper Ruby object instead of hash)
+    collision_result_class_ptr = mrb_define_class_under(mrb, gmr, "CollisionResult", mrb->object_class);
+    MRB_SET_INSTANCE_TT(collision_result_class_ptr, MRB_TT_CDATA);
+
+    // Position getters
+    mrb_define_method(mrb, collision_result_class_ptr, "x", mrb_collision_result_x, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "y", mrb_collision_result_y, MRB_ARGS_NONE());
+
+    // Velocity getters
+    mrb_define_method(mrb, collision_result_class_ptr, "vx", mrb_collision_result_vx, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "vy", mrb_collision_result_vy, MRB_ARGS_NONE());
+
+    // Collision flag query methods
+    mrb_define_method(mrb, collision_result_class_ptr, "left?", mrb_collision_result_left, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "right?", mrb_collision_result_right, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "top?", mrb_collision_result_top, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "bottom?", mrb_collision_result_bottom, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "grounded?", mrb_collision_result_grounded, MRB_ARGS_NONE());
+
+    // Convenience methods
+    mrb_define_method(mrb, collision_result_class_ptr, "hit_horizontal?", mrb_collision_result_hit_horizontal, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "hit_vertical?", mrb_collision_result_hit_vertical, MRB_ARGS_NONE());
+    mrb_define_method(mrb, collision_result_class_ptr, "any?", mrb_collision_result_any, MRB_ARGS_NONE());
 
     // Point tests
     mrb_define_module_function(mrb, collision, "point_in_rect?", mrb_collision_point_in_rect, MRB_ARGS_REQ(6));

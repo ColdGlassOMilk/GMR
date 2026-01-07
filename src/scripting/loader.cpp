@@ -21,6 +21,7 @@
 #include "gmr/bindings/state_machine.hpp"
 #include "gmr/bindings/animator.hpp"
 #include "gmr/scene.hpp"
+#include "gmr/camera.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/input/input_manager.hpp"
@@ -337,14 +338,16 @@ void Loader::load_from_bytecode() {
 
 void Loader::load(const std::string& script_dir) {
     if (mrb_) {
-        // Clear scene stack before closing mruby state
+        // Manager cleanup order on reload
+        // NOTE: Order matters! Managers that hold Ruby references (callbacks, targets)
+        // must be cleared before mrb_close. Managers may reference objects in other managers,
+        // so cleanup order should be: high-level first (scene), then lower-level.
+        // This is NOT the reverse of initialization order - see CONTRIBUTING.md "Known Issues".
         SceneManager::instance().clear(mrb_);
-        // Clear animations before closing mruby state
-        animation::AnimationManager::instance().clear(mrb_);
-        // Clear state machines before closing mruby state
-        state_machine::StateMachineManager::instance().clear(mrb_);
-        // Clear input callbacks and bindings before closing mruby state
-        input::InputManager::instance().clear(mrb_);
+        CameraManager::instance().clear(mrb_);           // Has follow_target Ruby refs
+        animation::AnimationManager::instance().clear(mrb_);  // Has callbacks
+        state_machine::StateMachineManager::instance().clear(mrb_);  // Has owner refs
+        input::InputManager::instance().clear(mrb_);     // Has callbacks
         mrb_close(mrb_);
         mrb_ = nullptr;
     }

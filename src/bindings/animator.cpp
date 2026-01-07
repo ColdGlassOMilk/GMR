@@ -12,6 +12,19 @@
 #include <mruby/string.h>
 #include <cstring>
 
+// Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
+#define GMR_REQUIRE_ANIMATOR_DATA(data) \
+    if (!data) { \
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid Animator: internal data is null"); \
+        return mrb_nil_value(); \
+    }
+
+#define GMR_REQUIRE_ANIMATOR_STATE(animator, handle) \
+    if (!animator) { \
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Invalid Animator handle %d: animator may have been destroyed", handle); \
+        return mrb_nil_value(); \
+    }
+
 namespace gmr {
 namespace bindings {
 
@@ -715,7 +728,7 @@ static mrb_value mrb_animator_stop(mrb_state* mrb, mrb_value self) {
 ///   end
 static mrb_value mrb_animator_current(mrb_state* mrb, mrb_value self) {
     AnimatorData* data = get_animator_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_ANIMATOR_DATA(data);
 
     animation::AnimatorState* animator =
         animation::AnimationManager::instance().get_animator(data->handle);
@@ -749,11 +762,11 @@ static mrb_value mrb_animator_current(mrb_state* mrb, mrb_value self) {
 ///   end
 static mrb_value mrb_animator_playing_p(mrb_state* mrb, mrb_value self) {
     AnimatorData* data = get_animator_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_ANIMATOR_DATA(data);
 
     auto& manager = animation::AnimationManager::instance();
     animation::AnimatorState* animator = manager.get_animator(data->handle);
-    if (!animator) return mrb_false_value();
+    GMR_REQUIRE_ANIMATOR_STATE(animator, data->handle);
 
     SpriteAnimationHandle current = animator->current_handle();
     if (current == INVALID_HANDLE) return mrb_false_value();
@@ -793,11 +806,11 @@ static mrb_value mrb_animator_can_play_p(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "o", &name_val);
 
     AnimatorData* data = get_animator_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_ANIMATOR_DATA(data);
 
     animation::AnimatorState* animator =
         animation::AnimationManager::instance().get_animator(data->handle);
-    if (!animator) return mrb_false_value();
+    GMR_REQUIRE_ANIMATOR_STATE(animator, data->handle);
 
     std::string name = symbol_to_string(mrb, name_val);
     if (name.empty()) return mrb_false_value();
@@ -888,11 +901,11 @@ static mrb_value mrb_animator_get(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "o", &name_val);
 
     AnimatorData* data = get_animator_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_ANIMATOR_DATA(data);
 
     auto& manager = animation::AnimationManager::instance();
     animation::AnimatorState* animator = manager.get_animator(data->handle);
-    if (!animator) return mrb_nil_value();
+    GMR_REQUIRE_ANIMATOR_STATE(animator, data->handle);
 
     std::string name = symbol_to_string(mrb, name_val);
     if (name.empty()) return mrb_nil_value();

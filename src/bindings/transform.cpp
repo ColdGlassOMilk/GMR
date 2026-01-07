@@ -11,6 +11,19 @@
 #include <cstring>
 #include <cmath>
 
+// Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
+#define GMR_REQUIRE_TRANSFORM_DATA(data) \
+    if (!data) { \
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid Transform2D: internal data is null"); \
+        return mrb_nil_value(); \
+    }
+
+#define GMR_REQUIRE_TRANSFORM_STATE(state, handle) \
+    if (!state) { \
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Invalid Transform2D handle %d: transform may have been destroyed", handle); \
+        return mrb_nil_value(); \
+    }
+
 namespace gmr {
 namespace bindings {
 
@@ -160,7 +173,8 @@ struct TransformData {
     TransformHandle handle;
 };
 
-static void transform_free(mrb_state* mrb, void* ptr) {
+// Non-static to allow transform_data_type to have external linkage
+void transform_free(mrb_state* mrb, void* ptr) {
     TransformData* data = static_cast<TransformData*>(ptr);
     if (data) {
         TransformManager::instance().destroy(data->handle);
@@ -168,7 +182,10 @@ static void transform_free(mrb_state* mrb, void* ptr) {
     }
 }
 
-static const mrb_data_type transform_data_type = {
+// Exported for use by sprite.cpp (parent transform lookup)
+// extern required because const objects have internal linkage by default in C++
+extern const mrb_data_type transform_data_type;
+const mrb_data_type transform_data_type = {
     "Transform2D", transform_free
 };
 
@@ -278,9 +295,9 @@ static mrb_value mrb_transform_initialize(mrb_state* mrb, mrb_value self) {
 /// @example x_pos = transform.x
 static mrb_value mrb_transform_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->position.x);
 }
 
@@ -290,9 +307,9 @@ static mrb_value mrb_transform_x(mrb_state* mrb, mrb_value self) {
 /// @example y_pos = transform.y
 static mrb_value mrb_transform_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->position.y);
 }
 
@@ -302,9 +319,9 @@ static mrb_value mrb_transform_y(mrb_state* mrb, mrb_value self) {
 /// @example pos = transform.position
 static mrb_value mrb_transform_position(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return create_vec2(mrb, t->position.x, t->position.y);
 }
 
@@ -314,9 +331,9 @@ static mrb_value mrb_transform_position(mrb_state* mrb, mrb_value self) {
 /// @example angle = transform.rotation
 static mrb_value mrb_transform_rotation(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     // Return in degrees
     return mrb_float_value(mrb, t->rotation * RAD_TO_DEG);
 }
@@ -327,9 +344,9 @@ static mrb_value mrb_transform_rotation(mrb_state* mrb, mrb_value self) {
 /// @example sx = transform.scale_x
 static mrb_value mrb_transform_scale_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->scale.x);
 }
 
@@ -339,9 +356,9 @@ static mrb_value mrb_transform_scale_x(mrb_state* mrb, mrb_value self) {
 /// @example sy = transform.scale_y
 static mrb_value mrb_transform_scale_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->scale.y);
 }
 
@@ -351,9 +368,9 @@ static mrb_value mrb_transform_scale_y(mrb_state* mrb, mrb_value self) {
 /// @example ox = transform.origin_x
 static mrb_value mrb_transform_origin_x(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->origin.x);
 }
 
@@ -363,9 +380,9 @@ static mrb_value mrb_transform_origin_x(mrb_state* mrb, mrb_value self) {
 /// @example oy = transform.origin_y
 static mrb_value mrb_transform_origin_y(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     return mrb_float_value(mrb, t->origin.y);
 }
 
@@ -383,9 +400,9 @@ static mrb_value mrb_transform_set_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->position.x = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -401,9 +418,9 @@ static mrb_value mrb_transform_set_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->position.y = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -419,9 +436,9 @@ static mrb_value mrb_transform_set_position(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->position = extract_vec2(mrb, val);
     TransformManager::instance().mark_dirty(data->handle);
     return val;
@@ -437,9 +454,9 @@ static mrb_value mrb_transform_set_rotation(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     // Input in degrees, store in radians
     t->rotation = static_cast<float>(val) * DEG_TO_RAD;
     TransformManager::instance().mark_dirty(data->handle);
@@ -457,9 +474,9 @@ static mrb_value mrb_transform_set_scale_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->scale.x = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -476,9 +493,9 @@ static mrb_value mrb_transform_set_scale_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->scale.y = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -494,9 +511,9 @@ static mrb_value mrb_transform_set_origin_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->origin.x = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -512,9 +529,9 @@ static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->origin.y = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
     return mrb_float_value(mrb, val);
@@ -534,9 +551,10 @@ static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
 /// end
 static mrb_value mrb_transform_parent(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
     Transform2DState* t = TransformManager::instance().get(data->handle);
-    if (!t || t->parent == INVALID_HANDLE) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
+    if (t->parent == INVALID_HANDLE) return mrb_nil_value();  // Legitimate: no parent
 
     // We can't easily return the parent Ruby object without storing it
     // For now, return the handle as an integer (or nil if no parent)
@@ -562,7 +580,7 @@ static mrb_value mrb_transform_set_parent(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "o", &parent_val);
 
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
 
     if (mrb_nil_p(parent_val)) {
         TransformManager::instance().clear_parent(data->handle);
@@ -593,7 +611,7 @@ static mrb_value mrb_transform_set_parent(mrb_state* mrb, mrb_value self) {
 ///   pos = child.world_position  # Position after rotation by parent
 static mrb_value mrb_transform_world_position(mrb_state* mrb, mrb_value self) {
     TransformData* data = get_transform_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_TRANSFORM_DATA(data);
 
     const Matrix2D& world = TransformManager::instance().get_world_matrix(data->handle);
     // The world matrix tx/ty gives us the world position

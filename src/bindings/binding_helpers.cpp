@@ -209,13 +209,15 @@ int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg) {
 // ============================================================================
 
 gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg) {
-    // Default to Pressed if nil or not a symbol
+    // Default to Pressed if nil
     if (mrb_nil_p(arg)) {
         return gmr::input::InputPhase::Pressed;
     }
 
     if (!mrb_symbol_p(arg)) {
-        return gmr::input::InputPhase::Pressed;
+        mrb_raise(mrb, E_ARGUMENT_ERROR,
+            "Input phase must be a symbol (:pressed, :released, :held, or :down)");
+        return gmr::input::InputPhase::Pressed;  // Unreachable, but satisfies compiler
     }
 
     const char* name = mrb_sym_name(mrb, mrb_symbol(arg));
@@ -225,8 +227,11 @@ gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg) {
     if (strcmp(name, "held") == 0) return gmr::input::InputPhase::Held;
     if (strcmp(name, "down") == 0) return gmr::input::InputPhase::Held;  // Alias for held
 
-    // Unknown phase, default to pressed
-    return gmr::input::InputPhase::Pressed;
+    // Unknown phase - raise error instead of silent default
+    mrb_raisef(mrb, E_ARGUMENT_ERROR,
+        "Unknown input phase :%s. Valid phases: :pressed, :released, :held, :down",
+        name);
+    return gmr::input::InputPhase::Pressed;  // Unreachable, but satisfies compiler
 }
 
 } // namespace bindings

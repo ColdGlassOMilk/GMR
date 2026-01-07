@@ -53,7 +53,7 @@ public:
 
     // Camera lifecycle
     CameraHandle create();
-    void destroy(CameraHandle handle);
+    void destroy(mrb_state* mrb, CameraHandle handle);
     Camera2DState* get(CameraHandle handle);
 
     // Per-frame update (called from C++ main loop, before Ruby update)
@@ -65,7 +65,7 @@ public:
     Camera2DState* get_current();
 
     // Clear all cameras (for cleanup/reload)
-    void clear();
+    void clear(mrb_state* mrb);
 
 private:
     CameraManager() = default;

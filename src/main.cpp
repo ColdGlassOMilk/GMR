@@ -19,7 +19,11 @@
 #include <emscripten/emscripten.h>
 #endif
 
-// Global state for the main loop (needed for Emscripten callback)
+// Global state for the main loop (needed for Emscripten callback).
+// NOTE: This is a platform-specific workaround for Emscripten's emscripten_set_main_loop.
+// The Emscripten callback cannot capture local state, so we must use a global.
+// This global is NOT reset on hot reload and does not hold Ruby references.
+// See CONTRIBUTING.md section on known issues regarding global state.
 struct GameContext {
     double last_time;
 };

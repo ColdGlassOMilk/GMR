@@ -50,9 +50,13 @@ CameraHandle CameraManager::create() {
     return handle;
 }
 
-void CameraManager::destroy(CameraHandle handle) {
+void CameraManager::destroy(mrb_state* mrb, CameraHandle handle) {
     auto it = cameras_.find(handle);
     if (it != cameras_.end()) {
+        // Unregister follow_target from GC if it was set
+        if (!mrb_nil_p(it->second.follow_target)) {
+            mrb_gc_unregister(mrb, it->second.follow_target);
+        }
         cameras_.erase(it);
         if (current_camera_ == handle) {
             current_camera_ = INVALID_CAMERA_HANDLE;
@@ -80,7 +84,13 @@ Camera2DState* CameraManager::get_current() {
     return get(current_camera_);
 }
 
-void CameraManager::clear() {
+void CameraManager::clear(mrb_state* mrb) {
+    // Unregister all follow_targets from GC before clearing
+    for (auto& [id, cam] : cameras_) {
+        if (!mrb_nil_p(cam.follow_target)) {
+            mrb_gc_unregister(mrb, cam.follow_target);
+        }
+    }
     cameras_.clear();
     current_camera_ = INVALID_CAMERA_HANDLE;
     next_id_ = 0;

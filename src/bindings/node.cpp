@@ -8,6 +8,19 @@
 #include <mruby/array.h>
 #include <cmath>
 
+// Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
+#define GMR_REQUIRE_NODE_DATA(data) \
+    if (!data) { \
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid Node: internal data is null"); \
+        return mrb_nil_value(); \
+    }
+
+#define GMR_REQUIRE_NODE_STATE(state, handle) \
+    if (!state) { \
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Invalid Node handle %d: node may have been destroyed", handle); \
+        return mrb_nil_value(); \
+    }
+
 namespace gmr {
 namespace bindings {
 
@@ -286,10 +299,11 @@ static mrb_value mrb_node_remove_child(mrb_state* mrb, mrb_value self) {
 /// @example if node.parent then puts "has parent" end
 static mrb_value mrb_node_parent(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node || !node->parent) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
+    if (!node->parent) return mrb_nil_value();  // Legitimate: no parent
 
     NodeHandle parent_handle = NodeManager::instance().get_handle(node->parent);
     if (parent_handle == INVALID_NODE_HANDLE) return mrb_nil_value();
@@ -304,10 +318,10 @@ static mrb_value mrb_node_parent(mrb_state* mrb, mrb_value self) {
 /// @example node.children.each { |c| puts c.local_position }
 static mrb_value mrb_node_children(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_ary_new(mrb);
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_ary_new(mrb);
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     mrb_value children_array = mrb_ary_new_capa(mrb, node->child_count);
 
@@ -331,10 +345,10 @@ static mrb_value mrb_node_children(mrb_state* mrb, mrb_value self) {
 /// @example puts node.child_count
 static mrb_value mrb_node_child_count(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_fixnum_value(0);
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_fixnum_value(0);
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return mrb_fixnum_value(node->child_count);
 }
@@ -349,10 +363,10 @@ static mrb_value mrb_node_child_count(mrb_state* mrb, mrb_value self) {
 /// @example pos = node.local_position
 static mrb_value mrb_node_local_position(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return create_vec2(mrb, node->local.position.x, node->local.position.y);
 }
@@ -363,10 +377,10 @@ static mrb_value mrb_node_local_position(mrb_state* mrb, mrb_value self) {
 /// @example angle = node.local_rotation
 static mrb_value mrb_node_local_rotation(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return mrb_float_value(mrb, node->local.rotation * RAD_TO_DEG);
 }
@@ -377,10 +391,10 @@ static mrb_value mrb_node_local_rotation(mrb_state* mrb, mrb_value self) {
 /// @example scale = node.local_scale
 static mrb_value mrb_node_local_scale(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return create_vec2(mrb, node->local.scale.x, node->local.scale.y);
 }
@@ -399,10 +413,10 @@ static mrb_value mrb_node_set_local_position(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "o", &val);
 
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     node->local.position = extract_vec2(mrb, val);
     return val;
@@ -418,10 +432,10 @@ static mrb_value mrb_node_set_local_rotation(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "f", &val);
 
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     node->local.rotation = static_cast<float>(val) * DEG_TO_RAD;
     return mrb_float_value(mrb, val);
@@ -437,10 +451,10 @@ static mrb_value mrb_node_set_local_scale(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "o", &val);
 
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     node->local.scale = extract_vec2(mrb, val);
     return val;
@@ -457,10 +471,10 @@ static mrb_value mrb_node_set_local_scale(mrb_state* mrb, mrb_value self) {
 /// @example pos = child.world_position
 static mrb_value mrb_node_world_position(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return create_vec2(mrb, node->world.position.x, node->world.position.y);
 }
@@ -471,10 +485,10 @@ static mrb_value mrb_node_world_position(mrb_state* mrb, mrb_value self) {
 /// @example angle = child.world_rotation
 static mrb_value mrb_node_world_rotation(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return mrb_float_value(mrb, node->world.rotation * RAD_TO_DEG);
 }
@@ -485,10 +499,10 @@ static mrb_value mrb_node_world_rotation(mrb_state* mrb, mrb_value self) {
 /// @example scale = child.world_scale
 static mrb_value mrb_node_world_scale(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_nil_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return create_vec2(mrb, node->world.scale.x, node->world.scale.y);
 }
@@ -503,10 +517,10 @@ static mrb_value mrb_node_world_scale(mrb_state* mrb, mrb_value self) {
 /// @example if node.active then ... end
 static mrb_value mrb_node_active(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_false_value();
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     return mrb_bool_value(node->active);
 }
@@ -521,10 +535,10 @@ static mrb_value mrb_node_set_active(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "b", &val);
 
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_bool_value(val);
+    GMR_REQUIRE_NODE_DATA(data);
 
     Node* node = NodeManager::instance().get(data->handle);
-    if (!node) return mrb_bool_value(val);
+    GMR_REQUIRE_NODE_STATE(node, data->handle);
 
     node->active = val;
     return mrb_bool_value(val);
@@ -537,7 +551,7 @@ static mrb_value mrb_node_set_active(mrb_state* mrb, mrb_value self) {
 /// @example if node.active? then update(node) end
 static mrb_value mrb_node_is_active(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_NODE_DATA(data);
 
     bool active = NodeManager::instance().is_active_in_hierarchy(data->handle);
     return mrb_bool_value(active);

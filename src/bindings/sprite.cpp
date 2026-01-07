@@ -15,6 +15,19 @@
 #include <cstring>
 #include <cmath>
 
+// Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
+#define GMR_REQUIRE_SPRITE_DATA(data) \
+    if (!data) { \
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid Sprite: internal data is null"); \
+        return mrb_nil_value(); \
+    }
+
+#define GMR_REQUIRE_SPRITE_STATE(state, handle) \
+    if (!state) { \
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Invalid Sprite handle %d: sprite may have been destroyed", handle); \
+        return mrb_nil_value(); \
+    }
+
 namespace gmr {
 namespace bindings {
 
@@ -215,7 +228,8 @@ static TransformHandle get_transform_handle(mrb_state* mrb, mrb_value val) {
         TransformHandle handle;
     };
 
-    void* ptr = mrb_data_get_ptr(mrb, val, nullptr);
+    // Use proper type checking via transform_data_type
+    void* ptr = mrb_data_get_ptr(mrb, val, &transform_data_type);
     if (ptr) {
         TransformData* data = static_cast<TransformData*>(ptr);
         return data->handle;
@@ -337,24 +351,9 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 /// @example x_pos = sprite.x
 static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-#ifdef PLATFORM_WEB
-    if (!data) {
-        printf("[WEB] sprite.x: get_sprite_data returned NULL\n");
-        return mrb_nil_value();
-    }
-    printf("[WEB] sprite.x: handle=%d\n", data->handle);
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) {
-        printf("[WEB] sprite.x: SpriteManager.get(%d) returned NULL\n", data->handle);
-        printf("[WEB] sprite.x: SpriteManager total count=%zu\n",
-               SpriteManager::instance().count());
-        return mrb_nil_value();
-    }
-#else
-    if (!data) return mrb_nil_value();
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
-#endif
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->position.x);
 }
 
@@ -364,9 +363,9 @@ static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
 /// @example y_pos = sprite.y
 static mrb_value mrb_sprite_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->position.y);
 }
 
@@ -380,9 +379,9 @@ static mrb_value mrb_sprite_set_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->position.x = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -397,9 +396,9 @@ static mrb_value mrb_sprite_set_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->position.y = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -410,9 +409,9 @@ static mrb_value mrb_sprite_set_y(mrb_state* mrb, mrb_value self) {
 /// @example pos = sprite.position
 static mrb_value mrb_sprite_position(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return create_vec2(mrb, s->position.x, s->position.y);
 }
 
@@ -425,9 +424,9 @@ static mrb_value mrb_sprite_set_position(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->position = extract_vec2(mrb, val);
     return val;
 }
@@ -442,9 +441,9 @@ static mrb_value mrb_sprite_set_position(mrb_state* mrb, mrb_value self) {
 /// @example angle = sprite.rotation
 static mrb_value mrb_sprite_rotation(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->rotation * RAD_TO_DEG);
 }
 
@@ -458,9 +457,9 @@ static mrb_value mrb_sprite_set_rotation(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->rotation = static_cast<float>(val) * DEG_TO_RAD;
     return mrb_float_value(mrb, val);
 }
@@ -475,9 +474,9 @@ static mrb_value mrb_sprite_set_rotation(mrb_state* mrb, mrb_value self) {
 /// @example sx = sprite.scale_x
 static mrb_value mrb_sprite_scale_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->scale.x);
 }
 
@@ -487,9 +486,9 @@ static mrb_value mrb_sprite_scale_x(mrb_state* mrb, mrb_value self) {
 /// @example sy = sprite.scale_y
 static mrb_value mrb_sprite_scale_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->scale.y);
 }
 
@@ -502,9 +501,9 @@ static mrb_value mrb_sprite_set_scale_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->scale.x = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -518,9 +517,9 @@ static mrb_value mrb_sprite_set_scale_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->scale.y = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -535,9 +534,9 @@ static mrb_value mrb_sprite_set_scale_y(mrb_state* mrb, mrb_value self) {
 /// @example ox = sprite.origin_x
 static mrb_value mrb_sprite_origin_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->origin.x);
 }
 
@@ -547,9 +546,9 @@ static mrb_value mrb_sprite_origin_x(mrb_state* mrb, mrb_value self) {
 /// @example oy = sprite.origin_y
 static mrb_value mrb_sprite_origin_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->origin.y);
 }
 
@@ -562,9 +561,9 @@ static mrb_value mrb_sprite_set_origin_x(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->origin.x = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -578,9 +577,9 @@ static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->origin.y = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
@@ -591,9 +590,9 @@ static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
 /// @example origin = sprite.origin
 static mrb_value mrb_sprite_origin(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return create_vec2(mrb, s->origin.x, s->origin.y);
 }
 
@@ -606,9 +605,9 @@ static mrb_value mrb_sprite_set_origin(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->origin = extract_vec2(mrb, val);
     return val;
 }
@@ -621,9 +620,9 @@ static mrb_value mrb_sprite_set_origin(mrb_state* mrb, mrb_value self) {
 /// @example sprite = Sprite.new(tex).center_origin  # Method chaining
 static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     // Get texture dimensions
     float w, h;
@@ -660,9 +659,9 @@ static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
 /// end
 static mrb_value mrb_sprite_z(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (s->z.has_value()) {
         return mrb_float_value(mrb, s->z.value());
@@ -687,9 +686,9 @@ static mrb_value mrb_sprite_set_z(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (mrb_nil_p(val)) {
         s->z = std::nullopt;
@@ -709,9 +708,9 @@ static mrb_value mrb_sprite_set_z(mrb_state* mrb, mrb_value self) {
 /// @example r, g, b, a = sprite.color
 static mrb_value mrb_sprite_color(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     mrb_value arr = mrb_ary_new_capa(mrb, 4);
     mrb_ary_push(mrb, arr, mrb_fixnum_value(s->color.r));
@@ -731,9 +730,9 @@ static mrb_value mrb_sprite_set_color(mrb_state* mrb, mrb_value self) {
     mrb_value color_val;
     mrb_get_args(mrb, "A", &color_val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     s->color = parse_color_value(mrb, color_val, Color{255, 255, 255, 255});
     return color_val;
@@ -745,9 +744,9 @@ static mrb_value mrb_sprite_set_color(mrb_state* mrb, mrb_value self) {
 /// @example a = sprite.alpha
 static mrb_value mrb_sprite_alpha(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_float_value(mrb, s->color.a / 255.0f);
 }
 
@@ -761,9 +760,9 @@ static mrb_value mrb_sprite_set_alpha(mrb_state* mrb, mrb_value self) {
     mrb_float val;
     mrb_get_args(mrb, "f", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     // Clamp to 0-1 and convert to 0-255
     if (val < 0) val = 0;
@@ -784,9 +783,9 @@ static mrb_value mrb_sprite_set_alpha(mrb_state* mrb, mrb_value self) {
 /// end
 static mrb_value mrb_sprite_flip_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_bool_value(s->flip_x);
 }
 
@@ -798,9 +797,9 @@ static mrb_value mrb_sprite_flip_x(mrb_state* mrb, mrb_value self) {
 /// end
 static mrb_value mrb_sprite_flip_y(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     return mrb_bool_value(s->flip_y);
 }
 
@@ -813,9 +812,9 @@ static mrb_value mrb_sprite_set_flip_x(mrb_state* mrb, mrb_value self) {
     mrb_bool val;
     mrb_get_args(mrb, "b", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->flip_x = val;
     return mrb_bool_value(val);
 }
@@ -829,9 +828,9 @@ static mrb_value mrb_sprite_set_flip_y(mrb_state* mrb, mrb_value self) {
     mrb_bool val;
     mrb_get_args(mrb, "b", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
     s->flip_y = val;
     return mrb_bool_value(val);
 }
@@ -857,9 +856,9 @@ static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
     mrb_value texture_val;
     mrb_get_args(mrb, "o", &texture_val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
     TextureHandle tex_handle = get_texture_handle_from_value(mrb, texture_val);
@@ -881,9 +880,10 @@ static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
 /// @example rect = sprite.source_rect
 static mrb_value mrb_sprite_source_rect(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s || !s->use_source_rect) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
+    if (!s->use_source_rect) return mrb_nil_value();  // Legitimate: returns nil if using full texture
 
     RClass* gmr = get_gmr_module(mrb);
     RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
@@ -910,9 +910,9 @@ static mrb_value mrb_sprite_set_source_rect(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (mrb_nil_p(val)) {
         s->use_source_rect = false;
@@ -933,9 +933,9 @@ static mrb_value mrb_sprite_set_source_rect(mrb_state* mrb, mrb_value self) {
 /// @example w = sprite.width
 static mrb_value mrb_sprite_width(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (s->use_source_rect) {
         return mrb_float_value(mrb, s->source_rect.width);
@@ -954,9 +954,9 @@ static mrb_value mrb_sprite_width(mrb_state* mrb, mrb_value self) {
 /// @example h = sprite.height
 static mrb_value mrb_sprite_height(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (s->use_source_rect) {
         return mrb_float_value(mrb, s->source_rect.height);
@@ -996,9 +996,9 @@ static mrb_value mrb_sprite_set_parent(mrb_state* mrb, mrb_value self) {
     mrb_value parent_val;
     mrb_get_args(mrb, "o", &parent_val);
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
-    if (!s) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
 
     if (mrb_nil_p(parent_val)) {
         s->parent_transform = INVALID_HANDLE;
@@ -1028,7 +1028,7 @@ static mrb_value mrb_sprite_set_parent(mrb_state* mrb, mrb_value self) {
 ///   @enemy.draw
 static mrb_value mrb_sprite_draw(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SPRITE_DATA(data);
 
     // Queue sprite for deferred rendering
     DrawQueue::instance().queue_sprite(data->handle);

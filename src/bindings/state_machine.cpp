@@ -9,6 +9,19 @@
 #include <mruby/variable.h>
 #include <mruby/proc.h>
 
+// Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
+#define GMR_REQUIRE_SM_DATA(data) \
+    if (!data) { \
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid StateMachine: internal data is null"); \
+        return mrb_nil_value(); \
+    }
+
+#define GMR_REQUIRE_SM_STATE(machine, handle) \
+    if (!machine) { \
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Invalid StateMachine handle %d: state machine may have been destroyed", handle); \
+        return mrb_nil_value(); \
+    }
+
 namespace gmr {
 namespace bindings {
 
@@ -455,7 +468,7 @@ static mrb_value mrb_state_machine_trigger(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n", &event);
 
     StateMachineData* data = get_machine_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     bool transitioned = state_machine::StateMachineManager::instance()
         .trigger(mrb, data->handle, event);
@@ -468,13 +481,13 @@ static mrb_value mrb_state_machine_trigger(mrb_state* mrb, mrb_value self) {
 /// @returns [Symbol] Current state symbol
 static mrb_value mrb_state_machine_get_state(mrb_state* mrb, mrb_value self) {
     StateMachineData* data = get_machine_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     state_machine::StateMachineState* machine =
         state_machine::StateMachineManager::instance().get(data->handle);
-    if (!machine) return mrb_nil_value();
+    GMR_REQUIRE_SM_STATE(machine, data->handle);
 
-    if (machine->current_state == 0) return mrb_nil_value();
+    if (machine->current_state == 0) return mrb_nil_value();  // Legitimate: no state set
     return mrb_symbol_value(machine->current_state);
 }
 
@@ -487,7 +500,7 @@ static mrb_value mrb_state_machine_set_state(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n", &state);
 
     StateMachineData* data = get_machine_data(mrb, self);
-    if (!data) return mrb_symbol_value(state);
+    GMR_REQUIRE_SM_DATA(data);
 
     state_machine::StateMachineManager::instance()
         .set_state(mrb, data->handle, state);
@@ -500,11 +513,11 @@ static mrb_value mrb_state_machine_set_state(mrb_state* mrb, mrb_value self) {
 /// @returns [Boolean] true if active
 static mrb_value mrb_state_machine_active_p(mrb_state* mrb, mrb_value self) {
     StateMachineData* data = get_machine_data(mrb, self);
-    if (!data) return mrb_false_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     state_machine::StateMachineState* machine =
         state_machine::StateMachineManager::instance().get(data->handle);
-    if (!machine) return mrb_false_value();
+    GMR_REQUIRE_SM_STATE(machine, data->handle);
 
     return mrb_bool_value(machine->active);
 }
@@ -855,7 +868,7 @@ static mrb_value mrb_pending_transition_hold(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
 
     PendingTransitionData* data = get_pending_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     // Parse condition from kwargs or block
     mrb_value condition = mrb_nil_value();
@@ -884,7 +897,7 @@ static mrb_value mrb_pending_transition_release(mrb_state* mrb, mrb_value self) 
     mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
 
     PendingTransitionData* data = get_pending_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     // Parse condition from kwargs or block
     mrb_value condition = mrb_nil_value();
@@ -913,7 +926,7 @@ static mrb_value mrb_pending_transition_press(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n|H&", &target, &kwargs, &block);
 
     PendingTransitionData* data = get_pending_data(mrb, self);
-    if (!data) return mrb_nil_value();
+    GMR_REQUIRE_SM_DATA(data);
 
     // Parse condition from kwargs or block
     mrb_value condition = mrb_nil_value();

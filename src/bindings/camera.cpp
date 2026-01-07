@@ -120,7 +120,7 @@ struct CameraData {
 static void camera_free(mrb_state* mrb, void* ptr) {
     CameraData* data = static_cast<CameraData*>(ptr);
     if (data) {
-        CameraManager::instance().destroy(data->handle);
+        CameraManager::instance().destroy(mrb, data->handle);
         mrb_free(mrb, data);
     }
 }
@@ -406,8 +406,18 @@ static mrb_value mrb_camera_follow(mrb_state* mrb, mrb_value self) {
     Camera2DState* cam = CameraManager::instance().get(data->handle);
     if (!cam) return mrb_nil_value();
 
+    // Unregister old follow_target from GC if it was set
+    if (!mrb_nil_p(cam->follow_target)) {
+        mrb_gc_unregister(mrb, cam->follow_target);
+    }
+
     // Set follow target (nil to stop following)
     cam->follow_target = target;
+
+    // Register new follow_target with GC to prevent collection
+    if (!mrb_nil_p(target)) {
+        mrb_gc_register(mrb, target);
+    }
 
     // Reset follow parameters
     cam->smoothing = 0.0f;
