@@ -174,14 +174,20 @@ No magic syncing. No automatic serialization. Explicit is better than implicit.
    @sprite.transform.local_position = Vec2.new(10, 0)
    ```
 
-3. **Method chaining that obscures mutation**
+3. **Method chaining that obscures mutation** (but note: returning `self` for configuration is fine!)
    ```ruby
-   # BAD: Does this return a new Tween or mutate?
+   # BAD: Does this return a new Tween or mutate? Unclear builder pattern
    Tween.to(@sprite, :x, 100).delay(0.5).ease(:bounce).loop(3)
 
    # GOOD: Clear that it's building a single tween
    tween = Tween.new(@sprite, :x, 100, duration: 1.0, delay: 0.5, ease: :bounce)
    tween.loop_count = 3
+
+   # ALSO GOOD: Module configuration methods returning self for chaining
+   # This is idiomatic Ruby and doesn't obscure mutation
+   Window.set_size(1280, 720).set_virtual_resolution(320, 180).set_filter_point
+   Input.map(:jump, :space).map(:move_left, :a).map(:move_right, :d)
+   Console.enable(height: 150).allow_ruby_eval
    ```
 
 4. **Over-abstracted error handling**
@@ -331,6 +337,7 @@ Before submitting a PR:
 - [ ] Will this require users to learn new concepts?
 - [ ] Is there a simpler way to solve this problem?
 - [ ] Have I added to DrawQueue, InputManager, or other central systems? If yes, is it justified?
+- [ ] Do configuration/action methods return `self` for chaining? (See Method Chaining below)
 
 ### Code Style
 
@@ -339,6 +346,27 @@ Before submitting a PR:
 - Use keyword arguments for optional parameters
 - Use blocks for scoping (`camera.use { ... }`)
 - Avoid returning `nil` on failure - raise or return default
+- Return `self` from configuration/action methods to enable chaining (see below)
+
+**Method Chaining (Fluent Interface)**:
+Module configuration methods should return `self` to enable fluent chaining:
+```cpp
+// GOOD: Return self for configuration methods
+static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value self) {
+    // ... implementation ...
+    return self;  // Enables: Console.enable.allow_ruby_eval
+}
+```
+
+When to return `self`:
+- Configuration/setup methods (`enable`, `set_size`, `map`)
+- Action methods that don't have a meaningful return value (`show`, `hide`, `clear`)
+- Callback registration that doesn't need to return an ID
+
+When NOT to return `self`:
+- Query methods that return data (`width`, `height`, `enabled?`)
+- Property setters (`x=`, `y=`) - these should return the assigned value per Ruby convention
+- Methods that return a useful value (`on` returns callback ID for `off`)
 
 **C++ Bindings**:
 - Use typed handles, never expose pointers

@@ -76,19 +76,18 @@ module Tiles
 end
 
 def init
-  # === WINDOW SETUP ===
+  # === WINDOW SETUP (with method chaining) ===
   Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-  Window.set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
-  Window.set_filter_point  # Crisp pixel scaling
+        .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        .set_filter_point  # Crisp pixel scaling
 
-  # Enable the developer console & enable Ruby evaluation for demonstration purposes
-  Console.enable(height: 150)
-  Console.allow_ruby_eval
+  # Enable the console with Ruby evaluation (Dev mode)
+  Console.enable(height: 150).allow_ruby_eval
 
-  # === INPUT MAPPING ===
+  # === INPUT MAPPING (with method chaining) ===
   Input.map(:move_left, [:left, :a])
-  Input.map(:move_right, [:right, :d])
-  Input.map(:jump, [:space, :up, :w])
+       .map(:move_right, [:right, :d])
+       .map(:jump, [:space, :up, :w])
   Input.on(:jump) { do_jump }
 
   # === CAMERA ===

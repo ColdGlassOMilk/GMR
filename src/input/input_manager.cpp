@@ -274,13 +274,19 @@ void InputManager::poll_and_dispatch(mrb_state* mrb) {
         }
     };
 
+    // Check if current context blocks global actions
+    bool global_blocked = false;
+
     // Process actions from current context (if any)
     if (InputContext* ctx = context_stack.current()) {
         process_actions(ctx->actions);
+        global_blocked = ctx->blocks_global;
     }
 
-    // Also process global actions (actions_ is the legacy global storage)
-    process_actions(actions_);
+    // Process global actions unless blocked by current context
+    if (!global_blocked) {
+        process_actions(actions_);
+    }
 }
 
 // ============================================================================

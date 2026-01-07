@@ -370,7 +370,7 @@ static std::vector<gmr_input::InputBinding> parse_bindings_from_mouse(mrb_state*
 
 // GMR::Input.map(action_name, keys) - Map an action to one or more keys
 // This is the backward-compatible API
-static mrb_value mrb_input_map_simple(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_input_map_simple(mrb_state* mrb, mrb_value self) {
     mrb_sym action_sym;
     mrb_value keys;
     mrb_get_args(mrb, "no", &action_sym, &keys);
@@ -381,7 +381,7 @@ static mrb_value mrb_input_map_simple(mrb_state* mrb, mrb_value) {
 
     gmr_input::InputManager::instance().define_action(action_name, bindings);
 
-    return mrb_nil_value();
+    return self;
 }
 
 // ============================================================================
@@ -453,10 +453,9 @@ static mrb_value mrb_input_builder_action(mrb_state* mrb, mrb_value self) {
 ///   Block form allows defining multiple actions with a DSL.
 /// @param action [Symbol] (optional) The action name for traditional form
 /// @param keys [Symbol, Array] (optional) Key(s) to bind for traditional form
-/// @returns [nil]
-/// @example # Traditional form
-///   GMR::Input.map(:jump, :space)
-///   GMR::Input.map(:move_left, [:a, :left])
+/// @returns [Module] self for chaining
+/// @example # Traditional form with chaining
+///   GMR::Input.map(:jump, :space).map(:move_left, [:a, :left])
 /// @example # Block DSL form
 ///   GMR::Input.map do |i|
 ///     i.action :jump, key: :space
@@ -490,7 +489,7 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
         // Use safe_yield to catch exceptions in input mapping DSL
         scripting::safe_yield(mrb, block, builder);
 
-        return mrb_nil_value();
+        return self;
     }
 
     if (action_sym != 0) {
@@ -499,31 +498,31 @@ static mrb_value mrb_input_map(mrb_state* mrb, mrb_value self) {
         gmr_input::InputManager::instance().define_action(action_name, bindings);
     }
 
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function unmap
 /// @description Remove an action mapping by name.
 /// @param action [Symbol] The action name to remove
-/// @returns [nil]
-/// @example GMR::Input.unmap(:jump)
-static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value) {
+/// @returns [Module] self for chaining
+/// @example GMR::Input.unmap(:jump).unmap(:attack)
+static mrb_value mrb_input_unmap(mrb_state* mrb, mrb_value self) {
     mrb_sym action_sym;
     mrb_get_args(mrb, "n", &action_sym);
 
     const char* action_name = mrb_sym_name(mrb, action_sym);
     gmr_input::InputManager::instance().remove_action(action_name);
 
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function clear_mappings
 /// @description Remove all action mappings.
-/// @returns [nil]
-/// @example GMR::Input.clear_mappings
-static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value) {
+/// @returns [Module] self for chaining
+/// @example GMR::Input.clear_mappings.map(:new_action, :space)
+static mrb_value mrb_input_clear_mappings(mrb_state* mrb, mrb_value self) {
     gmr_input::InputManager::instance().clear_actions();
-    return mrb_nil_value();
+    return self;
 }
 
 // ============================================================================
@@ -777,43 +776,59 @@ static mrb_value create_context_builder(mrb_state* mrb, const std::string& conte
 /// @description Push a named input context onto the stack. Actions defined in
 ///   this context become active. Previous contexts remain on the stack.
 /// @param name [Symbol] The context name to push
-/// @returns [nil]
+/// @param blocks_global [Boolean] (optional) If true, global actions are blocked while this context is active
+/// @returns [Module] self for chaining
 /// @example GMR::Input.push_context(:menu)
-///   # :menu actions are now active, game actions still on stack
-static mrb_value mrb_input_push_context(mrb_state* mrb, mrb_value) {
+///   # :menu actions are now active, global actions still fire
+/// @example GMR::Input.push_context(:pause, blocks_global: true)
+///   # :pause actions active, global game actions blocked
+static mrb_value mrb_input_push_context(mrb_state* mrb, mrb_value self) {
     mrb_sym name_sym;
-    mrb_get_args(mrb, "n", &name_sym);
+    mrb_value kwargs = mrb_nil_value();
+    mrb_get_args(mrb, "n|H", &name_sym, &kwargs);
 
     const char* name = mrb_sym_name(mrb, name_sym);
-    gmr_input::ContextStack::instance().push(name);
+    auto& ctx_stack = gmr_input::ContextStack::instance();
+    ctx_stack.push(name);
 
-    return mrb_nil_value();
+    // Check for blocks_global option
+    if (!mrb_nil_p(kwargs) && mrb_hash_p(kwargs)) {
+        mrb_value blocks_val = mrb_hash_get(mrb, kwargs,
+            mrb_symbol_value(mrb_intern_lit(mrb, "blocks_global")));
+        if (mrb_test(blocks_val)) {
+            if (auto* ctx = ctx_stack.current()) {
+                ctx->blocks_global = true;
+            }
+        }
+    }
+
+    return self;
 }
 
 /// @function pop_context
 /// @description Pop the current input context from the stack, returning to
 ///   the previous context.
-/// @returns [nil]
+/// @returns [Module] self for chaining
 /// @example GMR::Input.pop_context  # Return to previous context
-static mrb_value mrb_input_pop_context(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_input_pop_context(mrb_state* mrb, mrb_value self) {
     gmr_input::ContextStack::instance().pop();
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function set_context
 /// @description Replace the entire context stack with a single context.
 ///   Clears the stack and sets the named context as the only active context.
 /// @param name [Symbol] The context name to set
-/// @returns [nil]
+/// @returns [Module] self for chaining
 /// @example GMR::Input.set_context(:gameplay)
-static mrb_value mrb_input_set_context(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_input_set_context(mrb_state* mrb, mrb_value self) {
     mrb_sym name_sym;
     mrb_get_args(mrb, "n", &name_sym);
 
     const char* name = mrb_sym_name(mrb, name_sym);
     gmr_input::ContextStack::instance().set(name);
 
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function current_context
@@ -1198,7 +1213,7 @@ void register_input(mrb_state* mrb) {
     mrb_define_module_function(mrb, input, "off", mrb_input_off, MRB_ARGS_REQ(1));
 
     // Context management
-    mrb_define_module_function(mrb, input, "push_context", mrb_input_push_context, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, input, "push_context", mrb_input_push_context, MRB_ARGS_ARG(1, 1));
     mrb_define_module_function(mrb, input, "pop_context", mrb_input_pop_context, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "set_context", mrb_input_set_context, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "current_context", mrb_input_current_context, MRB_ARGS_NONE());

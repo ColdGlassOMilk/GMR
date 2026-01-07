@@ -215,9 +215,9 @@ static mrb_value mrb_window_actual_height(mrb_state* mrb, mrb_value) {
 /// @description Set the window size. Has no effect in fullscreen mode.
 /// @param w [Integer] Window width in pixels
 /// @param h [Integer] Window height in pixels
-/// @returns [nil]
-/// @example GMR::Window.set_size(1280, 720)
-static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value) {
+/// @returns [Module] self for chaining
+/// @example GMR::Window.set_size(1280, 720).set_title("My Game")
+static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value self) {
     mrb_int w, h;
     mrb_get_args(mrb, "ii", &w, &h);
 
@@ -234,19 +234,19 @@ static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value) {
         state.screen_height = h;
     }
 
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function set_title
 /// @description Set the window title bar text.
 /// @param title [String] The window title
-/// @returns [nil]
+/// @returns [Module] self for chaining
 /// @example GMR::Window.set_title("My Awesome Game")
-static mrb_value mrb_window_set_title(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_window_set_title(mrb_state* mrb, mrb_value self) {
     const char* title;
     mrb_get_args(mrb, "z", &title);
     SetWindowTitle(title);
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function toggle_fullscreen
@@ -390,10 +390,10 @@ static mrb_value mrb_window_is_fullscreen(mrb_state* mrb, mrb_value) {
 ///   to this resolution and scales to fit the window with letterboxing.
 /// @param w [Integer] Virtual width in pixels
 /// @param h [Integer] Virtual height in pixels
-/// @returns [Boolean] true
+/// @returns [Module] self for chaining
 /// @example # Render at 320x240 for retro-style game
-///   GMR::Window.set_virtual_resolution(320, 240)
-static mrb_value mrb_window_set_virtual_resolution(mrb_state* mrb, mrb_value) {
+///   GMR::Window.set_virtual_resolution(320, 240).set_filter_point
+static mrb_value mrb_window_set_virtual_resolution(mrb_state* mrb, mrb_value self) {
     mrb_int w, h;
     mrb_get_args(mrb, "ii", &w, &h);
 
@@ -414,14 +414,14 @@ static mrb_value mrb_window_set_virtual_resolution(mrb_state* mrb, mrb_value) {
 
     printf("Virtual resolution set to %dx%d\n", static_cast<int>(w), static_cast<int>(h));
 
-    return mrb_true_value();
+    return self;
 }
 
 /// @function clear_virtual_resolution
 /// @description Disable virtual resolution and render directly at window size.
-/// @returns [Boolean] true
+/// @returns [Module] self for chaining
 /// @example GMR::Window.clear_virtual_resolution
-static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value self) {
     auto& state = State::instance();
 
     if (state.use_virtual_resolution) {
@@ -438,7 +438,7 @@ static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value) 
         state.screen_height = GetScreenHeight();
     }
 
-    return mrb_true_value();
+    return self;
 }
 
 /// @function virtual_resolution?
@@ -454,25 +454,25 @@ static mrb_value mrb_window_is_virtual_resolution(mrb_state* mrb, mrb_value) {
 /// @function set_filter_point
 /// @description Set nearest-neighbor (point) filtering for virtual resolution scaling.
 ///   Produces crisp, pixelated look. Only works when virtual resolution is enabled.
-/// @returns [nil]
-/// @example GMR::Window.set_filter_point  # For pixel art games
-static mrb_value mrb_window_set_filter_point(mrb_state* mrb, mrb_value) {
+/// @returns [Module] self for chaining
+/// @example GMR::Window.set_virtual_resolution(320, 240).set_filter_point
+static mrb_value mrb_window_set_filter_point(mrb_state* mrb, mrb_value self) {
     if (State::instance().use_virtual_resolution) {
         SetTextureFilter(render_target.texture, TEXTURE_FILTER_POINT);
     }
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function set_filter_bilinear
 /// @description Set bilinear filtering for virtual resolution scaling.
 ///   Produces smoother, blended scaling. Only works when virtual resolution is enabled.
-/// @returns [nil]
-/// @example GMR::Window.set_filter_bilinear  # For smoother scaling
-static mrb_value mrb_window_set_filter_bilinear(mrb_state* mrb, mrb_value) {
+/// @returns [Module] self for chaining
+/// @example GMR::Window.set_virtual_resolution(320, 240).set_filter_bilinear
+static mrb_value mrb_window_set_filter_bilinear(mrb_state* mrb, mrb_value self) {
     if (State::instance().use_virtual_resolution) {
         SetTextureFilter(render_target.texture, TEXTURE_FILTER_BILINEAR);
     }
-    return mrb_nil_value();
+    return self;
 }
 
 /// @function monitor_count
@@ -641,13 +641,13 @@ static mrb_value mrb_time_fps(mrb_state* mrb, mrb_value) {
 /// @description Set the target frame rate. The game will try to maintain this FPS.
 ///   Set to 0 for unlimited frame rate.
 /// @param fps [Integer] Target frames per second
-/// @returns [nil]
+/// @returns [Module] self for chaining
 /// @example GMR::Time.set_target_fps(60)  # Lock to 60 FPS
-static mrb_value mrb_time_set_target_fps(mrb_state* mrb, mrb_value) {
+static mrb_value mrb_time_set_target_fps(mrb_state* mrb, mrb_value self) {
     mrb_int fps;
     mrb_get_args(mrb, "i", &fps);
     SetTargetFPS(fps);
-    return mrb_nil_value();
+    return self;
 }
 
 // ============================================================================

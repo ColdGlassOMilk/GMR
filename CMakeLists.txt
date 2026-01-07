@@ -193,12 +193,12 @@ if(PLATFORM_WEB)
 
     # Preload assets folder for web builds (textures, sounds, etc.)
     # Use relative path from build directory to avoid spaces in paths breaking file_packager
-    # Build dir is PROJECT_OUTPUT_DIR/build/web, so assets are at ../../game/assets
     if(EXISTS "${PROJECT_OUTPUT_DIR}/game/assets")
+        file(RELATIVE_PATH ASSETS_REL_PATH "${CMAKE_BINARY_DIR}" "${PROJECT_OUTPUT_DIR}/game/assets")
         target_link_options(${PROJECT_NAME} PRIVATE
-            "--preload-file=../../game/assets@/assets"
+            "--preload-file=${ASSETS_REL_PATH}@/assets"
         )
-        message(STATUS "Preloading assets from: ${PROJECT_OUTPUT_DIR}/game/assets")
+        message(STATUS "Preloading assets from: ${PROJECT_OUTPUT_DIR}/game/assets (${ASSETS_REL_PATH})")
     endif()
 
     # Add custom shell if it exists

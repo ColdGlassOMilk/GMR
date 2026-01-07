@@ -17,6 +17,10 @@ struct InputContext {
     std::unordered_map<int, InputCallback> callbacks;
     std::vector<StateMachineInputBinding> sm_bindings;
 
+    /// @brief If true, global actions are blocked when this context is active
+    /// @details Used by contexts like console or pause menu that should prevent game input
+    bool blocks_global = false;
+
     InputContext() = default;
     explicit InputContext(const std::string& ctx_name) : name(ctx_name) {}
 };

@@ -254,17 +254,18 @@ module Gmrcli
       Targets:
         debug   - Build debug and run (default)
         release - Build release and run
-        web     - Clean, build web, and start server (always cleans)
+        web     - Build web and start server
 
       Options:
-        --clean     - Clean before building (for fresh native builds)
+        --clean     - Clean before building (for fresh builds)
         --no-run    - Build only, don't run afterward
 
       Examples:
         gmrcli dev              # Build debug, run
         gmrcli dev --clean      # Clean, build debug, run
         gmrcli dev release      # Build release, run
-        gmrcli dev web          # Clean, build web, start server
+        gmrcli dev web          # Build web, start server
+        gmrcli dev web --clean  # Clean, build web, start server
     DESC
     option :clean, type: :boolean, default: false,
                    desc: "Clean before building (use --clean for fresh build)"
@@ -290,9 +291,8 @@ module Gmrcli
         builder = Commands::Build.new(options.to_h.transform_keys(&:to_sym))
         runner = Commands::Run.new(options.to_h.transform_keys(&:to_sym))
 
-        # Step 1: Clean (always for web, optional for native)
-        should_clean = options[:clean] || target == "web"
-        if should_clean
+        # Step 1: Clean (optional - only when --clean flag is passed)
+        if options[:clean]
           UI.step "Cleaning..."
           builder.clean
         end

@@ -141,30 +141,16 @@ else
     echo -e "${GREEN}> Gem dependencies up to date${NC}"
 fi
 
-# Get current installed version (if any)
-INSTALLED_VERSION=$(gem list gmrcli --local 2>/dev/null | grep -oP 'gmrcli \(\K[^)]+' || echo "")
-# Extract version from lib/gmrcli/version.rb (gemspec references this constant)
+# Extract version from lib/gmrcli/version.rb
 GEMSPEC_VERSION=$(grep -oP 'VERSION\s*=\s*["\x27]\K[^"\x27]+' lib/gmrcli/version.rb 2>/dev/null || echo "0.0.0")
 
-# Check if we need to reinstall
-NEEDS_INSTALL=false
-if [[ -z "$INSTALLED_VERSION" ]]; then
-    NEEDS_INSTALL=true
-elif [[ "$INSTALLED_VERSION" != "$GEMSPEC_VERSION" ]]; then
-    NEEDS_INSTALL=true
-elif [[ ! -f "$GEM_BIN/gmrcli" ]]; then
-    NEEDS_INSTALL=true
-fi
-
-if $NEEDS_INSTALL; then
-    echo -e "${GREEN}> Building and installing gmrcli...${NC}"
-    gem build gmrcli.gemspec --quiet 2>/dev/null || gem build gmrcli.gemspec
-    gem install ./gmrcli-*.gem --no-document
-    rm -f gmrcli-*.gem
-    echo -e "  ${GREEN}+ gmrcli ${GEMSPEC_VERSION}${NC}"
-else
-    echo -e "${GREEN}> gmrcli already installed${NC} ${DIM}(${INSTALLED_VERSION})${NC}"
-fi
+# Always reinstall gmrcli to pick up code changes
+echo -e "${GREEN}> Building and installing gmrcli...${NC}"
+gem uninstall gmrcli --quiet --executables 2>/dev/null || true
+gem build gmrcli.gemspec --quiet 2>/dev/null || gem build gmrcli.gemspec
+gem install ./gmrcli-*.gem --no-document
+rm -f gmrcli-*.gem
+echo -e "  ${GREEN}+ gmrcli ${GEMSPEC_VERSION}${NC}"
 
 echo -e "\n${GREEN}"
 echo "╔═══════════════════════════════════════════════════════════════╗"
