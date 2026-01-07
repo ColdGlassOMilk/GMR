@@ -4,17 +4,19 @@
 
 [Check out the live Demo on itch.io!](https://coldglassomilk.itch.io/gmr)
 
-> **⚠️ Early Stage Project:** GMR is in active development and not production-ready. The API bindings are currently MVP-level (graphics, input, audio basics), and advanced features like networking, physics, and extended audio are not yet implemented. That said, it's stable enough for experimentation, game jams, and small projects. Contributions welcome!
+> **Early Stage Project:** GMR is in active development and not production-ready. The API bindings are currently MVP-level (graphics, input, audio basics), and advanced features like networking, physics, and extended audio are not yet implemented. That said, it's stable enough for experimentation, game jams, and small projects. Contributions welcome!
 
 ## Features
 
-- 🔥 **Instant Hot Reload** - Save your Ruby script, see changes immediately. No compile step, no restart, no lost game state
-- 💻 **Live REPL Console** - Press backtick to open a console mid-game. Tweak variables, test functions, debug in real-time
-- 🌐 **One Codebase, Every Platform** - Write once, deploy to Windows, Linux, macOS, or the web via WebAssembly
-- ⚡ **Ruby Simplicity, Native Speed** - mruby bytecode execution with raylib's hardware-accelerated rendering
-- 🎮 **Batteries Included** - Graphics, tilemaps, audio, input mapping, collision detection - no external dependencies to wire up
-- 🛡️ **Safe by Design** - Handle-based resource system keeps Ruby away from raw pointers and memory headaches
-- 🔧 **Modern CLI Tooling** - `gmrcli setup && gmrcli run` - that's it. JSON output for CI/IDE integration, presets for power users
+- **Instant Hot Reload** - Save your Ruby script, see changes immediately. No compile step, no restart, no lost game state
+- **Live REPL Console** - Press backtick to open a console mid-game. Tweak variables, test functions, debug in real-time
+- **One Codebase, Every Platform** - Write once, deploy to Windows, Linux, macOS, or the web via WebAssembly
+- **Ruby Simplicity, Native Speed** - mruby bytecode execution with raylib's hardware-accelerated rendering
+- **Batteries Included** - Graphics, tilemaps, audio, input mapping, collision detection - no external dependencies to wire up
+- **Safe by Design** - Handle-based resource system keeps Ruby away from raw pointers and memory headaches
+- **Modern CLI Tooling** - `gmrcli setup && gmrcli run` - that's it. JSON output for CI/IDE integration, presets for power users
+
+---
 
 ## Quick Start
 
@@ -30,15 +32,19 @@ gmrcli dev
 
 Edit `game/scripts/main.rb` - changes reload automatically!
 
-**Minimal Example** - Moving circle in 15 lines:
+### Minimal Example
+
+A moving circle in 15 lines:
 
 ```ruby
 include GMR
 
 def init
   Window.set_title("My Game")
-  Input.map(:move_left, [:a, :left])
-  Input.map(:move_right, [:d, :right])
+  input do |i|
+    i.move_left [:a, :left]
+    i.move_right [:d, :right]
+  end
   @x, @y = 400, 300
 end
 
@@ -56,67 +62,502 @@ end
 
 ---
 
-## Engine Showcase
+## Core Concepts
 
-### State Machine + Animator
+### Game Loop (Global Hooks)
 
-Wire input directly to state transitions. Animator handles sprite changes automatically.
+The simplest way to build a game is with global lifecycle hooks. Define these functions at the top level of your script:
+
+```ruby
+include GMR
+
+def init
+  # Called once when the game starts (or script reloads)
+  @player_x = 400
+  @player_y = 300
+end
+
+def update(dt)
+  # Called every frame. dt = time since last frame in seconds
+  @player_x += 100 * dt if Input.key_down?(:right)
+  @player_x -= 100 * dt if Input.key_down?(:left)
+end
+
+def draw
+  # Called every frame for rendering
+  Graphics.clear([20, 20, 40])
+  Graphics.draw_circle(@player_x, @player_y, 20, [100, 200, 255])
+end
+```
+
+This is the recommended approach for small games and prototypes. Your entire game can live in `main.rb` with these three hooks.
+
+### Scene Classes (Optional)
+
+For larger games, you can use Scene classes with the SceneManager for organized state management:
+
+```ruby
+include GMR
+
+class GameScene < Scene
+  def init
+    # Called when this scene becomes active
+    @player = Player.new(100, 100)
+  end
+
+  def update(dt)
+    # Called every frame while this scene is on top
+    @player.update(dt)
+  end
+
+  def draw
+    # Called every frame for rendering
+    Graphics.clear([20, 20, 40])
+    @player.draw
+  end
+
+  def unload
+    # Called when this scene is removed from the stack
+  end
+end
+
+# Start with this scene
+SceneManager.load(GameScene.new)
+```
+
+### Scene Stack
+
+When using SceneManager, scenes are managed as a stack. Only the top scene receives `update` and `draw` calls:
+
+```ruby
+SceneManager.load(TitleScene.new)     # Clear stack, set as only scene
+SceneManager.push(PauseMenu.new)      # Pause current scene, show menu
+SceneManager.pop                       # Remove top scene, resume previous
+
+# Overlays render on top but don't pause the game
+SceneManager.add_overlay(HUD.new)
+SceneManager.remove_overlay(hud)
+```
+
+---
+
+### Input
+
+GMR supports both raw input polling and an action mapping system.
+
+#### Action Mapping (Recommended)
+
+Define logical actions mapped to physical inputs:
+
+```ruby
+# Block DSL - define multiple actions at once
+input do |i|
+  i.move_left [:a, :left]
+  i.move_right [:d, :right]
+  i.jump :space
+  i.attack :z, mouse: :left    # Keyboard + mouse binding
+  i.pause :escape
+end
+
+# Query actions in update
+def update(dt)
+  @player.x -= 200 * dt if Input.action_down?(:move_left)
+  @player.x += 200 * dt if Input.action_down?(:move_right)
+  @player.jump if Input.action_pressed?(:jump)
+end
+
+# Callbacks for discrete events
+Input.on(:pause) { toggle_pause }
+Input.on(:attack, when: :pressed) { @player.attack }
+```
+
+#### Input Contexts
+
+Switch between different control schemes (gameplay vs menus):
+
+```ruby
+# Define a menu context
+input_context :menu do |i|
+  i.confirm :enter
+  i.cancel :escape
+  i.nav_up :up
+  i.nav_down :down
+end
+
+# Push context when opening menu
+def open_pause_menu
+  Input.push_context(:menu)
+  SceneManager.push(PauseMenu.new)
+end
+
+# Pop context when closing
+def close_pause_menu
+  Input.pop_context
+  SceneManager.pop
+end
+```
+
+#### Raw Input
+
+Direct input polling when you need it:
+
+```ruby
+# Keyboard
+Input.key_down?(:space)           # Currently held
+Input.key_pressed?(:enter)        # Just pressed this frame
+Input.key_released?(:shift)       # Just released this frame
+Input.key_down?([:a, :left])      # Any of these keys
+
+# Mouse
+Input.mouse_x, Input.mouse_y      # Position (virtual resolution aware)
+Input.mouse_down?(:left)          # :left, :right, :middle
+Input.mouse_pressed?(:right)
+Input.mouse_wheel                 # Scroll delta (float)
+
+# Text input
+char = Input.char_pressed         # Unicode character code
+key = Input.key_pressed           # Last key code
+```
+
+---
+
+### Graphics
+
+#### Drawing Primitives
+
+```ruby
+def draw
+  Graphics.clear([20, 20, 40])                              # Clear with color
+  Graphics.draw_rect(10, 10, 100, 50, [255, 0, 0])          # Filled rectangle
+  Graphics.draw_rect_outline(10, 10, 100, 50, [255, 255, 255])
+  Graphics.draw_circle(200, 100, 30, [0, 255, 0])           # Filled circle
+  Graphics.draw_circle_outline(200, 100, 30, [255, 255, 255])
+  Graphics.draw_line(0, 0, 100, 100, [255, 255, 0])         # Line
+  Graphics.draw_text("Score: #{@score}", 10, 10, 20, [255, 255, 255])
+end
+```
+
+Colors are `[r, g, b]` or `[r, g, b, a]` arrays with values 0-255.
+
+#### Textures & Sprites
+
+```ruby
+# Load texture once
+@texture = Graphics::Texture.load("assets/player.png")
+
+# Create sprite with options
+@sprite = Graphics::Sprite.new(@texture,
+  x: 100, y: 100,
+  rotation: 0,
+  scale_x: 1.0, scale_y: 1.0
+)
+
+# Sprite properties
+@sprite.x = 200
+@sprite.y = 150
+@sprite.position = Mathf::Vec2.new(200, 150)
+@sprite.rotation = 45                    # Degrees
+@sprite.scale_x = 2.0
+@sprite.alpha = 0.8                      # 0.0 to 1.0
+@sprite.color = [255, 100, 100]          # Tint
+@sprite.flip_x = true                    # Mirror horizontally
+@sprite.center_origin                    # Pivot at center
+@sprite.source_rect = Graphics::Rect.new(0, 0, 32, 32)  # Spritesheet region
+
+# Draw sprite (queued for batch rendering)
+@sprite.draw
+```
+
+#### Tilemaps
+
+```ruby
+# Create tilemap from tileset texture
+@tilemap = Graphics::Tilemap.new(
+  Graphics::Texture.load("assets/tiles.png"),
+  16, 16,    # Tile width, height
+  100, 50    # Map width, height in tiles
+)
+
+# Set tiles
+@tilemap.set(5, 3, 12)      # Set tile at (5,3) to tile index 12
+@tilemap.fill(0)            # Fill entire map
+@tilemap.fill_rect(0, 0, 10, 10, 5)  # Fill region
+
+# Define tile properties for collision
+@tilemap.define_tile(1, solid: true)
+@tilemap.define_tile(5, solid: true, platform: true)
+@tilemap.define_tile(10, hazard: true, damage: 1)
+
+# Query tile properties
+@tilemap.solid?(player_tile_x, player_tile_y)
+@tilemap.hazard?(x, y)
+
+# Draw (supports camera offset)
+@tilemap.draw(0, 0)
+```
+
+---
+
+### Camera
+
+The Camera2D class provides smooth following, screen shake, and coordinate conversion:
+
+```ruby
+include GMR
+
+def init
+  @camera = Graphics::Camera2D.new
+  @camera.offset = Mathf::Vec2.new(480, 270)   # Screen center (half of 960x540)
+  @camera.zoom = 2.0
+end
+
+def update(dt)
+  # Follow player with built-in smoothing
+  @camera.follow(@player, smoothing: 0.1)
+
+  # Or with a deadzone (player can move without camera following)
+  @camera.follow(@player,
+    smoothing: 0.08,
+    deadzone: Graphics::Rect.new(-30, -20, 60, 40)
+  )
+
+  # Constrain camera to level bounds
+  @camera.bounds = Graphics::Rect.new(0, 0, @level.width, @level.height)
+end
+
+def draw
+  # Everything inside the block uses camera transform
+  @camera.use do
+    @tilemap.draw(0, 0)
+    @player.draw
+    @enemies.each(&:draw)
+  end
+
+  # UI drawn outside camera.use is in screen coordinates
+  Graphics.draw_text("Score: #{@score}", 10, 10, 20, [255, 255, 255])
+end
+
+# Screen shake on impact
+def on_player_hit
+  @camera.shake(strength: 5, duration: 0.2, frequency: 30)
+end
+
+# Zoom with mouse wheel
+def update(dt)
+  wheel = Input.mouse_wheel
+  if wheel != 0
+    @camera.zoom = Mathf.clamp(@camera.zoom + wheel * 0.25, 0.5, 4.0)
+  end
+end
+
+# Coordinate conversion
+world_pos = @camera.screen_to_world(Mathf::Vec2.new(Input.mouse_x, Input.mouse_y))
+screen_pos = @camera.world_to_screen(@player.position)
+```
+
+---
+
+### State Machine
+
+The state machine DSL provides clean, declarative state management with automatic animation binding:
 
 ```ruby
 include GMR
 
 class Player
-  def initialize
+  def initialize(x, y)
+    @x, @y = x, y
     @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+    @on_ground = true
+    @stamina = 100
 
-    # Animator with transition rules
-    @animator = Animation::Animator.new(@sprite, frame_width: 48, frame_height: 48)
-    @animator.add(:idle, frames: 0..3, fps: 8)
-    @animator.add(:run, frames: 8..13, fps: 12)
-    @animator.add(:jump, frames: 16..19, fps: 10, loop: false)
-    @animator.add(:fall, frames: 24..27, fps: 10)
-    @animator.allow_from_any(:idle)  # Can always return to idle
-    @animator.allow_transition(:idle, :run)
-    @animator.allow_transition(:run, :jump)
+    # Animation lookup for state machine
+    @animations = {
+      idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+      run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+      jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 10, loop: false, columns: 8),
+      fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+    }
 
-    # State machine with input-triggered transitions
-    @fsm = state_machine do
+    setup_state_machine
+  end
+
+  def setup_state_machine
+    state_machine do
       state :idle do
-        animate :idle
-        on_input :move_left, :running
-        on_input :move_right, :running
-        on_input :jump, :jumping, if: -> { on_ground? }
+        animate :idle                              # Auto-play animation on enter
+        on :move, :run                             # Event -> target state
+        on :jump, :jump, if: -> { @on_ground }     # Conditional transition
+        on :fall, :fall
       end
 
-      state :running do
+      state :run do
         animate :run
-        on_input :jump, :jumping, if: -> { on_ground? }
-        transition :idle, unless: -> { moving? }
+        on :stop, :idle
+        on :jump, :jump, if: -> { @on_ground && @stamina >= 10 }
+        on :fall, :fall
       end
 
-      state :jumping do
+      state :jump do
         animate :jump
-        on_enter { @vy = -420 }
-        transition :falling, if: -> { @vy > 0 }
+        enter do                                   # Callback on state entry
+          @vy = -300
+          @stamina -= 10
+        end
+        on :peak, :fall
       end
 
-      state :falling do
+      state :fall do
         animate :fall
-        transition :idle, if: -> { on_ground? }
+        on :land, :idle
+        on :land_moving, :run
       end
+    end
+  end
+
+  def update(dt)
+    # Movement
+    @vx = 0
+    @vx -= 200 if Input.action_down?(:move_left)
+    @vx += 200 if Input.action_down?(:move_right)
+
+    # Trigger state machine events based on conditions
+    state_machine.trigger(:move) if @vx != 0
+    state_machine.trigger(:stop) if @vx == 0
+    state_machine.trigger(:jump) if Input.action_pressed?(:jump)
+
+    # Physics-based transitions
+    state_machine.trigger(:fall) if !@on_ground && @vy > 0
+    state_machine.trigger(:peak) if @vy >= 0 && state_machine.state == :jump
+
+    if @on_ground && [:jump, :fall].include?(state_machine.state)
+      state_machine.trigger(@vx != 0 ? :land_moving : :land)
     end
   end
 end
 ```
 
-### Tweens with Chaining
+#### State Machine DSL Reference
 
-Smooth animations with 36 easing types and chainable callbacks.
+```ruby
+state_machine do
+  state :name do
+    animate :animation_name           # Play animation from @animations hash
+    enter { }                         # Block called on state entry
+    exit { }                          # Block called on state exit
+    on :event, :target_state          # Transition on event
+    on :event, :target, if: -> { condition }  # Conditional transition
+  end
+end
+
+# Instance methods
+state_machine.state                   # Current state symbol
+state_machine.state = :forced         # Force state change (bypasses transitions)
+state_machine.trigger(:event)         # Trigger event, returns true if transitioned
+state_machine.active?                 # Check if active
+```
+
+#### Input-Driven Transitions
+
+For direct input-to-state binding:
+
+```ruby
+state_machine do
+  state :idle do
+    on_input :jump, :jumping                        # Transition on action press
+    on_input :attack, :attacking, when: :pressed    # Specify input phase
+    on_input :crouch, :crouching, when: :held       # While held
+  end
+end
+```
+
+---
+
+### Animation
+
+#### Sprite Animation
+
+For direct control over frame-based animations:
+
+```ruby
+@sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+
+# Create animation
+@walk_anim = Animation::SpriteAnimation.new(@sprite,
+  frames: 0..5,          # Frame indices (or array: [0, 1, 2, 1])
+  fps: 12,               # Frames per second
+  loop: true,            # Loop animation (default: true)
+  frame_width: 32,       # Frame size (optional, inferred from source_rect)
+  frame_height: 32,
+  columns: 8             # Spritesheet columns
+)
+
+# Control
+@walk_anim.play
+@walk_anim.pause
+@walk_anim.stop           # Stop and reset to first frame
+
+# Callbacks
+@walk_anim.on_complete { transition_to_idle }
+@walk_anim.on_frame_change { |frame| spawn_dust if frame == 3 }
+
+# State
+@walk_anim.complete?      # True if non-looping animation finished
+```
+
+#### Animator (Animation Manager)
+
+For managing multiple animations with transition rules:
+
+```ruby
+@animator = Animation::Animator.new(@sprite,
+  frame_width: 48,
+  frame_height: 48,
+  columns: 8
+)
+
+# Define animations
+@animator.add(:idle, frames: 0..3, fps: 6)
+@animator.add(:run, frames: 8..13, fps: 12)
+@animator.add(:attack, frames: 16..21, fps: 18, loop: false)
+@animator.add(:hurt, frames: 24..26, fps: 10, loop: false)
+
+# Transition rules
+@animator.allow_transition(:idle, :run)
+@animator.allow_transition(:run, :idle)
+@animator.allow_transition(:idle, :attack)
+@animator.allow_from_any(:hurt)           # Hurt can interrupt any animation
+
+# Playback
+@animator.play(:idle)
+@animator.play(:attack, transition: :finish_current)  # Queue after current
+
+# Query
+@animator.current                        # Current animation name
+@animator.playing?                       # Is any animation playing?
+@animator.can_play?(:attack)             # Would transition be allowed?
+
+# Callbacks
+@animator.on_complete(:attack) { @can_attack_again = true }
+```
+
+---
+
+### Tweens
+
+Smooth property animations with easing:
 
 ```ruby
 include GMR
 
-# Landing squash/stretch effect
+# Basic tween
+Animation::Tween.to(@sprite, :alpha, 0.0, duration: 0.5, ease: :out_quad)
+
+# With callback
+Animation::Tween.to(@sprite, :x, 200, duration: 0.3, ease: :out_back)
+  .on_complete { puts "Arrived!" }
+
+# Chained animations (squash/stretch on land)
 def on_land
   Animation::Tween.to(@sprite, :scale_y, 0.7, duration: 0.05, ease: :out_quad)
     .on_complete do
@@ -124,108 +565,410 @@ def on_land
     end
 end
 
-# UI slide-in with bounce
+# Menu slide-in
 def show_menu
   @menu.x = -200
   Animation::Tween.to(@menu, :x, 50, duration: 0.4, ease: :out_back)
 end
 
-# Damage flash: white -> original color
-def flash_damage
-  @sprite.color = [255, 255, 255]
-  Animation::Tween.to(@sprite, :color, @original_color, duration: 0.2, ease: :out_quad)
+# Tween control
+@tween = Animation::Tween.to(@sprite, :y, 100, duration: 1.0)
+@tween.pause
+@tween.resume
+@tween.cancel
+@tween.active?
+```
+
+#### Easing Functions
+
+```ruby
+# Linear
+:linear
+
+# Quadratic
+:in_quad, :out_quad, :in_out_quad
+
+# Cubic
+:in_cubic, :out_cubic, :in_out_cubic
+
+# Quartic / Quintic
+:in_quart, :out_quart, :in_out_quart
+:in_quint, :out_quint, :in_out_quint
+
+# Sine (gentle)
+:in_sine, :out_sine, :in_out_sine
+
+# Exponential
+:in_expo, :out_expo, :in_out_expo
+
+# Circular
+:in_circ, :out_circ, :in_out_circ
+
+# Back (overshoot)
+:in_back, :out_back, :in_out_back
+
+# Elastic
+:in_elastic, :out_elastic, :in_out_elastic
+
+# Bounce
+:in_bounce, :out_bounce, :in_out_bounce
+```
+
+---
+
+## Complete Example: Platformer
+
+Here's a complete, working game demonstrating input, state machine, animation, camera, and physics using global hooks:
+
+```ruby
+include GMR
+
+# === CONSTANTS ===
+SPEED = 180
+GRAVITY = 600
+JUMP_FORCE = -280
+GROUND_Y = 400
+
+# === GLOBAL HOOKS ===
+
+def init
+  # Window setup
+  Window.set_size(960, 540)
+
+  # Input mapping
+  input do |i|
+    i.move_left [:a, :left]
+    i.move_right [:d, :right]
+    i.jump [:space, :w, :up]
+  end
+
+  # Player state
+  @x, @y = 100, 300
+  @vx, @vy = 0, 0
+  @on_ground = false
+  @facing = 1
+
+  # Sprite setup
+  @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+  @sprite.center_origin
+
+  # Animation lookup for state machine
+  @animations = {
+    idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+    run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+    jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+    fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+  }
+
+  # State machine
+  state_machine do
+    state :idle do
+      animate :idle
+      on :move, :run
+      on :jump, :jump, if: -> { @on_ground }
+      on :fall, :fall
+    end
+
+    state :run do
+      animate :run
+      on :stop, :idle
+      on :jump, :jump, if: -> { @on_ground }
+      on :fall, :fall
+    end
+
+    state :jump do
+      animate :jump
+      enter { @vy = JUMP_FORCE }
+      on :peak, :fall
+    end
+
+    state :fall do
+      animate :fall
+      on :land, :idle
+    end
+  end
+
+  # Camera
+  @camera = Graphics::Camera2D.new
+  @camera.offset = Mathf::Vec2.new(480, 270)
+  @camera.zoom = 1.0
+
+  # Enable dev console
+  Console.enable
+end
+
+def update(dt)
+  return if Console.open?
+
+  # === INPUT ===
+  @vx = 0
+  @vx -= SPEED if Input.action_down?(:move_left)
+  @vx += SPEED if Input.action_down?(:move_right)
+  @facing = @vx.negative? ? -1 : 1 if @vx != 0
+
+  state_machine.trigger(:jump) if Input.action_pressed?(:jump)
+
+  # === PHYSICS ===
+  @vy += GRAVITY * dt unless @on_ground
+  @x += @vx * dt
+  @y += @vy * dt
+
+  # Ground collision
+  if @y >= GROUND_Y
+    @y = GROUND_Y
+    @vy = 0
+    @on_ground = true
+  else
+    @on_ground = false
+  end
+
+  # === STATE MACHINE ===
+  state_machine.trigger(@vx != 0 ? :move : :stop)
+
+  if !@on_ground
+    if @vy > 0
+      state_machine.trigger(:peak) if state_machine.state == :jump
+      state_machine.trigger(:fall)
+    end
+  elsif state_machine.state == :fall
+    state_machine.trigger(:land)
+  end
+
+  # === UPDATE SPRITE ===
+  @sprite.x = @x
+  @sprite.y = @y
+  @sprite.flip_x = @facing < 0
+
+  # === CAMERA ===
+  @camera.target = Mathf::Vec2.new(@x, @y - 50)
+end
+
+def draw
+  @camera.use do
+    Graphics.clear([30, 30, 50])
+    Graphics.draw_rect(0, GROUND_Y, 2000, 200, [60, 60, 80])  # Ground
+    @sprite.draw
+  end
+
+  # UI (outside camera)
+  Graphics.draw_text("State: #{state_machine.state}", 10, 10, 16, [255, 255, 255])
 end
 ```
 
-### Scene Stack with Overlays
+### With a Player Class
 
-Push pause menus, dialogs, or HUDs without destroying game state.
+For better organization, extract the player into a class:
+
+```ruby
+include GMR
+
+class Player
+  attr_reader :x, :y
+
+  def initialize(x, y)
+    @x, @y = x, y
+    @vx, @vy = 0, 0
+    @on_ground = false
+    @facing = 1
+
+    @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+    @sprite.center_origin
+
+    @animations = {
+      idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+      run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+      jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+      fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+    }
+
+    setup_state_machine
+  end
+
+  def setup_state_machine
+    state_machine do
+      state :idle do
+        animate :idle
+        on :move, :run
+        on :jump, :jump, if: -> { @on_ground }
+        on :fall, :fall
+      end
+
+      state :run do
+        animate :run
+        on :stop, :idle
+        on :jump, :jump, if: -> { @on_ground }
+        on :fall, :fall
+      end
+
+      state :jump do
+        animate :jump
+        enter { @vy = -280 }
+        on :peak, :fall
+      end
+
+      state :fall do
+        animate :fall
+        on :land, :idle
+      end
+    end
+  end
+
+  def update(dt)
+    # Input
+    @vx = 0
+    @vx -= 180 if Input.action_down?(:move_left)
+    @vx += 180 if Input.action_down?(:move_right)
+    @facing = @vx.negative? ? -1 : 1 if @vx != 0
+    state_machine.trigger(:jump) if Input.action_pressed?(:jump)
+
+    # Physics
+    @vy += 600 * dt unless @on_ground
+    @x += @vx * dt
+    @y += @vy * dt
+
+    if @y >= 400
+      @y, @vy, @on_ground = 400, 0, true
+    else
+      @on_ground = false
+    end
+
+    # State transitions
+    state_machine.trigger(@vx != 0 ? :move : :stop)
+    if !@on_ground && @vy > 0
+      state_machine.trigger(:peak) if state_machine.state == :jump
+      state_machine.trigger(:fall)
+    elsif @on_ground && state_machine.state == :fall
+      state_machine.trigger(:land)
+    end
+
+    # Sprite
+    @sprite.x, @sprite.y = @x, @y
+    @sprite.flip_x = @facing < 0
+  end
+
+  def draw
+    @sprite.draw
+  end
+
+  def position
+    Mathf::Vec2.new(@x, @y)
+  end
+end
+
+# === GLOBAL HOOKS ===
+
+def init
+  input do |i|
+    i.move_left [:a, :left]
+    i.move_right [:d, :right]
+    i.jump [:space, :w, :up]
+  end
+
+  @player = Player.new(100, 300)
+  @camera = Graphics::Camera2D.new
+  @camera.offset = Mathf::Vec2.new(480, 270)
+  @camera.follow(@player, smoothing: 0.1)
+end
+
+def update(dt)
+  return if Console.open?
+  @player.update(dt)
+end
+
+def draw
+  @camera.use do
+    Graphics.clear([30, 30, 50])
+    Graphics.draw_rect(0, 400, 2000, 200, [60, 60, 80])
+    @player.draw
+  end
+end
+```
+
+---
+
+## Scene Stack & Overlays (SceneManager Pattern)
+
+When using Scene classes with SceneManager, you can push pause menus or dialogs without destroying game state:
 
 ```ruby
 include GMR
 
 class GameScene < Scene
   def update(dt)
-    return if Console.open?  # Pause when console is open
+    return if Console.open?
 
     @player.update(dt)
-    @camera.target = Mathf::Vec2.new(
-      Mathf.lerp(@camera.target.x, @player.x, 0.1),
-      Mathf.lerp(@camera.target.y, @player.y, 0.08)
-    )
+    @enemies.each { |e| e.update(dt) }
 
-    SceneManager.push(PauseMenu.new) if Input.key_pressed?(:escape)
+    if Input.action_pressed?(:pause)
+      SceneManager.push(PauseMenu.new)
+    end
   end
 end
 
 class PauseMenu < Scene
+  def init
+    Input.push_context(:menu)
+  end
+
   def update(dt)
-    SceneManager.pop if Input.key_pressed?(:escape)
-    System.quit if Input.key_pressed?(:q)
+    if Input.action_pressed?(:cancel)
+      Input.pop_context
+      SceneManager.pop
+    end
+
+    if Input.action_pressed?(:confirm)
+      System.quit
+    end
   end
 
   def draw
+    # Semi-transparent overlay
     Graphics.draw_rect(0, 0, 960, 540, [0, 0, 0, 180])
-    Graphics.draw_text("PAUSED", 400, 250, 48, [255, 255, 255])
+    Graphics.draw_text("PAUSED", 400, 200, 48, [255, 255, 255])
+    Graphics.draw_text("Press ESC to resume", 380, 280, 20, [180, 180, 180])
+    Graphics.draw_text("Press ENTER to quit", 380, 310, 20, [180, 180, 180])
+  end
+
+  def unload
+    Input.pop_context
   end
 end
 
 # Overlays render on top but don't pause the game
 class MinimapOverlay < Scene
   def draw
-    # Always visible, doesn't block game updates
-    draw_minimap(@game.level, @game.player)
+    Graphics.draw_rect(10, 10, 150, 100, [0, 0, 0, 150])
+    # Draw minimap contents...
   end
 end
 
+# In your init:
+SceneManager.load(GameScene.new)
 SceneManager.add_overlay(MinimapOverlay.new)
 ```
 
-### Camera with Smoothing and Shake
+For simpler games using global hooks, you can manage pause state with a boolean flag instead of the SceneManager.
+
+---
+
+## Live Console
+
+Press **`** (backtick) to open an interactive Ruby REPL mid-game:
 
 ```ruby
-include GMR
+# Enable console with optional styling
+Console.enable(
+  height: 300,
+  background: "#1a1a2e",
+  font_size: 16
+)
 
-@camera = Graphics::Camera2D.new
-@camera.offset = Mathf::Vec2.new(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
-@camera.zoom = 2.0
-
-def update(dt)
-  # Smooth follow with different speeds per axis
-  target = Mathf::Vec2.new(@player.x, @player.y - 40)
-  @camera.target = Mathf::Vec2.new(
-    Mathf.lerp(@camera.target.x, target.x, 0.1),
-    Mathf.lerp(@camera.target.y, target.y, 0.08)
-  )
-
-  # Clamp to level bounds
-  @camera.target = Mathf::Vec2.new(
-    Mathf.clamp(@camera.target.x, half_w, @level.width - half_w),
-    Mathf.clamp(@camera.target.y, half_h, @level.height - half_h)
-  )
-end
-
-# Shake on impact
-def on_player_land
-  @camera.shake(strength: 3, duration: 0.1)
-end
-
-# Zoom with mouse wheel
-wheel = Input.mouse_wheel
-if wheel != 0
-  Animation::Tween.to(@camera, :zoom, Mathf.clamp(@camera.zoom + wheel * 0.25, 0.5, 4.0),
-           duration: 0.15, ease: :out_quad)
-end
-```
-
-### Live Console Commands
-
-Register debug commands accessible at runtime via backtick (`).
-
-```ruby
+# Register custom commands
 Console.register_command("tp", "Teleport to x,y") do |args|
   if args.length >= 2
-    @player.teleport(args[0].to_f, args[1].to_f)
+    @player.x = args[0].to_f
+    @player.y = args[1].to_f
     "Teleported to #{args[0]}, #{args[1]}"
   else
     "Usage: tp <x> <y>"
@@ -242,6 +985,28 @@ Console.register_command("spawn", "Spawn enemy at cursor") do
   "Spawned enemy at #{Input.mouse_x}, #{Input.mouse_y}"
 end
 ```
+
+In the console, you can execute any Ruby code:
+
+```ruby
+@player.x = 400                    # Modify game state
+@player.health = 100               # Reset health
+Time.scale = 0.5                   # Slow motion
+@camera.zoom = 3.0                 # Zoom in
+Animation::Tween.to(@camera, :zoom, 1.0, duration: 0.5)  # Animate back
+System.quit                        # Exit game
+```
+
+Pause the game when console is open:
+
+```ruby
+def update(dt)
+  return if Console.open?
+  # Game logic...
+end
+```
+
+---
 
 ## CLI
 
@@ -266,90 +1031,83 @@ gmrcli new my-game        # Create new project
 gmrcli docs               # Generate documentation
 ```
 
+---
+
 ## API Quick Reference
 
-All classes/modules live under the `GMR` namespace. Use `include GMR` at the top of your scripts to access them without the prefix.
+All classes and modules live under the `GMR` namespace. Use `include GMR` at the top of your scripts to access them without the prefix.
 
 ### GMR::Graphics
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Graphics` | `clear`, `draw_rect`, `draw_circle`, `draw_line`, `draw_text`, `measure_text` |
-| `Graphics::Texture` | `load`, `draw`, `draw_ex`, `draw_pro`, `width`, `height` |
-| `Graphics::Sprite` | `new`, `draw`, `x`, `y`, `rotation`, `scale_x/y`, `source_rect`, `alpha` |
-| `Graphics::Tilemap` | `new`, `set`, `fill`, `draw_region`, `solid?`, `tile_property` |
-| `Graphics::Camera2D` | `target`, `offset`, `zoom`, `follow`, `shake`, `world_to_screen` |
-| `Graphics::Transform2D` | `position`, `rotation`, `scale_x/y`, `parent`, `world_position` |
-| `Graphics::Rect` | 2D rectangle with `x`, `y`, `w`, `h` |
+
+| Class/Module | Key Methods |
+|--------------|-------------|
+| `Graphics` | `clear(color)`, `draw_rect`, `draw_rect_outline`, `draw_circle`, `draw_circle_outline`, `draw_line`, `draw_line_thick`, `draw_text`, `measure_text` |
+| `Graphics::Texture` | `.load(path)`, `draw(x, y)`, `draw_ex(x, y, rotation, scale)`, `width`, `height` |
+| `Graphics::Sprite` | `.new(texture, **opts)`, `x`, `y`, `position`, `rotation`, `scale_x`, `scale_y`, `alpha`, `color`, `flip_x`, `flip_y`, `origin`, `center_origin`, `source_rect`, `draw` |
+| `Graphics::Tilemap` | `.new(tileset, tw, th, w, h)`, `set(x, y, tile)`, `fill`, `fill_rect`, `draw`, `solid?`, `hazard?`, `platform?`, `define_tile` |
+| `Graphics::Camera2D` | `.new`, `target`, `offset`, `zoom`, `rotation`, `follow(obj, smoothing:, deadzone:)`, `bounds=`, `shake(strength:, duration:)`, `use { }`, `screen_to_world`, `world_to_screen` |
+| `Graphics::Rect` | `.new(x, y, w, h)`, `x`, `y`, `w`, `h` |
 
 ### GMR::Animation
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Animation::Tween` | `to`, `pause`, `resume`, `cancel`, `on_complete`, `on_update` |
-| `Animation::Ease` | `linear`, `quad_in/out`, `cubic_in/out`, `elastic_out`, `bounce_out` |
-| `Animation::Animator` | `new`, `add`, `play`, `stop`, `current`, `playing?`, `allow_transition`, `allow_from_any` |
-| `Animation::SpriteAnimation` | `new`, `play`, `pause`, `stop`, `frame`, `fps`, `loop?`, `on_complete` |
+
+| Class/Module | Key Methods |
+|--------------|-------------|
+| `Animation::Tween` | `.to(obj, :prop, value, duration:, ease:)`, `pause`, `resume`, `cancel`, `active?`, `on_complete { }`, `on_update { }` |
+| `Animation::Animator` | `.new(sprite, **opts)`, `add(:name, frames:, fps:, loop:)`, `play(:name)`, `stop`, `current`, `playing?`, `allow_transition`, `allow_from_any`, `on_complete(:name) { }` |
+| `Animation::SpriteAnimation` | `.new(sprite, frames:, fps:, loop:, columns:)`, `play`, `pause`, `stop`, `complete?`, `on_complete { }`, `on_frame_change { }` |
+| `Animation::Ease` | `:linear`, `:in_quad`, `:out_quad`, `:in_out_quad`, `:out_back`, `:out_elastic`, `:out_bounce`, etc. |
 
 ### GMR::Audio
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Audio` | `master_volume`, `mute`, `unmute` |
-| `Audio::Sound` | `load`, `play`, `stop`, `pause`, `volume=`, `playing?` |
+
+| Class/Module | Key Methods |
+|--------------|-------------|
+| `Audio::Sound` | `.load(path)`, `play`, `stop`, `volume=` |
 
 ### GMR::Input
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Input` | `key_down?`, `key_pressed?`, `mouse_x/y`, `map`, `action_down?` |
+
+| Module | Key Methods |
+|--------|-------------|
+| `Input` | `key_down?`, `key_pressed?`, `key_released?`, `mouse_x`, `mouse_y`, `mouse_down?`, `mouse_pressed?`, `mouse_wheel`, `action_down?`, `action_pressed?`, `action_released?`, `on(:action) { }`, `push_context`, `pop_context` |
 
 ### GMR::Core
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Core::Node` | `add_child`, `remove_child`, `local_position`, `world_position`, `active?` |
-| `Core::StateMachine` | `new`, `attach`, `trigger`, `state`, `active?` |
 
-### GMR::Mathf (math utilities)
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Mathf` | `lerp`, `clamp`, `smoothstep`, `remap`, `distance`, `sign`, `move_toward`, `wrap`, `random_int`, `random_float`, `deg_to_rad`, `rad_to_deg` |
-| `Mathf::Vec2` | 2D vector with `x`, `y` and arithmetic operators (+, -, *, /) |
-| `Mathf::Vec3` | 3D vector with `x`, `y`, `z` and arithmetic operators |
+| Class/Module | Key Methods |
+|--------------|-------------|
+| `Core::StateMachine` | `.attach`, `.count`, `state`, `state=`, `trigger(:event)`, `active?` |
+| `Core::Node` | `add_child`, `remove_child`, `parent`, `children`, `local_position`, `world_position`, `active?` |
 
-### GMR (Top-level modules)
-| Module/Class | Key Functions |
-|--------------|---------------|
-| `Scene` | Base class with `init`, `update`, `draw`, `unload` |
-| `SceneManager` | `push`, `pop`, `load`, `current`, `add_overlay` |
-| `Console` | `enable`, `register_command`, `open?` |
+### GMR::Mathf
+
+| Class/Module | Key Methods |
+|--------------|-------------|
+| `Mathf` | `lerp`, `inverse_lerp`, `clamp`, `wrap`, `smoothstep`, `remap`, `distance`, `distance_squared`, `sign`, `move_toward`, `deg_to_rad`, `rad_to_deg`, `random_int`, `random_float` |
+| `Mathf::Vec2` | `.new(x, y)`, `x`, `y`, `+`, `-`, `*`, `/`, `to_a` |
+| `Mathf::Vec3` | `.new(x, y, z)`, `x`, `y`, `z`, `+`, `-`, `*`, `/` |
+
+### Top-Level Modules
+
+| Module | Key Methods |
+|--------|-------------|
+| `Scene` | Base class: `init`, `update(dt)`, `draw`, `unload` |
+| `SceneManager` | `load`, `push`, `pop`, `current`, `add_overlay`, `remove_overlay`, `has_overlay?` |
+| `Console` | `enable(**opts)`, `disable`, `open?`, `show`, `hide`, `toggle`, `register_command`, `println` |
 | `Window` | `set_size`, `set_title`, `fullscreen`, `width`, `height` |
-| `Time` | `delta`, `fps`, `elapsed`, `scale` |
-| `System` | `platform`, `quit`, `build_type`, `gpu_renderer`, `last_error` |
+| `Time` | `delta`, `fps`, `elapsed`, `scale`, `scale=` |
+| `System` | `platform`, `quit`, `build_type`, `gpu_renderer` |
 | `Collision` | `rect_overlap?`, `circle_overlap?`, `point_in_rect?`, `rect_tiles` |
 
-### Color
-Colors are specified as arrays: `[r, g, b]` or `[r, g, b, a]` with values 0-255.
+---
 
 ## Documentation
 
-📚 **Reference Documentation** (auto-generated from source)
+**Reference Documentation** (auto-generated from source):
 
 - [CLI Reference](docs/cli/README.md) - All `gmrcli` commands & options
 - [API Reference](docs/api/README.md) - Complete Ruby API documentation
 
 Run `gmrcli docs` to regenerate documentation after modifying source files.
 
-## Developer Console
-
-Press **`** (backtick) while running to open an interactive Ruby REPL:
-
-```ruby
-@player.x = 400                    # Modify game state live
-@player.god_mode = true            # Toggle flags
-GMR::Time.fps                      # Check performance
-@camera.zoom = 3.0                 # Adjust camera
-GMR::Animation::Tween.to(@camera, :zoom, 1.0, duration: 0.5)  # Animate changes
-GMR::System.quit                   # Exit game
-```
-
-Custom commands registered via `Console.register_command` appear in autocomplete.
+---
 
 ## License
 
