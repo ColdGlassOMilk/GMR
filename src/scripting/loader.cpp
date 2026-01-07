@@ -416,6 +416,10 @@ void Loader::load(const std::string& script_dir) {
 
     safe_call(mrb_, "init");
 
+#ifdef PLATFORM_WEB
+    printf("[WEB] init() completed successfully\n");
+#endif
+
     last_mod_time_    = get_newest_mod_time(script_dir_);
     pending_mod_time_ = last_mod_time_;
     last_check_time_  = GetTime();

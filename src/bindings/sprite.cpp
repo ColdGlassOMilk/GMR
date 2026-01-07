@@ -265,6 +265,10 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 
     // Create sprite
     SpriteHandle handle = SpriteManager::instance().create();
+#ifdef PLATFORM_WEB
+    printf("[WEB] Sprite.new: created handle=%d, manager count=%zu\n",
+           handle, SpriteManager::instance().count());
+#endif
     SpriteState* s = SpriteManager::instance().get(handle);
 
     // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
@@ -333,9 +337,24 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 /// @example x_pos = sprite.x
 static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
+#ifdef PLATFORM_WEB
+    if (!data) {
+        printf("[WEB] sprite.x: get_sprite_data returned NULL\n");
+        return mrb_nil_value();
+    }
+    printf("[WEB] sprite.x: handle=%d\n", data->handle);
+    SpriteState* s = SpriteManager::instance().get(data->handle);
+    if (!s) {
+        printf("[WEB] sprite.x: SpriteManager.get(%d) returned NULL\n", data->handle);
+        printf("[WEB] sprite.x: SpriteManager total count=%zu\n",
+               SpriteManager::instance().count());
+        return mrb_nil_value();
+    }
+#else
     if (!data) return mrb_nil_value();
     SpriteState* s = SpriteManager::instance().get(data->handle);
     if (!s) return mrb_nil_value();
+#endif
     return mrb_float_value(mrb, s->position.x);
 }
 
