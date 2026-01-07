@@ -17,6 +17,7 @@ Collision detection between shapes.
   - [rect_overlap?](#rect_overlap)
   - [rect_tiles](#rect_tiles)
   - [tile_rect](#tile_rect)
+  - [tilemap_resolve](#tilemap_resolve)
 
 ## Functions
 
@@ -254,6 +255,37 @@ Convert tile coordinates to a world-space rectangle.
 ```ruby
 x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)
   # Returns [80, 48, 16, 16]
+```
+
+---
+
+<a id="tilemap_resolve"></a>
+
+### tilemap_resolve
+
+Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `tilemap` | `Tilemap` | The tilemap to check collision against |
+| `x` | `Float` | Hitbox X position in tilemap local coordinates |
+| `y` | `Float` | Hitbox Y position in tilemap local coordinates |
+| `w` | `Float` | Hitbox width |
+| `h` | `Float` | Hitbox height |
+| `vx` | `Float` | Current X velocity (for directional checks) |
+| `vy` | `Float` | Current Y velocity (for directional checks) |
+
+**Returns:** `Hash` - Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom
+
+**Example:**
+
+```ruby
+# In update loop:
+  local_x = @sprite.x + HITBOX_OFFSET_X - MAP_OFFSET_X
+  local_y = @sprite.y + HITBOX_OFFSET_Y - MAP_OFFSET_Y
+  result = Collision.tilemap_resolve(@tilemap, local_x, local_y, HITBOX_W, HITBOX_H, @vx, @vy)
 ```
 
 ---

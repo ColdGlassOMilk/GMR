@@ -109,14 +109,16 @@ height = rect.h
 
 ### #to_s
 
-Convert to a string representation.
+Common math utility functions for game development. Provides lerp, clamp, smoothstep, and other interpolation helpers. Named "Mathf" to avoid conflict with Ruby's built-in Math module.
 
 **Returns:** `String` - String in format "Rect(x, y, w, h)"
 
 **Example:**
 
 ```ruby
-puts Rect.new(0, 0, 32, 32).to_s  # "Rect(0.00, 0.00, 32.00, 32.00)"
+# Smooth transitions
+  t = elapsed / duration
+  alpha = Mathf.smoothstep(0, 1, t) * 255
 ```
 
 ---

@@ -12,6 +12,7 @@
   - [#-](#-)
   - [#/](#/)
   - [#initialize](#initialize)
+  - [#to_a](#to_a)
   - [#to_s](#to_s)
   - [#x](#x)
   - [#y](#y)
@@ -165,9 +166,25 @@ result = Vec2.new(10, 20) / 2.0  # Vec2(5, 10)
 
 ### #to_s
 
-A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), and other 3-component values. Supports arithmetic operations.
+Convert to a string representation.
 
 **Returns:** `String` - String in format "Vec2(x, y)"
+
+**Example:**
+
+```ruby
+puts Vec2.new(1, 2).to_s  # "Vec2(1.00, 2.00)"
+```
+
+---
+
+<a id="to_a"></a>
+
+### #to_a
+
+A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), and other 3-component values. Supports arithmetic operations.
+
+**Returns:** `Array<Float>` - Array containing [x, y]
 
 **Example:**
 

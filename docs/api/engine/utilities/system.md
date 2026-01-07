@@ -17,51 +17,9 @@ System utilities and debugging.
   - [last_error](#last_error)
   - [platform](#platform)
   - [quit](#quit)
-  - [random_float](#random_float)
-  - [random_int](#random_int)
   - [raylib_version](#raylib_version)
 
 ## Functions
-
-<a id="random_int"></a>
-
-### random_int
-
-Generate a random integer within an inclusive range.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `min` | `Integer` | Minimum value (inclusive) |
-| `max` | `Integer` | Maximum value (inclusive) |
-
-**Returns:** `Integer` - Random integer between min and max
-
-**Example:**
-
-```ruby
-dice = GMR::System.random_int(1, 6)
-```
-
----
-
-<a id="random_float"></a>
-
-### random_float
-
-Generate a random float between 0.0 and 1.0.
-
-**Returns:** `Float` - Random float in range [0.0, 1.0]
-
-**Example:**
-
-```ruby
-chance = GMR::System.random_float
-  critical_hit = chance > 0.9
-```
-
----
 
 <a id="quit"></a>
 

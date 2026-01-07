@@ -7,10 +7,12 @@
 ## Table of Contents
 
 - [Instance Methods](#instance-methods)
+  - [#begin](#begin)
   - [#bounds](#bounds)
   - [#bounds=](#bounds)
   - [#current](#current)
   - [#current=](#current)
+  - [#end](#end)
   - [#follow](#follow)
   - [#initialize](#initialize)
   - [#offset](#offset)
@@ -340,7 +342,7 @@ click_target = camera.screen_to_world(Vec2.new(mouse_x, mouse_y))
 
 ### #use
 
-Execute a block with this camera's transform applied. All drawing within the block will be transformed by the camera (position, zoom, rotation). The camera mode is automatically ended when the block completes.
+Execute a block with this camera's transform applied. All sprites drawn within the block will be rendered with the camera transform applied during the deferred rendering pass. This works correctly with z-ordering.
 
 **Returns:** `Object` - The return value of the block
 
@@ -354,6 +356,32 @@ Execute a block with this camera's transform applied. All drawing within the blo
   # UI drawn outside camera (screen space)
   draw_ui()
 ```
+
+---
+
+<a id="begin"></a>
+
+### #begin
+
+Begin camera transform. All subsequent sprite draws will use this camera until `end` is called. Prefer `use { }` block syntax when possible.
+
+**Returns:** `Camera2D` - self for chaining
+
+**Example:**
+
+```ruby
+camera.begin
+```
+
+---
+
+<a id="end"></a>
+
+### #end
+
+End camera transform. Should be called after `begin`.
+
+**Returns:** `Camera2D` - self for chaining
 
 ---
 

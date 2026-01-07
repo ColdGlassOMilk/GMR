@@ -113,6 +113,11 @@
         "back"
       ]
     },
+    "Animator": {
+      "kind": "class",
+      "module": "GMR::Animator",
+      "description": "TODO: Add description"
+    },
     "Sound": {
       "kind": "class",
       "module": "GMR::Audio::Sound",
@@ -151,6 +156,11 @@
     "Rect": {
       "kind": "class",
       "module": "Rect",
+      "description": "TODO: Add description"
+    },
+    "Mathf": {
+      "kind": "class",
+      "module": "GMR::Mathf",
       "description": "TODO: Add description"
     },
     "Node": {
@@ -522,6 +532,51 @@
             "description": "Rectangle as [x, y, width, height]"
           },
           "example": "x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)\n  # Returns [80, 48, 16, 16]\r"
+        },
+        "tilemap_resolve": {
+          "description": "Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.",
+          "params": [
+            {
+              "name": "tilemap",
+              "type": "Tilemap",
+              "description": "The tilemap to check collision against"
+            },
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Hitbox X position in tilemap local coordinates"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Hitbox Y position in tilemap local coordinates"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "Hitbox width"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "Hitbox height"
+            },
+            {
+              "name": "vx",
+              "type": "Float",
+              "description": "Current X velocity (for directional checks)"
+            },
+            {
+              "name": "vy",
+              "type": "Float",
+              "description": "Current Y velocity (for directional checks)"
+            }
+          ],
+          "returns": {
+            "type": "Hash",
+            "description": "Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom"
+          },
+          "example": "# In update loop:\n  local_x = @sprite.x + HITBOX_OFFSET_X - MAP_OFFSET_X\r\n  local_y = @sprite.y + HITBOX_OFFSET_Y - MAP_OFFSET_Y\r\n  result = Collision.tilemap_resolve(@tilemap, local_x, local_y, HITBOX_W, HITBOX_H, @vx, @vy)\r"
         },
         "distance": {
           "description": "Calculate the Euclidean distance between two points.",
@@ -1063,7 +1118,7 @@
             "type": "Boolean",
             "description": "true if the button is held"
           },
-          "example": "if GMR::Input.mouse_down?(:left)\n  player.aim\nend"
+          "example": "if GMR::Input.mouse_down?(:left)\n  player.aim\r\nend\r"
         },
         "mouse_pressed?": {
           "description": "Check if a mouse button was just pressed this frame.",
@@ -1078,7 +1133,7 @@
             "type": "Boolean",
             "description": "true if the button was just pressed"
           },
-          "example": "if GMR::Input.mouse_pressed?(:left)\n  player.shoot\nend"
+          "example": "if GMR::Input.mouse_pressed?(:left)\n  player.shoot\r\nend\r"
         },
         "mouse_released?": {
           "description": "Check if a mouse button was just released this frame.",
@@ -1093,7 +1148,7 @@
             "type": "Boolean",
             "description": "true if the button was just released"
           },
-          "example": "if GMR::Input.mouse_released?(:left)\n  bow.release_arrow\nend"
+          "example": "if GMR::Input.mouse_released?(:left)\n  bow.release_arrow\r\nend\r"
         },
         "mouse_wheel": {
           "description": "Get the mouse wheel movement this frame. Positive values indicate scrolling up/forward, negative values indicate scrolling down/backward.",
@@ -1116,7 +1171,7 @@
             "type": "Boolean",
             "description": "true if the key (or any key in array) is held"
           },
-          "example": "if GMR::Input.key_down?([:a, :left])  # Either key works\n  player.move_left\nend"
+          "example": "if GMR::Input.key_down?([:a, :left])  # Either key works\n  player.move_left\r\nend\r"
         },
         "key_pressed?": {
           "description": "Check if a key was just pressed this frame. Accepts a single key or an array of keys (returns true if any key in the array was just pressed).",
@@ -1131,7 +1186,7 @@
             "type": "Boolean",
             "description": "true if the key (or any key in array) was just pressed"
           },
-          "example": "if GMR::Input.key_pressed?(:space)\n  player.jump\nend"
+          "example": "if GMR::Input.key_pressed?(:space)\n  player.jump\r\nend\r"
         },
         "key_released?": {
           "description": "Check if a key was just released this frame. Accepts a single key or an array of keys (returns true if any key in the array was just released).",
@@ -1146,7 +1201,7 @@
             "type": "Boolean",
             "description": "true if the key (or any key in array) was just released"
           },
-          "example": "if GMR::Input.key_released?(:shift)\n  player.stop_running\nend"
+          "example": "if GMR::Input.key_released?(:shift)\n  player.stop_running\r\nend\r"
         },
         "key_pressed": {
           "description": "Get the key code of the last key pressed this frame. Useful for text input or detecting any key press.",
@@ -1154,7 +1209,7 @@
             "type": "Integer, nil",
             "description": "Key code, or nil if no key was pressed"
           },
-          "example": "key = GMR::Input.key_pressed\n  if key\n    puts \"Key code: #{key}\"\n  end"
+          "example": "key = GMR::Input.key_pressed\n  if key\r\n    puts \"Key code: #{key}\"\r\n  end\r"
         },
         "char_pressed": {
           "description": "Get the Unicode character code of the last character pressed this frame. Useful for text input fields. Returns the character, not the key code.",
@@ -1162,7 +1217,7 @@
             "type": "Integer, nil",
             "description": "Unicode character code, or nil if no character was pressed"
           },
-          "example": "char = GMR::Input.char_pressed\n  if char"
+          "example": "char = GMR::Input.char_pressed\n  if char\r"
         },
         "map": {
           "description": "Map an action name to input bindings. Supports two forms: Traditional form maps a single action to keys directly. Block form allows defining multiple actions with a DSL.",
@@ -1181,7 +1236,7 @@
           "returns": {
             "type": "nil"
           },
-          "example": "# Block DSL form\n  GMR::Input.map do |i|\n    i.action :jump, key: :space\n    i.action :attack, keys: [:z, :x], mouse: :left\n  end"
+          "example": "# Block DSL form\n  GMR::Input.map do |i|\r\n    i.action :jump, key: :space\r\n    i.action :attack, keys: [:z, :x], mouse: :left\r\n  end\r"
         },
         "unmap": {
           "description": "Remove an action mapping by name.",
@@ -1217,7 +1272,7 @@
             "type": "Boolean",
             "description": "true if the action is active"
           },
-          "example": "if GMR::Input.action_down?(:move_left)\n  player.x -= speed\nend"
+          "example": "if GMR::Input.action_down?(:move_left)\n  player.x -= speed\r\nend\r"
         },
         "action_pressed?": {
           "description": "Check if a mapped action was just triggered this frame.",
@@ -1232,7 +1287,7 @@
             "type": "Boolean",
             "description": "true if the action was just triggered"
           },
-          "example": "if GMR::Input.action_pressed?(:jump)\n  player.jump\nend"
+          "example": "if GMR::Input.action_pressed?(:jump)\n  player.jump\r\nend\r"
         },
         "action_released?": {
           "description": "Check if a mapped action was just released this frame.",
@@ -1247,7 +1302,7 @@
             "type": "Boolean",
             "description": "true if the action was just released"
           },
-          "example": "if GMR::Input.action_released?(:charge_attack)\n  player.release_charge\nend"
+          "example": "if GMR::Input.action_released?(:charge_attack)\n  player.release_charge\r\nend\r"
         },
         "on": {
           "description": "Register a callback for an action. The callback fires when the action reaches the specified phase. Returns an ID for later removal with `off`.",
@@ -1272,7 +1327,7 @@
             "type": "Integer",
             "description": "Callback ID for later removal"
           },
-          "example": "# With phase and context\n  id = GMR::Input.on(:attack, when: :released, context: player) do\n    release_charge_attack\n  end\n  GMR::Input.off(id)  # Remove later"
+          "example": "# With phase and context\n  id = GMR::Input.on(:attack, when: :released, context: player) do\r\n    release_charge_attack\r\n  end\r\n  GMR::Input.off(id)  # Remove later\r"
         },
         "off": {
           "description": "Remove input callback(s). Pass an ID to remove a specific callback, or an action name to remove all callbacks for that action.",
@@ -1300,7 +1355,7 @@
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Input.push_context(:menu)\n  # :menu actions are now active, game actions still on stack"
+          "example": "GMR::Input.push_context(:menu)\n  # :menu actions are now active, game actions still on stack\r"
         },
         "pop_context": {
           "description": "Pop the current input context from the stack, returning to the previous context.",
@@ -1344,14 +1399,14 @@
             "type": "Boolean",
             "description": "true if the context exists"
           },
-          "example": "if GMR::Input.has_context?(:menu)\n  GMR::Input.push_context(:menu)\nend"
+          "example": "if GMR::Input.has_context?(:menu)\n  GMR::Input.push_context(:menu)\r\nend\r"
         },
         "input": {
           "description": "Define global input actions using a verb-style DSL. Actions defined here are always available regardless of context.",
           "returns": {
             "type": "nil"
           },
-          "example": "input do |i|\n  i.jump :space\n  i.move_left [:a, :left]\n  i.attack :z, mouse: :left\nend"
+          "example": "input do |i|\n  i.jump :space\r\n  i.move_left [:a, :left]\r\n  i.attack :z, mouse: :left\r\nend\r"
         },
         "input_context": {
           "description": "Define input actions for a named context. Context-specific actions are only active when that context is pushed onto the stack.",
@@ -1365,41 +1420,13 @@
           "returns": {
             "type": "nil"
           },
-          "example": "input_context :menu do |i|\n  i.confirm :enter\n  i.cancel :escape\n  i.navigate_up :up\n  i.navigate_down :down\nend"
+          "example": "input_context :menu do |i|\n  i.confirm :enter\r\n  i.cancel :escape\r\n  i.navigate_up :up\r\n  i.navigate_down :down\r\nend\r"
         }
       }
     },
     "GMR::System": {
       "description": "TODO: Add description",
       "functions": {
-        "random_int": {
-          "description": "Generate a random integer within an inclusive range.",
-          "params": [
-            {
-              "name": "min",
-              "type": "Integer",
-              "description": "Minimum value (inclusive)"
-            },
-            {
-              "name": "max",
-              "type": "Integer",
-              "description": "Maximum value (inclusive)"
-            }
-          ],
-          "returns": {
-            "type": "Integer",
-            "description": "Random integer between min and max"
-          },
-          "example": "dice = GMR::System.random_int(1, 6)"
-        },
-        "random_float": {
-          "description": "Generate a random float between 0.0 and 1.0.",
-          "returns": {
-            "type": "Float",
-            "description": "Random float in range [0.0, 1.0]"
-          },
-          "example": "chance = GMR::System.random_float\n  critical_hit = chance > 0.9"
-        },
         "quit": {
           "description": "Immediately exit the application. Closes the window and terminates the process.",
           "returns": {
@@ -1413,7 +1440,7 @@
             "type": "String",
             "description": "Platform name: \"windows\", \"macos\", \"linux\", \"web\", or \"unknown\""
           },
-          "example": "if GMR::System.platform == \"web\"\n  # Disable desktop-only features\nend"
+          "example": "if GMR::System.platform == \"web\"\n  # Disable desktop-only features\r\nend\r"
         },
         "build_type": {
           "description": "Get the build configuration type.",
@@ -1421,7 +1448,7 @@
             "type": "String",
             "description": "Build type: \"debug\", \"release\", or \"unknown\""
           },
-          "example": "if GMR::System.build_type == \"debug\"\n  enable_debug_overlay\nend"
+          "example": "if GMR::System.build_type == \"debug\"\n  enable_debug_overlay\r\nend\r"
         },
         "compiled_scripts?": {
           "description": "Check if scripts were precompiled into the binary.",
@@ -1477,7 +1504,7 @@
             "type": "Hash, nil",
             "description": "Error hash with keys :class, :message, :file, :line, :backtrace, or nil"
           },
-          "example": "error = GMR::System.last_error\n  if error\n    puts \"#{error[:class]}: #{error[:message]}\"\n    puts \"  at #{error[:file]}:#{error[:line]}\"\n    error[:backtrace].each { |line| puts \"    #{line}\" }\n  end"
+          "example": "error = GMR::System.last_error\n  if error\r\n    puts \"#{error[:class]}: #{error[:message]}\"\r\n    puts \"  at #{error[:file]}:#{error[:line]}\"\r\n    error[:backtrace].each { |line| puts \"    #{line}\" }\r\n  end\r"
         },
         "in_error_state?": {
           "description": "Check if the scripting engine is currently in an error state.",
@@ -1485,7 +1512,7 @@
             "type": "Boolean",
             "description": "true if an unhandled error has occurred"
           },
-          "example": "if GMR::System.in_error_state?\n  show_error_screen\nend"
+          "example": "if GMR::System.in_error_state?\n  show_error_screen\r\nend\r"
         }
       }
     },
@@ -1586,7 +1613,7 @@
             "type": "Boolean",
             "description": "true if fullscreen"
           },
-          "example": "if GMR::Window.fullscreen?\n  show_windowed_mode_button\nend"
+          "example": "if GMR::Window.fullscreen?\n  show_windowed_mode_button\r\nend\r"
         },
         "set_virtual_resolution": {
           "description": "Set a virtual resolution for pixel-perfect rendering. The game renders to this resolution and scales to fit the window with letterboxing.",
@@ -1606,7 +1633,7 @@
             "type": "Boolean",
             "description": "true"
           },
-          "example": "# Render at 320x240 for retro-style game\n  GMR::Window.set_virtual_resolution(320, 240)"
+          "example": "# Render at 320x240 for retro-style game\n  GMR::Window.set_virtual_resolution(320, 240)\r"
         },
         "clear_virtual_resolution": {
           "description": "Disable virtual resolution and render directly at window size.",
@@ -1622,7 +1649,7 @@
             "type": "Boolean",
             "description": "true if virtual resolution is active"
           },
-          "example": "if GMR::Window.virtual_resolution?\n  puts \"Using virtual resolution\"\nend"
+          "example": "if GMR::Window.virtual_resolution?\n  puts \"Using virtual resolution\"\r\nend\r"
         },
         "set_filter_point": {
           "description": "Set nearest-neighbor (point) filtering for virtual resolution scaling. Produces crisp, pixelated look. Only works when virtual resolution is enabled.",
@@ -1704,7 +1731,7 @@
             "type": "String",
             "description": "Monitor name"
           },
-          "example": "# Debug overlay with FPS and timing info\n  class DebugOverlay\n    def draw\n      y = 10\n      color = [0, 255, 0]\n\n      # Show current FPS\n      fps = GMR::Time.fps\n      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]\n      GMR::Graphics.draw_text(\"FPS: #{fps}\", 10, y, 16, fps_color)\n      y += 20\n\n      # Show frame time\n      frame_ms = (GMR::Time.delta * 1000).round(2)\n      GMR::Graphics.draw_text(\"Frame: #{frame_ms}ms\", 10, y, 16, color)\n      y += 20\n\n      # Show total elapsed time\n      elapsed = GMR::Time.elapsed\n      minutes = (elapsed / 60).to_i\n      seconds = (elapsed % 60).to_i\n      GMR::Graphics.draw_text(\"Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}\", 10, y, 16, color)\n    end\n  end"
+          "example": "# Debug overlay with FPS and timing info\n  class DebugOverlay\r\n    def draw\r\n      y = 10\r\n      color = [0, 255, 0]\r\n\n      # Show current FPS\r\n      fps = GMR::Time.fps\r\n      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]\r\n      GMR::Graphics.draw_text(\"FPS: #{fps}\", 10, y, 16, fps_color)\r\n      y += 20\r\n\n      # Show frame time\r\n      frame_ms = (GMR::Time.delta * 1000).round(2)\r\n      GMR::Graphics.draw_text(\"Frame: #{frame_ms}ms\", 10, y, 16, color)\r\n      y += 20\r\n\n      # Show total elapsed time\r\n      elapsed = GMR::Time.elapsed\r\n      minutes = (elapsed / 60).to_i\r\n      seconds = (elapsed % 60).to_i\r\n      GMR::Graphics.draw_text(\"Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}\", 10, y, 16, color)\r\n    end\r\n  end\r"
         }
       }
     },
@@ -1717,7 +1744,7 @@
             "type": "Float",
             "description": "Delta time in seconds"
           },
-          "example": "# Move at 100 pixels per second regardless of frame rate\n  player.x += 100 * GMR::Time.delta"
+          "example": "# Move at 100 pixels per second regardless of frame rate\n  player.x += 100 * GMR::Time.delta\r"
         },
         "elapsed": {
           "description": "Get the total time elapsed since the game started in seconds.",
@@ -1725,7 +1752,7 @@
             "type": "Float",
             "description": "Total elapsed time in seconds"
           },
-          "example": "# Flash effect every 0.5 seconds\n  visible = (GMR::Time.elapsed % 1.0) < 0.5"
+          "example": "# Flash effect every 0.5 seconds\n  visible = (GMR::Time.elapsed % 1.0) < 0.5\r"
         },
         "fps": {
           "description": "Get the current frames per second.",
@@ -1748,6 +1775,165 @@
             "type": "nil"
           },
           "example": "GMR::Time.set_target_fps(60)  # Lock to 60 FPS"
+        }
+      }
+    },
+    "GMR::Animator": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new animator for a sprite. The animator manages the sprite's source_rect automatically based on the current animation frame.",
+          "params": [
+            {
+              "name": "sprite",
+              "type": "Sprite",
+              "description": "The sprite to animate"
+            }
+          ],
+          "example": "# Infer frame size from sprite's source_rect"
+        },
+        "add": {
+          "description": "Add a named animation. Frame indices correspond to positions in the spritesheet grid (left-to-right, top-to-bottom). For example, in an 8-column sheet: - Frame 0 = row 0, col 0 - Frame 7 = row 0, col 7 - Frame 8 = row 1, col 0",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name (e.g., :idle, :run, :attack)"
+            }
+          ],
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Using explicit frame arrays for non-sequential animations"
+        },
+        "allow_transition": {
+          "description": "Allow transition from one animation to another. If no transition rules are defined, all transitions are allowed by default. Once you define any rule, only explicitly allowed transitions will work.",
+          "params": [
+            {
+              "name": "from",
+              "type": "Symbol",
+              "description": "Source animation name"
+            },
+            {
+              "name": "to",
+              "type": "Symbol",
+              "description": "Destination animation name"
+            }
+          ],
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Platformer character state flow\n  # Ground states can go to each other and to jump\r"
+        },
+        "allow_from_any": {
+          "description": "Allow this animation to be played from any other animation. Useful for high-priority animations like \"hurt\" or \"death\" that can interrupt anything. This bypasses all transition rules for the specified animation.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name that can interrupt any animation"
+            }
+          ],
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Use case: Enemy interrupts player attack with counter\n  def take_damage\r\n    # Even if player is mid-attack, hurt animation plays immediately\r"
+        },
+        "play": {
+          "description": "Switch to a named animation. Checks transition rules before switching. If the requested animation is already playing, this does nothing. If transition rules exist and the transition is not allowed, this does nothing.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name to play"
+            }
+          ],
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Conditional play with transition check\n  def try_attack\r\n    if @animator.can_play?(:attack)\r"
+        },
+        "stop": {
+          "description": "Stop the current animation and clear any queued animation. The sprite will freeze on the current frame.",
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Stop animation when character dies\n  def die\r"
+        },
+        "current": {
+          "description": "Get the current animation name.",
+          "returns": {
+            "type": "Symbol, nil",
+            "description": "Current animation name or nil if no animation is set"
+          },
+          "example": "# Debug output\n  def draw\r"
+        },
+        "playing?": {
+          "description": "Check if any animation is currently playing (not stopped/completed).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if an animation is actively playing"
+          },
+          "example": "# Check if death animation finished\n  def update(dt)\r\n    if @animator.current == :death && !@animator.playing?\r\n      remove_from_game\r\n    end\r\n  end\r"
+        },
+        "can_play?": {
+          "description": "Check if transition to the given animation is allowed from current. Returns false if the animation doesn't exist or if transition rules block it.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if transition is allowed"
+          },
+          "example": "# AI decision making based on available animations\n  def ai_update\r\n    if @animator.can_play?(:attack) && player_in_range?\r"
+        },
+        "on_complete": {
+          "description": "Set a callback for when a specific animation completes. The callback is invoked when the named non-looping animation finishes.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name to attach callback to"
+            }
+          ],
+          "returns": {
+            "type": "Animator",
+            "description": "self for chaining"
+          },
+          "example": "# Death animation cleanup"
+        },
+        "[]": {
+          "description": "Get animation info by name. Returns a hash with fps, loop, frame_count, and playing status.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "Animation name"
+            }
+          ],
+          "returns": {
+            "type": "Hash, nil",
+            "description": "Animation info hash or nil if animation doesn't exist"
+          },
+          "example": "# Dynamic FPS adjustment based on game state\n  if @speed_boost_active\r\n    current_info = @animator[@animator.current]\r\n    # Note: Would need fps= method to modify (not currently implemented)\r\n  end\r"
+        },
+        "count": {
+          "description": "Get the number of active animators in the game. Class method.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of active animators"
+          },
+          "example": "# Debug: show animator count\n  Graphics.draw_text(\"Animators: #{Animator.count}\", 10, 10, 16, [255,255,255])\r"
         }
       }
     },
@@ -2036,12 +2222,27 @@
           "example": "click_target = camera.screen_to_world(Vec2.new(mouse_x, mouse_y))"
         },
         "use": {
-          "description": "Execute a block with this camera's transform applied. All drawing within the block will be transformed by the camera (position, zoom, rotation). The camera mode is automatically ended when the block completes.",
+          "description": "Execute a block with this camera's transform applied. All sprites drawn within the block will be rendered with the camera transform applied during the deferred rendering pass. This works correctly with z-ordering.",
           "returns": {
             "type": "Object",
             "description": "The return value of the block"
           },
           "example": "# Nested cameras\n  world_camera.use do\r\n    draw_world()\r\n  end\r\n  # UI drawn outside camera (screen space)\r\n  draw_ui()\r"
+        },
+        "begin": {
+          "description": "Begin camera transform. All subsequent sprite draws will use this camera until `end` is called. Prefer `use { }` block syntax when possible.",
+          "returns": {
+            "type": "Camera2D",
+            "description": "self for chaining"
+          },
+          "example": "camera.begin"
+        },
+        "end": {
+          "description": "End camera transform. Should be called after `begin`.",
+          "returns": {
+            "type": "Camera2D",
+            "description": "self for chaining"
+          }
         },
         "current=": {
           "description": "Set the current active camera (class method). This camera will be used for sprite rendering and coordinate transformations.",
@@ -2286,7 +2487,7 @@
             "type": "Float",
             "description": "Eased value (usually 0.0 to 1.0, but may overshoot for elastic/back)"
           },
-          "example": "# Custom interpolation\n  t = elapsed / duration\n  eased_t = GMR::Ease.apply(:out_back, t)\n  current_x = start_x + (end_x - start_x) * eased_t"
+          "example": "# Custom interpolation\n  t = elapsed / duration\r\n  eased_t = GMR::Ease.apply(:out_back, t)\r\n  current_x = start_x + (end_x - start_x) * eased_t\r"
         }
       }
     },
@@ -2490,7 +2691,7 @@
           "raises": [
             "ArgumentError if dimensions are not positive"
           ],
-          "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)"
+          "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)\r"
         }
       },
       "instanceMethods": {
@@ -2596,11 +2797,11 @@
           "params": [
             {
               "name": "arg1",
-              "type": "Integer"
+              "type": "Float"
             },
             {
               "name": "arg2",
-              "type": "Integer"
+              "type": "Float"
             },
             {
               "name": "arg3",
@@ -2922,10 +3123,18 @@
           "example": "result = Vec2.new(10, 20) / 2.0  # Vec2(5, 10)"
         },
         "to_s": {
-          "description": "A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), and other 3-component values. Supports arithmetic operations.",
+          "description": "Convert to a string representation.",
           "returns": {
             "type": "String",
             "description": "String in format \"Vec2(x, y)\""
+          },
+          "example": "puts Vec2.new(1, 2).to_s  # \"Vec2(1.00, 2.00)\""
+        },
+        "to_a": {
+          "description": "A 3D vector with x, y, and z components. Used for 3D positions, colors (RGB), and other 3-component values. Supports arithmetic operations.",
+          "returns": {
+            "type": "Array<Float>",
+            "description": "Array containing [x, y]"
           },
           "example": "# 3D position for parallax layers\n  class ParallaxLayer\r\n    def initialize(texture, depth)\r"
         }
@@ -3121,12 +3330,336 @@
           "example": "height = rect.h"
         },
         "to_s": {
-          "description": "Convert to a string representation.",
+          "description": "Common math utility functions for game development. Provides lerp, clamp, smoothstep, and other interpolation helpers. Named \"Mathf\" to avoid conflict with Ruby's built-in Math module.",
           "returns": {
             "type": "String",
             "description": "String in format \"Rect(x, y, w, h)\""
           },
-          "example": "puts Rect.new(0, 0, 32, 32).to_s  # \"Rect(0.00, 0.00, 32.00, 32.00)\""
+          "example": "# Smooth transitions\n  t = elapsed / duration\r\n  alpha = Mathf.smoothstep(0, 1, t) * 255\r"
+        }
+      }
+    },
+    "GMR::Mathf": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "lerp": {
+          "description": "Linear interpolation between two values.",
+          "params": [
+            {
+              "name": "a",
+              "type": "Float",
+              "description": "Start value"
+            },
+            {
+              "name": "b",
+              "type": "Float",
+              "description": "End value"
+            },
+            {
+              "name": "t",
+              "type": "Float",
+              "description": "Interpolation factor (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Interpolated value"
+          },
+          "example": "Mathf.lerp(10, 20, 0.25) # => 12.5"
+        },
+        "clamp": {
+          "description": "Clamp a value between minimum and maximum bounds.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The value to clamp"
+            },
+            {
+              "name": "min",
+              "type": "Float",
+              "description": "Minimum bound"
+            },
+            {
+              "name": "max",
+              "type": "Float",
+              "description": "Maximum bound"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Clamped value"
+          },
+          "example": "Mathf.clamp(50, 0, 100)   # => 50.0"
+        },
+        "smoothstep": {
+          "description": "Smooth Hermite interpolation between two values. Produces an S-curve that eases in and out.",
+          "params": [
+            {
+              "name": "edge0",
+              "type": "Float",
+              "description": "Lower edge"
+            },
+            {
+              "name": "edge1",
+              "type": "Float",
+              "description": "Upper edge"
+            },
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Input value"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Smoothed value (0.0 to 1.0 when x is between edges)"
+          },
+          "example": "Mathf.smoothstep(0, 1, 0.25) # => ~0.156"
+        },
+        "inverse_lerp": {
+          "description": "Find the interpolation factor for a value between two bounds. The inverse of lerp - given a value, find what t would produce it.",
+          "params": [
+            {
+              "name": "a",
+              "type": "Float",
+              "description": "Start value"
+            },
+            {
+              "name": "b",
+              "type": "Float",
+              "description": "End value"
+            },
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The value to find the factor for"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Interpolation factor (can be outside 0-1 if value is outside a-b)"
+          },
+          "example": "Mathf.inverse_lerp(10, 20, 15)  # => 0.5"
+        },
+        "remap": {
+          "description": "Remap a value from one range to another.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Input value"
+            },
+            {
+              "name": "in_min",
+              "type": "Float",
+              "description": "Input range minimum"
+            },
+            {
+              "name": "in_max",
+              "type": "Float",
+              "description": "Input range maximum"
+            },
+            {
+              "name": "out_min",
+              "type": "Float",
+              "description": "Output range minimum"
+            },
+            {
+              "name": "out_max",
+              "type": "Float",
+              "description": "Output range maximum"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Remapped value"
+          },
+          "example": "Mathf.remap(0.5, 0, 1, 0, 255)   # => 127.5"
+        },
+        "distance": {
+          "description": "Calculate Euclidean distance between two 2D points.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First point X"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First point Y"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second point X"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second point Y"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Distance between points"
+          },
+          "example": "Mathf.distance(0, 0, 3, 4)  # => 5.0"
+        },
+        "distance_squared": {
+          "description": "Calculate squared distance between two 2D points. Faster than distance() when you only need to compare distances.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First point X"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First point Y"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second point X"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second point Y"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Squared distance between points"
+          },
+          "example": "Mathf.distance_squared(0, 0, 3, 4)  # => 25.0"
+        },
+        "sign": {
+          "description": "Get the sign of a number (-1, 0, or 1).",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The value to check"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "-1 if negative, 0 if zero, 1 if positive"
+          },
+          "example": "Mathf.sign(10)  # => 1"
+        },
+        "move_toward": {
+          "description": "Move a value toward a target by a maximum delta.",
+          "params": [
+            {
+              "name": "current",
+              "type": "Float",
+              "description": "Current value"
+            },
+            {
+              "name": "target",
+              "type": "Float",
+              "description": "Target value"
+            },
+            {
+              "name": "max_delta",
+              "type": "Float",
+              "description": "Maximum amount to move"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "New value moved toward target"
+          },
+          "example": "Mathf.move_toward(95, 100, 10)  # => 100.0"
+        },
+        "wrap": {
+          "description": "Wrap a value within a range (like modulo but works with floats and negatives).",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The value to wrap"
+            },
+            {
+              "name": "min",
+              "type": "Float",
+              "description": "Range minimum"
+            },
+            {
+              "name": "max",
+              "type": "Float",
+              "description": "Range maximum"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Wrapped value"
+          },
+          "example": "Mathf.wrap(-10, 0, 360)  # => 350.0"
+        },
+        "deg_to_rad": {
+          "description": "Convert degrees to radians.",
+          "params": [
+            {
+              "name": "degrees",
+              "type": "Float",
+              "description": "Angle in degrees"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Angle in radians"
+          },
+          "example": "Mathf.deg_to_rad(180)  # => ~3.14159"
+        },
+        "rad_to_deg": {
+          "description": "Convert radians to degrees.",
+          "params": [
+            {
+              "name": "radians",
+              "type": "Float",
+              "description": "Angle in radians"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Angle in degrees"
+          },
+          "example": "Mathf.rad_to_deg(Math::PI)  # => 180.0"
+        },
+        "random_int": {
+          "description": "Generate a random integer within an inclusive range.",
+          "params": [
+            {
+              "name": "min",
+              "type": "Integer",
+              "description": "Minimum value (inclusive)"
+            },
+            {
+              "name": "max",
+              "type": "Integer",
+              "description": "Maximum value (inclusive)"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "Random integer between min and max"
+          },
+          "example": "spawn_x = Mathf.random_int(0, 800)"
+        },
+        "random_float": {
+          "description": "Generate a random float between 0.0 and 1.0.",
+          "returns": {
+            "type": "Float",
+            "description": "Random float in range [0.0, 1.0]"
+          },
+          "example": "# Random value in custom range\n  speed = 50 + Mathf.random_float * 100  # 50-150\r"
         }
       }
     },
@@ -3972,7 +4505,7 @@
             "type": "SpriteAnimation",
             "description": "self for chaining"
           },
-          "example": "# State machine integration - play animation when entering run state\n  state :run do\n    enter { @animations[:run].play }\n    exit { @animations[:run].stop }\n    on :stop, :idle\n    on :jump, :jumping\n  end"
+          "example": "# State machine integration - play animation when entering run state\n  state :run do\r\n    enter { @animations[:run].play }\r\n    exit { @animations[:run].stop }\r\n    on :stop, :idle\r\n    on :jump, :jumping\r\n  end\r"
         },
         "pause": {
           "description": "Pause the animation at the current frame.",
@@ -3996,7 +4529,7 @@
             "type": "SpriteAnimation",
             "description": "self for chaining"
           },
-          "example": "# Chain attack animation into recovery state\n  def start_attack"
+          "example": "# Chain attack animation into recovery state\n  def start_attack\r"
         },
         "on_frame_change": {
           "description": "Set a callback for each frame change. Receives frame index.",
@@ -4061,7 +4594,7 @@
             "type": "Float",
             "description": "The FPS value"
           },
-          "example": "# Speed up animation when player is running fast\n  def update(dt)\n    speed = calculate_movement_speed\n    # Scale animation FPS with movement speed (8-16 fps range)"
+          "example": "# Speed up animation when player is running fast\n  def update(dt)\r\n    speed = calculate_movement_speed\r\n    # Scale animation FPS with movement speed (8-16 fps range)\r"
         },
         "loop?": {
           "description": "Check if the animation loops.",
@@ -4517,7 +5050,7 @@
             "type": "Tween",
             "description": "The tween instance for chaining"
           },
-          "example": "# Smooth camera zoom for scope/aim mode\n  def toggle_aim_mode"
+          "example": "# Smooth camera zoom for scope/aim mode\n  def toggle_aim_mode\r"
         },
         "from": {
           "description": "Create a tween that animates a property FROM a start value to current. Useful for \"animate in\" effects like fading in from transparent.",
@@ -4542,7 +5075,7 @@
             "type": "Tween",
             "description": "The tween instance for chaining"
           },
-          "example": "# Toast notification slides in from bottom\n  class Toast\n    def show(message)"
+          "example": "# Toast notification slides in from bottom\n  class Toast\r\n    def show(message)\r"
         },
         "on_complete": {
           "description": "Set a callback to invoke when the tween completes.",
@@ -4550,7 +5083,7 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "# Sequence of tweens using on_complete for chaining\n  class Chest\n    def open\n      # First: lid opens\n      GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)\n        .on_complete do\n          # Second: spawn item and make it rise"
+          "example": "# Sequence of tweens using on_complete for chaining\n  class Chest\r\n    def open\r\n      # First: lid opens\r\n      GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)\r\n        .on_complete do\r\n          # Second: spawn item and make it rise\r"
         },
         "on_update": {
           "description": "Set a callback to invoke each frame during the tween. The callback receives (t, value) where t is normalized progress [0-1] and value is the current interpolated value.",
@@ -4558,14 +5091,14 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "# Color cycling effect on update\n  def start_rainbow_effect"
+          "example": "# Color cycling effect on update\n  def start_rainbow_effect\r"
         },
         "cancel": {
           "description": "Cancel the tween immediately. Does not invoke on_complete.",
           "returns": {
             "type": "nil"
           },
-          "example": "# Cancel movement when player hits wall\n  class Player\n    def move_to(target_x, target_y)"
+          "example": "# Cancel movement when player hits wall\n  class Player\r\n    def move_to(target_x, target_y)\r"
         },
         "pause": {
           "description": "Pause the tween. Use resume to continue.",
@@ -4573,7 +5106,7 @@
             "type": "Tween",
             "description": "self for chaining"
           },
-          "example": "# Pause all UI animations when game pauses\n  class PauseMenu\n    def show"
+          "example": "# Pause all UI animations when game pauses\n  class PauseMenu\r\n    def show\r"
         },
         "resume": {
           "description": "Resume a paused tween.",
@@ -4589,7 +5122,7 @@
             "type": "Boolean",
             "description": "true if completed"
           },
-          "example": "if tween.complete?\n  puts \"Done!\"\nend"
+          "example": "if tween.complete?\n  puts \"Done!\"\r\nend\r"
         },
         "active?": {
           "description": "Check if the tween is currently running (not paused, cancelled, or complete).",
@@ -4597,7 +5130,7 @@
             "type": "Boolean",
             "description": "true if active"
           },
-          "example": "if tween.active?\n  puts \"Still animating...\"\nend"
+          "example": "if tween.active?\n  puts \"Still animating...\"\r\nend\r"
         },
         "paused?": {
           "description": "Check if the tween is paused.",
@@ -4618,7 +5151,7 @@
           "returns": {
             "type": "nil"
           },
-          "example": "# Clean slate when transitioning scenes\n  class GameScene < GMR::Scene\n    def unload\n      # Cancel all tweens to prevent callbacks on destroyed objects\n      GMR::Tween.cancel_all\n      # Clean up resources"
+          "example": "# Clean slate when transitioning scenes\n  class GameScene < GMR::Scene\r\n    def unload\r\n      # Cancel all tweens to prevent callbacks on destroyed objects\r\n      GMR::Tween.cancel_all\r\n      # Clean up resources\r"
         },
         "count": {
           "description": "Get the number of active tweens.",

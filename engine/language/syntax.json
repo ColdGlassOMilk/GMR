@@ -362,10 +362,12 @@
     "classes": [
       "Camera2D",
       "GMR",
+      "GMR::Animator",
       "GMR::Audio::Sound",
       "GMR::Ease",
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
+      "GMR::Mathf",
       "GMR::Scene",
       "GMR::SceneManager",
       "GMR::SpriteAnimation",
@@ -388,6 +390,7 @@
         "circle_rect_overlap?",
         "rect_tiles",
         "tile_rect",
+        "tilemap_resolve",
         "distance",
         "distance_squared"
       ],
@@ -435,8 +438,6 @@
         "input_context"
       ],
       "GMR::System": [
-        "random_int",
-        "random_float",
         "quit",
         "platform",
         "build_type",
@@ -476,6 +477,20 @@
         "fps",
         "set_target_fps"
       ],
+      "GMR::Animator": [
+        "initialize",
+        "add",
+        "allow_transition",
+        "allow_from_any",
+        "play",
+        "stop",
+        "current",
+        "playing?",
+        "can_play?",
+        "on_complete",
+        "[]",
+        "count"
+      ],
       "GMR::Audio::Sound": [
         "load",
         "play",
@@ -499,6 +514,8 @@
         "world_to_screen",
         "screen_to_world",
         "use",
+        "begin",
+        "end",
         "current=",
         "current"
       ],
@@ -570,7 +587,8 @@
         "-",
         "*",
         "/",
-        "to_s"
+        "to_s",
+        "to_a"
       ],
       "Vec3": [
         "initialize",
@@ -590,6 +608,22 @@
         "w",
         "h",
         "to_s"
+      ],
+      "GMR::Mathf": [
+        "lerp",
+        "clamp",
+        "smoothstep",
+        "inverse_lerp",
+        "remap",
+        "distance",
+        "distance_squared",
+        "sign",
+        "move_toward",
+        "wrap",
+        "deg_to_rad",
+        "rad_to_deg",
+        "random_int",
+        "random_float"
       ],
       "Node": [
         "initialize",

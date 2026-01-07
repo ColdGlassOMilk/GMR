@@ -45,11 +45,7 @@ module Gmrcli
 
         # Run gmr.exe with the project directory as working directory
         Dir.chdir(project_dir) do
-          if Platform.windows?
-            exec("\"#{exe_path}\"", *args)
-          else
-            exec(exe_path, *args)
-          end
+          exec(exe_path, *args)
         end
       end
 

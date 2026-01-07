@@ -163,8 +163,8 @@ TODO: Add documentation
 
 | Name | Type | Description |
 |------|------|-------------|
-| `arg1` | `Integer` |  |
-| `arg2` | `Integer` |  |
+| `arg1` | `Float` |  |
+| `arg2` | `Float` |  |
 | `arg3` | `Integer` |  |
 | `arg4` | `Integer` |  |
 | `arg5` | `Integer` |  |
