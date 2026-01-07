@@ -34,6 +34,7 @@ Streamlined development workflow that builds and runs.
 | `--clean` |  | boolean | `false` | Clean before building (use --clean for fresh build) |
 | `--run` |  | boolean | `true` | Run after building (use --no-run to skip) |
 | `--port` |  | numeric | `8080` | Port for web server |
+| `--topmost` |  | boolean | `false` | Keep game window on top of other windows |
 
 ## Examples
 

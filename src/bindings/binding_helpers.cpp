@@ -1,4 +1,5 @@
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/input/input_event.hpp"
 #include "raylib.h"
 #include <cstring>
 
@@ -69,10 +70,20 @@ void init_gmr_modules(mrb_state* mrb) {
     // Create top-level GMR module
     RClass* gmr = mrb_define_module(mrb, "GMR");
 
-    // Create all submodules
+    // Create all submodules following industry-standard organization:
+    // - Graphics: rendering, sprites, textures, camera, rects
+    // - Animation: tweens, easing, sprite animation, animators
+    // - Audio: sounds, music
+    // - Input: keyboard, mouse, gamepad input
+    // - Core: fundamental classes (nodes, transforms, state machines)
+    // - Mathf: math functions (named to avoid conflict with Ruby's Math module)
+    // - Window, Time, System, Collision: module-level utilities
     mrb_define_module_under(mrb, gmr, "Graphics");
+    mrb_define_module_under(mrb, gmr, "Animation");
     mrb_define_module_under(mrb, gmr, "Audio");
     mrb_define_module_under(mrb, gmr, "Input");
+    mrb_define_module_under(mrb, gmr, "Core");
+    mrb_define_module_under(mrb, gmr, "Mathf");
     mrb_define_module_under(mrb, gmr, "Window");
     mrb_define_module_under(mrb, gmr, "Time");
     mrb_define_module_under(mrb, gmr, "System");
@@ -191,6 +202,31 @@ int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg) {
 
     mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected mouse button (integer) or symbol");
     return -1;
+}
+
+// ============================================================================
+// Input Phase Parsing
+// ============================================================================
+
+gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg) {
+    // Default to Pressed if nil or not a symbol
+    if (mrb_nil_p(arg)) {
+        return gmr::input::InputPhase::Pressed;
+    }
+
+    if (!mrb_symbol_p(arg)) {
+        return gmr::input::InputPhase::Pressed;
+    }
+
+    const char* name = mrb_sym_name(mrb, mrb_symbol(arg));
+
+    if (strcmp(name, "pressed") == 0) return gmr::input::InputPhase::Pressed;
+    if (strcmp(name, "released") == 0) return gmr::input::InputPhase::Released;
+    if (strcmp(name, "held") == 0) return gmr::input::InputPhase::Held;
+    if (strcmp(name, "down") == 0) return gmr::input::InputPhase::Held;  // Alias for held
+
+    // Unknown phase, default to pressed
+    return gmr::input::InputPhase::Pressed;
 }
 
 } // namespace bindings

@@ -1,5 +1,6 @@
 #include "gmr/console/console_module.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
 #include <mruby/compile.h>
@@ -129,11 +130,6 @@ void ConsoleModule::toggle() {
 
 bool ConsoleModule::update(float dt) {
     if (!enabled_ || !initialized_) {
-        // Debug: show why we're returning early
-        static int debug_count = 0;
-        if (debug_count++ < 5) {
-            printf("[Console] update() early return: enabled=%d, initialized=%d\n", enabled_, initialized_);
-        }
         return false;
     }
 
@@ -141,7 +137,6 @@ bool ConsoleModule::update(float dt) {
 
     // Toggle console with toggle key
     if (IsKeyPressed(toggle_key_)) {
-        printf("[Console] Toggle key pressed! open=%d\n", open_);
         toggle();
         return true;
     }
@@ -625,7 +620,7 @@ std::string ConsoleModule::cmd_vars(const std::vector<std::string>&) {
         ctx);
 
     if (mrb_->exc) {
-        mrb_->exc = nullptr;
+        scripting::safe_clear_exception(mrb_, "console /vars command");
         mrbc_context_free(mrb_, ctx);
         return "Error listing variables";
     }
@@ -651,7 +646,8 @@ std::string ConsoleModule::cmd_vars(const std::vector<std::string>&) {
                         }
                         println("  " + std::string(var_name) + " = " + val_str, OutputType::RESULT);
                     }
-                    mrb_->exc = nullptr;
+                    // Clear any exception from mrb_inspect failure
+                    scripting::safe_clear_exception(mrb_, "console /vars inspect");
                 }
             }
         }
@@ -835,6 +831,17 @@ void ConsoleModule::draw_scrollbar() {
 // Ruby Bindings for GMR::Console
 // ============================================================================
 
+/// @module GMR::Console
+/// @description In-game developer console with command registration and Ruby evaluation.
+///   Provides a drop-down terminal for debugging, executing commands, and inspecting state.
+///   Enabled in debug builds with Ruby eval; release builds support registered commands only.
+/// @example GMR::Console.enable(height: 300, background: "#1a1a2e")
+///   GMR::Console.register_command("spawn", "Spawn entity at position") do |*args|
+///     x, y = args[0].to_i, args[1].to_i
+///     spawn_entity(x, y)
+///     "Spawned at #{x}, #{y}"
+///   end
+
 // Helper to parse color from Ruby hash
 static void parse_color_from_hash(mrb_state* mrb, mrb_value hash, const char* key, uint8_t* out) {
     mrb_value color_key = mrb_symbol_value(mrb_intern_cstr(mrb, key));
@@ -876,7 +883,21 @@ static void parse_color_from_hash(mrb_state* mrb, mrb_value hash, const char* ke
     }
 }
 
-// GMR::Console.enable or GMR::Console.enable(options_hash)
+/// @function enable
+/// @description Enable the console with optional styling. Call once during initialization.
+/// @param options [Hash] (optional) Styling options including:
+///   - :height [Integer] Console height in pixels
+///   - :width [Integer] Console width (0 for full screen width)
+///   - :background [String, Array] Background color as "#RRGGBB" or [r, g, b, a]
+///   - :foreground [String, Array] Default text color
+///   - :prompt_color [String, Array] Input prompt color
+///   - :result_color [String, Array] Result output color
+///   - :error_color [String, Array] Error message color
+///   - :font_size [Integer] Font size in pixels
+///   - :position [Symbol] :top or :bottom
+/// @returns [nil]
+/// @example GMR::Console.enable
+/// @example GMR::Console.enable(height: 400, background: "#222233")
 static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value) {
     mrb_value opts = mrb_nil_value();
     mrb_get_args(mrb, "|o", &opts);  // Accept any object, check if hash
@@ -888,11 +909,8 @@ static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value) {
         console.init(mrb);
     }
 
-    printf("[Console] enable() called, initialized=%d\n", console.is_initialized());
-
     // Apply styling options if provided
     if (!mrb_nil_p(opts) && mrb_hash_p(opts)) {
-        printf("[Console] Parsing options hash\n");
         ConsoleStyle style = console.style();
 
         // Colors
@@ -930,41 +948,67 @@ static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.disable
+/// @function disable
+/// @description Disable the console entirely. Hides it if currently open.
+/// @returns [nil]
+/// @example GMR::Console.disable
 static mrb_value mrb_console_disable(mrb_state*, mrb_value) {
     ConsoleModule::instance().enable(false);
     return mrb_nil_value();
 }
 
-// GMR::Console.enabled?
+/// @function enabled?
+/// @description Check if the console is enabled.
+/// @returns [Boolean] true if the console is enabled
+/// @example if GMR::Console.enabled?
+///   puts "Console is available"
+/// end
 static mrb_value mrb_console_enabled(mrb_state*, mrb_value) {
     return mrb_bool_value(ConsoleModule::instance().is_enabled());
 }
 
-// GMR::Console.open?
+/// @function open?
+/// @description Check if the console is currently visible/open.
+/// @returns [Boolean] true if the console is open
+/// @example pause_game if GMR::Console.open?
 static mrb_value mrb_console_open(mrb_state*, mrb_value) {
     return mrb_bool_value(ConsoleModule::instance().is_open());
 }
 
-// GMR::Console.show
+/// @function show
+/// @description Open the console (slide it into view).
+/// @returns [nil]
+/// @example GMR::Console.show
 static mrb_value mrb_console_show(mrb_state*, mrb_value) {
     ConsoleModule::instance().show();
     return mrb_nil_value();
 }
 
-// GMR::Console.hide
+/// @function hide
+/// @description Close the console (slide it out of view).
+/// @returns [nil]
+/// @example GMR::Console.hide
 static mrb_value mrb_console_hide(mrb_state*, mrb_value) {
     ConsoleModule::instance().hide();
     return mrb_nil_value();
 }
 
-// GMR::Console.toggle
+/// @function toggle
+/// @description Toggle the console open/closed.
+/// @returns [nil]
+/// @example GMR::Console.toggle
 static mrb_value mrb_console_toggle(mrb_state*, mrb_value) {
     ConsoleModule::instance().toggle();
     return mrb_nil_value();
 }
 
-// GMR::Console.println(text, type = :info)
+/// @function println
+/// @description Print a line of text to the console output.
+/// @param text [String] The text to print
+/// @param type [Symbol] (optional) Output type: :info, :input, :result, :error, :warning, :system
+/// @returns [nil]
+/// @example GMR::Console.println("Player spawned", :info)
+/// @example GMR::Console.println("Error: file not found", :error)
 static mrb_value mrb_console_println(mrb_state* mrb, mrb_value) {
     const char* text;
     mrb_sym type_sym = mrb_intern_lit(mrb, "info");
@@ -982,7 +1026,10 @@ static mrb_value mrb_console_println(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.clear
+/// @function clear
+/// @description Clear all output from the console.
+/// @returns [nil]
+/// @example GMR::Console.clear
 static mrb_value mrb_console_clear(mrb_state*, mrb_value) {
     ConsoleModule::instance().clear_output();
     return mrb_nil_value();
@@ -991,7 +1038,18 @@ static mrb_value mrb_console_clear(mrb_state*, mrb_value) {
 // Store Ruby command blocks
 static mrb_value g_ruby_commands;  // Hash of name -> proc
 
-// GMR::Console.register_command(name, description = nil) { |*args| ... }
+/// @function register_command
+/// @description Register a custom console command. The block receives command arguments
+///   as an array and should return a string result (or nil for no output).
+/// @param name [String] Command name (case-insensitive)
+/// @param description [String] (optional) Help text shown in command list
+/// @yields [Array<String>] Block receives command arguments as strings
+/// @returns [nil]
+/// @example GMR::Console.register_command("teleport", "Teleport player to x,y") do |args|
+///   x, y = args[0].to_i, args[1].to_i
+///   $player.x, $player.y = x, y
+///   "Teleported to #{x}, #{y}"
+/// end
 static mrb_value mrb_console_register_command(mrb_state* mrb, mrb_value) {
     const char* name;
     const char* description = "";
@@ -1034,8 +1092,11 @@ static mrb_value mrb_console_register_command(mrb_state* mrb, mrb_value) {
             if (mrb->exc) {
                 mrb_value exc = mrb_obj_value(mrb->exc);
                 mrb_value msg = mrb_inspect(mrb, exc);
-                mrb->exc = nullptr;
-                return std::string(RSTRING_PTR(msg), RSTRING_LEN(msg));
+                std::string error_str = mrb_string_p(msg)
+                    ? std::string(RSTRING_PTR(msg), RSTRING_LEN(msg))
+                    : "Error executing command";
+                scripting::safe_clear_exception(mrb, "console command handler");
+                return error_str;
             }
 
             if (mrb_nil_p(result)) {
@@ -1049,7 +1110,11 @@ static mrb_value mrb_console_register_command(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.unregister_command(name)
+/// @function unregister_command
+/// @description Remove a previously registered console command.
+/// @param name [String] Command name to remove
+/// @returns [nil]
+/// @example GMR::Console.unregister_command("teleport")
 static mrb_value mrb_console_unregister_command(mrb_state* mrb, mrb_value) {
     const char* name;
     mrb_get_args(mrb, "z", &name);
@@ -1064,7 +1129,12 @@ static mrb_value mrb_console_unregister_command(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.set_toggle_key(key)
+/// @function set_toggle_key
+/// @description Set the keyboard key that toggles the console open/closed.
+///   Default is backtick/grave (`) key.
+/// @param key [Integer] Key code (use GMR::Input key constants)
+/// @returns [nil]
+/// @example GMR::Console.set_toggle_key(GMR::Input::KEY_F12)
 static mrb_value mrb_console_set_toggle_key(mrb_state* mrb, mrb_value) {
     mrb_int key;
     mrb_get_args(mrb, "i", &key);
@@ -1072,7 +1142,12 @@ static mrb_value mrb_console_set_toggle_key(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.allow_ruby_eval(bool) - Debug only
+/// @function allow_ruby_eval
+/// @description Enable or disable arbitrary Ruby code evaluation in the console.
+///   Only has effect in debug builds; release builds always disable Ruby eval.
+/// @param allow [Boolean] true to allow Ruby eval, false to restrict to commands only
+/// @returns [nil]
+/// @example GMR::Console.allow_ruby_eval(false)  # Commands only
 static mrb_value mrb_console_allow_ruby_eval(mrb_state* mrb, mrb_value) {
     mrb_bool allow;
     mrb_get_args(mrb, "b", &allow);
@@ -1085,14 +1160,17 @@ static mrb_value mrb_console_allow_ruby_eval(mrb_state* mrb, mrb_value) {
     return mrb_nil_value();
 }
 
-// GMR::Console.ruby_eval_allowed?
+/// @function ruby_eval_allowed?
+/// @description Check if Ruby code evaluation is allowed in the console.
+/// @returns [Boolean] true if Ruby eval is enabled
+/// @example if GMR::Console.ruby_eval_allowed?
+///   puts "Full Ruby access enabled"
+/// end
 static mrb_value mrb_console_ruby_eval_allowed(mrb_state*, mrb_value) {
     return mrb_bool_value(ConsoleModule::instance().ruby_eval_allowed());
 }
 
 void register_console_module(mrb_state* mrb) {
-    printf("[Console] register_console_module called\n");
-
     // Initialize the Ruby commands hash
     g_ruby_commands = mrb_nil_value();
 
@@ -1128,9 +1206,6 @@ void register_console_module(mrb_state* mrb) {
 
     // Initialize the console module with mruby state
     ConsoleModule::instance().init(mrb);
-    printf("[Console] Module registered, initialized=%d, enabled=%d\n",
-           ConsoleModule::instance().is_initialized(),
-           ConsoleModule::instance().is_enabled());
 }
 
 } // namespace console

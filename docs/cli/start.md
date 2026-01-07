@@ -27,6 +27,7 @@ Run GMR with the current project's scripts.
 |--------|-------|------|---------|-------------|
 | `--project` | -p | string | - | Path to project directory |
 | `--port` |  | numeric | `8080` | Port for web server |
+| `--topmost` |  | boolean | `false` | Keep game window on top of other windows |
 
 ## Examples
 

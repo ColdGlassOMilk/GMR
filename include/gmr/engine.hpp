@@ -19,6 +19,12 @@
 #include "gmr/bindings/util.hpp"
 #include "gmr/bindings/collision.hpp"
 
+// Animation
+#include "gmr/animation/easing.hpp"
+#include "gmr/animation/tween.hpp"
+#include "gmr/animation/sprite_animation.hpp"
+#include "gmr/animation/animation_manager.hpp"
+
 // Scripting
 #include "gmr/scripting/script_error.hpp"
 #include "gmr/scripting/loader.hpp"

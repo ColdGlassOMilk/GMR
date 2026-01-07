@@ -4,6 +4,7 @@
 #include "gmr/transform.hpp"
 #include "gmr/draw_queue.hpp"
 #include "gmr/resources/texture_manager.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "gmr/types.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -22,21 +23,99 @@ namespace bindings {
 ///   Sprites combine a texture with position, rotation, scale, and origin for easy rendering.
 ///   By default, draw order determines layering (later drawn = on top). Set an explicit z value
 ///   to override this behavior for specific sprites.
-/// @example # Basic sprite usage
-///   tex = GMR::Graphics::Texture.load("assets/player.png")
-///   @player = Sprite.new(tex)
-///   @player.x = 100
-///   @player.y = 200
-///   @player.center_origin
-///   @player.draw
-/// @example # Sprite with explicit z-index
-///   @background = Sprite.new(bg_tex)
-///   @background.z = 0     # Always behind
-///   @player = Sprite.new(player_tex)
-///   @player.z = 10        # Always in front of background
-/// @example # Animated sprite with source rect
-///   @sprite = Sprite.new(spritesheet)
-///   @sprite.source_rect = Rect.new(0, 0, 32, 32)  # First frame
+/// @example # Complete game entity with sprite, animation, and collision
+///   class Player
+///     attr_reader :sprite
+///
+///     def initialize(x, y)
+///       @texture = GMR::Graphics::Texture.load("assets/player.png")
+///       @sprite = Sprite.new(@texture)
+///       @sprite.x = x
+///       @sprite.y = y
+///       @sprite.source_rect = Rect.new(0, 0, 32, 48)
+///       @sprite.center_origin
+///       @sprite.z = 10  # Above background, below UI
+///
+///       @velocity = Vec2.new(0, 0)
+///       @facing_right = true
+///       setup_animations
+///     end
+///
+///     def setup_animations
+///       @animations = {
+///         idle: GMR::SpriteAnimation.new(@sprite, frames: 0..3, fps: 8, columns: 8),
+///         run: GMR::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+///         jump: GMR::SpriteAnimation.new(@sprite, frames: 16..18, fps: 10, loop: false, columns: 8)
+///       }
+///       @animations[:idle].play
+///     end
+///
+///     def update(dt)
+///       # Flip sprite based on direction
+///       @sprite.flip_x = !@facing_right
+///
+///       # Update position
+///       @sprite.x += @velocity.x * dt
+///       @sprite.y += @velocity.y * dt
+///     end
+///
+///     def draw
+///       @sprite.draw
+///     end
+///
+///     def bounds
+///       Rect.new(@sprite.x - 16, @sprite.y - 24, 32, 48)
+///     end
+///   end
+/// @example # Particle effect with many sprites
+///   class ParticleSystem
+///     def initialize(x, y, count: 50)
+///       @texture = GMR::Graphics::Texture.load("assets/particle.png")
+///       @particles = count.times.map do
+///         p = Sprite.new(@texture)
+///         p.x = x
+///         p.y = y
+///         p.alpha = 1.0
+///         p.center_origin
+///         p.scale = GMR::Math.random(0.3, 1.0)
+///         { sprite: p, vx: GMR::Math.random(-100, 100), vy: GMR::Math.random(-150, -50), life: GMR::Math.random(0.5, 1.5) }
+///       end
+///     end
+///
+///     def update(dt)
+///       @particles.each do |p|
+///         p[:sprite].x += p[:vx] * dt
+///         p[:sprite].y += p[:vy] * dt
+///         p[:vy] += 200 * dt  # Gravity
+///         p[:life] -= dt
+///         p[:sprite].alpha = [p[:life] / 0.5, 1.0].min
+///         p[:sprite].visible = p[:life] > 0
+///       end
+///     end
+///
+///     def draw
+///       @particles.each { |p| p[:sprite].draw if p[:sprite].visible }
+///     end
+///   end
+/// @example # Sprite layering with z-index for isometric game
+///   class GameWorld
+///     def initialize
+///       @floor = Sprite.new(floor_tex)
+///       @floor.z = 0  # Always bottom layer
+///
+///       @entities = []
+///       @entities << create_tree(100, 200)
+///       @entities << create_tree(150, 180)
+///       @entities << @player
+///     end
+///
+///     def draw
+///       @floor.draw
+///       # Sort entities by y position for proper layering
+///       @entities.sort_by! { |e| e.sprite.y }
+///       @entities.each { |e| e.sprite.z = e.sprite.y; e.draw }
+///     end
+///   end
 
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
@@ -58,7 +137,10 @@ static void sprite_free(mrb_state* mrb, void* ptr) {
     }
 }
 
-static const mrb_data_type sprite_data_type = {
+// NOTE: extern const - exported for type-safe mrb_data_get_ptr in other bindings
+// In C++, const at namespace scope has internal linkage by default, so we need
+// explicit extern to allow other translation units to link against this symbol.
+extern const mrb_data_type sprite_data_type = {
     "Sprite", sprite_free
 };
 
@@ -71,7 +153,9 @@ static SpriteData* get_sprite_data(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -85,8 +169,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -107,10 +191,10 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym) &&
         mrb_respond_to(mrb, val, w_sym) && mrb_respond_to(mrb, val, h_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
-        mrb_value w = mrb_funcall(mrb, val, "w", 0);
-        mrb_value h = mrb_funcall(mrb, val, "h", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
+        mrb_value w = scripting::safe_method_call(mrb, val, "w");
+        mrb_value h = scripting::safe_method_call(mrb, val, "h");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y)),
                 static_cast<float>(mrb_as_float(mrb, w)),
@@ -134,6 +218,23 @@ static TransformHandle get_transform_handle(mrb_state* mrb, mrb_value val) {
     void* ptr = mrb_data_get_ptr(mrb, val, nullptr);
     if (ptr) {
         TransformData* data = static_cast<TransformData*>(ptr);
+        return data->handle;
+    }
+    return INVALID_HANDLE;
+}
+
+// Forward declaration for texture data type (defined in graphics.cpp)
+extern const mrb_data_type texture_data_type;
+
+// Helper to get TextureHandle from Ruby Texture object
+static TextureHandle get_texture_handle_from_value(mrb_state* mrb, mrb_value texture_val) {
+    struct TextureData {
+        TextureHandle handle;
+    };
+
+    void* ptr = mrb_data_get_ptr(mrb, texture_val, &texture_data_type);
+    if (ptr) {
+        TextureData* data = static_cast<TextureData*>(ptr);
         return data->handle;
     }
     return INVALID_HANDLE;
@@ -166,12 +267,12 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
     SpriteHandle handle = SpriteManager::instance().create();
     SpriteState* s = SpriteManager::instance().get(handle);
 
-    // Get texture handle from Ruby Texture object
-    // Texture objects store handle in @handle instance variable
-    mrb_sym handle_sym = mrb_intern_cstr(mrb, "@handle");
-    mrb_value handle_val = mrb_iv_get(mrb, texture_val, handle_sym);
-    if (!mrb_nil_p(handle_val)) {
-        s->texture = static_cast<TextureHandle>(mrb_fixnum(handle_val));
+    // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
+    s->texture = get_texture_handle_from_value(mrb, texture_val);
+    if (s->texture == INVALID_HANDLE) {
+        SpriteManager::instance().destroy(handle);
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid or nil texture object passed to Sprite.new");
+        return mrb_nil_value();
     }
 
     // Parse keyword arguments
@@ -741,12 +842,13 @@ static mrb_value mrb_sprite_set_texture(mrb_state* mrb, mrb_value self) {
     SpriteState* s = SpriteManager::instance().get(data->handle);
     if (!s) return mrb_nil_value();
 
-    // Get texture handle from Ruby Texture object
-    mrb_sym handle_sym = mrb_intern_cstr(mrb, "@handle");
-    mrb_value handle_val = mrb_iv_get(mrb, texture_val, handle_sym);
-    if (!mrb_nil_p(handle_val)) {
-        s->texture = static_cast<TextureHandle>(mrb_fixnum(handle_val));
+    // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
+    TextureHandle tex_handle = get_texture_handle_from_value(mrb, texture_val);
+    if (tex_handle == INVALID_HANDLE) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid or nil texture object");
+        return mrb_nil_value();
     }
+    s->texture = tex_handle;
 
     // Store texture reference to prevent GC
     mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@texture"), texture_val);
@@ -764,7 +866,9 @@ static mrb_value mrb_sprite_source_rect(mrb_state* mrb, mrb_value self) {
     SpriteState* s = SpriteManager::instance().get(data->handle);
     if (!s || !s->use_source_rect) return mrb_nil_value();
 
-    RClass* rect_class = mrb_class_get(mrb, "Rect");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* rect_class = mrb_class_get_under(mrb, graphics, "Rect");
     mrb_value args[4] = {
         mrb_float_value(mrb, s->source_rect.x),
         mrb_float_value(mrb, s->source_rect.y),
@@ -926,12 +1030,49 @@ static mrb_value mrb_sprite_class_count(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Animation
+// ============================================================================
+
+/// @method play_animation
+/// @description Convenience method to create and play a sprite animation.
+///   Creates a GMR::SpriteAnimation, calls play, and returns it for chaining.
+/// @param frames: [Array<Integer>, Range] Frame indices to cycle through
+/// @param fps: [Float] Frames per second (default: 12)
+/// @param loop: [Boolean] Whether to loop (default: true)
+/// @param frame_width: [Integer] Width of each frame (optional)
+/// @param frame_height: [Integer] Height of each frame (optional)
+/// @param columns: [Integer] Frames per row in spritesheet (default: 1)
+/// @returns [SpriteAnimation] The animation instance (already playing)
+/// @example sprite.play_animation(frames: 0..5, fps: 10, loop: false)
+///   .on_complete { sprite.state = :idle }
+/// @example sprite.play_animation(frames: [0, 1, 2, 3], fps: 12)
+static mrb_value mrb_sprite_play_animation(mrb_state* mrb, mrb_value self) {
+    mrb_value kwargs;
+    mrb_get_args(mrb, "H", &kwargs);
+
+    // Get GMR::SpriteAnimation class
+    RClass* gmr = mrb_module_get(mrb, "GMR");
+    RClass* anim_class = mrb_class_get_under(mrb, gmr, "SpriteAnimation");
+
+    // Create animation with sprite and options
+    mrb_value args[2] = { self, kwargs };
+    mrb_value anim = mrb_obj_new(mrb, anim_class, 2, args);
+
+    // Call play on the animation (protected)
+    scripting::safe_method_call(mrb, anim, "play");
+
+    return anim;
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
 void register_sprite(mrb_state* mrb) {
-    // Sprite class (top-level)
-    RClass* sprite_class = mrb_define_class(mrb, "Sprite", mrb->object_class);
+    // Sprite class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* sprite_class = mrb_define_class_under(mrb, graphics, "Sprite", mrb->object_class);
     MRB_SET_INSTANCE_TT(sprite_class, MRB_TT_CDATA);
 
     // Constructor
@@ -996,6 +1137,9 @@ void register_sprite(mrb_state* mrb) {
 
     // Draw
     mrb_define_method(mrb, sprite_class, "draw", mrb_sprite_draw, MRB_ARGS_NONE());
+
+    // Animation
+    mrb_define_method(mrb, sprite_class, "play_animation", mrb_sprite_play_animation, MRB_ARGS_REQ(1));
 
     // Class methods
     mrb_define_class_method(mrb, sprite_class, "count", mrb_sprite_class_count, MRB_ARGS_NONE());

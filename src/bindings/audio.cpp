@@ -5,6 +5,111 @@
 namespace gmr {
 namespace bindings {
 
+/// @module GMR::Audio
+/// @description Audio playback module. Load and play sound effects and music.
+/// @example # Complete audio management for a game
+///   class AudioManager
+///     def initialize
+///       # Preload commonly used sound effects
+///       @sounds = {
+///         jump: GMR::Audio::Sound.load("assets/sfx/jump.wav"),
+///         land: GMR::Audio::Sound.load("assets/sfx/land.wav"),
+///         coin: GMR::Audio::Sound.load("assets/sfx/coin.wav"),
+///         hurt: GMR::Audio::Sound.load("assets/sfx/hurt.wav"),
+///         explosion: GMR::Audio::Sound.load("assets/sfx/explosion.wav")
+///       }
+///       @music_volume = 0.7
+///       @sfx_volume = 1.0
+///     end
+///
+///     def play_sfx(name, volume: nil)
+///       sound = @sounds[name]
+///       return unless sound
+///       sound.volume = (volume || @sfx_volume)
+///       sound.play
+///     end
+///
+///     def play_music(path, loop: true)
+///       GMR::Audio.stop_music
+///       GMR::Audio.play_music(path, volume: @music_volume, loop: loop)
+///     end
+///
+///     def fade_out_music(duration)
+///       # Gradually reduce music volume
+///       GMR::Tween.to(self, :music_volume, 0.0, duration: duration)
+///         .on_update { |t, vol| GMR::Audio.set_music_volume(vol) }
+///         .on_complete { GMR::Audio.stop_music }
+///     end
+///   end
+///
+///   # Usage in game
+///   def init
+///     $audio = AudioManager.new
+///     $audio.play_music("assets/music/level1.ogg")
+///   end
+///
+///   def player_jump
+///     $audio.play_sfx(:jump)
+///   end
+
+/// @class GMR::Audio::Sound
+/// @description A loaded sound that can be played, stopped, and have its volume adjusted.
+///   Sounds are loaded once and can be played multiple times. Use for sound effects.
+/// @example # Player with contextual footstep sounds
+///   class Player
+///     def initialize
+///       @footstep_sounds = {
+///         grass: GMR::Audio::Sound.load("assets/sfx/step_grass.wav"),
+///         stone: GMR::Audio::Sound.load("assets/sfx/step_stone.wav"),
+///         wood: GMR::Audio::Sound.load("assets/sfx/step_wood.wav")
+///       }
+///       @footstep_timer = 0
+///     end
+///
+///     def update(dt)
+///       if moving? && @on_ground
+///         @footstep_timer -= dt
+///         if @footstep_timer <= 0
+///           play_footstep
+///           @footstep_timer = @running ? 0.25 : 0.4
+///         end
+///       end
+///     end
+///
+///     def play_footstep
+///       surface = detect_surface_type
+///       sound = @footstep_sounds[surface] || @footstep_sounds[:stone]
+///       sound.volume = GMR::Math.random(0.3, 0.5)  # Vary volume slightly
+///       sound.play
+///     end
+///   end
+/// @example # Enemy with death sound and state machine integration
+///   class Enemy
+///     def initialize
+///       @sounds = {
+///         alert: GMR::Audio::Sound.load("assets/sfx/enemy_alert.wav"),
+///         attack: GMR::Audio::Sound.load("assets/sfx/enemy_attack.wav"),
+///         death: GMR::Audio::Sound.load("assets/sfx/enemy_death.wav")
+///       }
+///
+///       state_machine do
+///         state :patrol do
+///           on :see_player, :chase
+///         end
+///         state :chase do
+///           enter { @sounds[:alert].play }
+///           on :in_range, :attack
+///         end
+///         state :attack do
+///           enter { @sounds[:attack].play }
+///         end
+///         state :dead do
+///           enter { @sounds[:death].play }
+///         end
+///       end
+///     end
+///   end
+
 // ============================================================================
 // GMR::Audio::Sound Class
 // ============================================================================
@@ -30,7 +135,12 @@ static SoundData* get_sound_data(mrb_state* mrb, mrb_value self) {
     return static_cast<SoundData*>(mrb_data_get_ptr(mrb, self, &sound_data_type));
 }
 
-// GMR::Audio::Sound.load(path) - class method
+/// @classmethod load
+/// @description Load a sound file from disk. Supports WAV, OGG, MP3, and other formats.
+/// @param path [String] Path to the audio file
+/// @returns [Sound] The loaded sound object
+/// @raises [RuntimeError] If the file cannot be loaded
+/// @example jump_sound = GMR::Audio::Sound.load("assets/sfx/jump.wav")
 static mrb_value mrb_sound_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
     mrb_get_args(mrb, "z", &path);
@@ -53,7 +163,10 @@ static mrb_value mrb_sound_load(mrb_state* mrb, mrb_value klass) {
     return obj;
 }
 
-// sound.play
+/// @method play
+/// @description Play the sound. Can be called multiple times for overlapping playback.
+/// @returns [nil]
+/// @example sound.play
 static mrb_value mrb_sound_play(mrb_state* mrb, mrb_value self) {
     SoundData* data = get_sound_data(mrb, self);
     if (data) {
@@ -62,7 +175,10 @@ static mrb_value mrb_sound_play(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
-// sound.stop
+/// @method stop
+/// @description Stop the sound if it's currently playing.
+/// @returns [nil]
+/// @example sound.stop
 static mrb_value mrb_sound_stop(mrb_state* mrb, mrb_value self) {
     SoundData* data = get_sound_data(mrb, self);
     if (data) {
@@ -71,7 +187,11 @@ static mrb_value mrb_sound_stop(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
-// sound.volume = value
+/// @method volume=
+/// @description Set the playback volume for this sound.
+/// @param value [Float] Volume level from 0.0 (silent) to 1.0 (full volume)
+/// @returns [Float] The volume that was set
+/// @example sound.volume = 0.5  # Half volume
 static mrb_value mrb_sound_set_volume(mrb_state* mrb, mrb_value self) {
     mrb_float volume;
     mrb_get_args(mrb, "f", &volume);

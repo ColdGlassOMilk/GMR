@@ -1,6 +1,8 @@
 #include "gmr/bindings/transform.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/hash.h>
@@ -17,16 +19,137 @@ namespace bindings {
 ///   Transforms can be parented to other transforms to create hierarchies - when a parent
 ///   transforms, all children transform with it. Useful for turrets, attached weapons,
 ///   or any object that should move relative to another.
-/// @example # Basic transform
-///   t = Transform2D.new(x: 100, y: 50)
-///   t.rotation = 45
-///   t.scale_x = 2.0
-/// @example # Parent-child hierarchy
-///   parent = Transform2D.new(x: 200, y: 200)
-///   child = Transform2D.new
-///   child.parent = parent
-///   child.y = -20  # Offset from parent
-///   parent.rotation += 1  # Child rotates with parent!
+/// @example # Rotating collectible with bobbing animation
+///   class Collectible
+///     def initialize(x, y)
+///       @transform = Transform2D.new(x: x, y: y)
+///       @transform.origin_x = 16  # Center pivot (32x32 sprite)
+///       @transform.origin_y = 16
+///       @base_y = y
+///       @time = 0
+///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/coin.png"))
+///     end
+///
+///     def update(dt)
+///       @time += dt
+///       # Continuous rotation
+///       @transform.rotation += 90 * dt  # 90 degrees per second
+///       # Bobbing motion
+///       @transform.y = @base_y + Math.sin(@time * 3) * 4
+///     end
+///
+///     def draw
+///       @sprite.x = @transform.x
+///       @sprite.y = @transform.y
+///       @sprite.rotation = @transform.rotation
+///       @sprite.origin_x = @transform.origin_x
+///       @sprite.origin_y = @transform.origin_y
+///       @sprite.draw
+///     end
+///   end
+/// @example # Tank with rotating turret using parent hierarchy
+///   class Tank
+///     def initialize(x, y)
+///       @body = Transform2D.new(x: x, y: y)
+///       @body.origin_x = 32  # Center of 64x64 tank body
+///       @body.origin_y = 32
+///
+///       @turret = Transform2D.new
+///       @turret.parent = @body
+///       @turret.y = -8  # Turret slightly forward
+///       @turret.origin_x = 8   # Turret pivot point
+///       @turret.origin_y = 16
+///
+///       @body_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/tank_body.png"))
+///       @turret_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/tank_turret.png"))
+///     end
+///
+///     def update(dt)
+///       # Drive forward in direction facing
+///       if GMR::Input.key_down?(:w)
+///         angle_rad = @body.rotation * Math::PI / 180
+///         @body.x += Math.cos(angle_rad) * 100 * dt
+///         @body.y += Math.sin(angle_rad) * 100 * dt
+///       end
+///
+///       # Rotate tank body
+///       @body.rotation -= 60 * dt if GMR::Input.key_down?(:a)
+///       @body.rotation += 60 * dt if GMR::Input.key_down?(:d)
+///
+///       # Aim turret at mouse
+///       aim_turret_at_mouse
+///     end
+///
+///     def aim_turret_at_mouse
+///       mx, my = GMR::Input.mouse_x, GMR::Input.mouse_y
+///       turret_world = @turret.world_position
+///       dx = mx - turret_world.x
+///       dy = my - turret_world.y
+///       target_angle = Math.atan2(dy, dx) * 180 / Math::PI
+///       # Turret rotation is relative to body, so subtract body rotation
+///       @turret.rotation = target_angle - @body.rotation
+///     end
+///
+///     def draw
+///       # Body sprite
+///       @body_sprite.x = @body.x
+///       @body_sprite.y = @body.y
+///       @body_sprite.rotation = @body.rotation
+///       @body_sprite.origin_x = @body.origin_x
+///       @body_sprite.origin_y = @body.origin_y
+///       @body_sprite.draw
+///
+///       # Turret sprite (uses world position from hierarchy)
+///       turret_pos = @turret.world_position
+///       @turret_sprite.x = turret_pos.x
+///       @turret_sprite.y = turret_pos.y
+///       @turret_sprite.rotation = @body.rotation + @turret.rotation  # Combined rotation
+///       @turret_sprite.origin_x = @turret.origin_x
+///       @turret_sprite.origin_y = @turret.origin_y
+///       @turret_sprite.draw
+///     end
+///   end
+/// @example # Scaling effects for damage feedback
+///   class Enemy
+///     def initialize(x, y)
+///       @transform = Transform2D.new(x: x, y: y)
+///       @transform.origin_x = 16
+///       @transform.origin_y = 16
+///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/enemy.png"))
+///     end
+///
+///     def take_damage(amount)
+///       @health -= amount
+///       # Scale up briefly then back to normal (squash and stretch)
+///       GMR::Tween.to(@transform, :scale_x, 1.3, duration: 0.05, ease: :out_quad)
+///         .on_complete do
+///           GMR::Tween.to(@transform, :scale_x, 1.0, duration: 0.1, ease: :out_elastic)
+///         end
+///       GMR::Tween.to(@transform, :scale_y, 0.8, duration: 0.05, ease: :out_quad)
+///         .on_complete do
+///           GMR::Tween.to(@transform, :scale_y, 1.0, duration: 0.1, ease: :out_elastic)
+///         end
+///     end
+///
+///     def die
+///       # Spin and shrink death animation
+///       GMR::Tween.to(@transform, :rotation, @transform.rotation + 720, duration: 0.5)
+///       GMR::Tween.to(@transform, :scale_x, 0, duration: 0.5, ease: :in_back)
+///       GMR::Tween.to(@transform, :scale_y, 0, duration: 0.5, ease: :in_back)
+///         .on_complete { destroy }
+///     end
+///
+///     def draw
+///       @sprite.x = @transform.x
+///       @sprite.y = @transform.y
+///       @sprite.rotation = @transform.rotation
+///       @sprite.scale_x = @transform.scale_x
+///       @sprite.scale_y = @transform.scale_y
+///       @sprite.origin_x = @transform.origin_x
+///       @sprite.origin_y = @transform.origin_y
+///       @sprite.draw
+///     end
+///   end
 
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
@@ -58,7 +181,9 @@ static TransformData* get_transform_data(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -72,8 +197,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -480,8 +605,10 @@ static mrb_value mrb_transform_world_position(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 void register_transform(mrb_state* mrb) {
-    // Transform2D class (top-level)
-    RClass* transform_class = mrb_define_class(mrb, "Transform2D", mrb->object_class);
+    // Transform2D class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* transform_class = mrb_define_class_under(mrb, graphics, "Transform2D", mrb->object_class);
     MRB_SET_INSTANCE_TT(transform_class, MRB_TT_CDATA);
 
     // Constructor

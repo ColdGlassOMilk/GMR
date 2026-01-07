@@ -2,6 +2,7 @@
 
 #include "gmr/debug/variable_inspector.hpp"
 #include "gmr/debug/json_protocol.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/string.h>
 #include <mruby/array.h>
 #include <mruby/hash.h>
@@ -267,11 +268,15 @@ std::string evaluate_expression(mrb_state* mrb, const std::string& expr, int fra
 
     // Check for exception
     if (mrb->exc) {
+        // GMR_UNSAFE_MRUBY_CALL: Debugger expression evaluation - returns error JSON.
+        // This is intentional: debugger should not raise; evaluation errors are
+        // serialized and returned to the IDE for display.
+        GMR_UNSAFE_MRUBY_CALL("debugger eval - errors returned as JSON, not raised")
         mrb_value exc = mrb_obj_value(mrb->exc);
         mrb_value msg = mrb_funcall(mrb, exc, "message", 0);
         std::string error_msg = mrb_string_p(msg) ?
             std::string(RSTRING_PTR(msg), RSTRING_LEN(msg)) : "Error";
-        mrb->exc = nullptr;  // Clear exception
+        scripting::safe_clear_exception(mrb, "variable_inspector eval");
         return "{\"type\":\"Error\",\"value\":\"" + json_escape(error_msg) + "\"}";
     }
 

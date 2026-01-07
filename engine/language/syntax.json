@@ -352,21 +352,25 @@
   },
   "engine": {
     "modules": [
-      "GMR",
       "GMR::Collision",
       "GMR::Graphics",
       "GMR::Input",
       "GMR::System",
+      "GMR::Time",
       "GMR::Window"
     ],
     "classes": [
       "Camera2D",
       "GMR",
       "GMR::Audio::Sound",
+      "GMR::Ease",
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
       "GMR::Scene",
       "GMR::SceneManager",
+      "GMR::SpriteAnimation",
+      "GMR::StateMachine",
+      "GMR::Tween",
       "Node",
       "Rect",
       "Sprite",
@@ -375,6 +379,18 @@
       "Vec3"
     ],
     "functions": {
+      "GMR::Collision": [
+        "point_in_rect?",
+        "point_in_circle?",
+        "rect_overlap?",
+        "rect_contains?",
+        "circle_overlap?",
+        "circle_rect_overlap?",
+        "rect_tiles",
+        "tile_rect",
+        "distance",
+        "distance_squared"
+      ],
       "GMR::Graphics": [
         "clear",
         "draw_rect",
@@ -389,18 +405,6 @@
         "draw_triangle_outline",
         "draw_text",
         "measure_text"
-      ],
-      "GMR::Collision": [
-        "point_in_rect?",
-        "point_in_circle?",
-        "rect_overlap?",
-        "rect_contains?",
-        "circle_overlap?",
-        "circle_rect_overlap?",
-        "rect_tiles",
-        "tile_rect",
-        "distance",
-        "distance_squared"
       ],
       "GMR::Input": [
         "mouse_x",
@@ -419,7 +423,16 @@
         "clear_mappings",
         "action_down?",
         "action_pressed?",
-        "action_released?"
+        "action_released?",
+        "on",
+        "off",
+        "push_context",
+        "pop_context",
+        "set_context",
+        "current_context",
+        "has_context?",
+        "input",
+        "input_context"
       ],
       "GMR::System": [
         "random_int",
@@ -437,6 +450,8 @@
         "in_error_state?"
       ],
       "GMR::Window": [
+        "width",
+        "height",
         "actual_width",
         "actual_height",
         "set_size",
@@ -455,8 +470,17 @@
         "monitor_refresh_rate",
         "monitor_name"
       ],
-      "GMR": [
-        "inspect"
+      "GMR::Time": [
+        "delta",
+        "elapsed",
+        "fps",
+        "set_target_fps"
+      ],
+      "GMR::Audio::Sound": [
+        "load",
+        "play",
+        "stop",
+        "volume="
       ],
       "Camera2D": [
         "initialize",
@@ -477,6 +501,37 @@
         "use",
         "current=",
         "current"
+      ],
+      "GMR::Ease": [
+        "linear",
+        "in_quad",
+        "out_quad",
+        "in_out_quad",
+        "in_cubic",
+        "out_cubic",
+        "in_out_cubic",
+        "in_quart",
+        "out_quart",
+        "in_out_quart",
+        "in_sine",
+        "out_sine",
+        "in_out_sine",
+        "in_expo",
+        "out_expo",
+        "in_out_expo",
+        "in_circ",
+        "out_circ",
+        "in_out_circ",
+        "in_back",
+        "out_back",
+        "in_out_back",
+        "in_elastic",
+        "out_elastic",
+        "in_out_elastic",
+        "in_bounce",
+        "out_bounce",
+        "in_out_bounce",
+        "apply"
       ],
       "GMR::Graphics::Texture": [
         "load",
@@ -614,7 +669,39 @@
         "parent",
         "parent=",
         "draw",
+        "count",
+        "play_animation"
+      ],
+      "GMR::SpriteAnimation": [
+        "initialize",
+        "play",
+        "pause",
+        "stop",
+        "on_complete",
+        "on_frame_change",
+        "playing?",
+        "complete?",
+        "frame",
+        "frame=",
+        "fps",
+        "fps=",
+        "loop?",
+        "loop=",
         "count"
+      ],
+      "GMR::StateMachine": [
+        "attach",
+        "count",
+        "trigger",
+        "state",
+        "state=",
+        "active?",
+        "animate",
+        "on",
+        "enter",
+        "exit",
+        "on_input",
+        "state_machine"
       ],
       "Transform2D": [
         "initialize",
@@ -638,10 +725,23 @@
         "parent=",
         "world_position"
       ],
-      "GMR::Audio::Sound": [
-        "play",
-        "stop",
-        "volume="
+      "GMR::Tween": [
+        "to",
+        "from",
+        "on_complete",
+        "on_update",
+        "cancel",
+        "pause",
+        "resume",
+        "complete?",
+        "active?",
+        "paused?",
+        "progress",
+        "cancel_all",
+        "count"
+      ],
+      "GMR": [
+        "inspect"
       ]
     },
     "constants": {

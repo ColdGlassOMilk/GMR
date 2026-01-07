@@ -15,7 +15,15 @@
 #include "gmr/bindings/sprite.hpp"
 #include "gmr/bindings/node.hpp"
 #include "gmr/bindings/scene.hpp"
+#include "gmr/bindings/ease.hpp"
+#include "gmr/bindings/tween.hpp"
+#include "gmr/bindings/sprite_animation.hpp"
+#include "gmr/bindings/state_machine.hpp"
+#include "gmr/bindings/animator.hpp"
 #include "gmr/scene.hpp"
+#include "gmr/state_machine/state_machine_manager.hpp"
+#include "gmr/animation/animation_manager.hpp"
+#include "gmr/input/input_manager.hpp"
 #include "gmr/console/console_module.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
@@ -77,6 +85,15 @@ void Loader::register_all_bindings() {
 
     // Register Scene and SceneManager
     bindings::register_scene(mrb_);
+
+    // Register Animation system (GMR::Ease, GMR::Tween, GMR::SpriteAnimation, GMR::Animator)
+    bindings::register_ease(mrb_);
+    bindings::register_tween(mrb_);
+    bindings::register_sprite_animation(mrb_);
+    bindings::register_animator(mrb_);
+
+    // Register State Machine system (GMR::StateMachine)
+    bindings::register_state_machine(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);
@@ -322,6 +339,12 @@ void Loader::load(const std::string& script_dir) {
     if (mrb_) {
         // Clear scene stack before closing mruby state
         SceneManager::instance().clear(mrb_);
+        // Clear animations before closing mruby state
+        animation::AnimationManager::instance().clear(mrb_);
+        // Clear state machines before closing mruby state
+        state_machine::StateMachineManager::instance().clear(mrb_);
+        // Clear input callbacks and bindings before closing mruby state
+        input::InputManager::instance().clear(mrb_);
         mrb_close(mrb_);
         mrb_ = nullptr;
     }

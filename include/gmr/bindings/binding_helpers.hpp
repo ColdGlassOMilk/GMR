@@ -11,6 +11,10 @@
 #include <mruby/data.h>
 
 namespace gmr {
+
+// Forward declarations
+struct TilemapData;
+
 namespace bindings {
 
 // Parse color from mruby args - supports [r,g,b], [r,g,b,a], or r,g,b / r,g,b,a
@@ -52,6 +56,31 @@ int parse_key_arg(mrb_state* mrb, mrb_value arg);
 
 // Parse mouse button argument - accepts integer or symbol
 int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg);
+
+} // namespace bindings
+
+// Forward declaration of InputPhase from gmr::input module
+namespace input {
+    enum class InputPhase;
+}
+
+namespace bindings {
+
+// ============================================================================
+// Input Phase Parsing (for event-driven input system)
+// ============================================================================
+
+// Parse input phase from symbol (:pressed, :released, :held)
+// Returns Pressed if symbol is unknown or nil
+gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg);
+
+// ============================================================================
+// Tilemap Helpers (for Collision module)
+// ============================================================================
+
+// Get TilemapData pointer from a Ruby Tilemap object
+// Returns nullptr if the object is not a valid Tilemap
+TilemapData* get_tilemap_from_value(mrb_state* mrb, mrb_value tilemap_obj);
 
 } // namespace bindings
 } // namespace gmr

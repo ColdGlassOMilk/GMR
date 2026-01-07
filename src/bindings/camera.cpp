@@ -1,6 +1,9 @@
 #include "gmr/bindings/camera.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/draw_queue.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include "raylib.h"
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -17,16 +20,93 @@ namespace bindings {
 /// @description A 2D camera for scrolling, zooming, and rotating the view.
 ///   Supports smooth following, screen shake, bounds constraints, and coordinate conversion.
 ///   Use the camera.use { } block to render in camera space.
-/// @example # Basic camera setup
-///   @camera = Camera2D.new
-///   @camera.target = Vec2.new(player.x, player.y)
-///   @camera.offset = Vec2.new(400, 300)  # Center of 800x600 screen
-///   @camera.zoom = 1.0
-/// @example # Camera with smooth following
-///   @camera.follow(@player, smoothing: 0.1, deadzone: Rect.new(380, 280, 40, 40))
-/// @example # Rendering with camera
-///   @camera.use do
-///     draw_world()  # All drawing here uses camera transform
+/// @example # Complete platformer camera with player following and bounds
+///   class GameScene < GMR::Scene
+///     def init
+///       @player = Player.new(100, 300)
+///       @world_bounds = Rect.new(0, 0, 3200, 600)  # Large level
+///
+///       # Set up camera centered on screen
+///       @camera = Camera2D.new
+///       @camera.offset = Vec2.new(GMR::Window.width / 2, GMR::Window.height / 2)
+///       @camera.zoom = 1.0
+///
+///       # Follow player with smooth tracking and deadzone
+///       @camera.follow(@player, smoothing: 0.08, deadzone: Rect.new(
+///         GMR::Window.width / 2 - 50,
+///         GMR::Window.height / 2 - 30,
+///         100, 60
+///       ))
+///
+///       # Constrain camera to world bounds
+///       @camera.bounds = @world_bounds
+///     end
+///
+///     def update(dt)
+///       @player.update(dt)
+///       @camera.update(dt)  # Updates follow smoothing
+///     end
+///
+///     def draw
+///       # Draw world in camera space
+///       @camera.use do
+///         draw_background
+///         draw_tilemap
+///         @player.draw
+///         @enemies.each(&:draw)
+///       end
+///
+///       # Draw HUD in screen space (outside camera.use)
+///       draw_hud
+///     end
+///   end
+/// @example # Camera effects: shake on damage, zoom for scope mode
+///   class Player
+///     def take_damage(amount)
+///       @health -= amount
+///       # Screen shake intensity based on damage
+///       Camera2D.current.shake(strength: amount * 0.5, duration: 0.3)
+///       GMR::Audio::Sound.play("assets/hit.wav")
+///     end
+///
+///     def toggle_scope
+///       @scoped = !@scoped
+///       target_zoom = @scoped ? 2.0 : 1.0
+///       # Smooth zoom transition
+///       GMR::Tween.to(Camera2D.current, :zoom, target_zoom, duration: 0.25, ease: :out_cubic)
+///     end
+///   end
+/// @example # Mouse-to-world coordinate conversion for point-and-click
+///   def update(dt)
+///     if GMR::Input.mouse_pressed?(:left)
+///       # Convert screen mouse position to world coordinates
+///       world_pos = @camera.screen_to_world(GMR::Input.mouse_x, GMR::Input.mouse_y)
+///       @player.move_to(world_pos.x, world_pos.y)
+///     end
+///   end
+/// @example # Multiple cameras for minimap
+///   class GameScene < GMR::Scene
+///     def init
+///       @main_camera = Camera2D.new
+///       @main_camera.offset = Vec2.new(400, 300)
+///
+///       @minimap_camera = Camera2D.new
+///       @minimap_camera.zoom = 0.1  # Zoomed out for overview
+///       @minimap_camera.offset = Vec2.new(700, 50)  # Top-right corner
+///     end
+///
+///     def draw
+///       # Main view
+///       @main_camera.use do
+///         draw_world
+///       end
+///
+///       # Minimap overlay
+///       GMR::Graphics.draw_rect(620, 10, 170, 130, [0, 0, 0, 150])
+///       @minimap_camera.use do
+///         draw_world_minimap
+///       end
+///     end
 ///   end
 
 // ============================================================================
@@ -62,8 +142,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -84,14 +164,14 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym) &&
         mrb_respond_to(mrb, val, w_sym) && mrb_respond_to(mrb, val, h_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
-        mrb_value w = mrb_funcall(mrb, val, "w", 0);
-        mrb_value h = mrb_funcall(mrb, val, "h", 0);
-        return {static_cast<float>(mrb_as_float(mrb,x)),
-                static_cast<float>(mrb_as_float(mrb,y)),
-                static_cast<float>(mrb_as_float(mrb,w)),
-                static_cast<float>(mrb_as_float(mrb,h))};
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
+        mrb_value w = scripting::safe_method_call(mrb, val, "w");
+        mrb_value h = scripting::safe_method_call(mrb, val, "h");
+        return {static_cast<float>(mrb_as_float(mrb, x)),
+                static_cast<float>(mrb_as_float(mrb, y)),
+                static_cast<float>(mrb_as_float(mrb, w)),
+                static_cast<float>(mrb_as_float(mrb, h))};
     }
 
     mrb_raise(mrb, E_TYPE_ERROR, "Expected Rect or object with x/y/w/h methods");
@@ -103,7 +183,9 @@ static Rect extract_rect(mrb_state* mrb, mrb_value val) {
 // ============================================================================
 
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -402,7 +484,9 @@ static mrb_value mrb_camera_bounds(mrb_state* mrb, mrb_value self) {
     Camera2DState* cam = CameraManager::instance().get(data->handle);
     if (!cam || !cam->has_bounds) return mrb_nil_value();
 
-    RClass* rect_class = mrb_class_get(mrb, "Rect");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* rect_class = mrb_class_get_under(mrb, graphics, "Rect");
     mrb_value args[4] = {
         mrb_float_value(mrb, cam->bounds.x),
         mrb_float_value(mrb, cam->bounds.y),
@@ -538,9 +622,9 @@ static mrb_value mrb_camera_screen_to_world(mrb_state* mrb, mrb_value self) {
 // ============================================================================
 
 /// @method use
-/// @description Execute a block with this camera's transform applied. All drawing
-///   within the block will be transformed by the camera (position, zoom, rotation).
-///   The camera mode is automatically ended when the block completes.
+/// @description Execute a block with this camera's transform applied. All sprites
+///   drawn within the block will be rendered with the camera transform applied
+///   during the deferred rendering pass. This works correctly with z-ordering.
 /// @returns [Object] The return value of the block
 /// @example camera.use do
 ///   draw_tilemap()
@@ -563,33 +647,44 @@ static mrb_value mrb_camera_use(mrb_state* mrb, mrb_value self) {
     }
 
     CameraData* data = get_camera_data(mrb, self);
-    Camera2DState* cam = CameraManager::instance().get(data->handle);
-    if (!cam) return mrb_nil_value();
+    if (!data) return mrb_nil_value();
 
-    // Build raylib camera with shake offset applied
-    ::Camera2D raylib_cam = {};
-    raylib_cam.target = {cam->target.x, cam->target.y};
-    raylib_cam.offset = {cam->offset.x + cam->shake_offset.x,
-                         cam->offset.y + cam->shake_offset.y};
-    raylib_cam.rotation = cam->rotation;
-    raylib_cam.zoom = cam->zoom;
+    // Queue camera begin command (deferred - applied during DrawQueue::flush)
+    DrawQueue::instance().queue_camera_begin(data->handle);
 
-    // Enter camera mode
-    BeginMode2D(raylib_cam);
+    // Yield to block - sprites drawn here will be queued between camera begin/end
+    mrb_value result = scripting::safe_yield(mrb, block, mrb_nil_value());
 
-    // Yield to block (protected to ensure EndMode2D is called)
-    mrb_value result = mrb_yield(mrb, block, mrb_nil_value());
-
-    // Exit camera mode
-    EndMode2D();
-
-    // Check for exception after EndMode2D
-    if (mrb->exc) {
-        // Re-raise the exception
-        mrb_exc_raise(mrb, mrb_obj_value(mrb->exc));
-    }
+    // Queue camera end command (deferred)
+    DrawQueue::instance().queue_camera_end();
 
     return result;
+}
+
+/// @method begin
+/// @description Begin camera transform. All subsequent sprite draws will use this
+///   camera until `end` is called. Prefer `use { }` block syntax when possible.
+/// @returns [Camera2D] self for chaining
+/// @example camera.begin
+///   @sprites.each(&:draw)
+///   camera.end
+static mrb_value mrb_camera_begin(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    DrawQueue::instance().queue_camera_begin(data->handle);
+    return self;
+}
+
+/// @method end
+/// @description End camera transform. Should be called after `begin`.
+/// @returns [Camera2D] self for chaining
+static mrb_value mrb_camera_end(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    if (!data) return mrb_nil_value();
+
+    DrawQueue::instance().queue_camera_end();
+    return self;
 }
 
 // ============================================================================
@@ -638,8 +733,10 @@ static mrb_value mrb_camera_class_current(mrb_state* mrb, mrb_value klass) {
 // ============================================================================
 
 void register_camera(mrb_state* mrb) {
-    // Camera2D class (top-level)
-    RClass* camera_class = mrb_define_class(mrb, "Camera2D", mrb->object_class);
+    // Camera2D class under GMR::Graphics
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* camera_class = mrb_define_class_under(mrb, graphics, "Camera2D", mrb->object_class);
     MRB_SET_INSTANCE_TT(camera_class, MRB_TT_CDATA);
 
     // Initialize class variable (mrb_cv_set needs mrb_value, not RClass*)
@@ -677,6 +774,10 @@ void register_camera(mrb_state* mrb) {
 
     // Scoped usage
     mrb_define_method(mrb, camera_class, "use", mrb_camera_use, MRB_ARGS_BLOCK());
+
+    // Explicit begin/end for advanced use
+    mrb_define_method(mrb, camera_class, "begin", mrb_camera_begin, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "end", mrb_camera_end, MRB_ARGS_NONE());
 
     // Class methods
     mrb_define_class_method(mrb, camera_class, "current", mrb_camera_class_current, MRB_ARGS_NONE());

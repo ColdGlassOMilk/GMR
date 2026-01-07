@@ -62,6 +62,16 @@ set(SOURCES
     src/bindings/sprite.cpp
     src/bindings/node.cpp
     src/bindings/scene.cpp
+    src/bindings/ease.cpp
+    src/bindings/tween.cpp
+    src/bindings/sprite_animation.cpp
+    src/bindings/animator.cpp
+    src/bindings/state_machine.cpp
+    src/animation/easing.cpp
+    src/animation/animation_manager.cpp
+    src/state_machine/state_machine_manager.cpp
+    src/input/input_manager.cpp
+    src/input/input_context.cpp
     src/transform.cpp
     src/node.cpp
     src/scene.cpp

@@ -113,9 +113,19 @@
         "back"
       ]
     },
+    "Sound": {
+      "kind": "class",
+      "module": "GMR::Audio::Sound",
+      "description": "TODO: Add description"
+    },
     "Camera2D": {
       "kind": "class",
       "module": "Camera2D",
+      "description": "TODO: Add description"
+    },
+    "Ease": {
+      "kind": "class",
+      "module": "GMR::Ease",
       "description": "TODO: Add description"
     },
     "Texture": {
@@ -163,14 +173,24 @@
       "module": "Sprite",
       "description": "TODO: Add description"
     },
+    "SpriteAnimation": {
+      "kind": "class",
+      "module": "GMR::SpriteAnimation",
+      "description": "TODO: Add description"
+    },
+    "StateMachine": {
+      "kind": "class",
+      "module": "GMR::StateMachine",
+      "description": "TODO: Add description"
+    },
     "Transform2D": {
       "kind": "class",
       "module": "Transform2D",
       "description": "TODO: Add description"
     },
-    "Sound": {
+    "Tween": {
       "kind": "class",
-      "module": "GMR::Audio::Sound",
+      "module": "GMR::Tween",
       "description": "TODO: Add description"
     },
     "GMR": {
@@ -180,6 +200,391 @@
     }
   },
   "modules": {
+    "GMR::Collision": {
+      "description": "TODO: Add description",
+      "functions": {
+        "point_in_rect?": {
+          "description": "Check if a point is inside a rectangle.",
+          "params": [
+            {
+              "name": "px",
+              "type": "Float",
+              "description": "Point X coordinate"
+            },
+            {
+              "name": "py",
+              "type": "Float",
+              "description": "Point Y coordinate"
+            },
+            {
+              "name": "rx",
+              "type": "Float",
+              "description": "Rectangle X position (top-left)"
+            },
+            {
+              "name": "ry",
+              "type": "Float",
+              "description": "Rectangle Y position (top-left)"
+            },
+            {
+              "name": "rw",
+              "type": "Float",
+              "description": "Rectangle width"
+            },
+            {
+              "name": "rh",
+              "type": "Float",
+              "description": "Rectangle height"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the point is inside the rectangle"
+          },
+          "example": "if GMR::Collision.point_in_rect?(mouse_x, mouse_y, btn.x, btn.y, btn.w, btn.h)\n  button_hovered = true\r\nend\r"
+        },
+        "point_in_circle?": {
+          "description": "Check if a point is inside a circle.",
+          "params": [
+            {
+              "name": "px",
+              "type": "Float",
+              "description": "Point X coordinate"
+            },
+            {
+              "name": "py",
+              "type": "Float",
+              "description": "Point Y coordinate"
+            },
+            {
+              "name": "cx",
+              "type": "Float",
+              "description": "Circle center X coordinate"
+            },
+            {
+              "name": "cy",
+              "type": "Float",
+              "description": "Circle center Y coordinate"
+            },
+            {
+              "name": "radius",
+              "type": "Float",
+              "description": "Circle radius"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the point is inside the circle"
+          },
+          "example": "if GMR::Collision.point_in_circle?(x, y, orb.x, orb.y, orb.radius)\n  orb.collect\r\nend\r"
+        },
+        "rect_overlap?": {
+          "description": "Check if two rectangles overlap (AABB collision).",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First rectangle X position"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First rectangle Y position"
+            },
+            {
+              "name": "w1",
+              "type": "Float",
+              "description": "First rectangle width"
+            },
+            {
+              "name": "h1",
+              "type": "Float",
+              "description": "First rectangle height"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second rectangle X position"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second rectangle Y position"
+            },
+            {
+              "name": "w2",
+              "type": "Float",
+              "description": "Second rectangle width"
+            },
+            {
+              "name": "h2",
+              "type": "Float",
+              "description": "Second rectangle height"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the rectangles overlap"
+          },
+          "example": "if GMR::Collision.rect_overlap?(player.x, player.y, 32, 48,\n                                         platform.x, platform.y, 64, 16)\r\n  player.on_ground = true\r\nend\r"
+        },
+        "rect_contains?": {
+          "description": "Check if the outer rectangle fully contains the inner rectangle.",
+          "params": [
+            {
+              "name": "outer_x",
+              "type": "Float",
+              "description": "Outer rectangle X position"
+            },
+            {
+              "name": "outer_y",
+              "type": "Float",
+              "description": "Outer rectangle Y position"
+            },
+            {
+              "name": "outer_w",
+              "type": "Float",
+              "description": "Outer rectangle width"
+            },
+            {
+              "name": "outer_h",
+              "type": "Float",
+              "description": "Outer rectangle height"
+            },
+            {
+              "name": "inner_x",
+              "type": "Float",
+              "description": "Inner rectangle X position"
+            },
+            {
+              "name": "inner_y",
+              "type": "Float",
+              "description": "Inner rectangle Y position"
+            },
+            {
+              "name": "inner_w",
+              "type": "Float",
+              "description": "Inner rectangle width"
+            },
+            {
+              "name": "inner_h",
+              "type": "Float",
+              "description": "Inner rectangle height"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the inner rectangle is fully inside the outer rectangle"
+          },
+          "example": "if GMR::Collision.rect_contains?(screen_x, screen_y, screen_w, screen_h,\n                                          entity.x, entity.y, entity.w, entity.h)\r\n  entity.draw  # Only draw if fully on screen\r\nend\r"
+        },
+        "circle_overlap?": {
+          "description": "Check if two circles overlap.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First circle center X"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First circle center Y"
+            },
+            {
+              "name": "r1",
+              "type": "Float",
+              "description": "First circle radius"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second circle center X"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second circle center Y"
+            },
+            {
+              "name": "r2",
+              "type": "Float",
+              "description": "Second circle radius"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the circles overlap"
+          },
+          "example": "if GMR::Collision.circle_overlap?(ball1.x, ball1.y, ball1.r,\n                                           ball2.x, ball2.y, ball2.r)\r\n  bounce_balls(ball1, ball2)\r\nend\r"
+        },
+        "circle_rect_overlap?": {
+          "description": "Check if a circle overlaps with a rectangle.",
+          "params": [
+            {
+              "name": "cx",
+              "type": "Float",
+              "description": "Circle center X"
+            },
+            {
+              "name": "cy",
+              "type": "Float",
+              "description": "Circle center Y"
+            },
+            {
+              "name": "cr",
+              "type": "Float",
+              "description": "Circle radius"
+            },
+            {
+              "name": "rx",
+              "type": "Float",
+              "description": "Rectangle X position"
+            },
+            {
+              "name": "ry",
+              "type": "Float",
+              "description": "Rectangle Y position"
+            },
+            {
+              "name": "rw",
+              "type": "Float",
+              "description": "Rectangle width"
+            },
+            {
+              "name": "rh",
+              "type": "Float",
+              "description": "Rectangle height"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the circle and rectangle overlap"
+          },
+          "example": "if GMR::Collision.circle_rect_overlap?(ball.x, ball.y, ball.r,\n                                                 wall.x, wall.y, wall.w, wall.h)\r\n  ball.bounce\r\nend\r"
+        },
+        "rect_tiles": {
+          "description": "Get all tile coordinates that a rectangle overlaps. Useful for tile-based collision detection.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Rectangle X position"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Rectangle Y position"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "Rectangle width"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "Rectangle height"
+            },
+            {
+              "name": "tile_size",
+              "type": "Integer",
+              "description": "Size of each tile in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Array<Array<Integer>>",
+            "description": "Array of [tx, ty] tile coordinate pairs"
+          },
+          "example": "tiles = GMR::Collision.rect_tiles(player.x, player.y, 32, 48, 16)\n  tiles.each do |tx, ty|\r\n    if tilemap.solid?(tx, ty)\r\n      # Handle collision with this tile\r\n    end\r\n  end\r"
+        },
+        "tile_rect": {
+          "description": "Convert tile coordinates to a world-space rectangle.",
+          "params": [
+            {
+              "name": "tx",
+              "type": "Integer",
+              "description": "Tile X coordinate"
+            },
+            {
+              "name": "ty",
+              "type": "Integer",
+              "description": "Tile Y coordinate"
+            },
+            {
+              "name": "tile_size",
+              "type": "Integer",
+              "description": "Size of each tile in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Array<Integer>",
+            "description": "Rectangle as [x, y, width, height]"
+          },
+          "example": "x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)\n  # Returns [80, 48, 16, 16]\r"
+        },
+        "distance": {
+          "description": "Calculate the Euclidean distance between two points.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First point X"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First point Y"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second point X"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second point Y"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Distance between the points"
+          },
+          "example": "dist = GMR::Collision.distance(player.x, player.y, enemy.x, enemy.y)\n  if dist < attack_range\r\n    attack_enemy(enemy)\r\n  end\r"
+        },
+        "distance_squared": {
+          "description": "Calculate the squared distance between two points. Faster than distance() since it avoids the square root. Use for comparisons.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "First point X"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "First point Y"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "Second point X"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "Second point Y"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Squared distance between the points"
+          },
+          "example": "# More efficient for distance comparisons\n  dist_sq = GMR::Collision.distance_squared(a.x, a.y, b.x, b.y)\r\n  if dist_sq < range * range\r\n    in_range = true\r\n  end\r"
+        }
+      }
+    },
     "GMR::Graphics": {
       "description": "TODO: Add description",
       "functions": {
@@ -626,522 +1031,341 @@
         }
       }
     },
-    "GMR::Collision": {
-      "description": "TODO: Add description",
-      "functions": {
-        "point_in_rect?": {
-          "signature": "point_in_rect?(arg1, arg2, arg3, arg4, arg5, arg6)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            },
-            {
-              "name": "arg6",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "point_in_circle?": {
-          "signature": "point_in_circle?(arg1, arg2, arg3, arg4, arg5)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "rect_overlap?": {
-          "signature": "rect_overlap?(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            },
-            {
-              "name": "arg6",
-              "type": "Float"
-            },
-            {
-              "name": "arg7",
-              "type": "Float"
-            },
-            {
-              "name": "arg8",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "rect_contains?": {
-          "signature": "rect_contains?(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            },
-            {
-              "name": "arg6",
-              "type": "Float"
-            },
-            {
-              "name": "arg7",
-              "type": "Float"
-            },
-            {
-              "name": "arg8",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "circle_overlap?": {
-          "signature": "circle_overlap?(arg1, arg2, arg3, arg4, arg5, arg6)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            },
-            {
-              "name": "arg6",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "circle_rect_overlap?": {
-          "signature": "circle_rect_overlap?(arg1, arg2, arg3, arg4, arg5, arg6, arg7)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Float"
-            },
-            {
-              "name": "arg6",
-              "type": "Float"
-            },
-            {
-              "name": "arg7",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "rect_tiles": {
-          "signature": "rect_tiles(arg1, arg2, arg3, arg4, arg5)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            },
-            {
-              "name": "arg5",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "tile_rect": {
-          "signature": "tile_rect(arg1, arg2, arg3)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            },
-            {
-              "name": "arg3",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "distance": {
-          "signature": "distance(arg1, arg2, arg3, arg4)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "distance_squared": {
-          "signature": "distance_squared(arg1, arg2, arg3, arg4)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Float"
-            },
-            {
-              "name": "arg2",
-              "type": "Float"
-            },
-            {
-              "name": "arg3",
-              "type": "Float"
-            },
-            {
-              "name": "arg4",
-              "type": "Float"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        }
-      }
-    },
     "GMR::Input": {
       "description": "TODO: Add description",
       "functions": {
         "mouse_x": {
-          "signature": "mouse_x",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the mouse X position in virtual resolution coordinates. Automatically accounts for letterboxing when using virtual resolution.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Mouse X position"
+          },
+          "example": "x = GMR::Input.mouse_x"
         },
         "mouse_y": {
-          "signature": "mouse_y",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the mouse Y position in virtual resolution coordinates. Automatically accounts for letterboxing when using virtual resolution.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Mouse Y position"
+          },
+          "example": "y = GMR::Input.mouse_y"
         },
         "mouse_down?": {
-          "signature": "mouse_down?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mouse button is currently held down.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "The button to check (:left, :right, :middle, or constant)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the button is held"
+          },
+          "example": "if GMR::Input.mouse_down?(:left)\n  player.aim\nend"
         },
         "mouse_pressed?": {
-          "signature": "mouse_pressed?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mouse button was just pressed this frame.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "The button to check (:left, :right, :middle, or constant)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the button was just pressed"
+          },
+          "example": "if GMR::Input.mouse_pressed?(:left)\n  player.shoot\nend"
         },
         "mouse_released?": {
-          "signature": "mouse_released?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mouse button was just released this frame.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "The button to check (:left, :right, :middle, or constant)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the button was just released"
+          },
+          "example": "if GMR::Input.mouse_released?(:left)\n  bow.release_arrow\nend"
         },
         "mouse_wheel": {
-          "signature": "mouse_wheel",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the mouse wheel movement this frame. Positive values indicate scrolling up/forward, negative values indicate scrolling down/backward.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Float",
+            "description": "Wheel movement amount"
+          },
+          "example": "zoom += GMR::Input.mouse_wheel * 0.1"
         },
         "key_down?": {
-          "signature": "key_down?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a key is currently held down. Accepts a single key or an array of keys (returns true if any key in the array is held).",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "key",
+              "type": "Symbol, Integer, Array",
+              "description": "The key(s) to check (:space, :a, :left, etc.)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the key (or any key in array) is held"
+          },
+          "example": "if GMR::Input.key_down?([:a, :left])  # Either key works\n  player.move_left\nend"
         },
         "key_pressed?": {
-          "signature": "key_pressed?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a key was just pressed this frame. Accepts a single key or an array of keys (returns true if any key in the array was just pressed).",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "key",
+              "type": "Symbol, Integer, Array",
+              "description": "The key(s) to check"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the key (or any key in array) was just pressed"
+          },
+          "example": "if GMR::Input.key_pressed?(:space)\n  player.jump\nend"
         },
         "key_released?": {
-          "signature": "key_released?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a key was just released this frame. Accepts a single key or an array of keys (returns true if any key in the array was just released).",
           "params": [
             {
-              "name": "arg1",
-              "type": "Object"
+              "name": "key",
+              "type": "Symbol, Integer, Array",
+              "description": "The key(s) to check"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the key (or any key in array) was just released"
+          },
+          "example": "if GMR::Input.key_released?(:shift)\n  player.stop_running\nend"
         },
         "key_pressed": {
-          "signature": "key_pressed",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the key code of the last key pressed this frame. Useful for text input or detecting any key press.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer, nil",
+            "description": "Key code, or nil if no key was pressed"
+          },
+          "example": "key = GMR::Input.key_pressed\n  if key\n    puts \"Key code: #{key}\"\n  end"
         },
         "char_pressed": {
-          "signature": "char_pressed",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the Unicode character code of the last character pressed this frame. Useful for text input fields. Returns the character, not the key code.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer, nil",
+            "description": "Unicode character code, or nil if no character was pressed"
+          },
+          "example": "char = GMR::Input.char_pressed\n  if char"
         },
         "map": {
-          "signature": "map(arg1, arg2)",
-          "description": "TODO: Add documentation",
+          "description": "Map an action name to input bindings. Supports two forms: Traditional form maps a single action to keys directly. Block form allows defining multiple actions with a DSL.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Symbol"
+              "name": "action",
+              "type": "Symbol",
+              "description": "(optional) The action name for traditional form"
             },
             {
-              "name": "arg2",
-              "type": "Object"
+              "name": "keys",
+              "type": "Symbol, Array",
+              "description": "(optional) Key(s) to bind for traditional form"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "# Block DSL form\n  GMR::Input.map do |i|\n    i.action :jump, key: :space\n    i.action :attack, keys: [:z, :x], mouse: :left\n  end"
         },
         "unmap": {
-          "signature": "unmap(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Remove an action mapping by name.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Symbol"
+              "name": "action",
+              "type": "Symbol",
+              "description": "The action name to remove"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Input.unmap(:jump)"
         },
         "clear_mappings": {
-          "signature": "clear_mappings",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Remove all action mappings.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Input.clear_mappings"
         },
         "action_down?": {
-          "signature": "action_down?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mapped action is currently active (any bound input is held).",
           "params": [
             {
-              "name": "arg1",
-              "type": "Symbol"
+              "name": "action",
+              "type": "Symbol",
+              "description": "The action name to check"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the action is active"
+          },
+          "example": "if GMR::Input.action_down?(:move_left)\n  player.x -= speed\nend"
         },
         "action_pressed?": {
-          "signature": "action_pressed?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mapped action was just triggered this frame.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Symbol"
+              "name": "action",
+              "type": "Symbol",
+              "description": "The action name to check"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the action was just triggered"
+          },
+          "example": "if GMR::Input.action_pressed?(:jump)\n  player.jump\nend"
         },
         "action_released?": {
-          "signature": "action_released?(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Check if a mapped action was just released this frame.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Symbol"
+              "name": "action",
+              "type": "Symbol",
+              "description": "The action name to check"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if the action was just released"
+          },
+          "example": "if GMR::Input.action_released?(:charge_attack)\n  player.release_charge\nend"
+        },
+        "on": {
+          "description": "Register a callback for an action. The callback fires when the action reaches the specified phase. Returns an ID for later removal with `off`.",
+          "params": [
+            {
+              "name": "action",
+              "type": "Symbol",
+              "description": "The action name to listen for"
+            },
+            {
+              "name": "when",
+              "type": "Symbol",
+              "description": "(optional, default: :pressed) Phase: :pressed, :down, or :released"
+            },
+            {
+              "name": "context",
+              "type": "Object",
+              "description": "(optional) Object to use as self in the callback block"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "Callback ID for later removal"
+          },
+          "example": "# With phase and context\n  id = GMR::Input.on(:attack, when: :released, context: player) do\n    release_charge_attack\n  end\n  GMR::Input.off(id)  # Remove later"
+        },
+        "off": {
+          "description": "Remove input callback(s). Pass an ID to remove a specific callback, or an action name to remove all callbacks for that action.",
+          "params": [
+            {
+              "name": "id_or_action",
+              "type": "Integer, Symbol",
+              "description": "Callback ID or action name"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Input.off(:jump)        # Remove all :jump callbacks"
+        },
+        "push_context": {
+          "description": "Push a named input context onto the stack. Actions defined in this context become active. Previous contexts remain on the stack.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The context name to push"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Input.push_context(:menu)\n  # :menu actions are now active, game actions still on stack"
+        },
+        "pop_context": {
+          "description": "Pop the current input context from the stack, returning to the previous context.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Input.pop_context  # Return to previous context"
+        },
+        "set_context": {
+          "description": "Replace the entire context stack with a single context. Clears the stack and sets the named context as the only active context.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The context name to set"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Input.set_context(:gameplay)"
+        },
+        "current_context": {
+          "description": "Get the name of the current active input context.",
+          "returns": {
+            "type": "Symbol, nil",
+            "description": "Current context name, or nil if no context is active"
+          },
+          "example": "context = GMR::Input.current_context"
+        },
+        "has_context?": {
+          "description": "Check if a named input context exists (has been defined).",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The context name to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the context exists"
+          },
+          "example": "if GMR::Input.has_context?(:menu)\n  GMR::Input.push_context(:menu)\nend"
+        },
+        "input": {
+          "description": "Define global input actions using a verb-style DSL. Actions defined here are always available regardless of context.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "input do |i|\n  i.jump :space\n  i.move_left [:a, :left]\n  i.attack :z, mouse: :left\nend"
+        },
+        "input_context": {
+          "description": "Define input actions for a named context. Context-specific actions are only active when that context is pushed onto the stack.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The context name"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "input_context :menu do |i|\n  i.confirm :enter\n  i.cancel :escape\n  i.navigate_up :up\n  i.navigate_down :down\nend"
         }
       }
     },
@@ -1149,320 +1373,436 @@
       "description": "TODO: Add description",
       "functions": {
         "random_int": {
-          "signature": "random_int(arg1, arg2)",
-          "description": "TODO: Add documentation",
+          "description": "Generate a random integer within an inclusive range.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "min",
+              "type": "Integer",
+              "description": "Minimum value (inclusive)"
             },
             {
-              "name": "arg2",
-              "type": "Integer"
+              "name": "max",
+              "type": "Integer",
+              "description": "Maximum value (inclusive)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Random integer between min and max"
+          },
+          "example": "dice = GMR::System.random_int(1, 6)"
         },
         "random_float": {
-          "signature": "random_float",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Generate a random float between 0.0 and 1.0.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Float",
+            "description": "Random float in range [0.0, 1.0]"
+          },
+          "example": "chance = GMR::System.random_float\n  critical_hit = chance > 0.9"
         },
         "quit": {
-          "signature": "quit",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Immediately exit the application. Closes the window and terminates the process.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::System.quit  # Exit the game"
         },
         "platform": {
-          "signature": "platform",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the current platform identifier.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "Platform name: \"windows\", \"macos\", \"linux\", \"web\", or \"unknown\""
+          },
+          "example": "if GMR::System.platform == \"web\"\n  # Disable desktop-only features\nend"
         },
         "build_type": {
-          "signature": "build_type",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the build configuration type.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "Build type: \"debug\", \"release\", or \"unknown\""
+          },
+          "example": "if GMR::System.build_type == \"debug\"\n  enable_debug_overlay\nend"
         },
         "compiled_scripts?": {
-          "signature": "compiled_scripts?",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Check if scripts were precompiled into the binary.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if scripts are compiled in, false if loading from files"
+          },
+          "example": "puts \"Scripts compiled: #{GMR::System.compiled_scripts?}\""
         },
         "raylib_version": {
-          "signature": "raylib_version",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the version of the underlying Raylib graphics library.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "Raylib version string (e.g., \"5.0\")"
+          },
+          "example": "puts \"Raylib: #{GMR::System.raylib_version}\""
         },
         "gpu_vendor": {
-          "signature": "gpu_vendor",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the GPU vendor name from OpenGL.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "GPU vendor name (e.g., \"NVIDIA Corporation\") or \"unknown\""
+          },
+          "example": "puts \"GPU Vendor: #{GMR::System.gpu_vendor}\""
         },
         "gpu_renderer": {
-          "signature": "gpu_renderer",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the GPU renderer name from OpenGL.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "GPU renderer name (e.g., \"GeForce RTX 3080\") or \"WebGL\""
+          },
+          "example": "puts \"GPU: #{GMR::System.gpu_renderer}\""
         },
         "gl_version": {
-          "signature": "gl_version",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the OpenGL version string.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "OpenGL version (e.g., \"4.6.0\") or \"WebGL 2.0\""
+          },
+          "example": "puts \"OpenGL: #{GMR::System.gl_version}\""
         },
         "glsl_version": {
-          "signature": "glsl_version",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the GLSL (shader language) version string.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "GLSL version (e.g., \"4.60\") or \"GLSL ES 3.00\""
+          },
+          "example": "puts \"GLSL: #{GMR::System.glsl_version}\""
         },
         "last_error": {
-          "signature": "last_error",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get details about the last script error. Returns nil if no error occurred.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Hash, nil",
+            "description": "Error hash with keys :class, :message, :file, :line, :backtrace, or nil"
+          },
+          "example": "error = GMR::System.last_error\n  if error\n    puts \"#{error[:class]}: #{error[:message]}\"\n    puts \"  at #{error[:file]}:#{error[:line]}\"\n    error[:backtrace].each { |line| puts \"    #{line}\" }\n  end"
         },
         "in_error_state?": {
-          "signature": "in_error_state?",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Check if the scripting engine is currently in an error state.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if an unhandled error has occurred"
+          },
+          "example": "if GMR::System.in_error_state?\n  show_error_screen\nend"
         }
       }
     },
     "GMR::Window": {
       "description": "TODO: Add description",
       "functions": {
-        "actual_width": {
-          "signature": "actual_width",
-          "description": "TODO: Add documentation",
-          "params": [],
+        "width": {
+          "description": "Get the logical width of the game screen. Returns virtual resolution width if set, otherwise the actual window width.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Screen width in pixels"
+          },
+          "example": "screen_w = GMR::Window.width"
+        },
+        "height": {
+          "description": "Get the logical height of the game screen. Returns virtual resolution height if set, otherwise the actual window height.",
+          "returns": {
+            "type": "Integer",
+            "description": "Screen height in pixels"
+          },
+          "example": "screen_h = GMR::Window.height"
+        },
+        "actual_width": {
+          "description": "Get the actual window width in pixels, ignoring virtual resolution.",
+          "returns": {
+            "type": "Integer",
+            "description": "Actual window width"
+          },
+          "example": "real_w = GMR::Window.actual_width"
         },
         "actual_height": {
-          "signature": "actual_height",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the actual window height in pixels, ignoring virtual resolution.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Actual window height"
+          },
+          "example": "real_h = GMR::Window.actual_height"
         },
         "set_size": {
-          "signature": "set_size(arg1, arg2)",
-          "description": "TODO: Add documentation",
+          "description": "Set the window size. Has no effect in fullscreen mode.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "w",
+              "type": "Integer",
+              "description": "Window width in pixels"
             },
             {
-              "name": "arg2",
-              "type": "Integer"
+              "name": "h",
+              "type": "Integer",
+              "description": "Window height in pixels"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Window.set_size(1280, 720)"
         },
         "set_title": {
-          "signature": "set_title(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Set the window title bar text.",
           "params": [
             {
-              "name": "arg1",
-              "type": "String"
+              "name": "title",
+              "type": "String",
+              "description": "The window title"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Window.set_title(\"My Awesome Game\")"
         },
         "toggle_fullscreen": {
-          "signature": "toggle_fullscreen",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Toggle between fullscreen and windowed mode.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true"
+          },
+          "example": "GMR::Window.toggle_fullscreen"
         },
         "fullscreen=": {
-          "signature": "fullscreen=(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Set fullscreen mode on or off.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Boolean"
+              "name": "fullscreen",
+              "type": "Boolean",
+              "description": "true for fullscreen, false for windowed"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "The fullscreen state that was set"
+          },
+          "example": "GMR::Window.fullscreen = true"
         },
         "fullscreen?": {
-          "signature": "fullscreen?",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Check if the window is currently in fullscreen mode.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if fullscreen"
+          },
+          "example": "if GMR::Window.fullscreen?\n  show_windowed_mode_button\nend"
         },
         "set_virtual_resolution": {
-          "signature": "set_virtual_resolution(arg1, arg2)",
-          "description": "TODO: Add documentation",
+          "description": "Set a virtual resolution for pixel-perfect rendering. The game renders to this resolution and scales to fit the window with letterboxing.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "w",
+              "type": "Integer",
+              "description": "Virtual width in pixels"
             },
             {
-              "name": "arg2",
-              "type": "Integer"
+              "name": "h",
+              "type": "Integer",
+              "description": "Virtual height in pixels"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true"
+          },
+          "example": "# Render at 320x240 for retro-style game\n  GMR::Window.set_virtual_resolution(320, 240)"
         },
         "clear_virtual_resolution": {
-          "signature": "clear_virtual_resolution",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Disable virtual resolution and render directly at window size.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true"
+          },
+          "example": "GMR::Window.clear_virtual_resolution"
         },
         "virtual_resolution?": {
-          "signature": "virtual_resolution?",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Check if virtual resolution is currently enabled.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Boolean",
+            "description": "true if virtual resolution is active"
+          },
+          "example": "if GMR::Window.virtual_resolution?\n  puts \"Using virtual resolution\"\nend"
         },
         "set_filter_point": {
-          "signature": "set_filter_point",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Set nearest-neighbor (point) filtering for virtual resolution scaling. Produces crisp, pixelated look. Only works when virtual resolution is enabled.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Window.set_filter_point  # For pixel art games"
         },
         "set_filter_bilinear": {
-          "signature": "set_filter_bilinear",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Set bilinear filtering for virtual resolution scaling. Produces smoother, blended scaling. Only works when virtual resolution is enabled.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "nil"
+          },
+          "example": "GMR::Window.set_filter_bilinear  # For smoother scaling"
         },
         "monitor_count": {
-          "signature": "monitor_count",
-          "description": "TODO: Add documentation",
-          "params": [],
+          "description": "Get the number of connected monitors.",
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Number of monitors"
+          },
+          "example": "count = GMR::Window.monitor_count"
         },
         "monitor_width": {
-          "signature": "monitor_width(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Get the width of a specific monitor.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "index",
+              "type": "Integer",
+              "description": "Monitor index (0-based)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Monitor width in pixels"
+          },
+          "example": "w = GMR::Window.monitor_width(0)  # Primary monitor"
         },
         "monitor_height": {
-          "signature": "monitor_height(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Get the height of a specific monitor.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "index",
+              "type": "Integer",
+              "description": "Monitor index (0-based)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Monitor height in pixels"
+          },
+          "example": "h = GMR::Window.monitor_height(0)"
         },
         "monitor_refresh_rate": {
-          "signature": "monitor_refresh_rate(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Get the refresh rate of a specific monitor.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "index",
+              "type": "Integer",
+              "description": "Monitor index (0-based)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Integer",
+            "description": "Refresh rate in Hz"
+          },
+          "example": "hz = GMR::Window.monitor_refresh_rate(0)"
         },
         "monitor_name": {
-          "signature": "monitor_name(arg1)",
-          "description": "TODO: Add documentation",
+          "description": "Time and frame rate utilities. Provides delta time for frame-independent movement, elapsed time tracking, and FPS management.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Integer"
+              "name": "index",
+              "type": "Integer",
+              "description": "Monitor index (0-based)"
             }
           ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "String",
+            "description": "Monitor name"
+          },
+          "example": "# Debug overlay with FPS and timing info\n  class DebugOverlay\n    def draw\n      y = 10\n      color = [0, 255, 0]\n\n      # Show current FPS\n      fps = GMR::Time.fps\n      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]\n      GMR::Graphics.draw_text(\"FPS: #{fps}\", 10, y, 16, fps_color)\n      y += 20\n\n      # Show frame time\n      frame_ms = (GMR::Time.delta * 1000).round(2)\n      GMR::Graphics.draw_text(\"Frame: #{frame_ms}ms\", 10, y, 16, color)\n      y += 20\n\n      # Show total elapsed time\n      elapsed = GMR::Time.elapsed\n      minutes = (elapsed / 60).to_i\n      seconds = (elapsed % 60).to_i\n      GMR::Graphics.draw_text(\"Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}\", 10, y, 16, color)\n    end\n  end"
         }
       }
     },
-    "GMR": {
+    "GMR::Time": {
+      "description": "TODO: Add description",
+      "functions": {
+        "delta": {
+          "description": "Get the time elapsed since the last frame in seconds. Use this for frame-independent movement and animation.",
+          "returns": {
+            "type": "Float",
+            "description": "Delta time in seconds"
+          },
+          "example": "# Move at 100 pixels per second regardless of frame rate\n  player.x += 100 * GMR::Time.delta"
+        },
+        "elapsed": {
+          "description": "Get the total time elapsed since the game started in seconds.",
+          "returns": {
+            "type": "Float",
+            "description": "Total elapsed time in seconds"
+          },
+          "example": "# Flash effect every 0.5 seconds\n  visible = (GMR::Time.elapsed % 1.0) < 0.5"
+        },
+        "fps": {
+          "description": "Get the current frames per second.",
+          "returns": {
+            "type": "Integer",
+            "description": "Current FPS"
+          },
+          "example": "puts \"FPS: #{GMR::Time.fps}\""
+        },
+        "set_target_fps": {
+          "description": "Set the target frame rate. The game will try to maintain this FPS. Set to 0 for unlimited frame rate.",
+          "params": [
+            {
+              "name": "fps",
+              "type": "Integer",
+              "description": "Target frames per second"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Time.set_target_fps(60)  # Lock to 60 FPS"
+        }
+      }
+    },
+    "GMR::Audio::Sound": {
       "kind": "class",
       "description": "TODO: Add description",
-      "instanceMethods": {
-        "inspect": {
-          "signature": "inspect",
-          "description": "TODO: Add documentation",
-          "params": [],
+      "classMethods": {
+        "load": {
+          "description": "Load a sound file from disk. Supports WAV, OGG, MP3, and other formats.",
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Path to the audio file"
+            }
+          ],
           "returns": {
-            "type": "unknown"
-          }
+            "type": "Sound",
+            "description": "The loaded sound object"
+          },
+          "raises": [
+            "RuntimeError If the file cannot be loaded"
+          ],
+          "example": "jump_sound = GMR::Audio::Sound.load(\"assets/sfx/jump.wav\")"
+        }
+      },
+      "instanceMethods": {
+        "play": {
+          "description": "Play the sound. Can be called multiple times for overlapping playback.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "sound.play"
+        },
+        "stop": {
+          "description": "Stop the sound if it's currently playing.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "sound.stop"
+        },
+        "volume=": {
+          "description": "Set the playback volume for this sound.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Volume level from 0.0 (silent) to 1.0 (full volume)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The volume that was set"
+          },
+          "example": "sound.volume = 0.5  # Half volume"
         }
       }
     },
@@ -1725,6 +2065,228 @@
             "description": "The current camera, or nil"
           },
           "example": "cam = Camera2D.current"
+        }
+      }
+    },
+    "GMR::Ease": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "linear": {
+          "description": "Linear interpolation (no easing). Constant speed throughout.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":linear"
+          }
+        },
+        "in_quad": {
+          "description": "Quadratic ease-in. Starts slow, accelerates.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_quad"
+          }
+        },
+        "out_quad": {
+          "description": "Quadratic ease-out. Starts fast, decelerates.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_quad"
+          }
+        },
+        "in_out_quad": {
+          "description": "Quadratic ease-in-out. Slow start and end, fast middle.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_quad"
+          }
+        },
+        "in_cubic": {
+          "description": "Cubic ease-in. Starts slow, accelerates more than quadratic.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_cubic"
+          }
+        },
+        "out_cubic": {
+          "description": "Cubic ease-out. Starts fast, decelerates smoothly. Most common.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_cubic"
+          }
+        },
+        "in_out_cubic": {
+          "description": "Cubic ease-in-out. Smooth acceleration and deceleration.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_cubic"
+          }
+        },
+        "in_quart": {
+          "description": "Quartic ease-in. Dramatic slow start.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_quart"
+          }
+        },
+        "out_quart": {
+          "description": "Quartic ease-out. Dramatic fast start.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_quart"
+          }
+        },
+        "in_out_quart": {
+          "description": "Quartic ease-in-out.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_quart"
+          }
+        },
+        "in_sine": {
+          "description": "Sinusoidal ease-in. Gentle acceleration.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_sine"
+          }
+        },
+        "out_sine": {
+          "description": "Sinusoidal ease-out. Gentle deceleration.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_sine"
+          }
+        },
+        "in_out_sine": {
+          "description": "Sinusoidal ease-in-out. Very smooth, subtle effect.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_sine"
+          }
+        },
+        "in_expo": {
+          "description": "Exponential ease-in. Extreme slow start.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_expo"
+          }
+        },
+        "out_expo": {
+          "description": "Exponential ease-out. Extreme fast start.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_expo"
+          }
+        },
+        "in_out_expo": {
+          "description": "Exponential ease-in-out.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_expo"
+          }
+        },
+        "in_circ": {
+          "description": "Circular ease-in.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_circ"
+          }
+        },
+        "out_circ": {
+          "description": "Circular ease-out.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_circ"
+          }
+        },
+        "in_out_circ": {
+          "description": "Circular ease-in-out.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_circ"
+          }
+        },
+        "in_back": {
+          "description": "Back ease-in. Pulls back before moving forward.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_back"
+          }
+        },
+        "out_back": {
+          "description": "Back ease-out. Overshoots target, then settles. Great for UI.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_back"
+          }
+        },
+        "in_out_back": {
+          "description": "Back ease-in-out. Overshoots on both ends.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_back"
+          }
+        },
+        "in_elastic": {
+          "description": "Elastic ease-in. Spring-like wind-up.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_elastic"
+          }
+        },
+        "out_elastic": {
+          "description": "Elastic ease-out. Spring-like bounce at end. Great for attention.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_elastic"
+          }
+        },
+        "in_out_elastic": {
+          "description": "Elastic ease-in-out. Spring on both ends.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_elastic"
+          }
+        },
+        "in_bounce": {
+          "description": "Bounce ease-in. Bouncing at start.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_bounce"
+          }
+        },
+        "out_bounce": {
+          "description": "Bounce ease-out. Bouncing at end, like a ball.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":out_bounce"
+          }
+        },
+        "in_out_bounce": {
+          "description": "Bounce ease-in-out. Bouncing on both ends.",
+          "returns": {
+            "type": "Symbol",
+            "description": ":in_out_bounce"
+          }
+        },
+        "apply": {
+          "description": "Apply an easing function to a normalized time value. Useful for custom interpolation outside of tweens.",
+          "params": [
+            {
+              "name": "ease",
+              "type": "Symbol",
+              "description": "The easing function to apply"
+            },
+            {
+              "name": "t",
+              "type": "Float",
+              "description": "Normalized time (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Eased value (usually 0.0 to 1.0, but may overshoot for elastic/back)"
+          },
+          "example": "# Custom interpolation\n  t = elapsed / duration\n  eased_t = GMR::Ease.apply(:out_back, t)\n  current_x = start_x + (end_x - start_x) * eased_t"
         }
       }
     },
@@ -2365,7 +2927,7 @@
             "type": "String",
             "description": "String in format \"Vec2(x, y)\""
           },
-          "example": "v3 = v * 0.5                 # Scale"
+          "example": "# 3D position for parallax layers\n  class ParallaxLayer\r\n    def initialize(texture, depth)\r"
         }
       }
     },
@@ -2488,7 +3050,7 @@
             "type": "String",
             "description": "String in format \"Vec3(x, y, z)\""
           },
-          "example": "puts rect.x, rect.y, rect.w, rect.h"
+          "example": "# UI layout helper\n  class UILayoutHelper\r\n    def initialize(container)\r"
         }
       }
     },
@@ -3378,6 +3940,286 @@
             "description": "The number of active sprites"
           },
           "example": "puts \"Active sprites: #{Sprite.count}\""
+        },
+        "play_animation": {
+          "description": "Convenience method to create and play a sprite animation. Creates a GMR::SpriteAnimation, calls play, and returns it for chaining.",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "The animation instance (already playing)"
+          },
+          "example": "sprite.play_animation(frames: [0, 1, 2, 3], fps: 12)"
+        }
+      }
+    },
+    "GMR::SpriteAnimation": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new sprite animation.",
+          "params": [
+            {
+              "name": "sprite",
+              "type": "Sprite",
+              "description": "The sprite to animate"
+            }
+          ],
+          "example": "# Attack combo with non-looping animation"
+        },
+        "play": {
+          "description": "Start or resume the animation.",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "self for chaining"
+          },
+          "example": "# State machine integration - play animation when entering run state\n  state :run do\n    enter { @animations[:run].play }\n    exit { @animations[:run].stop }\n    on :stop, :idle\n    on :jump, :jumping\n  end"
+        },
+        "pause": {
+          "description": "Pause the animation at the current frame.",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "self for chaining"
+          },
+          "example": "anim.pause"
+        },
+        "stop": {
+          "description": "Stop the animation and reset to the first frame.",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "self for chaining"
+          },
+          "example": "anim.stop"
+        },
+        "on_complete": {
+          "description": "Set a callback for when the animation finishes (non-looping only).",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "self for chaining"
+          },
+          "example": "# Chain attack animation into recovery state\n  def start_attack"
+        },
+        "on_frame_change": {
+          "description": "Set a callback for each frame change. Receives frame index.",
+          "returns": {
+            "type": "SpriteAnimation",
+            "description": "self for chaining"
+          },
+          "example": "# Spawn attack hitbox on specific frame"
+        },
+        "playing?": {
+          "description": "Check if the animation is currently playing.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if playing"
+          }
+        },
+        "complete?": {
+          "description": "Check if the animation has completed (non-looping only).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if completed"
+          }
+        },
+        "frame": {
+          "description": "Get the current frame index (from the frames array).",
+          "returns": {
+            "type": "Integer",
+            "description": "Current frame index"
+          }
+        },
+        "frame=": {
+          "description": "Set the current frame index directly.",
+          "params": [
+            {
+              "name": "index",
+              "type": "Integer",
+              "description": "Frame index (into frames array)"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "The frame index"
+          }
+        },
+        "fps": {
+          "description": "Get the frames per second.",
+          "returns": {
+            "type": "Float",
+            "description": "FPS"
+          }
+        },
+        "fps=": {
+          "description": "Set the frames per second.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "New FPS"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The FPS value"
+          },
+          "example": "# Speed up animation when player is running fast\n  def update(dt)\n    speed = calculate_movement_speed\n    # Scale animation FPS with movement speed (8-16 fps range)"
+        },
+        "loop?": {
+          "description": "Check if the animation loops.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if looping"
+          }
+        },
+        "loop=": {
+          "description": "Set whether the animation loops.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "true to loop"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The loop value"
+          }
+        },
+        "count": {
+          "description": "Get the number of active sprite animations.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of active animations"
+          }
+        }
+      }
+    },
+    "GMR::StateMachine": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "attach": {
+          "description": "Attach a state machine to an object. Called internally by Object#state_machine.",
+          "params": [
+            {
+              "name": "owner",
+              "type": "Object",
+              "description": "The object to attach the state machine to"
+            }
+          ],
+          "returns": {
+            "type": "StateMachine",
+            "description": "The created state machine"
+          }
+        },
+        "count": {
+          "description": "Get the number of active state machines.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of active machines"
+          }
+        },
+        "trigger": {
+          "description": "Trigger an event, causing a transition if one is defined.",
+          "params": [
+            {
+              "name": "event",
+              "type": "Symbol",
+              "description": "The event to trigger"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if a transition occurred"
+          },
+          "example": "# Chain triggers from animation callbacks"
+        },
+        "state": {
+          "description": "Define a state with its behavior.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The state name"
+            }
+          ]
+        },
+        "state=": {
+          "description": "Force a state change, bypassing transitions.",
+          "params": [
+            {
+              "name": "new_state",
+              "type": "Symbol",
+              "description": "The state to switch to"
+            }
+          ],
+          "returns": {
+            "type": "Symbol",
+            "description": "The new state"
+          }
+        },
+        "active?": {
+          "description": "Check if the state machine is active.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if active"
+          }
+        },
+        "animate": {
+          "description": "Set the animation to play when entering this state.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The animation name (looked up in @animations hash)"
+            }
+          ]
+        },
+        "on": {
+          "description": "Define a transition from this state.",
+          "params": [
+            {
+              "name": "event",
+              "type": "Symbol",
+              "description": "The event that triggers the transition"
+            },
+            {
+              "name": "target",
+              "type": "Symbol",
+              "description": "The target state"
+            }
+          ],
+          "example": "# Multiple transitions from same state\n  state :grounded do\r\n    on :jump, :jumping\r\n    on :crouch, :crouching\r\n    on :damage, :hurt\r\n    on :fall, :falling\r\n  end\r"
+        },
+        "enter": {
+          "description": "Set a callback to run when entering this state.",
+          "example": "# Initialize state-specific data on enter\n  state :charging do\r\n    enter do\r"
+        },
+        "exit": {
+          "description": "Set a callback to run when exiting this state.",
+          "example": "# Cancel pending actions on state exit\n  state :aiming do\r\n    exit do\r"
+        },
+        "on_input": {
+          "description": "Define an input-driven transition from this state.",
+          "params": [
+            {
+              "name": "action",
+              "type": "Symbol",
+              "description": "The input action that triggers the transition"
+            },
+            {
+              "name": "target",
+              "type": "Symbol",
+              "description": "The target state"
+            }
+          ],
+          "example": "\n  state :idle do\r\n    on_input :jump, :air\r\n    on_input :attack, :attack, when: :pressed, if: -> { @stamina > 0 }\r\n  end\r\nBuilder#method_missing - Verb-style input transition\r\nUsage: jump :air\r\n       attack.hold :charge\r\n       die! :dead\r\nBuilder#respond_to_missing? - For Ruby introspection\r"
+        },
+        "state_machine": {
+          "description": "Define or get the state machine for this object.",
+          "returns": {
+            "type": "StateMachine",
+            "description": "The state machine"
+          }
         }
       }
     },
@@ -3647,35 +4489,155 @@
         }
       }
     },
-    "GMR::Audio::Sound": {
+    "GMR::Tween": {
       "kind": "class",
       "description": "TODO: Add description",
       "instanceMethods": {
-        "play": {
-          "signature": "play",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "stop": {
-          "signature": "stop",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "volume=": {
-          "signature": "volume=(arg1)",
-          "description": "TODO: Add documentation",
+        "to": {
+          "signature": "from(target, property, start_value, duration:, delay:, ease:)",
+          "description": "Create a tween that animates a property TO a target value. The tween starts from the property's current value.",
           "params": [
             {
-              "name": "arg1",
-              "type": "Float"
+              "name": "target",
+              "type": "Object",
+              "description": "The object to animate (must have property getter and setter)"
+            },
+            {
+              "name": "property",
+              "type": "Symbol",
+              "description": "The property to animate (:x, :y, :alpha, :rotation, etc.)"
+            },
+            {
+              "name": "end_value",
+              "type": "Float",
+              "description": "The target value to animate to"
             }
           ],
+          "returns": {
+            "type": "Tween",
+            "description": "The tween instance for chaining"
+          },
+          "example": "# Smooth camera zoom for scope/aim mode\n  def toggle_aim_mode"
+        },
+        "from": {
+          "description": "Create a tween that animates a property FROM a start value to current. Useful for \"animate in\" effects like fading in from transparent.",
+          "params": [
+            {
+              "name": "target",
+              "type": "Object",
+              "description": "The object to animate"
+            },
+            {
+              "name": "property",
+              "type": "Symbol",
+              "description": "The property to animate"
+            },
+            {
+              "name": "start_value",
+              "type": "Float",
+              "description": "The value to animate from"
+            }
+          ],
+          "returns": {
+            "type": "Tween",
+            "description": "The tween instance for chaining"
+          },
+          "example": "# Toast notification slides in from bottom\n  class Toast\n    def show(message)"
+        },
+        "on_complete": {
+          "description": "Set a callback to invoke when the tween completes.",
+          "returns": {
+            "type": "Tween",
+            "description": "self for chaining"
+          },
+          "example": "# Sequence of tweens using on_complete for chaining\n  class Chest\n    def open\n      # First: lid opens\n      GMR::Tween.to(@lid, :rotation, -1.5, duration: 0.3, ease: :out_quad)\n        .on_complete do\n          # Second: spawn item and make it rise"
+        },
+        "on_update": {
+          "description": "Set a callback to invoke each frame during the tween. The callback receives (t, value) where t is normalized progress [0-1] and value is the current interpolated value.",
+          "returns": {
+            "type": "Tween",
+            "description": "self for chaining"
+          },
+          "example": "# Color cycling effect on update\n  def start_rainbow_effect"
+        },
+        "cancel": {
+          "description": "Cancel the tween immediately. Does not invoke on_complete.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "# Cancel movement when player hits wall\n  class Player\n    def move_to(target_x, target_y)"
+        },
+        "pause": {
+          "description": "Pause the tween. Use resume to continue.",
+          "returns": {
+            "type": "Tween",
+            "description": "self for chaining"
+          },
+          "example": "# Pause all UI animations when game pauses\n  class PauseMenu\n    def show"
+        },
+        "resume": {
+          "description": "Resume a paused tween.",
+          "returns": {
+            "type": "Tween",
+            "description": "self for chaining"
+          },
+          "example": "tween.resume"
+        },
+        "complete?": {
+          "description": "Check if the tween has finished.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if completed"
+          },
+          "example": "if tween.complete?\n  puts \"Done!\"\nend"
+        },
+        "active?": {
+          "description": "Check if the tween is currently running (not paused, cancelled, or complete).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if active"
+          },
+          "example": "if tween.active?\n  puts \"Still animating...\"\nend"
+        },
+        "paused?": {
+          "description": "Check if the tween is paused.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if paused"
+          }
+        },
+        "progress": {
+          "description": "Get the current progress of the tween (0.0 to 1.0).",
+          "returns": {
+            "type": "Float",
+            "description": "Progress value"
+          }
+        },
+        "cancel_all": {
+          "description": "Cancel all active tweens.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "# Clean slate when transitioning scenes\n  class GameScene < GMR::Scene\n    def unload\n      # Cancel all tweens to prevent callbacks on destroyed objects\n      GMR::Tween.cancel_all\n      # Clean up resources"
+        },
+        "count": {
+          "description": "Get the number of active tweens.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of active tweens"
+          },
+          "example": "puts \"Active tweens: #{GMR::Tween.count}\""
+        }
+      }
+    },
+    "GMR": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "inspect": {
+          "signature": "inspect",
+          "description": "TODO: Add documentation",
+          "params": [],
           "returns": {
             "type": "unknown"
           }

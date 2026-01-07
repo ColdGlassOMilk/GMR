@@ -1,4 +1,5 @@
 #include "gmr/repl/output_capture.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/string.h>
 #include <mruby/array.h>
 #include <cstdio>
@@ -36,9 +37,13 @@ static std::string value_to_string(mrb_state* mrb, mrb_value val) {
     if (mrb_nil_p(val)) {
         return "";
     }
+    // GMR_UNSAFE_MRUBY_CALL: REPL output capture - to_s failure returns empty string.
+    // This is intentional: output capture should never raise to user, and silently
+    // returning empty is acceptable for display-only purposes.
+    GMR_UNSAFE_MRUBY_CALL("REPL output to_s - failure returns empty, not raised to user")
     mrb_value str = mrb_funcall(mrb, val, "to_s", 0);
     if (mrb->exc) {
-        mrb->exc = nullptr;
+        scripting::safe_clear_exception(mrb, "output_capture to_s");
         return "";
     }
     if (mrb_string_p(str)) {
@@ -121,9 +126,12 @@ static mrb_value captured_p(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "*", &argv, &argc);
 
     for (mrb_int i = 0; i < argc; i++) {
+        // GMR_UNSAFE_MRUBY_CALL: REPL p output - inspect failure skips value.
+        // This is intentional: output capture should not raise to user.
+        GMR_UNSAFE_MRUBY_CALL("REPL p inspect - failure skips value, not raised to user")
         mrb_value inspected = mrb_inspect(mrb, argv[i]);
         if (mrb->exc) {
-            mrb->exc = nullptr;
+            scripting::safe_clear_exception(mrb, "output_capture p inspect");
             continue;
         }
 

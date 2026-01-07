@@ -1,6 +1,8 @@
 #include "gmr/bindings/node.hpp"
+#include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/node.hpp"
 #include "gmr/types.hpp"
+#include "gmr/scripting/helpers.hpp"
 #include <mruby/class.h>
 #include <mruby/data.h>
 #include <mruby/array.h>
@@ -13,14 +15,134 @@ namespace bindings {
 /// @description A scene graph node with hierarchical transforms.
 ///   Each node has a local transform (relative to parent) and a world transform
 ///   (computed from the full hierarchy). Nodes form a tree: one parent, many children.
-/// @example # Create a hierarchy
-///   root = Node.new
-///   child = Node.new
-///   root.add_child(child)
-///   root.local_position = Vec2.new(100, 100)
-///   child.local_position = Vec2.new(50, 0)
-///   Node.update_world_transforms(root)
-///   puts child.world_position  # Position relative to root
+/// @example # Character with weapon and particle attachment points
+///   class Character
+///     def initialize(x, y)
+///       @root = Node.new
+///       @root.local_position = Vec2.new(x, y)
+///
+///       # Weapon mount point (offset from character center)
+///       @weapon_node = Node.new
+///       @weapon_node.local_position = Vec2.new(24, 8)  # Right side
+///       @root.add_child(@weapon_node)
+///
+///       # Particle spawn point for effects (above head)
+///       @particle_node = Node.new
+///       @particle_node.local_position = Vec2.new(0, -32)
+///       @root.add_child(@particle_node)
+///
+///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/character.png"))
+///     end
+///
+///     def update(dt)
+///       # Move character
+///       @root.local_position = Vec2.new(@root.local_position.x + @vx * dt,
+///                                        @root.local_position.y + @vy * dt)
+///       # Update all world transforms from root
+///       Node.update_world_transforms(@root)
+///     end
+///
+///     def draw
+///       pos = @root.world_position
+///       @sprite.x = pos.x
+///       @sprite.y = pos.y
+///       @sprite.draw
+///     end
+///
+///     def weapon_position
+///       @weapon_node.world_position  # Get world space position for weapon sprite
+///     end
+///
+///     def spawn_particle_at_head
+///       pos = @particle_node.world_position
+///       ParticleSystem.spawn_at(pos.x, pos.y)
+///     end
+///   end
+/// @example # Rotating turret with barrel
+///   class Turret
+///     def initialize(x, y)
+///       @base = Node.new
+///       @base.local_position = Vec2.new(x, y)
+///
+///       @barrel = Node.new
+///       @barrel.local_position = Vec2.new(32, 0)  # Barrel extends right
+///       @base.add_child(@barrel)
+///
+///       @muzzle = Node.new
+///       @muzzle.local_position = Vec2.new(24, 0)  # Muzzle at end of barrel
+///       @barrel.add_child(@muzzle)
+///
+///       @base_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/turret_base.png"))
+///       @barrel_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/turret_barrel.png"))
+///     end
+///
+///     def aim_at(target_x, target_y)
+///       pos = @base.world_position
+///       dx = target_x - pos.x
+///       dy = target_y - pos.y
+///       @barrel.local_rotation = Math.atan2(dy, dx) * 180 / Math::PI
+///       Node.update_world_transforms(@base)
+///     end
+///
+///     def fire
+///       muzzle_pos = @muzzle.world_position
+///       angle = @barrel.world_rotation
+///       Projectile.spawn(muzzle_pos.x, muzzle_pos.y, angle)
+///       GMR::Audio::Sound.play("assets/cannon_fire.wav")
+///     end
+///
+///     def draw
+///       @base_sprite.x = @base.world_position.x
+///       @base_sprite.y = @base.world_position.y
+///       @base_sprite.draw
+///
+///       @barrel_sprite.x = @barrel.world_position.x
+///       @barrel_sprite.y = @barrel.world_position.y
+///       @barrel_sprite.rotation = @barrel.world_rotation
+///       @barrel_sprite.draw
+///     end
+///   end
+/// @example # UI panel with child elements
+///   class UIPanel
+///     def initialize(x, y)
+///       @panel = Node.new
+///       @panel.local_position = Vec2.new(x, y)
+///
+///       @title = Node.new
+///       @title.local_position = Vec2.new(10, 10)
+///       @panel.add_child(@title)
+///
+///       @content = Node.new
+///       @content.local_position = Vec2.new(10, 40)
+///       @panel.add_child(@content)
+///
+///       @close_btn = Node.new
+///       @close_btn.local_position = Vec2.new(180, 10)
+///       @panel.add_child(@close_btn)
+///     end
+///
+///     def show
+///       @panel.active = true
+///       # Slide in animation
+///       GMR::Tween.to(@panel, :local_position, Vec2.new(@target_x, @target_y),
+///                     duration: 0.3, ease: :out_back)
+///     end
+///
+///     def hide
+///       @panel.active = false
+///     end
+///
+///     def draw
+///       return unless @panel.active?
+///       Node.update_world_transforms(@panel)
+///       # Draw panel background at panel position
+///       pos = @panel.world_position
+///       GMR::Graphics.draw_rect(pos.x, pos.y, 200, 150, [40, 40, 60, 220])
+///       # Draw title at title node position
+///       title_pos = @title.world_position
+///       GMR::Graphics.draw_text("Inventory", title_pos.x, title_pos.y, 20, [255, 255, 255])
+///     end
+///   end
 
 // Degrees <-> Radians conversion
 static constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
@@ -47,9 +169,11 @@ static NodeData* get_node_data(mrb_state* mrb, mrb_value self) {
     return static_cast<NodeData*>(mrb_data_get_ptr(mrb, self, &node_data_type));
 }
 
-// Helper: Create Vec2 Ruby Object
+// Helper: Create Vec2 Ruby Object (GMR::Mathf::Vec2)
 static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
-    RClass* vec2_class = mrb_class_get(mrb, "Vec2");
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
     mrb_value args[2] = {mrb_float_value(mrb, x), mrb_float_value(mrb, y)};
     return mrb_obj_new(mrb, vec2_class, 2, args);
 }
@@ -60,8 +184,8 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
     mrb_sym y_sym = mrb_intern_cstr(mrb, "y");
 
     if (mrb_respond_to(mrb, val, x_sym) && mrb_respond_to(mrb, val, y_sym)) {
-        mrb_value x = mrb_funcall(mrb, val, "x", 0);
-        mrb_value y = mrb_funcall(mrb, val, "y", 0);
+        mrb_value x = scripting::safe_method_call(mrb, val, "x");
+        mrb_value y = scripting::safe_method_call(mrb, val, "y");
         return {static_cast<float>(mrb_as_float(mrb, x)),
                 static_cast<float>(mrb_as_float(mrb, y))};
     }
@@ -72,6 +196,24 @@ static Vec2 extract_vec2(mrb_state* mrb, mrb_value val) {
 
 // Store RClass pointer for creating Node objects from C
 static RClass* node_class_ptr = nullptr;
+
+// Helper: Create Ruby Node wrapper for an existing handle without calling initialize
+// This avoids the wasteful pattern of: create -> destroy -> reassign
+static mrb_value wrap_existing_node(mrb_state* mrb, NodeHandle handle) {
+    if (!node_class_ptr || handle == INVALID_NODE_HANDLE) {
+        return mrb_nil_value();
+    }
+
+    // Allocate Ruby object without calling initialize
+    mrb_value obj = mrb_obj_value(mrb_obj_alloc(mrb, MRB_TT_CDATA, node_class_ptr));
+
+    // Allocate and initialize wrapper data
+    NodeData* data = static_cast<NodeData*>(mrb_malloc(mrb, sizeof(NodeData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &node_data_type);
+
+    return obj;
+}
 
 // ============================================================================
 // Constructor
@@ -152,16 +294,8 @@ static mrb_value mrb_node_parent(mrb_state* mrb, mrb_value self) {
     NodeHandle parent_handle = NodeManager::instance().get_handle(node->parent);
     if (parent_handle == INVALID_NODE_HANDLE) return mrb_nil_value();
 
-    // Create a new Ruby Node wrapper for the parent
-    mrb_value parent_obj = mrb_obj_new(mrb, node_class_ptr, 0, nullptr);
-    NodeData* parent_data = get_node_data(mrb, parent_obj);
-    if (parent_data) {
-        // The initialize created a new node, destroy it and use the real one
-        NodeManager::instance().destroy(parent_data->handle);
-        parent_data->handle = parent_handle;
-    }
-
-    return parent_obj;
+    // Create Ruby wrapper for existing node (no wasteful create/destroy)
+    return wrap_existing_node(mrb, parent_handle);
 }
 
 /// @method children
@@ -181,13 +315,11 @@ static mrb_value mrb_node_children(mrb_state* mrb, mrb_value self) {
         NodeHandle child_handle = NodeManager::instance().get_handle(node->children[i]);
         if (child_handle == INVALID_NODE_HANDLE) continue;
 
-        mrb_value child_obj = mrb_obj_new(mrb, node_class_ptr, 0, nullptr);
-        NodeData* child_data = get_node_data(mrb, child_obj);
-        if (child_data) {
-            NodeManager::instance().destroy(child_data->handle);
-            child_data->handle = child_handle;
+        // Create Ruby wrapper for existing node (no wasteful create/destroy)
+        mrb_value child_obj = wrap_existing_node(mrb, child_handle);
+        if (!mrb_nil_p(child_obj)) {
+            mrb_ary_push(mrb, children_array, child_obj);
         }
-        mrb_ary_push(mrb, children_array, child_obj);
     }
 
     return children_array;
@@ -440,7 +572,10 @@ static mrb_value mrb_node_class_update_world_transforms(mrb_state* mrb, mrb_valu
 // ============================================================================
 
 void register_node(mrb_state* mrb) {
-    RClass* node_class = mrb_define_class(mrb, "Node", mrb->object_class);
+    // Node class under GMR::Core
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* core = mrb_module_get_under(mrb, gmr, "Core");
+    RClass* node_class = mrb_define_class_under(mrb, core, "Node", mrb->object_class);
     MRB_SET_INSTANCE_TT(node_class, MRB_TT_CDATA);
     node_class_ptr = node_class;
 
