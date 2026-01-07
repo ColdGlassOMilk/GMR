@@ -1,4 +1,5 @@
 #include "gmr/output/ndjson.hpp"
+#include "gmr/scripting/script_error.hpp"
 #include <cstdio>
 #include <sstream>
 #include <chrono>
@@ -78,6 +79,37 @@ void emit_hot_reload_event(const char* reload_type,
 
     oss << "\"statePreserved\":" << (state_preserved ? "true" : "false") << ",";
     oss << "\"initChanged\":" << (init_changed ? "true" : "false");
+    oss << "}";
+    oss << "}";
+
+    // Print as single line (NDJSON) and flush immediately
+    printf("%s\n", oss.str().c_str());
+    fflush(stdout);
+}
+
+void emit_script_error_event(const scripting::ScriptError& error) {
+    std::ostringstream oss;
+
+    // Build NDJSON envelope for script errors
+    oss << "{";
+    oss << "\"protocol\":\"gmr/1.0\",";
+    oss << "\"type\":\"event\",";
+    oss << "\"timestamp\":\"" << get_iso_timestamp() << "\",";
+    oss << "\"event\":{";
+    oss << "\"type\":\"script_error\",";
+    oss << "\"exception\":\"" << json_escape(error.exception_class) << "\",";
+    oss << "\"message\":\"" << json_escape(error.message) << "\",";
+    oss << "\"file\":\"" << json_escape(error.file) << "\",";
+    oss << "\"line\":" << error.line << ",";
+
+    // Backtrace array
+    oss << "\"backtrace\":[";
+    for (size_t i = 0; i < error.backtrace.size(); ++i) {
+        if (i > 0) oss << ",";
+        oss << "\"" << json_escape(error.backtrace[i]) << "\"";
+    }
+    oss << "]";
+
     oss << "}";
     oss << "}";
 

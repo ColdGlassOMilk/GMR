@@ -279,10 +279,6 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 
     // Create sprite
     SpriteHandle handle = SpriteManager::instance().create();
-#ifdef PLATFORM_WEB
-    printf("[WEB] Sprite.new: created handle=%d, manager count=%zu\n",
-           handle, SpriteManager::instance().count());
-#endif
     SpriteState* s = SpriteManager::instance().get(handle);
 
     // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)

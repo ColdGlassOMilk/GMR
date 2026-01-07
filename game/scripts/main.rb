@@ -81,6 +81,10 @@ def init
   Window.set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
   Window.set_filter_point  # Crisp pixel scaling
 
+  # Enable the developer console & enable Ruby evaluation for demonstration purposes
+  Console.enable(height: 150)
+  Console.allow_ruby_eval
+
   # === INPUT MAPPING ===
   Input.map(:move_left, [:left, :a])
   Input.map(:move_right, [:right, :d])
@@ -100,7 +104,7 @@ def init
   # Scale backgrounds for retro resolution
   bg_scale = 1.5
   bg_width = 320.0 * bg_scale
-  @bg_base_y = -20
+  @bg_base_y = -40  # Increased offset to prevent top gap when jumping
 
   @bg1_sprites = []
   3.times do

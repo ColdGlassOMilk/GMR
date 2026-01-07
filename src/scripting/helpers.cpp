@@ -179,19 +179,6 @@ void safe_call(mrb_state* mrb, const std::string& func, const std::vector<mrb_va
     mrb_protect_error(mrb, protected_call_body, &data, &error);
 
     if (error) {
-#ifdef PLATFORM_WEB
-        // On web, mrb_protect_error is broken - try to get exception details
-        if (func == "init") {
-            printf("[WEB] safe_call('%s') raised an exception\n", func.c_str());
-            if (mrb->exc) {
-                auto err = capture_exception(mrb);
-                if (err) {
-                    printf("[WEB] Exception: %s - %s\n",
-                           err->exception_class.c_str(), err->message.c_str());
-                }
-            }
-        }
-#endif
         // Exception was raised - handle it properly
         check_error(mrb, func.c_str());
     }

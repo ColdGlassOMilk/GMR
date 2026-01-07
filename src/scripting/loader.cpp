@@ -33,6 +33,7 @@
 #include <fstream>
 #include <sstream>
 #include <cctype>
+#include <chrono>
 #include "raylib.h"
 
 #if defined(GMR_DEBUG_ENABLED)
@@ -102,6 +103,10 @@ void Loader::register_all_bindings() {
 
 void Loader::load_file(const fs::path& path) {
     fs::path canonical = fs::weakly_canonical(path);
+    // Normalize path separators for consistent comparison on Windows
+    std::string canonical_str = canonical.string();
+    std::replace(canonical_str.begin(), canonical_str.end(), '\\', '/');
+    canonical = fs::path(canonical_str);
 
     if (loaded_files_.count(canonical)) {
         return;
@@ -195,6 +200,7 @@ std::vector<fs::path> Loader::get_changed_files() {
     std::vector<fs::path> changed;
 
     if (!fs::exists(script_dir_)) {
+        printf("[HOT_RELOAD] ERROR: script_dir_ does not exist: %s\n", script_dir_.string().c_str());
         return changed;
     }
 
@@ -203,17 +209,29 @@ std::vector<fs::path> Loader::get_changed_files() {
         if (entry.path().extension() != ".rb") continue;
 
         fs::path canonical = fs::weakly_canonical(entry.path());
+        // Normalize path separators for consistent comparison on Windows
+        std::string path_str = canonical.string();
+        std::replace(path_str.begin(), path_str.end(), '\\', '/');
+        canonical = fs::path(path_str);
+
         auto mod_time = entry.last_write_time();
 
         auto it = file_states_.find(canonical);
         if (it == file_states_.end()) {
             // New file detected
+            printf("[HOT_RELOAD] New file detected: %s\n", canonical.string().c_str());
             changed.push_back(canonical);
             file_states_[canonical] = {mod_time};
-        } else if (mod_time > it->second.last_modified) {
-            // File was modified
-            changed.push_back(canonical);
-            it->second.last_modified = mod_time;
+        } else {
+            // Check if modified - use tolerance to handle filesystem precision quirks
+            // NTFS has 100ns resolution, but editors may batch writes
+            auto diff = mod_time - it->second.last_modified;
+            // Consider changed if newer by more than 100ms (accounts for precision issues)
+            if (diff > std::chrono::milliseconds(100)) {
+                printf("[HOT_RELOAD] File modified: %s\n", canonical.string().c_str());
+                changed.push_back(canonical);
+                it->second.last_modified = mod_time;
+            }
         }
     }
 
@@ -384,7 +402,11 @@ void Loader::load(const std::string& script_dir) {
         std::string main_path_str = main_path.string();
         std::replace(main_path_str.begin(), main_path_str.end(), '\\', '/');
         printf("  Loading: %s (entry point)\n", main_path_str.c_str());
-        loaded_files_.insert(fs::weakly_canonical(main_path));
+        // Normalize path for consistent comparison on Windows
+        fs::path main_canonical = fs::weakly_canonical(main_path);
+        std::string main_canonical_str = main_canonical.string();
+        std::replace(main_canonical_str.begin(), main_canonical_str.end(), '\\', '/');
+        loaded_files_.insert(fs::path(main_canonical_str));
 
         FILE* fp = fopen(main_path.string().c_str(), "r");
         if (fp) {
@@ -410,6 +432,10 @@ void Loader::load(const std::string& script_dir) {
         if (!entry.is_regular_file()) continue;
         if (entry.path().extension() != ".rb") continue;
         fs::path canonical = fs::weakly_canonical(entry.path());
+        // Normalize path separators for consistent comparison on Windows
+        std::string path_str = canonical.string();
+        std::replace(path_str.begin(), path_str.end(), '\\', '/');
+        canonical = fs::path(path_str);
         file_states_[canonical] = {entry.last_write_time()};
     }
 
@@ -418,10 +444,6 @@ void Loader::load(const std::string& script_dir) {
 #endif
 
     safe_call(mrb_, "init");
-
-#ifdef PLATFORM_WEB
-    printf("[WEB] init() completed successfully\n");
-#endif
 
     last_mod_time_    = get_newest_mod_time(script_dir_);
     pending_mod_time_ = last_mod_time_;
@@ -435,6 +457,14 @@ void Loader::reload_if_changed() {
         return;
     }
     last_check_time_ = now;
+
+    // Diagnostic logging - helps identify file detection issues
+    static bool first_check = true;
+    if (first_check) {
+        printf("[HOT_RELOAD] Monitoring: %s\n", script_dir_.string().c_str());
+        printf("[HOT_RELOAD] Tracking %zu files for changes\n", file_states_.size());
+        first_check = false;
+    }
 
     auto changed_files = get_changed_files();
     if (changed_files.empty()) {
@@ -479,7 +509,15 @@ void Loader::reload_if_changed() {
     std::string new_init = extract_init_content();
     bool init_changed = (old_init != new_init && !new_init.empty());
 
+    // If init changed, clear managers and re-run init
+    // This prevents stale tweens, animations, and state machines from referencing
+    // old Ruby objects after reload
     if (init_changed) {
+        printf("[HOT_RELOAD] Clearing managers (init changed)\n");
+        animation::AnimationManager::instance().clear(mrb_);
+        state_machine::StateMachineManager::instance().clear(mrb_);
+        input::InputManager::instance().clear(mrb_);
+        CameraManager::instance().clear(mrb_);
         safe_call(mrb_, "init");
         last_init_content_ = new_init;
     }
@@ -521,7 +559,7 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
     last_error_ = error;
     in_error_state_ = true;
 
-    // Print formatted error (replaces mrb_print_error spam)
+    // Print formatted error to stderr (human-readable)
     fprintf(stderr, "\n=== Script Error ===\n");
     if (context) {
         fprintf(stderr, "Context: %s\n", context);
@@ -536,6 +574,9 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
         }
     }
     fprintf(stderr, "====================\n\n");
+
+    // Emit NDJSON event for IDE consumption
+    output::emit_script_error_event(error);
 
     return true;
 }

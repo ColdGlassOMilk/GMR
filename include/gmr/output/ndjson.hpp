@@ -5,6 +5,12 @@
 #include <vector>
 
 namespace gmr {
+
+// Forward declaration
+namespace scripting {
+struct ScriptError;
+}
+
 namespace output {
 
 // Emit a hot_reload event as NDJSON to stdout
@@ -16,6 +22,10 @@ void emit_hot_reload_event(const char* reload_type,
                            const std::vector<std::string>& files,
                            bool state_preserved,
                            bool init_changed);
+
+// Emit a script_error event as NDJSON to stdout
+// Sends structured error information for IDE consumption
+void emit_script_error_event(const scripting::ScriptError& error);
 
 } // namespace output
 } // namespace gmr

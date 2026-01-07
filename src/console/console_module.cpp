@@ -80,8 +80,11 @@ void ConsoleModule::init(mrb_state* mrb) {
 
     // Welcome message
     println("=== GMR Console ===", OutputType::INFO);
-    println("Type Ruby code and press Enter to evaluate.", OutputType::INFO);
+#if defined(GMR_DEBUG_ENABLED)
+    println("Type Ruby code or commands. Press ` or ESC to close.", OutputType::INFO);
+#else
     println("Type 'help' for commands. Press ` or ESC to close.", OutputType::INFO);
+#endif
     println("", OutputType::INFO);
 }
 
@@ -227,10 +230,10 @@ void ConsoleModule::handle_key_input() {
         scroll_offset_ = std::max(scroll_offset_ - 10, 0);
     }
 
-    // Mouse wheel scroll
+    // Mouse wheel scroll (inverted for natural scrolling)
     float wheel = GetMouseWheelMove();
     if (wheel != 0) {
-        scroll_offset_ = std::clamp(scroll_offset_ - static_cast<int>(wheel) * 3, 0, max_scroll());
+        scroll_offset_ = std::clamp(scroll_offset_ + static_cast<int>(wheel) * 3, 0, max_scroll());
     }
 
     // Tab (insert spaces)
@@ -1144,19 +1147,14 @@ static mrb_value mrb_console_set_toggle_key(mrb_state* mrb, mrb_value) {
 
 /// @function allow_ruby_eval
 /// @description Enable or disable arbitrary Ruby code evaluation in the console.
-///   Only has effect in debug builds; release builds always disable Ruby eval.
-/// @param allow [Boolean] true to allow Ruby eval, false to restrict to commands only
+/// @param allow [Boolean] (optional, default: true) true to allow Ruby eval, false to restrict to commands only
 /// @returns [nil]
-/// @example GMR::Console.allow_ruby_eval(false)  # Commands only
+/// @example GMR::Console.allow_ruby_eval        # Enable Ruby eval
+/// @example GMR::Console.allow_ruby_eval(false) # Commands only
 static mrb_value mrb_console_allow_ruby_eval(mrb_state* mrb, mrb_value) {
-    mrb_bool allow;
-    mrb_get_args(mrb, "b", &allow);
-#if defined(GMR_DEBUG_ENABLED)
+    mrb_bool allow = true;
+    mrb_get_args(mrb, "|b", &allow);
     ConsoleModule::instance().allow_ruby_eval(allow);
-#else
-    (void)allow;
-    // Silently ignore in Release mode
-#endif
     return mrb_nil_value();
 }
 
@@ -1201,7 +1199,7 @@ void register_console_module(mrb_state* mrb) {
 
     // Configuration
     mrb_define_module_function(mrb, console, "set_toggle_key", mrb_console_set_toggle_key, MRB_ARGS_REQ(1));
-    mrb_define_module_function(mrb, console, "allow_ruby_eval", mrb_console_allow_ruby_eval, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, console, "allow_ruby_eval", mrb_console_allow_ruby_eval, MRB_ARGS_OPT(1));
     mrb_define_module_function(mrb, console, "ruby_eval_allowed?", mrb_console_ruby_eval_allowed, MRB_ARGS_NONE());
 
     // Initialize the console module with mruby state
