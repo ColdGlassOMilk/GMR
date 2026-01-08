@@ -35,6 +35,9 @@ void DrawQueue::queue_sprite(SpriteHandle handle) {
     auto* sprite = SpriteManager::instance().get(handle);
     if (!sprite) return;
 
+    // Get layer from sprite
+    uint8_t layer = sprite->layer;
+
     float z_value;
     if (sprite->z.has_value()) {
         // Use explicit z
@@ -47,6 +50,7 @@ void DrawQueue::queue_sprite(SpriteHandle handle) {
 
     commands_.emplace_back(
         DrawCommand::Type::SPRITE,
+        layer,
         z_value,
         next_draw_order_,
         handle
@@ -60,6 +64,7 @@ void DrawQueue::queue_camera_begin(CameraHandle handle) {
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::CAMERA_BEGIN;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);  // Default layer (doesn't affect camera behavior)
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.camera_handle = handle;
@@ -76,6 +81,7 @@ void DrawQueue::queue_camera_end() {
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::CAMERA_END;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);  // Default layer (doesn't affect camera behavior)
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.camera_handle = camera_stack_.back();
@@ -90,6 +96,7 @@ void DrawQueue::queue_tilemap(TilemapHandle handle, float offset_x, float offset
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::TILEMAP;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::WORLD);  // Tilemaps default to WORLD layer
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.tilemap.handle = handle;
@@ -109,6 +116,7 @@ void DrawQueue::queue_tilemap_region(TilemapHandle handle, float offset_x, float
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::TILEMAP;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::WORLD);  // Tilemaps default to WORLD layer
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.tilemap.handle = handle;
@@ -125,11 +133,14 @@ void DrawQueue::queue_tilemap_region(TilemapHandle handle, float offset_x, float
     next_draw_order_++;
 }
 
-void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled,
+                            uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::RECT;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.rect.x = x;
@@ -144,11 +155,14 @@ void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& 
     next_draw_order_++;
 }
 
-void DrawQueue::queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color,
+                                    uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::RECT;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.rect.x = x;
@@ -163,11 +177,14 @@ void DrawQueue::queue_rect_rotated(float x, float y, float w, float h, float rot
     next_draw_order_++;
 }
 
-void DrawQueue::queue_circle(float x, float y, float radius, const DrawColor& color, bool filled) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_circle(float x, float y, float radius, const DrawColor& color, bool filled,
+                              uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::CIRCLE;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.circle.x = x;
@@ -181,11 +198,14 @@ void DrawQueue::queue_circle(float x, float y, float radius, const DrawColor& co
     next_draw_order_++;
 }
 
-void DrawQueue::queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer,
+                                       uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::CIRCLE;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.circle.x = x;
@@ -200,11 +220,14 @@ void DrawQueue::queue_circle_gradient(float x, float y, float radius, const Draw
     next_draw_order_++;
 }
 
-void DrawQueue::queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness,
+                            uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::LINE;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.line.x1 = x1;
@@ -219,11 +242,14 @@ void DrawQueue::queue_line(float x1, float y1, float x2, float y2, const DrawCol
 }
 
 void DrawQueue::queue_triangle(float x1, float y1, float x2, float y2, float x3, float y3,
-                                const DrawColor& color, bool filled) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+                                const DrawColor& color, bool filled,
+                                uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::TRIANGLE;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.triangle.x1 = x1;
@@ -239,11 +265,17 @@ void DrawQueue::queue_triangle(float x1, float y1, float x2, float y2, float x3,
     next_draw_order_++;
 }
 
-void DrawQueue::queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+void DrawQueue::queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
+                            uint8_t layer, float z) {
+    // Use provided z if non-zero, otherwise use draw_order base
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    TraceLog(LOG_INFO, "QUEUE_TEXT: '%s' at (%f, %f) layer=%d z=%f order=%d",
+             content.c_str(), x, y, layer, z_value, next_draw_order_);
 
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::TEXT;
+    cmd.layer = layer;
     cmd.z = z_value;
     cmd.draw_order = next_draw_order_;
     cmd.text.x = x;
@@ -288,11 +320,15 @@ void DrawQueue::apply_camera_end() {
 void DrawQueue::flush() {
     if (commands_.empty()) return;
 
-    // Stable sort by z value
-    // Sprites with same z maintain their draw order (first drawn = first rendered)
+    // Sort by draw_order ONLY
+    // The layer system is causing camera transforms to break
+    // For now, maintain backward compatibility by sorting everything by draw_order
+    // TODO: Implement proper layer-aware camera handling
     std::stable_sort(commands_.begin(), commands_.end(),
         [](const DrawCommand& a, const DrawCommand& b) {
-            return a.z < b.z;
+            // Temporarily sort by draw_order only to maintain backward compatibility
+            // This ensures camera BEGIN/END pairs work correctly
+            return a.draw_order < b.draw_order;
         });
 
     // Execute all draw commands
@@ -549,6 +585,12 @@ void DrawQueue::draw_triangle(const DrawCommand& cmd) {
 }
 
 void DrawQueue::draw_text(const DrawCommand& cmd) {
+    TraceLog(LOG_INFO, "DRAW_TEXT: '%s' at (%d, %d) size=%d",
+        cmd.text.content.c_str(),
+        static_cast<int>(cmd.text.x),
+        static_cast<int>(cmd.text.y),
+        cmd.text.font_size);
+
     DrawText(
         cmd.text.content.c_str(),
         static_cast<int>(cmd.text.x),

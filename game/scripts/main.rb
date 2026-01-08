@@ -78,7 +78,7 @@ end
 def init
   # === WINDOW SETUP (with method chaining) ===
   Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        # .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         .set_filter_point  # Crisp pixel scaling
 
   # Enable the console with Ruby evaluation (Dev mode)
@@ -307,6 +307,14 @@ def draw
     @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
     @sprite.draw
   end
+
+  # Test: Draw a red rectangle to verify we reach this code
+  Graphics.draw_rect(5, 5, 100, 30, :red)
+
+  fps = Time.fps
+  Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :white)
+
+  Graphics.draw_text("TEST", 160, 90, 40, [255, 0, 0, 255])
 end
 
 def draw_parallax_layer(transforms, sprites, width, speed, y_offset, camera_x)

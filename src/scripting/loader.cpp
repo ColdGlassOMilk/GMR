@@ -26,6 +26,7 @@
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/input/input_manager.hpp"
 #include "gmr/console/console_module.hpp"
+#include "gmr/repl/output_capture.hpp"
 #include <mruby/compile.h>
 #include <mruby/irep.h>
 #include <cstdio>
@@ -38,6 +39,7 @@
 
 #if defined(GMR_DEBUG_ENABLED)
 #include "gmr/debug/debug_hooks.hpp"
+#include "gmr/debug/debug_server.hpp"
 #endif
 
 // Include compiled scripts only in release builds
@@ -563,7 +565,14 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
     last_error_ = error;
     in_error_state_ = true;
 
-    // Print formatted error to stderr (human-readable)
+#if defined(GMR_DEBUG_ENABLED)
+    // Diagnostic: Check if output capture is active (shouldn't be during game errors)
+    if (repl::is_capturing()) {
+        fprintf(stderr, "[DEBUG] WARNING: Output capture is active during error! Errors may be hidden.\n");
+    }
+#endif
+
+    // Always print formatted error to stderr (human-readable)
     fprintf(stderr, "\n=== Script Error ===\n");
     if (context) {
         fprintf(stderr, "Context: %s\n", context);
@@ -579,8 +588,8 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
     }
     fprintf(stderr, "====================\n\n");
 
-    // Emit NDJSON event for IDE consumption
-    output::emit_script_error_event(error);
+    // Note: Error reporting to IDE debugger happens via debug server (port 5678)
+    // in check_error() before this function is called. No NDJSON output needed here.
 
     return true;
 }

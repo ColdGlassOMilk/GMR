@@ -276,7 +276,8 @@ std::string evaluate_expression(mrb_state* mrb, const std::string& expr, int fra
         mrb_value msg = mrb_funcall(mrb, exc, "message", 0);
         std::string error_msg = mrb_string_p(msg) ?
             std::string(RSTRING_PTR(msg), RSTRING_LEN(msg)) : "Error";
-        scripting::safe_clear_exception(mrb, "variable_inspector eval");
+        // Direct clear - error already extracted, no need for logging/capture
+        mrb->exc = nullptr;
         return "{\"type\":\"Error\",\"value\":\"" + json_escape(error_msg) + "\"}";
     }
 

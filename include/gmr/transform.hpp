@@ -107,6 +107,9 @@ private:
     void mark_children_dirty(TransformHandle parent);
 
     std::unordered_map<TransformHandle, Transform2DState> transforms_;
+    // Fast child lookup - maps parent handle to vector of child handles
+    // Eliminates O(n) scan of all transforms when marking children dirty
+    std::unordered_map<TransformHandle, std::vector<TransformHandle>> children_;
     TransformHandle next_id_{0};
 };
 

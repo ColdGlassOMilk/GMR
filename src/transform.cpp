@@ -1,4 +1,5 @@
 #include "gmr/transform.hpp"
+#include <algorithm>
 
 namespace gmr {
 
@@ -106,13 +107,31 @@ TransformHandle TransformManager::create() {
 void TransformManager::destroy(TransformHandle handle) {
     auto it = transforms_.find(handle);
     if (it != transforms_.end()) {
-        // Clear parent reference from any children
-        for (auto& [h, state] : transforms_) {
-            if (state.parent == handle) {
-                state.parent = INVALID_HANDLE;
-                state.dirty = true;
+        // Remove from parent's children list
+        if (it->second.parent != INVALID_HANDLE) {
+            auto parent_it = children_.find(it->second.parent);
+            if (parent_it != children_.end()) {
+                auto& siblings = parent_it->second;
+                siblings.erase(std::remove(siblings.begin(), siblings.end(), handle), siblings.end());
+                if (siblings.empty()) {
+                    children_.erase(parent_it);
+                }
             }
         }
+
+        // Clear parent reference from any children using fast lookup
+        auto children_it = children_.find(handle);
+        if (children_it != children_.end()) {
+            for (TransformHandle child : children_it->second) {
+                auto* child_state = get(child);
+                if (child_state) {
+                    child_state->parent = INVALID_HANDLE;
+                    child_state->dirty = true;
+                }
+            }
+            children_.erase(children_it);
+        }
+
         transforms_.erase(it);
     }
 }
@@ -191,10 +210,15 @@ void TransformManager::mark_dirty(TransformHandle handle) {
 }
 
 void TransformManager::mark_children_dirty(TransformHandle parent) {
-    for (auto& [handle, state] : transforms_) {
-        if (state.parent == parent) {
-            state.dirty = true;
-            mark_children_dirty(handle);
+    // Fast O(1) lookup instead of O(n) scan
+    auto it = children_.find(parent);
+    if (it != children_.end()) {
+        for (TransformHandle child : it->second) {
+            auto* state = get(child);
+            if (state && !state->dirty) {  // Short-circuit if already dirty
+                state->dirty = true;
+                mark_children_dirty(child);  // Recursive for grandchildren
+            }
         }
     }
 }
@@ -202,6 +226,18 @@ void TransformManager::mark_children_dirty(TransformHandle parent) {
 void TransformManager::set_parent(TransformHandle child, TransformHandle parent) {
     auto* child_state = get(child);
     if (!child_state) return;
+
+    // Remove from old parent's children list
+    if (child_state->parent != INVALID_HANDLE) {
+        auto it = children_.find(child_state->parent);
+        if (it != children_.end()) {
+            auto& siblings = it->second;
+            siblings.erase(std::remove(siblings.begin(), siblings.end(), child), siblings.end());
+            if (siblings.empty()) {
+                children_.erase(it);  // Clean up empty vectors
+            }
+        }
+    }
 
     // Avoid circular references
     if (parent != INVALID_HANDLE) {
@@ -216,7 +252,14 @@ void TransformManager::set_parent(TransformHandle child, TransformHandle parent)
         }
     }
 
+    // Set new parent
     child_state->parent = parent;
+
+    // Add to new parent's children list
+    if (parent != INVALID_HANDLE) {
+        children_[parent].push_back(child);
+    }
+
     child_state->dirty = true;
     mark_children_dirty(child);
 }
@@ -237,6 +280,7 @@ std::vector<TransformHandle> TransformManager::get_children(TransformHandle pare
 
 void TransformManager::clear() {
     transforms_.clear();
+    children_.clear();
     next_id_ = 0;
 }
 

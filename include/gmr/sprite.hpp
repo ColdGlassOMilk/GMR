@@ -22,8 +22,9 @@ struct SpriteState {
     bool flip_x{false};
     bool flip_y{false};
 
-    // Z-ordering: optional explicit z, or use draw order
-    std::optional<float> z;          // If set, overrides draw order
+    // Layer and Z-ordering
+    uint8_t layer{100};              // Render layer (default: ENTITIES = 100)
+    std::optional<float> z;          // If set, overrides draw order for z-depth within layer
 
     SpriteState() = default;
 };

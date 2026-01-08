@@ -418,6 +418,86 @@ static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
+// Render Layer
+// ============================================================================
+
+/// @method layer
+/// @description Get the render layer. Layers control broad draw order categories.
+///   Lower values render first (background), higher values render last (foreground/UI).
+///   Returns a symbol for known layer values, or an integer for custom layers.
+/// @returns [Symbol, Integer] The layer as a symbol (:background, :world, :entities, :effects, :ui, :debug) or integer
+/// @example sprite.layer           # => :entities (default)
+static mrb_value mrb_sprite_layer(mrb_state* mrb, mrb_value self) {
+    SpriteData* data = get_sprite_data(mrb, self);
+    GMR_REQUIRE_SPRITE_DATA(data);
+    SpriteState* s = SpriteManager::instance().get(data->handle);
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
+
+    // Return symbol for known layers, integer for custom
+    switch (s->layer) {
+        case 0:   return mrb_symbol_value(mrb_intern_lit(mrb, "background"));
+        case 50:  return mrb_symbol_value(mrb_intern_lit(mrb, "world"));
+        case 100: return mrb_symbol_value(mrb_intern_lit(mrb, "entities"));
+        case 150: return mrb_symbol_value(mrb_intern_lit(mrb, "effects"));
+        case 200: return mrb_symbol_value(mrb_intern_lit(mrb, "ui"));
+        case 250: return mrb_symbol_value(mrb_intern_lit(mrb, "debug"));
+        default:  return mrb_fixnum_value(s->layer);
+    }
+}
+
+/// @method layer=
+/// @description Set the render layer. Layers organize rendering into broad categories.
+///   Sprites in lower layers render first (appear behind), higher layers render last (appear in front).
+///   Within a layer, use z for fine-grained depth control.
+/// @param value [Symbol, Integer] Layer as symbol (:background, :world, :entities, :effects, :ui, :debug) or integer (0-255)
+/// @returns [Symbol, Integer] The value that was set
+/// @example sprite.layer = :ui           # Render in UI layer (always on top)
+/// @example sprite.layer = :background   # Render in background layer (always behind)
+/// @example sprite.layer = 75            # Custom layer between world (50) and entities (100)
+/// @example # Layer organization
+///   @bg_sprite.layer = :background  # 0 - renders first
+///   @tilemap_sprite.layer = :world  # 50
+///   @player_sprite.layer = :entities # 100 (default)
+///   @particle_sprite.layer = :effects # 150
+///   @hud_sprite.layer = :ui         # 200 - renders last
+static mrb_value mrb_sprite_set_layer(mrb_state* mrb, mrb_value self) {
+    mrb_value val;
+    mrb_get_args(mrb, "o", &val);
+    SpriteData* data = get_sprite_data(mrb, self);
+    GMR_REQUIRE_SPRITE_DATA(data);
+    SpriteState* s = SpriteManager::instance().get(data->handle);
+    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
+
+    if (mrb_symbol_p(val)) {
+        const char* sym = mrb_sym2name(mrb, mrb_symbol(val));
+        if (strcmp(sym, "background") == 0) {
+            s->layer = 0;
+        } else if (strcmp(sym, "world") == 0) {
+            s->layer = 50;
+        } else if (strcmp(sym, "entities") == 0) {
+            s->layer = 100;
+        } else if (strcmp(sym, "effects") == 0) {
+            s->layer = 150;
+        } else if (strcmp(sym, "ui") == 0) {
+            s->layer = 200;
+        } else if (strcmp(sym, "debug") == 0) {
+            s->layer = 250;
+        } else {
+            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Unknown layer symbol: %s (valid: :background, :world, :entities, :effects, :ui, :debug)", sym);
+        }
+    } else if (mrb_fixnum_p(val)) {
+        mrb_int layer_val = mrb_fixnum(val);
+        if (layer_val < 0 || layer_val > 255) {
+            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Layer must be 0-255, got %d", layer_val);
+        }
+        s->layer = static_cast<uint8_t>(layer_val);
+    } else {
+        mrb_raise(mrb, E_TYPE_ERROR, "Layer must be a Symbol or Integer");
+    }
+    return val;
+}
+
+// ============================================================================
 // Z-Index
 // ============================================================================
 
@@ -837,6 +917,10 @@ void register_sprite(mrb_state* mrb) {
     mrb_define_method(mrb, sprite_class, "transform", mrb_sprite_transform, MRB_ARGS_NONE());
     mrb_define_method(mrb, sprite_class, "transform=", mrb_sprite_set_transform, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, sprite_class, "center_origin", mrb_sprite_center_origin, MRB_ARGS_NONE());
+
+    // Layer
+    mrb_define_method(mrb, sprite_class, "layer", mrb_sprite_layer, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sprite_class, "layer=", mrb_sprite_set_layer, MRB_ARGS_REQ(1));
 
     // Z-index
     mrb_define_method(mrb, sprite_class, "z", mrb_sprite_z, MRB_ARGS_NONE());

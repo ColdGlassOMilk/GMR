@@ -72,6 +72,17 @@ static mrb_value protected_yield_body(mrb_state* mrb, void* userdata) {
     }
 }
 
+// Protected function bodies for safe exception capture
+static mrb_value get_exception_message_body(mrb_state* mrb, void* userdata) {
+    mrb_value* exc = static_cast<mrb_value*>(userdata);
+    return mrb_funcall(mrb, *exc, "message", 0);
+}
+
+static mrb_value get_exception_backtrace_body(mrb_state* mrb, void* userdata) {
+    mrb_value* exc = static_cast<mrb_value*>(userdata);
+    return mrb_funcall(mrb, *exc, "backtrace", 0);
+}
+
 std::optional<ScriptError> capture_exception(mrb_state* mrb) {
     if (!mrb || !mrb->exc) {
         return std::nullopt;
@@ -81,19 +92,40 @@ std::optional<ScriptError> capture_exception(mrb_state* mrb) {
 
     mrb_value exc = mrb_obj_value(mrb->exc);
 
-    // Get exception class name
+    // Get exception class name (safe - doesn't call Ruby methods)
     RClass* exc_class = mrb_obj_class(mrb, exc);
     error.exception_class = mrb_class_name(mrb, exc_class);
 
-    // Get exception message
-    mrb_value msg = mrb_funcall(mrb, exc, "message", 0);
-    if (mrb_string_p(msg)) {
+    // Get exception message using protected call
+    mrb_bool msg_error = FALSE;
+    mrb_value msg = mrb_protect_error(mrb, get_exception_message_body, &exc, &msg_error);
+    if (msg_error || !mrb_string_p(msg)) {
+        // Fallback to class name if message() fails
+        error.message = error.exception_class;
+        if (mrb->exc) mrb->exc = nullptr;  // Clear secondary exception
+#if defined(GMR_DEBUG_ENABLED)
+        if (msg_error) {
+            fprintf(stderr, "[DEBUG] Warning: Failed to extract exception message, using class name as fallback\n");
+        }
+#endif
+    } else {
         error.message = std::string(RSTRING_PTR(msg), RSTRING_LEN(msg));
     }
 
-    // Get backtrace by calling the backtrace method on the exception
-    mrb_value bt = mrb_funcall(mrb, exc, "backtrace", 0);
-    if (mrb_array_p(bt)) {
+    // Get backtrace using protected call
+    mrb_bool bt_error = FALSE;
+    mrb_value bt = mrb_protect_error(mrb, get_exception_backtrace_body, &exc, &bt_error);
+    if (bt_error || !mrb_array_p(bt)) {
+        // Backtrace extraction failed - try to get minimal info from mruby internals
+        if (mrb->exc) mrb->exc = nullptr;  // Clear secondary exception
+#if defined(GMR_DEBUG_ENABLED)
+        if (bt_error) {
+            fprintf(stderr, "[DEBUG] Warning: Failed to extract backtrace array, may have limited location info\n");
+        }
+#endif
+        // We'll still have file/line info from parser if available
+    } else {
+        // Successfully got backtrace array - extract entries
         mrb_int len = RARRAY_LEN(bt);
         for (mrb_int i = 0; i < len; ++i) {
             mrb_value entry = mrb_ary_ref(mrb, bt, i);

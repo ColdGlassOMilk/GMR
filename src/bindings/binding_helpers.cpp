@@ -319,6 +319,27 @@ void register_top_level_aliases(mrb_state* mrb) {
     RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
     RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
 
+    // Modules -> GMR top-level
+    // Graphics, Animation, Audio, Input, Time, Window, etc. become accessible after "include GMR"
+    mrb_define_const(mrb, gmr, "Graphics", mrb_obj_value(graphics));
+    mrb_define_const(mrb, gmr, "Animation", mrb_obj_value(animation));
+    mrb_define_const(mrb, gmr, "Audio",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Audio")));
+    mrb_define_const(mrb, gmr, "Input",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Input")));
+    mrb_define_const(mrb, gmr, "Time",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Time")));
+    mrb_define_const(mrb, gmr, "Window",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Window")));
+    mrb_define_const(mrb, gmr, "System",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "System")));
+    mrb_define_const(mrb, gmr, "Collision",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Collision")));
+    mrb_define_const(mrb, gmr, "Core",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Core")));
+    mrb_define_const(mrb, gmr, "Mathf",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Mathf")));
+
     // Graphics classes -> GMR top-level
     // Sprite, Texture, Tilemap, Camera, Rect, Transform2D become accessible after "include GMR"
     mrb_define_const(mrb, gmr, "Sprite",

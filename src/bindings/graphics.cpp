@@ -363,10 +363,19 @@ static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
     const char* text;
     mrb_int x, y, size;
     mrb_value color_val;
-    mrb_get_args(mrb, "ziiiA", &text, &x, &y, &size, &color_val);
+    mrb_get_args(mrb, "ziiio", &text, &x, &y, &size, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawText(text, x, y, size, to_raylib(c));
+
+    // Queue text for deferred rendering (so it respects camera transforms)
+    DrawQueue::instance().queue_text(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        text,
+        static_cast<int>(size),
+        DrawColor{c.r, c.g, c.b, c.a}
+    );
+
     return mrb_nil_value();
 }
 

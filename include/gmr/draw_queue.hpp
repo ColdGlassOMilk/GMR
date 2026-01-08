@@ -11,6 +11,17 @@
 
 namespace gmr {
 
+// Render layer enumeration for organizing draw order
+// Lower values render first (background), higher values render last (foreground/UI)
+enum class RenderLayer : uint8_t {
+    BACKGROUND = 0,    // Parallax backgrounds, far scenery
+    WORLD = 50,        // Tilemaps, world sprites, terrain
+    ENTITIES = 100,    // Player, enemies, NPCs (DEFAULT for sprites/primitives)
+    EFFECTS = 150,     // Particles, VFX, overlays
+    UI = 200,          // HUD, menus, text overlays (DEFAULT for text)
+    DEBUG_OVERLAY = 250  // Debug overlays, collision viz
+};
+
 // Color struct for draw commands
 struct DrawColor {
     uint8_t r{255}, g{255}, b{255}, a{255};
@@ -69,7 +80,7 @@ struct TextDrawParams {
     std::string content;
 };
 
-// Draw command for deferred rendering with hybrid z-ordering
+// Draw command for deferred rendering with three-level sorting (layer → z → draw_order)
 struct DrawCommand {
     enum class Type {
         SPRITE,
@@ -84,8 +95,9 @@ struct DrawCommand {
     };
 
     Type type{Type::SPRITE};
-    float z{0};
-    uint32_t draw_order{0};
+    uint8_t layer{static_cast<uint8_t>(RenderLayer::ENTITIES)};  // Primary sort key
+    float z{0};                                                   // Secondary sort key
+    uint32_t draw_order{0};                                       // Tertiary sort key
 
     // Type-specific data
     SpriteHandle sprite_handle{INVALID_HANDLE};
@@ -98,8 +110,8 @@ struct DrawCommand {
     TextDrawParams text;
 
     DrawCommand() = default;
-    DrawCommand(Type t, float z_val, uint32_t order, SpriteHandle sprite = INVALID_HANDLE)
-        : type(t), z(z_val), draw_order(order), sprite_handle(sprite) {}
+    DrawCommand(Type t, uint8_t layer_val, float z_val, uint32_t order, SpriteHandle sprite = INVALID_HANDLE)
+        : type(t), layer(layer_val), z(z_val), draw_order(order), sprite_handle(sprite) {}
 };
 
 // Singleton draw queue for deferred, z-sorted rendering
@@ -117,15 +129,22 @@ public:
                               int32_t region_x, int32_t region_y, int32_t region_w, int32_t region_h,
                               const DrawColor& tint);
 
-    // Queue primitives for drawing
-    void queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled = true);
-    void queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color);
-    void queue_circle(float x, float y, float radius, const DrawColor& color, bool filled = true);
-    void queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer);
-    void queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness = 1.0f);
+    // Queue primitives for drawing (with optional layer/z control)
+    void queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled = true,
+                    uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color,
+                            uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_circle(float x, float y, float radius, const DrawColor& color, bool filled = true,
+                      uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer,
+                               uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness = 1.0f,
+                    uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
     void queue_triangle(float x1, float y1, float x2, float y2, float x3, float y3,
-                        const DrawColor& color, bool filled = true);
-    void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color);
+                        const DrawColor& color, bool filled = true,
+                        uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
+                    uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
 
     // Queue camera begin/end commands for deferred camera transforms
     void queue_camera_begin(CameraHandle handle);
