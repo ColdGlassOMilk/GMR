@@ -72,6 +72,7 @@ set(SOURCES
     src/state_machine/state_machine_manager.cpp
     src/input/input_manager.cpp
     src/input/input_context.cpp
+    src/event/event_queue.cpp
     src/transform.cpp
     src/node.cpp
     src/scene.cpp

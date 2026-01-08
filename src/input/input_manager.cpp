@@ -1,5 +1,5 @@
 #include "gmr/input/input_manager.hpp"
-#include "gmr/state_machine/state_machine_manager.hpp"
+#include "gmr/event/event_queue.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include "raylib.h"
 #include <algorithm>
@@ -215,40 +215,9 @@ void InputManager::dispatch_callbacks(mrb_state* mrb, const std::string& action,
     }
 }
 
-void InputManager::dispatch_to_state_machines(mrb_state* mrb, const std::string& action,
-                                               InputPhase phase) {
-    auto& sm_manager = state_machine::StateMachineManager::instance();
-
-    // Collect bindings to process (avoid modification during iteration)
-    std::vector<const StateMachineInputBinding*> to_process;
-    for (const auto& binding : sm_bindings_) {
-        if (binding.action == action && binding.phase == phase) {
-            to_process.push_back(&binding);
-        }
-    }
-
-    for (const auto* binding : to_process) {
-        // Get the state machine
-        auto* machine = sm_manager.get(binding->machine);
-        if (!machine || !machine->active) continue;
-
-        // Check if we're in the correct state for this binding
-        if (machine->current_state != binding->current_state) continue;
-
-        // Check condition if present (skip if forced)
-        if (!binding->forced && !mrb_nil_p(binding->condition)) {
-            mrb_value result = scripting::safe_method_call(mrb, machine->owner,
-                                                           "instance_exec", {binding->condition});
-            if (!mrb_test(result)) continue;
-        }
-
-        // Trigger the transition using set_state (bypasses event lookup)
-        sm_manager.set_state(mrb, binding->machine, binding->target_state);
-    }
-}
-
 void InputManager::poll_and_dispatch(mrb_state* mrb) {
     auto& context_stack = ContextStack::instance();
+    auto& event_queue = event::EventQueue::instance();
 
     // Helper lambda to process actions from a map
     auto process_actions = [&](std::unordered_map<std::string, ActionDefinition>& actions) {
@@ -259,17 +228,18 @@ void InputManager::poll_and_dispatch(mrb_state* mrb) {
 
             if (check_action_phase(action, InputPhase::Pressed)) {
                 dispatch_callbacks(mrb, name, InputPhase::Pressed);
-                dispatch_to_state_machines(mrb, name, InputPhase::Pressed);
+                // Enqueue event for other subscribers (e.g., StateMachineManager)
+                event_queue.enqueue(event::InputActionEvent{name, InputPhase::Pressed});
             }
 
             if (check_action_phase(action, InputPhase::Released)) {
                 dispatch_callbacks(mrb, name, InputPhase::Released);
-                dispatch_to_state_machines(mrb, name, InputPhase::Released);
+                event_queue.enqueue(event::InputActionEvent{name, InputPhase::Released});
             }
 
             if (check_action_phase(action, InputPhase::Held)) {
                 dispatch_callbacks(mrb, name, InputPhase::Held);
-                dispatch_to_state_machines(mrb, name, InputPhase::Held);
+                event_queue.enqueue(event::InputActionEvent{name, InputPhase::Held});
             }
         }
     };

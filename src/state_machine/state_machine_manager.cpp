@@ -1,6 +1,7 @@
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/input/input_manager.hpp"
+#include "gmr/event/event_queue.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include <mruby/variable.h>
 #include <mruby/data.h>
@@ -305,6 +306,15 @@ void StateMachineManager::stop_current_animation(StateMachineHandle handle) {
 void StateMachineManager::update(mrb_state* mrb, float dt) {
     (void)dt;  // State machines are event-driven, no time-based updates
 
+    // Subscribe to input events on first update (lazy initialization)
+    // We capture 'this' and 'mrb' - mrb is passed each frame so this is safe
+    if (input_subscription_ == event::INVALID_SUBSCRIPTION) {
+        input_subscription_ = event::EventQueue::instance().subscribe<event::InputActionEvent>(
+            [this, mrb](const event::InputActionEvent& e) {
+                handle_input_event(mrb, e);
+            });
+    }
+
     // Collect handles to process FIRST (NOT references - safe if map is modified)
     // This prevents iterator invalidation when callbacks create/destroy state machines
     std::vector<StateMachineHandle> handles_to_init;
@@ -343,10 +353,57 @@ void StateMachineManager::update(mrb_state* mrb, float dt) {
 }
 
 // ============================================================================
+// Input Event Handling (via EventQueue subscription)
+// ============================================================================
+
+void StateMachineManager::handle_input_event(mrb_state* mrb,
+                                              const event::InputActionEvent& event) {
+    // Get state machine input bindings from InputManager
+    auto& input_mgr = input::InputManager::instance();
+    const auto& bindings = input_mgr.get_sm_bindings();
+
+    // Collect bindings to process (avoid modification during iteration)
+    std::vector<const input::StateMachineInputBinding*> to_process;
+    for (const auto& binding : bindings) {
+        if (binding.action == event.action && binding.phase == event.phase) {
+            to_process.push_back(&binding);
+        }
+    }
+
+    for (const auto* binding : to_process) {
+        // Get the state machine
+        auto* machine = get(binding->machine);
+        if (!machine || !machine->active) continue;
+
+        // Check if we're in the correct state for this binding
+        if (machine->current_state != binding->current_state) continue;
+
+        // Check condition if present (skip if forced)
+        if (!binding->forced && !mrb_nil_p(binding->condition)) {
+            if (!check_condition(mrb, binding->machine, binding->condition)) {
+                continue;
+            }
+            // Re-get machine after condition check
+            machine = get(binding->machine);
+            if (!machine || !machine->active) continue;
+        }
+
+        // Trigger the state transition
+        set_state(mrb, binding->machine, binding->target_state);
+    }
+}
+
+// ============================================================================
 // Cleanup
 // ============================================================================
 
 void StateMachineManager::clear(mrb_state* mrb) {
+    // Unsubscribe from input events
+    if (input_subscription_ != event::INVALID_SUBSCRIPTION) {
+        event::EventQueue::instance().unsubscribe(mrb, input_subscription_);
+        input_subscription_ = event::INVALID_SUBSCRIPTION;
+    }
+
     // Unregister input bindings for all state machines
     for (auto& [handle, machine] : machines_) {
         input::InputManager::instance().unregister_state_machine_bindings(mrb, handle);

@@ -444,11 +444,11 @@ static mrb_value mrb_example_method(mrb_state* mrb, mrb_value self) {
 | **Animation System** | Tweens, sprite animations, animators | Well-architected. Unified manager with deferred completions. |
 | **State Machine DSL** | Declarative state transitions | Elegant. Clean `instance_exec` block pattern. |
 | **Input System** | Action mapping, callbacks, contexts | Solid. Symbol-based bindings feel Rubyish. |
+| **Event Queue** | Decoupled event dispatch | Clean. Input events flow through centralized queue to subscribers. |
 
 ### Known Issues to Address
 
-1. **InputManager couples to StateMachineManager** - InputManager directly calls StateMachineManager to trigger state transitions on input events. Consider an event queue pattern to decouple these systems.
-2. **Global State singleton** - The `State` singleton stores screen dimensions and virtual resolution settings, making isolated testing difficult. Consider dependency injection for better testability.
+1. **Global State singleton** - The `State` singleton stores screen dimensions and virtual resolution settings, making isolated testing difficult. Consider dependency injection for better testability.
 
 ### Key Files
 
@@ -456,6 +456,7 @@ static mrb_value mrb_example_method(mrb_state* mrb, mrb_value self) {
 |--------|---------------|
 | Main Loop | `src/main.cpp` |
 | Draw Queue | `include/gmr/draw_queue.hpp`, `src/draw_queue.cpp` |
+| Event Queue | `include/gmr/event/`, `src/event/event_queue.cpp` |
 | Input | `include/gmr/input/`, `src/bindings/input.cpp` |
 | Animation | `include/gmr/animation/`, `src/animation/` |
 | State Machine | `include/gmr/state_machine/`, `src/bindings/state_machine.cpp` |
@@ -532,7 +533,7 @@ Input.map(:test, :invalid_key)  # Should raise ArgumentError
 ### Priority 1: Strengthen Core
 
 - **Lightweight entity grouping** - Optional wrapper for sprite + animator + state machine
-- **Decouple InputManager from StateMachineManager** - Event queue pattern for cleaner architecture
+- ~~**Decouple InputManager from StateMachineManager**~~ - ✅ Completed: Event queue pattern implemented
 - **State injection for testing** - Make State configurable for isolated unit tests
 
 ### Priority 2: Necessary Completeness

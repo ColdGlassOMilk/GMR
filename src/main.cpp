@@ -6,6 +6,7 @@
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/input/input_manager.hpp"
+#include "gmr/event/event_queue.hpp"
 #include "gmr/console/console_module.hpp"
 #include "raylib.h"
 #include <cstdio>
@@ -60,10 +61,13 @@ void game_loop(void* arg) {
         // Update animation system (tweens and sprite animations)
         gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
-        // Poll input and dispatch events to callbacks and state machines
+        // Poll input and enqueue events
         gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
-        // Update state machine system
+        // Dispatch queued events to all subscribers
+        gmr::event::EventQueue::instance().dispatch(mrb);
+
+        // Update state machine system (receives input events via subscription)
         gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
 
         // Built-in console update (handles its own input)
@@ -211,10 +215,13 @@ int main(int argc, char* argv[]) {
             // Update animation system (tweens and sprite animations)
             gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
-            // Poll input and dispatch events to callbacks and state machines
+            // Poll input and enqueue events
             gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
-            // Update state machine system
+            // Dispatch queued events to all subscribers
+            gmr::event::EventQueue::instance().dispatch(mrb);
+
+            // Update state machine system (receives input events via subscription)
             gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
 
             // Built-in console update (handles its own input)
@@ -285,6 +292,10 @@ int main(int argc, char* argv[]) {
     gmr::console::ConsoleModule::instance().shutdown();
 
     // Cleanup (only for native - web doesn't reach here)
+    // Clear event queue first while mruby is still available
+    if (auto* mrb = loader.mrb()) {
+        gmr::event::EventQueue::instance().clear(mrb);
+    }
     gmr::bindings::cleanup_window();
     gmr::SpriteManager::instance().clear();
     gmr::TransformManager::instance().clear();

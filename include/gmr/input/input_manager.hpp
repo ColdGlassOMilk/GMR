@@ -56,6 +56,9 @@ public:
     size_t callback_count() const { return callbacks_.size(); }
     size_t sm_binding_count() const { return sm_bindings_.size(); }
 
+    // === State Machine Binding Access (for EventQueue subscribers) ===
+    const std::vector<StateMachineInputBinding>& get_sm_bindings() const { return sm_bindings_; }
+
 private:
     InputManager() = default;
     InputManager(const InputManager&) = delete;
@@ -66,9 +69,6 @@ private:
 
     // Dispatch to callbacks
     void dispatch_callbacks(mrb_state* mrb, const std::string& action, InputPhase phase);
-
-    // Dispatch to state machines
-    void dispatch_to_state_machines(mrb_state* mrb, const std::string& action, InputPhase phase);
 
     // Storage
     std::unordered_map<std::string, ActionDefinition> actions_;

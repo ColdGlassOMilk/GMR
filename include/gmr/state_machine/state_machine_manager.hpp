@@ -2,6 +2,7 @@
 #define GMR_STATE_MACHINE_MANAGER_HPP
 
 #include "gmr/state_machine/state_machine.hpp"
+#include "gmr/event/event_queue.hpp"
 #include <mruby.h>
 #include <unordered_map>
 
@@ -66,9 +67,15 @@ private:
     // Callback invocation
     void invoke_callback(mrb_state* mrb, mrb_value callback, mrb_value owner);
 
+    // Handle input events from EventQueue subscription
+    void handle_input_event(mrb_state* mrb, const event::InputActionEvent& event);
+
     // Storage
     std::unordered_map<StateMachineHandle, StateMachineState> machines_;
     StateMachineHandle next_id_{0};
+
+    // Event subscription handle for input events
+    event::SubscriptionHandle input_subscription_{event::INVALID_SUBSCRIPTION};
 };
 
 } // namespace state_machine
