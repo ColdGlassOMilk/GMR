@@ -18,6 +18,30 @@ static ::Color to_raylib(const Color& c) {
 // Default white color for when none is specified
 static const Color WHITE_COLOR{255, 255, 255, 255};
 
+// External transform data type (from transform.cpp)
+extern const mrb_data_type transform_data_type;
+
+// Helper: Get TransformHandle from Transform2D Ruby object
+struct TransformData {
+    TransformHandle handle;
+};
+
+static TransformHandle get_transform_handle(mrb_state* mrb, mrb_value val) {
+    void* ptr = mrb_data_get_ptr(mrb, val, &transform_data_type);
+    if (ptr) {
+        TransformData* data = static_cast<TransformData*>(ptr);
+        return data->handle;
+    }
+    return INVALID_HANDLE;
+}
+
+// Helper: Check if a Ruby value is a Transform2D object
+static bool is_transform2d(mrb_state* mrb, mrb_value val) {
+    if (mrb_nil_p(val)) return false;
+    RClass* transform_class = mrb_class_get_under(mrb, mrb_module_get(mrb, "GMR"), "Transform2D");
+    return mrb_obj_is_kind_of(mrb, val, transform_class);
+}
+
 // ============================================================================
 // GMR::Graphics Module Functions (Stateless)
 // ============================================================================
@@ -127,63 +151,139 @@ static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
 
 /// @function draw_rect
 /// @description Draw a filled rectangle
-/// @param x [Integer] X position (left edge)
-/// @param y [Integer] Y position (top edge)
-/// @param w [Integer] Width in pixels
-/// @param h [Integer] Height in pixels
-/// @param color [Color] Fill color
+/// @param transform_or_x [Transform2D|Integer] Transform2D object OR X position (left edge)
+/// @param width_or_y [Float|Integer] Width in pixels (if transform) OR Y position (top edge)
+/// @param height_or_w [Float|Integer] Height in pixels (if transform) OR Width in pixels
+/// @param color_or_h [Color|Integer] Fill color (if transform) OR Height in pixels
+/// @param color [Color] Fill color (if using x,y,w,h)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])
+/// @example GMR::Graphics.draw_rect(transform, 50, 30, [255, 0, 0])  # Transform2D + dimensions
+/// @example GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])  # Legacy x,y,w,h
+// GMR::Graphics.draw_rect(transform, width, height, color)
 // GMR::Graphics.draw_rect(x, y, w, h, color)
 static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
-    mrb_int x, y, w, h;
-    mrb_value color_val;
-    mrb_get_args(mrb, "iiiio", &x, &y, &w, &h, &color_val);
+    mrb_value arg1, arg2, arg3, arg4, arg5 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "oooo|o", &arg1, &arg2, &arg3, &arg4, &arg5);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_rect(transform, width, height, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_rect(
-        static_cast<float>(x),
-        static_cast<float>(y),
-        static_cast<float>(w),
-        static_cast<float>(h),
-        draw_color,
-        true,  // filled
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float width = mrb_as_float(mrb, arg2);
+        mrb_float height = mrb_as_float(mrb, arg3);
+
+        Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_rect(
+            transform,
+            static_cast<float>(width),
+            static_cast<float>(height),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_rect(x, y, width, height, color)
+        if (argc < 5 || mrb_nil_p(arg5)) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_rect requires 5 arguments when using coordinates: x, y, width, height, color");
+            return mrb_nil_value();
+        }
+
+        mrb_int x = mrb_as_int(mrb, arg1);
+        mrb_int y = mrb_as_int(mrb, arg2);
+        mrb_int w = mrb_as_int(mrb, arg3);
+        mrb_int h = mrb_as_int(mrb, arg4);
+
+        Color c = parse_color_value(mrb, arg5, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_rect(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            static_cast<float>(w),
+            static_cast<float>(h),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
 /// @function draw_rect_outline
 /// @description Draw a rectangle outline (not filled)
-/// @param x [Integer] X position (left edge)
-/// @param y [Integer] Y position (top edge)
-/// @param w [Integer] Width in pixels
-/// @param h [Integer] Height in pixels
-/// @param color [Color] Outline color
+/// @param transform_or_x [Transform2D|Integer] Transform2D object OR X position (left edge)
+/// @param width_or_y [Float|Integer] Width in pixels (if transform) OR Y position (top edge)
+/// @param height_or_w [Float|Integer] Height in pixels (if transform) OR Width in pixels
+/// @param color_or_h [Color|Integer] Outline color (if transform) OR Height in pixels
+/// @param color [Color] Outline color (if using x,y,w,h)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])
+/// @example GMR::Graphics.draw_rect_outline(transform, 50, 30, [255, 255, 255])  # Transform2D + dimensions
+/// @example GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])  # Legacy x,y,w,h
+// GMR::Graphics.draw_rect_outline(transform, width, height, color)
 // GMR::Graphics.draw_rect_outline(x, y, w, h, color)
 static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
-    mrb_int x, y, w, h;
-    mrb_value color_val;
-    mrb_get_args(mrb, "iiiio", &x, &y, &w, &h, &color_val);
+    mrb_value arg1, arg2, arg3, arg4, arg5 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "oooo|o", &arg1, &arg2, &arg3, &arg4, &arg5);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_rect_outline(transform, width, height, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_rect(
-        static_cast<float>(x),
-        static_cast<float>(y),
-        static_cast<float>(w),
-        static_cast<float>(h),
-        draw_color,
-        false,  // not filled (outline only)
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float width = mrb_as_float(mrb, arg2);
+        mrb_float height = mrb_as_float(mrb, arg3);
+
+        Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_rect(
+            transform,
+            static_cast<float>(width),
+            static_cast<float>(height),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_rect_outline(x, y, width, height, color)
+        if (argc < 5 || mrb_nil_p(arg5)) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_rect_outline requires 5 arguments when using coordinates: x, y, width, height, color");
+            return mrb_nil_value();
+        }
+
+        mrb_int x = mrb_as_int(mrb, arg1);
+        mrb_int y = mrb_as_int(mrb, arg2);
+        mrb_int w = mrb_as_int(mrb, arg3);
+        mrb_int h = mrb_as_int(mrb, arg4);
+
+        Color c = parse_color_value(mrb, arg5, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_rect(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            static_cast<float>(w),
+            static_cast<float>(h),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
@@ -221,35 +321,82 @@ static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
 
 /// @function draw_line
 /// @description Draw a line between two points
-/// @param x1 [Integer] Start X position
-/// @param y1 [Integer] Start Y position
-/// @param x2 [Integer] End X position
-/// @param y2 [Integer] End Y position
-/// @param color [Color] Line color
-/// @param thickness [Float] Optional line thickness (default: 1.0)
+/// @param transform_or_x1 [Transform2D|Integer] Transform2D object OR Start X position
+/// @param x1_or_y1 [Float|Integer] Local X1 (if transform) OR Start Y position
+/// @param y1_or_x2 [Float|Integer] Local Y1 (if transform) OR End X position
+/// @param x2_or_y2 [Float|Integer] Local X2 (if transform) OR End Y position
+/// @param y2_or_color [Float|Color] Local Y2 (if transform) OR Line color
+/// @param color_or_thickness [Color|Float] Line color (if transform) OR Optional thickness
+/// @param thickness [Float] Optional line thickness (default: 1.0, transform API only)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])
-/// @example GMR::Graphics.draw_line(0, 0, 100, 100, :red, 3.0)
+/// @example GMR::Graphics.draw_line(transform, -20, 0, 20, 0, [255, 255, 255])  # Transform2D + local coords
+/// @example GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])  # Legacy x1,y1,x2,y2
+/// @example GMR::Graphics.draw_line(0, 0, 100, 100, :red, 3.0)  # Legacy with thickness
+// GMR::Graphics.draw_line(transform, x1, y1, x2, y2, color, thickness=1.0)
 // GMR::Graphics.draw_line(x1, y1, x2, y2, color, thickness=1.0)
 static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
-    mrb_int x1, y1, x2, y2;
-    mrb_value color_val;
-    mrb_float thickness = 1.0f;
-    mrb_get_args(mrb, "iiiio|f", &x1, &y1, &x2, &y2, &color_val, &thickness);
+    mrb_value arg1, arg2, arg3, arg4, arg5, arg6 = mrb_nil_value(), arg7 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "ooooo|oo", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_line(transform, x1, y1, x2, y2, color, thickness=1.0)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_line(
-        static_cast<float>(x1),
-        static_cast<float>(y1),
-        static_cast<float>(x2),
-        static_cast<float>(y2),
-        draw_color,
-        static_cast<float>(thickness),
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float x1 = mrb_as_float(mrb, arg2);
+        mrb_float y1 = mrb_as_float(mrb, arg3);
+        mrb_float x2 = mrb_as_float(mrb, arg4);
+        mrb_float y2 = mrb_as_float(mrb, arg5);
+
+        Color c = parse_color_value(mrb, arg6, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        mrb_float thickness = 1.0f;
+        if (argc >= 7 && !mrb_nil_p(arg7)) {
+            thickness = mrb_as_float(mrb, arg7);
+        }
+
+        DrawQueue::instance().queue_line(
+            transform,
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            draw_color,
+            static_cast<float>(thickness),
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_line(x1, y1, x2, y2, color, thickness=1.0)
+        mrb_int x1 = mrb_as_int(mrb, arg1);
+        mrb_int y1 = mrb_as_int(mrb, arg2);
+        mrb_int x2 = mrb_as_int(mrb, arg3);
+        mrb_int y2 = mrb_as_int(mrb, arg4);
+
+        Color c = parse_color_value(mrb, arg5, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        mrb_float thickness = 1.0f;
+        if (argc >= 6 && !mrb_nil_p(arg6)) {
+            thickness = mrb_as_float(mrb, arg6);
+        }
+
+        DrawQueue::instance().queue_line(
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            draw_color,
+            static_cast<float>(thickness),
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
@@ -287,59 +434,129 @@ static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
 
 /// @function draw_circle
 /// @description Draw a filled circle
-/// @param x [Integer] Center X position
-/// @param y [Integer] Center Y position
-/// @param radius [Integer] Circle radius in pixels
-/// @param color [Color] Fill color
+/// @param transform_or_x [Transform2D|Integer] Transform2D object OR Center X position
+/// @param radius_or_y [Float|Integer] Radius in pixels (if transform) OR Center Y position
+/// @param color_or_radius [Color|Integer] Fill color (if transform) OR Radius in pixels
+/// @param color [Color] Fill color (if using x,y,radius)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])
+/// @example GMR::Graphics.draw_circle(transform, 25, [100, 200, 255])  # Transform2D + radius
+/// @example GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])  # Legacy x,y,radius
+// GMR::Graphics.draw_circle(transform, radius, color)
 // GMR::Graphics.draw_circle(x, y, radius, color)
 static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
-    mrb_int x, y, radius;
-    mrb_value color_val;
-    mrb_get_args(mrb, "iiio", &x, &y, &radius, &color_val);
+    mrb_value arg1, arg2, arg3, arg4 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "ooo|o", &arg1, &arg2, &arg3, &arg4);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_circle(transform, radius, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_circle(
-        static_cast<float>(x),
-        static_cast<float>(y),
-        static_cast<float>(radius),
-        draw_color,
-        true,  // filled
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float radius = mrb_as_float(mrb, arg2);
+
+        Color c = parse_color_value(mrb, arg3, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_circle(
+            transform,
+            static_cast<float>(radius),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_circle(x, y, radius, color)
+        if (argc < 4 || mrb_nil_p(arg4)) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_circle requires 4 arguments when using coordinates: x, y, radius, color");
+            return mrb_nil_value();
+        }
+
+        mrb_int x = mrb_as_int(mrb, arg1);
+        mrb_int y = mrb_as_int(mrb, arg2);
+        mrb_int radius = mrb_as_int(mrb, arg3);
+
+        Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_circle(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            static_cast<float>(radius),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
 /// @function draw_circle_outline
 /// @description Draw a circle outline
-/// @param x [Integer] Center X position
-/// @param y [Integer] Center Y position
-/// @param radius [Integer] Circle radius in pixels
-/// @param color [Color] Outline color
+/// @param transform_or_x [Transform2D|Integer] Transform2D object OR Center X position
+/// @param radius_or_y [Float|Integer] Radius in pixels (if transform) OR Center Y position
+/// @param color_or_radius [Color|Integer] Outline color (if transform) OR Radius in pixels
+/// @param color [Color] Outline color (if using x,y,radius)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])
+/// @example GMR::Graphics.draw_circle_outline(transform, 25, [255, 255, 255])  # Transform2D + radius
+/// @example GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])  # Legacy x,y,radius
+// GMR::Graphics.draw_circle_outline(transform, radius, color)
 // GMR::Graphics.draw_circle_outline(x, y, radius, color)
 static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
-    mrb_int x, y, radius;
-    mrb_value color_val;
-    mrb_get_args(mrb, "iiio", &x, &y, &radius, &color_val);
+    mrb_value arg1, arg2, arg3, arg4 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "ooo|o", &arg1, &arg2, &arg3, &arg4);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_circle_outline(transform, radius, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_circle(
-        static_cast<float>(x),
-        static_cast<float>(y),
-        static_cast<float>(radius),
-        draw_color,
-        false,  // not filled (outline only)
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float radius = mrb_as_float(mrb, arg2);
+
+        Color c = parse_color_value(mrb, arg3, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_circle(
+            transform,
+            static_cast<float>(radius),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_circle_outline(x, y, radius, color)
+        if (argc < 4 || mrb_nil_p(arg4)) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_circle_outline requires 4 arguments when using coordinates: x, y, radius, color");
+            return mrb_nil_value();
+        }
+
+        mrb_int x = mrb_as_int(mrb, arg1);
+        mrb_int y = mrb_as_int(mrb, arg2);
+        mrb_int radius = mrb_as_int(mrb, arg3);
+
+        Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_circle(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            static_cast<float>(radius),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
@@ -377,100 +594,225 @@ static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
 
 /// @function draw_triangle
 /// @description Draw a filled triangle
-/// @param x1 [Float] First vertex X
-/// @param y1 [Float] First vertex Y
-/// @param x2 [Float] Second vertex X
-/// @param y2 [Float] Second vertex Y
-/// @param x3 [Float] Third vertex X
-/// @param y3 [Float] Third vertex Y
-/// @param color [Color] Fill color
+/// @param transform_or_x1 [Transform2D|Float] Transform2D object OR First vertex X
+/// @param x1_or_y1 [Float] Local X1 (if transform) OR First vertex Y
+/// @param y1_or_x2 [Float] Local Y1 (if transform) OR Second vertex X
+/// @param x2_or_y2 [Float] Local X2 (if transform) OR Second vertex Y
+/// @param y2_or_x3 [Float] Local Y2 (if transform) OR Third vertex X
+/// @param x3_or_y3 [Float] Local X3 (if transform) OR Third vertex Y
+/// @param y3_or_color [Float|Color] Local Y3 (if transform) OR Fill color
+/// @param color [Color] Fill color (if using transform)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])
+/// @example GMR::Graphics.draw_triangle(transform, 0, -15, -13, 15, 13, 15, [255, 0, 0])  # Transform2D + local coords
+/// @example GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])  # Legacy world coords
+// GMR::Graphics.draw_triangle(transform, x1, y1, x2, y2, x3, y3, color)
 // GMR::Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, color)
 static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
-    mrb_float x1, y1, x2, y2, x3, y3;
-    mrb_value color_val;
-    mrb_get_args(mrb, "ffffffo", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+    mrb_value arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "ooooooo|o", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_triangle(transform, x1, y1, x2, y2, x3, y3, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_triangle(
-        static_cast<float>(x1),
-        static_cast<float>(y1),
-        static_cast<float>(x2),
-        static_cast<float>(y2),
-        static_cast<float>(x3),
-        static_cast<float>(y3),
-        draw_color,
-        true,  // filled
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float x1 = mrb_as_float(mrb, arg2);
+        mrb_float y1 = mrb_as_float(mrb, arg3);
+        mrb_float x2 = mrb_as_float(mrb, arg4);
+        mrb_float y2 = mrb_as_float(mrb, arg5);
+        mrb_float x3 = mrb_as_float(mrb, arg6);
+        mrb_float y3 = mrb_as_float(mrb, arg7);
+
+        Color c = parse_color_value(mrb, arg8, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_triangle(
+            transform,
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            static_cast<float>(x3),
+            static_cast<float>(y3),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_triangle(x1, y1, x2, y2, x3, y3, color)
+        mrb_float x1 = mrb_as_float(mrb, arg1);
+        mrb_float y1 = mrb_as_float(mrb, arg2);
+        mrb_float x2 = mrb_as_float(mrb, arg3);
+        mrb_float y2 = mrb_as_float(mrb, arg4);
+        mrb_float x3 = mrb_as_float(mrb, arg5);
+        mrb_float y3 = mrb_as_float(mrb, arg6);
+
+        Color c = parse_color_value(mrb, arg7, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_triangle(
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            static_cast<float>(x3),
+            static_cast<float>(y3),
+            draw_color,
+            true,  // filled
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
 /// @function draw_triangle_outline
 /// @description Draw a triangle outline
-/// @param x1 [Float] First vertex X
-/// @param y1 [Float] First vertex Y
-/// @param x2 [Float] Second vertex X
-/// @param y2 [Float] Second vertex Y
-/// @param x3 [Float] Third vertex X
-/// @param y3 [Float] Third vertex Y
-/// @param color [Color] Outline color
+/// @param transform_or_x1 [Transform2D|Float] Transform2D object OR First vertex X
+/// @param x1_or_y1 [Float] Local X1 (if transform) OR First vertex Y
+/// @param y1_or_x2 [Float] Local Y1 (if transform) OR Second vertex X
+/// @param x2_or_y2 [Float] Local X2 (if transform) OR Second vertex Y
+/// @param y2_or_x3 [Float] Local Y2 (if transform) OR Third vertex X
+/// @param x3_or_y3 [Float] Local X3 (if transform) OR Third vertex Y
+/// @param y3_or_color [Float|Color] Local Y3 (if transform) OR Outline color
+/// @param color [Color] Outline color (if using transform)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])
+/// @example GMR::Graphics.draw_triangle_outline(transform, 0, -15, -13, 15, 13, 15, [255, 255, 255])  # Transform2D + local coords
+/// @example GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])  # Legacy world coords
+// GMR::Graphics.draw_triangle_outline(transform, x1, y1, x2, y2, x3, y3, color)
 // GMR::Graphics.draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)
 static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
-    mrb_float x1, y1, x2, y2, x3, y3;
-    mrb_value color_val;
-    mrb_get_args(mrb, "ffffffo", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+    mrb_value arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "ooooooo|o", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6, &arg7, &arg8);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawColor draw_color{c.r, c.g, c.b, c.a};
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_triangle_outline(transform, x1, y1, x2, y2, x3, y3, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    DrawQueue::instance().queue_triangle(
-        static_cast<float>(x1),
-        static_cast<float>(y1),
-        static_cast<float>(x2),
-        static_cast<float>(y2),
-        static_cast<float>(x3),
-        static_cast<float>(y3),
-        draw_color,
-        false,  // not filled (outline only)
-        static_cast<uint8_t>(RenderLayer::ENTITIES),
-        0.0f   // z (0 = use draw_order)
-    );
+        mrb_float x1 = mrb_as_float(mrb, arg2);
+        mrb_float y1 = mrb_as_float(mrb, arg3);
+        mrb_float x2 = mrb_as_float(mrb, arg4);
+        mrb_float y2 = mrb_as_float(mrb, arg5);
+        mrb_float x3 = mrb_as_float(mrb, arg6);
+        mrb_float y3 = mrb_as_float(mrb, arg7);
+
+        Color c = parse_color_value(mrb, arg8, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_triangle(
+            transform,
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            static_cast<float>(x3),
+            static_cast<float>(y3),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)
+        mrb_float x1 = mrb_as_float(mrb, arg1);
+        mrb_float y1 = mrb_as_float(mrb, arg2);
+        mrb_float x2 = mrb_as_float(mrb, arg3);
+        mrb_float y2 = mrb_as_float(mrb, arg4);
+        mrb_float x3 = mrb_as_float(mrb, arg5);
+        mrb_float y3 = mrb_as_float(mrb, arg6);
+
+        Color c = parse_color_value(mrb, arg7, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_triangle(
+            static_cast<float>(x1),
+            static_cast<float>(y1),
+            static_cast<float>(x2),
+            static_cast<float>(y2),
+            static_cast<float>(x3),
+            static_cast<float>(y3),
+            draw_color,
+            false,  // not filled (outline only)
+            static_cast<uint8_t>(RenderLayer::ENTITIES),
+            0.0f   // z (0 = use draw_order)
+        );
+    }
     return mrb_nil_value();
 }
 
 /// @function draw_text
 /// @description Draw text at a position
-/// @param text [String] The text to draw
-/// @param x [Integer] X position (left edge)
-/// @param y [Integer] Y position (top edge)
-/// @param size [Integer] Font size in pixels
-/// @param color [Color] Text color
+/// @param transform_or_text [Transform2D|String] Transform2D object OR The text to draw
+/// @param text_or_x [String|Integer] Text content (if transform) OR X position (left edge)
+/// @param size_or_y [Integer] Font size (if transform) OR Y position (top edge)
+/// @param color_or_size [Color|Integer] Text color (if transform) OR Font size in pixels
+/// @param color [Color] Text color (if using x,y)
 /// @returns [nil]
-/// @example GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])
+/// @example GMR::Graphics.draw_text(transform, "Hello!", 20, [255, 255, 255])  # Transform2D + text
+/// @example GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])  # Legacy x,y,size
+// GMR::Graphics.draw_text(transform, text, size, color)
 // GMR::Graphics.draw_text(text, x, y, size, color)
 static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
-    const char* text;
-    mrb_int x, y, size;
-    mrb_value color_val;
-    mrb_get_args(mrb, "ziiio", &text, &x, &y, &size, &color_val);
+    mrb_value arg1, arg2, arg3, arg4, arg5 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "oooo|o", &arg1, &arg2, &arg3, &arg4, &arg5);
 
-    Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
+    // Check if first arg is Transform2D
+    if (is_transform2d(mrb, arg1)) {
+        // NEW API: draw_text(transform, text, size, color)
+        TransformHandle transform = get_transform_handle(mrb, arg1);
+        if (transform == INVALID_HANDLE) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
+            return mrb_nil_value();
+        }
 
-    // Queue text for deferred rendering (so it respects camera transforms)
-    DrawQueue::instance().queue_text(
-        static_cast<float>(x),
-        static_cast<float>(y),
-        text,
-        static_cast<int>(size),
-        DrawColor{c.r, c.g, c.b, c.a}
-    );
+        const char* text = mrb_string_value_cstr(mrb, &arg2);
+        mrb_int size = mrb_as_int(mrb, arg3);
+
+        Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        DrawQueue::instance().queue_text(
+            transform,
+            text,
+            static_cast<int>(size),
+            draw_color,
+            static_cast<uint8_t>(RenderLayer::UI),
+            0.0f   // z (0 = use draw_order)
+        );
+    } else {
+        // OLD API: draw_text(text, x, y, size, color)
+        if (argc < 5 || mrb_nil_p(arg5)) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_text requires 5 arguments when using coordinates: text, x, y, size, color");
+            return mrb_nil_value();
+        }
+
+        const char* text = mrb_string_value_cstr(mrb, &arg1);
+        mrb_int x = mrb_as_int(mrb, arg2);
+        mrb_int y = mrb_as_int(mrb, arg3);
+        mrb_int size = mrb_as_int(mrb, arg4);
+
+        Color c = parse_color_value(mrb, arg5, WHITE_COLOR);
+        DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+        // Queue text for deferred rendering (so it respects camera transforms)
+        DrawQueue::instance().queue_text(
+            static_cast<float>(x),
+            static_cast<float>(y),
+            text,
+            static_cast<int>(size),
+            draw_color
+        );
+    }
 
     return mrb_nil_value();
 }

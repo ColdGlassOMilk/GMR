@@ -514,6 +514,30 @@ static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
     return mrb_float_value(mrb, val);
 }
 
+/// @method center_origin
+/// @description Set the origin to the center of the given dimensions, so the transform rotates
+///   and scales around its center point. Useful for sprites, images, or any rectangular object.
+/// @param w [Float] The width of the object in pixels
+/// @param h [Float] The height of the object in pixels
+/// @returns [Transform2D] self for chaining
+/// @example transform.center_origin(256, 256)  # Center of 256x256 image
+/// @example Transform2D.new(x: 100, y: 100).center_origin(64, 64)  # Method chaining
+static mrb_value mrb_transform_center_origin(mrb_state* mrb, mrb_value self) {
+    mrb_float w, h;
+    mrb_get_args(mrb, "ff", &w, &h);
+
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+    Transform2DState* t = TransformManager::instance().get(data->handle);
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
+
+    t->origin.x = static_cast<float>(w) / 2.0f;
+    t->origin.y = static_cast<float>(h) / 2.0f;
+    TransformManager::instance().mark_dirty(data->handle);
+
+    return self;
+}
+
 // ============================================================================
 // Parent Hierarchy
 // ============================================================================
@@ -791,6 +815,7 @@ void register_transform(mrb_state* mrb) {
     mrb_define_method(mrb, transform_class, "origin_y", mrb_transform_origin_y, MRB_ARGS_NONE());
     mrb_define_method(mrb, transform_class, "origin_x=", mrb_transform_set_origin_x, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, transform_class, "origin_y=", mrb_transform_set_origin_y, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, transform_class, "center_origin", mrb_transform_center_origin, MRB_ARGS_REQ(2));
 
     // Parent hierarchy
     mrb_define_method(mrb, transform_class, "parent", mrb_transform_parent, MRB_ARGS_NONE());

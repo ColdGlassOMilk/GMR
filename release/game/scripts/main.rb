@@ -12,15 +12,29 @@ WINDOW_HEIGHT = 540
 
 # Particle/object definition
 class DepthObject
-  attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text
+  attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text, :transform, :sprite
 
-  def initialize(type, color = nil)
+  def initialize(type, texture = nil, color = nil)
     @type = type  # :sprite, :rect, :circle, :triangle, :line, :text
-    @color = color || [:red, :green, :blue, :yellow, :magenta, :cyan, :orange, :pink].sample
 
-    # Random position (within visible area)
-    @x = rand(-140.0..140.0)
-    @y = rand(-70.0..70.0)
+    # Generate random color with random alpha (transparency)
+    if color.nil?
+      base_color = [:red, :green, :blue, :yellow, :magenta, :cyan, :orange, :pink].sample
+      # Convert symbol to RGB array and add random alpha (100-255 for visibility)
+      @color = color_with_alpha(base_color, rand(100..255))
+    else
+      @color = color
+    end
+
+    # Calculate world space bounds from virtual resolution
+    # Camera is centered at (0, 0), so bounds are ±half of resolution
+    half_width = VIRTUAL_WIDTH / 2.0
+    half_height = VIRTUAL_HEIGHT / 2.0
+
+    # Random position (within visible area, with some margin)
+    margin = 20.0
+    @x = rand((-half_width + margin)..(half_width - margin))
+    @y = rand((-half_height + margin)..(half_height - margin))
     @z = rand(2.0..8.0)  # Depth: 2.0 (far) to 8.0 (near) - stay visible
 
     # Random velocity (slower so you can see z-order changes)
@@ -34,8 +48,38 @@ class DepthObject
 
     # Text content (for :text type)
     if @type == :text
-      words = ["WORLD", "HELLO", "GMR", "TEST", "ZOOM", "3D", "DEPTH"]
+      words = ["WOW", "SUCH 3D", "GMR", "TEST", "ZOOM", "3D", "DEPTH"]
       @text = words.sample
+    end
+
+    # Create transform and sprite ONCE for sprite objects
+    if @type == :sprite && texture
+      s = scale
+      @transform = Transform2D.new(
+        x: @x,
+        y: @y,
+        rotation: @rotation,
+        scale_x: s * 0.3,
+        scale_y: s * 0.3
+      )
+      @sprite = Sprite.new(texture, @transform)
+      @sprite.center_origin
+      @sprite.color = @color
+    end
+  end
+
+  def color_with_alpha(color_symbol, alpha)
+    # Convert color symbol to [r, g, b, a] array
+    case color_symbol
+    when :red then [255, 0, 0, alpha]
+    when :green then [0, 255, 0, alpha]
+    when :blue then [0, 0, 255, alpha]
+    when :yellow then [255, 255, 0, alpha]
+    when :magenta then [255, 0, 255, alpha]
+    when :cyan then [0, 255, 255, alpha]
+    when :orange then [255, 165, 0, alpha]
+    when :pink then [255, 192, 203, alpha]
+    else [255, 255, 255, alpha]
     end
   end
 
@@ -46,14 +90,18 @@ class DepthObject
     @z += @vz * dt
 
     # Bounce off walls (in world space)
-    if @x < -160 || @x > 160
+    # Calculate bounds from virtual resolution
+    half_width = VIRTUAL_WIDTH / 2.0
+    half_height = VIRTUAL_HEIGHT / 2.0
+
+    if @x < -half_width || @x > half_width
       @vx *= -1
-      @x = @x.clamp(-160, 160)
+      @x = @x.clamp(-half_width, half_width)
     end
 
-    if @y < -90 || @y > 90
+    if @y < -half_height || @y > half_height
       @vy *= -1
-      @y = @y.clamp(-90, 90)
+      @y = @y.clamp(-half_height, half_height)
     end
 
     # Bounce depth (narrower range to keep objects visible)
@@ -65,6 +113,16 @@ class DepthObject
     # Update rotation
     @rotation += @rotation_speed * dt
     @rotation %= 360
+
+    # Update transform if this is a sprite
+    if @transform
+      s = scale
+      @transform.x = @x
+      @transform.y = @y
+      @transform.rotation = @rotation
+      @transform.scale_x = s * 0.3
+      @transform.scale_y = s * 0.3
+    end
   end
 
   def scale
@@ -113,14 +171,14 @@ def init
   @time = 0.0
 
   # === LOAD SPRITE TEXTURE ===
-  @tex = Texture.load("assets/oak_woods/character/char_blue.png")
+  @tex = Texture.load("assets/logo.png")
 
   # === CREATE DEPTH OBJECTS ===
   @objects = []
 
   # Add sprites if texture loaded
   if @tex
-    15.times { @objects << DepthObject.new(:sprite) }
+    15.times { @objects << DepthObject.new(:sprite, @tex) }
   end
 
   # Add primitives
@@ -165,8 +223,11 @@ def draw
   begin
     @camera.use do
       # Draw a reference grid FIRST (before objects)
-      Graphics.draw_line(-150, 0, 150, 0, :green, 2)  # Horizontal axis
-      Graphics.draw_line(0, -80, 0, 80, :green, 2)     # Vertical axis
+      half_width = VIRTUAL_WIDTH / 2.0
+      half_height = VIRTUAL_HEIGHT / 2.0
+
+      Graphics.draw_line(-half_width, 0, half_width, 0, :green, 2)  # Horizontal axis
+      Graphics.draw_line(0, -half_height, 0, half_height, :green, 2)  # Vertical axis
 
       # Test rect at origin
       Graphics.draw_rect(-10, -10, 20, 20, :white)
@@ -180,20 +241,8 @@ def draw
 
         case obj.type
         when :sprite
-          next unless @tex
-
-          # Create transform for sprite (more dramatic scaling)
-          transform = Transform2D.new(
-            x: obj.x,
-            y: obj.y,
-            rotation: obj.rotation,
-            scale_x: s * 0.7,
-            scale_y: s * 0.7
-          )
-
-          sprite = Sprite.new(@tex, transform)
-          sprite.source_rect = Rect.new(0, 0, 56, 56)
-          sprite.draw
+          # Just draw the sprite - it's already set up with transform
+          obj.sprite.draw if obj.sprite
 
         when :rect
           # Filled rect

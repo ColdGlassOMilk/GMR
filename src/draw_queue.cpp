@@ -283,6 +283,104 @@ void DrawQueue::queue_text(float x, float y, const std::string& content, int fon
     next_draw_order_++;
 }
 
+// ==================== NEW: Transform-based queue functions ====================
+
+void DrawQueue::queue_rect(TransformHandle transform, float width, float height, const DrawColor& color,
+                            bool filled, uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::RECT;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.rect.transform = transform;
+    cmd.rect.width = width;
+    cmd.rect.height = height;
+    cmd.rect.color = color;
+    cmd.rect.filled = filled;
+    commands_.push_back(cmd);
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_circle(TransformHandle transform, float radius, const DrawColor& color,
+                              bool filled, uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::CIRCLE;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.circle.transform = transform;
+    cmd.circle.radius = radius;
+    cmd.circle.color = color;
+    cmd.circle.filled = filled;
+    cmd.circle.gradient = false;
+    commands_.push_back(cmd);
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_triangle(TransformHandle transform, float x1, float y1, float x2, float y2,
+                                float x3, float y3, const DrawColor& color, bool filled,
+                                uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::TRIANGLE;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.triangle.transform = transform;
+    cmd.triangle.x1 = x1;
+    cmd.triangle.y1 = y1;
+    cmd.triangle.x2 = x2;
+    cmd.triangle.y2 = y2;
+    cmd.triangle.x3 = x3;
+    cmd.triangle.y3 = y3;
+    cmd.triangle.color = color;
+    cmd.triangle.filled = filled;
+    commands_.push_back(cmd);
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_line(TransformHandle transform, float x1, float y1, float x2, float y2,
+                            const DrawColor& color, float thickness, uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::LINE;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.line.transform = transform;
+    cmd.line.x1 = x1;
+    cmd.line.y1 = y1;
+    cmd.line.x2 = x2;
+    cmd.line.y2 = y2;
+    cmd.line.color = color;
+    cmd.line.thickness = thickness;
+    commands_.push_back(cmd);
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_text(TransformHandle transform, const std::string& content, int font_size,
+                            const DrawColor& color, uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::TEXT;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.text.transform = transform;
+    cmd.text.font_size = font_size;
+    cmd.text.color = color;
+    cmd.text.content = content;
+    commands_.push_back(cmd);
+    next_draw_order_++;
+}
+
 void DrawQueue::apply_camera_begin(CameraHandle handle) {
     // End any existing camera mode first
     if (active_camera_ != INVALID_CAMERA_HANDLE) {
@@ -419,13 +517,12 @@ void DrawQueue::draw_sprite(const DrawCommand& cmd) {
     float dest_h = std::abs(source.height) * world_scale.y;
     Rectangle dest = {world_pos.x, world_pos.y, dest_w, dest_h};
 
-    // Origin for rotation (in dest space) - from transform's origin
-    Vector2 origin = {
-        transform->origin.x * world_scale.x,
-        transform->origin.y * world_scale.y
-    };
-
-    // Convert radians to degrees for raylib
+    // CRITICAL FIX: Transform matrix already bakes origin offset into world_pos
+    // (see transform.cpp:26-27: tx = x - (origin_x * m.a + origin_y * m.b))
+    // This means world_pos is the top-left corner AFTER accounting for the rotated origin.
+    // DrawTexturePro should rotate the texture around the top-left (origin={0,0}),
+    // but we still need to pass the rotation angle to visually rotate the texture.
+    Vector2 origin = {0, 0};
     float rotation_degrees = world_rot * (180.0f / 3.14159265358979323846f);
 
     // Draw with tint
@@ -497,111 +594,309 @@ void DrawQueue::draw_tilemap(const DrawCommand& cmd) {
 void DrawQueue::draw_rect(const DrawCommand& cmd) {
     ::Color color = to_raylib(cmd.rect.color);
 
-    if (cmd.rect.rotation != 0) {
-        // Rotated rectangle
-        Rectangle rect = {cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h};
-        Vector2 origin = {cmd.rect.w / 2, cmd.rect.h / 2};
-        DrawRectanglePro(rect, origin, cmd.rect.rotation, color);
-    } else if (cmd.rect.filled) {
-        DrawRectangle(
-            static_cast<int>(cmd.rect.x),
-            static_cast<int>(cmd.rect.y),
-            static_cast<int>(cmd.rect.w),
-            static_cast<int>(cmd.rect.h),
-            color
-        );
+    if (cmd.rect.transform != INVALID_HANDLE) {
+        // TRANSFORM-BASED RENDERING
+        auto* transform = TransformManager::instance().get(cmd.rect.transform);
+        if (!transform) return;
+
+        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.rect.transform);
+        float world_rot = TransformManager::instance().get_world_rotation(cmd.rect.transform);
+        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.rect.transform);
+
+        float w = cmd.rect.width * std::abs(world_scale.x);
+        float h = cmd.rect.height * std::abs(world_scale.y);
+
+        if (world_rot != 0.0f || transform->origin.x != 0.0f || transform->origin.y != 0.0f) {
+            // Rotated/origin-based rect - use DrawRectanglePro
+            Rectangle rect = {world_pos.x, world_pos.y, w, h};
+            Vector2 origin = {
+                transform->origin.x * world_scale.x,
+                transform->origin.y * world_scale.y
+            };
+            float rotation_degrees = world_rot * (180.0f / 3.14159265358979323846f);
+            DrawRectanglePro(rect, origin, rotation_degrees, color);
+        } else {
+            // Fast path: no rotation/origin
+            if (cmd.rect.filled) {
+                DrawRectangle(
+                    static_cast<int>(world_pos.x),
+                    static_cast<int>(world_pos.y),
+                    static_cast<int>(w),
+                    static_cast<int>(h),
+                    color
+                );
+            } else {
+                DrawRectangleLines(
+                    static_cast<int>(world_pos.x),
+                    static_cast<int>(world_pos.y),
+                    static_cast<int>(w),
+                    static_cast<int>(h),
+                    color
+                );
+            }
+        }
     } else {
-        DrawRectangleLines(
-            static_cast<int>(cmd.rect.x),
-            static_cast<int>(cmd.rect.y),
-            static_cast<int>(cmd.rect.w),
-            static_cast<int>(cmd.rect.h),
-            color
-        );
+        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        if (cmd.rect.rotation != 0) {
+            // Rotated rectangle
+            Rectangle rect = {cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h};
+            Vector2 origin = {cmd.rect.w / 2, cmd.rect.h / 2};
+            DrawRectanglePro(rect, origin, cmd.rect.rotation, color);
+        } else if (cmd.rect.filled) {
+            DrawRectangle(
+                static_cast<int>(cmd.rect.x),
+                static_cast<int>(cmd.rect.y),
+                static_cast<int>(cmd.rect.w),
+                static_cast<int>(cmd.rect.h),
+                color
+            );
+        } else {
+            DrawRectangleLines(
+                static_cast<int>(cmd.rect.x),
+                static_cast<int>(cmd.rect.y),
+                static_cast<int>(cmd.rect.w),
+                static_cast<int>(cmd.rect.h),
+                color
+            );
+        }
     }
 }
 
 void DrawQueue::draw_circle(const DrawCommand& cmd) {
-    if (cmd.circle.gradient) {
-        DrawCircleGradient(
-            static_cast<int>(cmd.circle.x),
-            static_cast<int>(cmd.circle.y),
-            cmd.circle.radius,
-            to_raylib(cmd.circle.color),
-            to_raylib(cmd.circle.color2)
-        );
-    } else if (cmd.circle.filled) {
-        DrawCircle(
-            static_cast<int>(cmd.circle.x),
-            static_cast<int>(cmd.circle.y),
-            cmd.circle.radius,
-            to_raylib(cmd.circle.color)
-        );
+    if (cmd.circle.transform != INVALID_HANDLE) {
+        // TRANSFORM-BASED RENDERING
+        auto* transform = TransformManager::instance().get(cmd.circle.transform);
+        if (!transform) return;
+
+        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.circle.transform);
+        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.circle.transform);
+
+        // Use average scale for radius (circles don't support non-uniform scaling)
+        float scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
+        float scaled_radius = cmd.circle.radius * scale;
+
+        ::Color color = to_raylib(cmd.circle.color);
+
+        if (cmd.circle.gradient) {
+            ::Color color2 = to_raylib(cmd.circle.color2);
+            DrawCircleGradient(
+                static_cast<int>(world_pos.x),
+                static_cast<int>(world_pos.y),
+                scaled_radius,
+                color,
+                color2
+            );
+        } else if (cmd.circle.filled) {
+            DrawCircle(
+                static_cast<int>(world_pos.x),
+                static_cast<int>(world_pos.y),
+                scaled_radius,
+                color
+            );
+        } else {
+            DrawCircleLines(
+                static_cast<int>(world_pos.x),
+                static_cast<int>(world_pos.y),
+                scaled_radius,
+                color
+            );
+        }
     } else {
-        DrawCircleLines(
-            static_cast<int>(cmd.circle.x),
-            static_cast<int>(cmd.circle.y),
-            cmd.circle.radius,
-            to_raylib(cmd.circle.color)
-        );
+        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        if (cmd.circle.gradient) {
+            DrawCircleGradient(
+                static_cast<int>(cmd.circle.x),
+                static_cast<int>(cmd.circle.y),
+                cmd.circle.radius,
+                to_raylib(cmd.circle.color),
+                to_raylib(cmd.circle.color2)
+            );
+        } else if (cmd.circle.filled) {
+            DrawCircle(
+                static_cast<int>(cmd.circle.x),
+                static_cast<int>(cmd.circle.y),
+                cmd.circle.radius,
+                to_raylib(cmd.circle.color)
+            );
+        } else {
+            DrawCircleLines(
+                static_cast<int>(cmd.circle.x),
+                static_cast<int>(cmd.circle.y),
+                cmd.circle.radius,
+                to_raylib(cmd.circle.color)
+            );
+        }
     }
 }
 
 void DrawQueue::draw_line(const DrawCommand& cmd) {
-    if (cmd.line.thickness > 1.0f) {
-        DrawLineEx(
-            Vector2{cmd.line.x1, cmd.line.y1},
-            Vector2{cmd.line.x2, cmd.line.y2},
-            cmd.line.thickness,
-            to_raylib(cmd.line.color)
-        );
+    ::Color color = to_raylib(cmd.line.color);
+
+    if (cmd.line.transform != INVALID_HANDLE) {
+        // TRANSFORM-BASED RENDERING
+        auto* transform = TransformManager::instance().get(cmd.line.transform);
+        if (!transform) return;
+
+        // Get world matrix to transform local-space endpoints
+        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.line.transform);
+        float world_rot = TransformManager::instance().get_world_rotation(cmd.line.transform);
+        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.line.transform);
+
+        // Transform local-space endpoints to world space
+        // Apply rotation and scale, then translate
+        float cos_r = std::cos(world_rot);
+        float sin_r = std::sin(world_rot);
+
+        // Transform point 1
+        float local_x1 = cmd.line.x1 - transform->origin.x;
+        float local_y1 = cmd.line.y1 - transform->origin.y;
+        float world_x1 = world_pos.x + (local_x1 * cos_r - local_y1 * sin_r) * world_scale.x;
+        float world_y1 = world_pos.y + (local_x1 * sin_r + local_y1 * cos_r) * world_scale.y;
+
+        // Transform point 2
+        float local_x2 = cmd.line.x2 - transform->origin.x;
+        float local_y2 = cmd.line.y2 - transform->origin.y;
+        float world_x2 = world_pos.x + (local_x2 * cos_r - local_y2 * sin_r) * world_scale.x;
+        float world_y2 = world_pos.y + (local_x2 * sin_r + local_y2 * cos_r) * world_scale.y;
+
+        if (cmd.line.thickness > 1.0f) {
+            DrawLineEx(
+                Vector2{world_x1, world_y1},
+                Vector2{world_x2, world_y2},
+                cmd.line.thickness,
+                color
+            );
+        } else {
+            DrawLine(
+                static_cast<int>(world_x1),
+                static_cast<int>(world_y1),
+                static_cast<int>(world_x2),
+                static_cast<int>(world_y2),
+                color
+            );
+        }
     } else {
-        DrawLine(
-            static_cast<int>(cmd.line.x1),
-            static_cast<int>(cmd.line.y1),
-            static_cast<int>(cmd.line.x2),
-            static_cast<int>(cmd.line.y2),
-            to_raylib(cmd.line.color)
-        );
+        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        if (cmd.line.thickness > 1.0f) {
+            DrawLineEx(
+                Vector2{cmd.line.x1, cmd.line.y1},
+                Vector2{cmd.line.x2, cmd.line.y2},
+                cmd.line.thickness,
+                color
+            );
+        } else {
+            DrawLine(
+                static_cast<int>(cmd.line.x1),
+                static_cast<int>(cmd.line.y1),
+                static_cast<int>(cmd.line.x2),
+                static_cast<int>(cmd.line.y2),
+                color
+            );
+        }
     }
 }
 
 void DrawQueue::draw_triangle(const DrawCommand& cmd) {
-    Vector2 v1 = {cmd.triangle.x1, cmd.triangle.y1};
-    Vector2 v2 = {cmd.triangle.x2, cmd.triangle.y2};
-    Vector2 v3 = {cmd.triangle.x3, cmd.triangle.y3};
     ::Color color = to_raylib(cmd.triangle.color);
 
-    if (cmd.triangle.filled) {
-        DrawTriangle(v1, v2, v3, color);
+    if (cmd.triangle.transform != INVALID_HANDLE) {
+        // TRANSFORM-BASED RENDERING
+        auto* transform = TransformManager::instance().get(cmd.triangle.transform);
+        if (!transform) return;
+
+        // Get world matrix to transform local-space vertices
+        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.triangle.transform);
+        float world_rot = TransformManager::instance().get_world_rotation(cmd.triangle.transform);
+        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.triangle.transform);
+
+        // Transform local-space vertices to world space
+        float cos_r = std::cos(world_rot);
+        float sin_r = std::sin(world_rot);
+
+        // Transform vertex 1
+        float local_x1 = cmd.triangle.x1 - transform->origin.x;
+        float local_y1 = cmd.triangle.y1 - transform->origin.y;
+        float world_x1 = world_pos.x + (local_x1 * cos_r - local_y1 * sin_r) * world_scale.x;
+        float world_y1 = world_pos.y + (local_x1 * sin_r + local_y1 * cos_r) * world_scale.y;
+
+        // Transform vertex 2
+        float local_x2 = cmd.triangle.x2 - transform->origin.x;
+        float local_y2 = cmd.triangle.y2 - transform->origin.y;
+        float world_x2 = world_pos.x + (local_x2 * cos_r - local_y2 * sin_r) * world_scale.x;
+        float world_y2 = world_pos.y + (local_x2 * sin_r + local_y2 * cos_r) * world_scale.y;
+
+        // Transform vertex 3
+        float local_x3 = cmd.triangle.x3 - transform->origin.x;
+        float local_y3 = cmd.triangle.y3 - transform->origin.y;
+        float world_x3 = world_pos.x + (local_x3 * cos_r - local_y3 * sin_r) * world_scale.x;
+        float world_y3 = world_pos.y + (local_x3 * sin_r + local_y3 * cos_r) * world_scale.y;
+
+        Vector2 v1 = {world_x1, world_y1};
+        Vector2 v2 = {world_x2, world_y2};
+        Vector2 v3 = {world_x3, world_y3};
+
+        if (cmd.triangle.filled) {
+            DrawTriangle(v1, v2, v3, color);
+        } else {
+            DrawTriangleLines(v1, v2, v3, color);
+        }
     } else {
-        DrawTriangleLines(v1, v2, v3, color);
+        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        Vector2 v1 = {cmd.triangle.x1, cmd.triangle.y1};
+        Vector2 v2 = {cmd.triangle.x2, cmd.triangle.y2};
+        Vector2 v3 = {cmd.triangle.x3, cmd.triangle.y3};
+
+        if (cmd.triangle.filled) {
+            DrawTriangle(v1, v2, v3, color);
+        } else {
+            DrawTriangleLines(v1, v2, v3, color);
+        }
     }
 }
 
 void DrawQueue::draw_text(const DrawCommand& cmd) {
     ::Color color = to_raylib(cmd.text.color);
 
-    // If we're inside a camera transform, use DrawTextEx with world coordinates
-    // Text will be affected by camera position and zoom
-    if (active_camera_ != INVALID_CAMERA_HANDLE) {
-        // Text in world space is affected by camera transforms (position, zoom, rotation)
-        // The camera's BeginMode2D/EndMode2D handles the transforms automatically
-        Font default_font = GetFontDefault();
-        Vector2 position = {cmd.text.x, cmd.text.y};
-        float font_size_float = static_cast<float>(cmd.text.font_size);
-        float spacing = font_size_float / 10.0f;  // Spacing between characters
+    if (cmd.text.transform != INVALID_HANDLE) {
+        // TRANSFORM-BASED RENDERING
+        auto* transform = TransformManager::instance().get(cmd.text.transform);
+        if (!transform) return;
 
-        DrawTextEx(default_font, cmd.text.content.c_str(), position, font_size_float, spacing, color);
+        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.text.transform);
+        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.text.transform);
+
+        // Use average scale for font size
+        float scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
+        float scaled_font_size = static_cast<float>(cmd.text.font_size) * scale;
+        float spacing = scaled_font_size / 10.0f;
+
+        Font default_font = GetFontDefault();
+        Vector2 position = {world_pos.x, world_pos.y};
+
+        DrawTextEx(default_font, cmd.text.content.c_str(), position, scaled_font_size, spacing, color);
     } else {
-        // Screen space text (UI): use regular DrawText
-        DrawText(
-            cmd.text.content.c_str(),
-            static_cast<int>(cmd.text.x),
-            static_cast<int>(cmd.text.y),
-            cmd.text.font_size,
-            color
-        );
+        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        // If we're inside a camera transform, use DrawTextEx with world coordinates
+        // Text will be affected by camera position and zoom
+        if (active_camera_ != INVALID_CAMERA_HANDLE) {
+            // Text in world space is affected by camera transforms (position, zoom, rotation)
+            // The camera's BeginMode2D/EndMode2D handles the transforms automatically
+            Font default_font = GetFontDefault();
+            Vector2 position = {cmd.text.x, cmd.text.y};
+            float font_size_float = static_cast<float>(cmd.text.font_size);
+            float spacing = font_size_float / 10.0f;  // Spacing between characters
+
+            DrawTextEx(default_font, cmd.text.content.c_str(), position, font_size_float, spacing, color);
+        } else {
+            // Screen space text (UI): use regular DrawText
+            DrawText(
+                cmd.text.content.c_str(),
+                static_cast<int>(cmd.text.x),
+                static_cast<int>(cmd.text.y),
+                cmd.text.font_size,
+                color
+            );
+        }
     }
 }
 

@@ -43,7 +43,9 @@ struct TilemapDrawParams {
 
 // Rectangle draw parameters
 struct RectDrawParams {
-    float x{0}, y{0}, w{0}, h{0};
+    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
+    float width{0}, height{0};   // NEW: Local-space dimensions (when using transform)
+    float x{0}, y{0}, w{0}, h{0}; // OLD: World-space coordinates (backward compat)
     float rotation{0};
     DrawColor color;
     bool filled{true};
@@ -51,7 +53,9 @@ struct RectDrawParams {
 
 // Circle draw parameters
 struct CircleDrawParams {
-    float x{0}, y{0}, radius{0};
+    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
+    float radius{0};             // NEW: Local-space radius (when using transform)
+    float x{0}, y{0};            // OLD: World-space coordinates (backward compat)
     DrawColor color;
     DrawColor color2;  // For gradient
     bool filled{true};
@@ -60,21 +64,24 @@ struct CircleDrawParams {
 
 // Line draw parameters
 struct LineDrawParams {
-    float x1{0}, y1{0}, x2{0}, y2{0};
+    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
+    float x1{0}, y1{0}, x2{0}, y2{0};  // Endpoints (local-space when using transform)
     float thickness{1};
     DrawColor color;
 };
 
 // Triangle draw parameters
 struct TriangleDrawParams {
-    float x1{0}, y1{0}, x2{0}, y2{0}, x3{0}, y3{0};
+    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
+    float x1{0}, y1{0}, x2{0}, y2{0}, x3{0}, y3{0};  // Vertices (local-space when using transform)
     DrawColor color;
     bool filled{true};
 };
 
 // Text draw parameters
 struct TextDrawParams {
-    float x{0}, y{0};
+    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
+    float x{0}, y{0};  // OLD: World-space coordinates (backward compat)
     int font_size{20};
     DrawColor color;
     std::string content;
@@ -144,6 +151,19 @@ public:
                         const DrawColor& color, bool filled = true,
                         uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
     void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
+                    uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
+
+    // NEW: Transform-based queue functions for unified Transform2D support
+    void queue_rect(TransformHandle transform, float width, float height, const DrawColor& color,
+                    bool filled = true, uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_circle(TransformHandle transform, float radius, const DrawColor& color,
+                      bool filled = true, uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_triangle(TransformHandle transform, float x1, float y1, float x2, float y2, float x3, float y3,
+                        const DrawColor& color, bool filled = true,
+                        uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_line(TransformHandle transform, float x1, float y1, float x2, float y2, const DrawColor& color,
+                    float thickness = 1.0f, uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
+    void queue_text(TransformHandle transform, const std::string& content, int font_size, const DrawColor& color,
                     uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
 
     // Queue camera begin/end commands for deferred camera transforms
