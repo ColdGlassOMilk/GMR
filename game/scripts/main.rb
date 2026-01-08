@@ -215,9 +215,9 @@ def init
        .map(:move_right, [:right, :d])
        .map(:move_up, [:up, :w])
        .map(:move_down, [:down, :s])
-       .map(:reset, [:r])
-       .map(:add_objects, [:equals, :kp_plus])      # + or = key
-       .map(:remove_objects, [:minus, :kp_minus])   # - key
+       .map(:reset, :r)
+       .map(:add_objects, :equal)       # = key (Shift+= gives +)
+       .map(:remove_objects, :minus)    # - key
 
   # === CAMERA ===
   @camera = Camera.new
@@ -258,23 +258,17 @@ def update(dt)
     @camera_x = 0.0
     @camera_y = 0.0
     @camera.zoom = 1.0
+    @camera.target = Mathf::Vec2.new(0, 0)
   end
 
-  # Add objects (+ or = key)
+  # Object count controls
   if Input.action_pressed?(:add_objects)
-    new_objects = spawn_objects(10, @tex)
-    @objects.concat(new_objects)
-    Console.log("Added 10 objects. Total: #{@objects.size}")
+    @objects += spawn_objects(50, @tex)
   end
 
-  # Remove objects (- key)
   if Input.action_pressed?(:remove_objects)
-    if @objects.size > 10
-      @objects.pop(10)
-      Console.log("Removed 10 objects. Total: #{@objects.size}")
-    else
-      Console.log("Can't remove - minimum 10 objects")
-    end
+    count = [@objects.size, 50].min
+    @objects = @objects[0...-count] if count > 0
   end
 
   # Update all objects
@@ -284,68 +278,62 @@ end
 def draw
   Graphics.clear("#0a0a1e")
 
-  begin
-    @camera.use do
-      # Draw world bounds
-      world_half_w = WORLD_WIDTH / 2.0
-      world_half_h = WORLD_HEIGHT / 2.0
-      Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
+  @camera.use do
+    # Draw world bounds
+    world_half_w = WORLD_WIDTH / 2.0
+    world_half_h = WORLD_HEIGHT / 2.0
+    Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
 
-      # Draw viewport reference (smaller box showing initial viewport size)
-      view_half_w = VIRTUAL_WIDTH / 2.0
-      view_half_h = VIRTUAL_HEIGHT / 2.0
-      Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
-      Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
+    # Draw viewport reference (smaller box showing initial viewport size)
+    view_half_w = VIRTUAL_WIDTH / 2.0
+    view_half_h = VIRTUAL_HEIGHT / 2.0
+    Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
+    Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
 
-      # Test rect at origin
-      Graphics.draw_rect(-10, -10, 20, 20, :white)
+    # Test rect at origin
+    Graphics.draw_rect(-10, -10, 20, 20, :white)
 
-      # Sort objects by depth (z) to ensure correct draw order
-      sorted = @objects.sort_by { |obj| obj.z }
+    # Sort objects by depth (z) to ensure correct draw order
+    sorted = @objects.sort_by { |obj| obj.z }
 
-      sorted.each do |obj|
-        case obj.type
-        when :sprite
-          # Just draw the sprite - it's already set up with transform
-          obj.sprite.draw if obj.sprite
+    sorted.each do |obj|
+      case obj.type
+      when :sprite
+        # Just draw the sprite - it's already set up with transform
+        obj.sprite.draw if obj.sprite
 
-        when :rect
-          # NEW: Use transform instead of manual calculations (2x larger: 60x60)
-          Graphics.draw_rect(obj.transform, 60, 60, obj.color)
+      when :rect
+        # NEW: Use transform instead of manual calculations (2x larger: 60x60)
+        Graphics.draw_rect(obj.transform, 60, 60, obj.color)
 
-        when :circle
-          # NEW: Use transform - mix of filled and outline circles (2x larger: radius 30)
-          if obj.z > 5.0
-            Graphics.draw_circle(obj.transform, 30, obj.color)
-          else
-            Graphics.draw_circle_outline(obj.transform, 30, obj.color)
-          end
-
-        when :triangle
-          # NEW: Vertices in local space (2x larger equilateral triangle)
-          # For side length ~48: height = 41.6, offset from center = ±20.8 vertically, ±24 horizontally
-          Graphics.draw_triangle(obj.transform, 0, -24, -20.8, 24, 20.8, 24, obj.color)
-
-        when :line
-          # NEW: Line in local space (2x longer: horizontal line from -45 to 45)
-          Graphics.draw_line(obj.transform, -45, 0, 45, 0, obj.color, 2)
-
-        when :text
-          # NEW: Use transform with scaled font size
-          s = obj.scale
-          font_size = (20.0 * s).round.clamp(8, 60)
-          Graphics.draw_text(obj.transform, obj.text, font_size, obj.color)
+      when :circle
+        # NEW: Use transform - mix of filled and outline circles (2x larger: radius 30)
+        if obj.z > 5.0
+          Graphics.draw_circle(obj.transform, 30, obj.color)
+        else
+          Graphics.draw_circle_outline(obj.transform, 30, obj.color)
         end
-      end
 
-      # Simple test text at world origin (INSIDE camera block for world-space rendering)
-      Graphics.draw_text("WORLD", 0, 20, 30, :red)
-      Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
+      when :triangle
+        # NEW: Vertices in local space (2x larger equilateral triangle)
+        # For side length ~48: height = 41.6, offset from center = ±20.8 vertically, ±24 horizontally
+        Graphics.draw_triangle(obj.transform, 0, -24, -20.8, 24, 20.8, 24, obj.color)
+
+      when :line
+        # NEW: Line in local space (2x longer: horizontal line from -45 to 45)
+        Graphics.draw_line(obj.transform, -45, 0, 45, 0, obj.color, 2)
+
+      when :text
+        # NEW: Use transform with scaled font size
+        s = obj.scale
+        font_size = (20.0 * s).round.clamp(8, 60)
+        Graphics.draw_text(obj.transform, obj.text, font_size, obj.color)
+      end
     end
-  rescue => e
-    # If there's an exception, show it in console
-    Console.log("ERROR in camera block: #{e.message}")
-    Console.log("Backtrace: #{e.backtrace.first(5).join("\n")}")
+
+    # Simple test text at world origin (INSIDE camera block for world-space rendering)
+    Graphics.draw_text("WORLD", 0, 20, 30, :red)
+    Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
   end
 
   # UI overlay (screen space - not affected by camera)
@@ -358,7 +346,7 @@ def draw
   Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :yellow)
   Graphics.draw_text("Objects: #{@objects.size}", 10, 35, 16, :cyan)
   Graphics.draw_text("Camera: (#{@camera_x.round}, #{@camera_y.round}) Zoom: #{@camera.zoom.round(2)}", 10, 55, 14, :white)
-  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove Objects", 10, 75, 12, [200, 200, 200, 255])
+  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove", 10, 75, 12, [200, 200, 200, 255])
 
   # Draw frame border
   Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)

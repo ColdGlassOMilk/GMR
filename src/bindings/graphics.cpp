@@ -913,6 +913,32 @@ static mrb_value mrb_texture_height(mrb_state* mrb, mrb_value self) {
     return mrb_fixnum_value(TextureManager::instance().get_height(data->handle));
 }
 
+/// @method release
+/// @description Manually release a reference to the texture. When the reference count reaches 0, the texture is unloaded from memory.
+/// @returns [nil]
+/// @example texture.release  # Release this reference
+/// @note Textures are automatically cached and reference counted. You only need to call this if you want to explicitly free memory.
+// texture.release
+static mrb_value mrb_texture_release(mrb_state* mrb, mrb_value self) {
+    TextureData* data = get_texture_data(mrb, self);
+    if (data && data->handle != INVALID_HANDLE) {
+        TextureManager::instance().release(data->handle);
+        data->handle = INVALID_HANDLE;  // Mark as released
+    }
+    return mrb_nil_value();
+}
+
+/// @method ref_count
+/// @description Get the current reference count for this texture (how many times it's been loaded)
+/// @returns [Integer] Current reference count
+/// @example puts texture.ref_count  # -> 3 (texture is loaded in 3 places)
+// texture.ref_count
+static mrb_value mrb_texture_ref_count(mrb_state* mrb, mrb_value self) {
+    TextureData* data = get_texture_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(TextureManager::instance().get_ref_count(data->handle));
+}
+
 /// @method draw
 /// @description Draw the texture at a position, optionally with a color tint
 /// @param x [Integer] X position (left edge)
@@ -1493,6 +1519,8 @@ void register_graphics(mrb_state* mrb) {
     // Instance methods
     mrb_define_method(mrb, texture_class, "width", mrb_texture_width, MRB_ARGS_NONE());
     mrb_define_method(mrb, texture_class, "height", mrb_texture_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, texture_class, "release", mrb_texture_release, MRB_ARGS_NONE());
+    mrb_define_method(mrb, texture_class, "ref_count", mrb_texture_ref_count, MRB_ARGS_NONE());
     mrb_define_method(mrb, texture_class, "draw", mrb_texture_draw, MRB_ARGS_ARG(2, 1));
     mrb_define_method(mrb, texture_class, "draw_ex", mrb_texture_draw_ex, MRB_ARGS_ARG(4, 1));
     mrb_define_method(mrb, texture_class, "draw_pro", mrb_texture_draw_pro, MRB_ARGS_ARG(9, 1));

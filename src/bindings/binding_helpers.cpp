@@ -233,6 +233,19 @@ int symbol_to_key(mrb_state* mrb, mrb_sym sym) {
         return KEY_ZERO + (name[0] - '0');
     }
 
+    // Punctuation and special keys
+    if (strcmp(name, "minus") == 0) return KEY_MINUS;
+    if (strcmp(name, "equal") == 0) return KEY_EQUAL;
+    if (strcmp(name, "left_bracket") == 0) return KEY_LEFT_BRACKET;
+    if (strcmp(name, "right_bracket") == 0) return KEY_RIGHT_BRACKET;
+    if (strcmp(name, "semicolon") == 0) return KEY_SEMICOLON;
+    if (strcmp(name, "apostrophe") == 0) return KEY_APOSTROPHE;
+    if (strcmp(name, "comma") == 0) return KEY_COMMA;
+    if (strcmp(name, "period") == 0) return KEY_PERIOD;
+    if (strcmp(name, "slash") == 0) return KEY_SLASH;
+    if (strcmp(name, "backslash") == 0) return KEY_BACKSLASH;
+    if (strcmp(name, "grave") == 0) return KEY_GRAVE;
+
     return -1; // Unknown symbol
 }
 

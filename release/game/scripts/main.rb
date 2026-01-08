@@ -10,6 +10,10 @@ VIRTUAL_HEIGHT = 540
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
 
+# World bounds (much larger than viewport for exploration)
+WORLD_WIDTH = 3840  # 4x viewport width
+WORLD_HEIGHT = 2160 # 4x viewport height
+
 # Particle/object definition
 class DepthObject
   attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text, :transform, :sprite
@@ -26,13 +30,13 @@ class DepthObject
       @color = color
     end
 
-    # Calculate world space bounds from virtual resolution
-    # Camera is centered at (0, 0), so bounds are ±half of resolution
-    half_width = VIRTUAL_WIDTH / 2.0
-    half_height = VIRTUAL_HEIGHT / 2.0
+    # Calculate world space bounds (much larger than viewport)
+    # Camera is centered at (0, 0), so bounds are ±half of world size
+    half_width = WORLD_WIDTH / 2.0
+    half_height = WORLD_HEIGHT / 2.0
 
-    # Random position (within visible area, with some margin)
-    margin = 20.0
+    # Random position (within world area, with some margin)
+    margin = 50.0
     @x = rand((-half_width + margin)..(half_width - margin))
     @y = rand((-half_height + margin)..(half_height - margin))
     @z = rand(2.0..8.0)  # Depth: 2.0 (far) to 8.0 (near) - stay visible
@@ -52,19 +56,42 @@ class DepthObject
       @text = words.sample
     end
 
-    # Create transform and sprite ONCE for sprite objects
+    # Create transform for ALL object types (not just sprites)
+    s = scale
+    # Sprites are scaled down (0.15x), primitives are scaled normally (0.3x = 2x larger)
+    scale_multiplier = (@type == :sprite) ? 0.15 : 0.3
+    @transform = Transform2D.new(
+      x: @x,
+      y: @y,
+      rotation: @rotation,
+      scale_x: s * scale_multiplier,
+      scale_y: s * scale_multiplier
+    )
+
+    # Set appropriate origins for each type
     if @type == :sprite && texture
-      s = scale
-      @transform = Transform2D.new(
-        x: @x,
-        y: @y,
-        rotation: @rotation,
-        scale_x: s * 0.3,
-        scale_y: s * 0.3
-      )
       @sprite = Sprite.new(texture, @transform)
       @sprite.center_origin
       @sprite.color = @color
+    elsif @type == :rect
+      # Set origin to center for proper rotation (base size 60x60)
+      @transform.center_origin(60, 60)
+    elsif @type == :circle
+      # Circles already rotate around center at (0,0)
+      @transform.origin_x = 0
+      @transform.origin_y = 0
+    elsif @type == :triangle
+      # Triangle vertices are in local space, no origin needed
+      @transform.origin_x = 0
+      @transform.origin_y = 0
+    elsif @type == :line
+      # Line rotates around its center, no origin needed
+      @transform.origin_x = 0
+      @transform.origin_y = 0
+    elsif @type == :text
+      # Text draws from top-left by default
+      @transform.origin_x = 0
+      @transform.origin_y = 0
     end
   end
 
@@ -90,9 +117,9 @@ class DepthObject
     @z += @vz * dt
 
     # Bounce off walls (in world space)
-    # Calculate bounds from virtual resolution
-    half_width = VIRTUAL_WIDTH / 2.0
-    half_height = VIRTUAL_HEIGHT / 2.0
+    # Calculate bounds from world size
+    half_width = WORLD_WIDTH / 2.0
+    half_height = WORLD_HEIGHT / 2.0
 
     if @x < -half_width || @x > half_width
       @vx *= -1
@@ -114,15 +141,14 @@ class DepthObject
     @rotation += @rotation_speed * dt
     @rotation %= 360
 
-    # Update transform if this is a sprite
-    if @transform
-      s = scale
-      @transform.x = @x
-      @transform.y = @y
-      @transform.rotation = @rotation
-      @transform.scale_x = s * 0.3
-      @transform.scale_y = s * 0.3
-    end
+    # Update transform (used by ALL object types)
+    s = scale
+    scale_multiplier = (@type == :sprite) ? 0.15 : 0.3
+    @transform.x = @x
+    @transform.y = @y
+    @transform.rotation = @rotation
+    @transform.scale_x = s * scale_multiplier
+    @transform.scale_y = s * scale_multiplier
   end
 
   def scale
@@ -144,12 +170,43 @@ class DepthObject
   end
 end
 
+# Helper function to spawn random objects
+def spawn_objects(count, texture = nil)
+  objects = []
+
+  # Randomize types
+  types = []
+
+  # Add sprites if texture available
+  if texture
+    (count * 0.3).round.times { types << :sprite }
+  end
+
+  # Add primitives
+  (count * 0.2).round.times { types << :rect }
+  (count * 0.2).round.times { types << :circle }
+  (count * 0.15).round.times { types << :triangle }
+  (count * 0.1).round.times { types << :line }
+  (count * 0.05).round.times { types << :text }
+
+  # Fill remaining with random types
+  while types.size < count
+    types << [:rect, :circle, :triangle, :line, :text].sample
+  end
+
+  # Shuffle and create objects
+  types.shuffle.each do |type|
+    objects << DepthObject.new(type, texture)
+  end
+
+  objects
+end
+
 def init
   # === WINDOW SETUP ===
   Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
         .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         .set_filter_point
-
 
   Console.enable(height: 150).allow_ruby_eval
 
@@ -158,7 +215,9 @@ def init
        .map(:move_right, [:right, :d])
        .map(:move_up, [:up, :w])
        .map(:move_down, [:down, :s])
-       .map(:reset, [:r])
+       .map(:reset, :r)
+       .map(:add_objects, :equal)       # = key (Shift+= gives +)
+       .map(:remove_objects, :minus)    # - key
 
   # === CAMERA ===
   @camera = Camera.new
@@ -173,20 +232,8 @@ def init
   # === LOAD SPRITE TEXTURE ===
   @tex = Texture.load("assets/logo.png")
 
-  # === CREATE DEPTH OBJECTS ===
-  @objects = []
-
-  # Add sprites if texture loaded
-  if @tex
-    15.times { @objects << DepthObject.new(:sprite, @tex) }
-  end
-
-  # Add primitives
-  10.times { @objects << DepthObject.new(:rect) }
-  10.times { @objects << DepthObject.new(:circle) }
-  8.times { @objects << DepthObject.new(:triangle) }
-  5.times { @objects << DepthObject.new(:line) }
-  5.times { @objects << DepthObject.new(:text) }
+  # === CREATE INITIAL DEPTH OBJECTS ===
+  @objects = spawn_objects(50, @tex)
 end
 
 def update(dt)
@@ -211,6 +258,17 @@ def update(dt)
     @camera_x = 0.0
     @camera_y = 0.0
     @camera.zoom = 1.0
+    @camera.target = Mathf::Vec2.new(0, 0)
+  end
+
+  # Object count controls
+  if Input.action_pressed?(:add_objects)
+    @objects += spawn_objects(50, @tex)
+  end
+
+  if Input.action_pressed?(:remove_objects)
+    count = [@objects.size, 50].min
+    @objects.pop(count)
   end
 
   # Update all objects
@@ -220,83 +278,62 @@ end
 def draw
   Graphics.clear("#0a0a1e")
 
-  begin
-    @camera.use do
-      # Draw a reference grid FIRST (before objects)
-      half_width = VIRTUAL_WIDTH / 2.0
-      half_height = VIRTUAL_HEIGHT / 2.0
+  @camera.use do
+    # Draw world bounds
+    world_half_w = WORLD_WIDTH / 2.0
+    world_half_h = WORLD_HEIGHT / 2.0
+    Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
 
-      Graphics.draw_line(-half_width, 0, half_width, 0, :green, 2)  # Horizontal axis
-      Graphics.draw_line(0, -half_height, 0, half_height, :green, 2)  # Vertical axis
+    # Draw viewport reference (smaller box showing initial viewport size)
+    view_half_w = VIRTUAL_WIDTH / 2.0
+    view_half_h = VIRTUAL_HEIGHT / 2.0
+    Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
+    Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
 
-      # Test rect at origin
-      Graphics.draw_rect(-10, -10, 20, 20, :white)
+    # Test rect at origin
+    Graphics.draw_rect(-10, -10, 20, 20, :white)
 
-      # Sort objects by depth (z) to ensure correct draw order
-      sorted = @objects.sort_by { |obj| obj.z }
+    # Sort objects by depth (z) to ensure correct draw order
+    sorted = @objects.sort_by { |obj| obj.z }
 
-      sorted.each do |obj|
-        s = obj.scale
-        sz = obj.size
+    sorted.each do |obj|
+      case obj.type
+      when :sprite
+        # Just draw the sprite - it's already set up with transform
+        obj.sprite.draw if obj.sprite
 
-        case obj.type
-        when :sprite
-          # Just draw the sprite - it's already set up with transform
-          obj.sprite.draw if obj.sprite
+      when :rect
+        # NEW: Use transform instead of manual calculations (2x larger: 60x60)
+        Graphics.draw_rect(obj.transform, 60, 60, obj.color)
 
-        when :rect
-          # Filled rect
-          Graphics.draw_rect(obj.x - sz/2, obj.y - sz/2, sz, sz, obj.color)
-
-        when :circle
-          # Mix of filled and outline circles
-          if obj.z > 5.0
-            Graphics.draw_circle(obj.x, obj.y, sz/2, obj.color)
-          else
-            Graphics.draw_circle_outline(obj.x, obj.y, sz/2, obj.color)
-          end
-
-        when :triangle
-          # Rotating triangle
-          rad = obj.rotation * Math::PI / 180.0
-          offset = sz * 0.8
-          x1 = obj.x + Math.cos(rad) * offset
-          y1 = obj.y + Math.sin(rad) * offset
-          x2 = obj.x + Math.cos(rad + 2.094) * offset  # +120 degrees
-          y2 = obj.y + Math.sin(rad + 2.094) * offset
-          x3 = obj.x + Math.cos(rad + 4.189) * offset  # +240 degrees
-          y3 = obj.y + Math.sin(rad + 4.189) * offset
-
-          Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, obj.color)
-
-        when :line
-          # Rotating line
-          rad = obj.rotation * Math::PI / 180.0
-          length = sz * 1.5
-          x1 = obj.x - Math.cos(rad) * length / 2
-          y1 = obj.y - Math.sin(rad) * length / 2
-          x2 = obj.x + Math.cos(rad) * length / 2
-          y2 = obj.y + Math.sin(rad) * length / 2
-
-          Graphics.draw_line(x1, y1, x2, y2, obj.color, 2)
-
-        when :text
-          # Scaled text based on depth
-          # Font size scales with depth to create 3D effect
-          # Note: Text rotation is not supported by raylib's DrawText
-          font_size = (20.0 * s).round.clamp(8, 60)
-          Graphics.draw_text(obj.text, obj.x, obj.y, font_size, obj.color)
+      when :circle
+        # NEW: Use transform - mix of filled and outline circles (2x larger: radius 30)
+        if obj.z > 5.0
+          Graphics.draw_circle(obj.transform, 30, obj.color)
+        else
+          Graphics.draw_circle_outline(obj.transform, 30, obj.color)
         end
-      end
 
-      # Simple test text at world origin (INSIDE camera block for world-space rendering)
-      Graphics.draw_text("WORLD", 0, 20, 30, :red)
-      Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
+      when :triangle
+        # NEW: Vertices in local space (2x larger equilateral triangle)
+        # For side length ~48: height = 41.6, offset from center = ±20.8 vertically, ±24 horizontally
+        Graphics.draw_triangle(obj.transform, 0, -24, -20.8, 24, 20.8, 24, obj.color)
+
+      when :line
+        # NEW: Line in local space (2x longer: horizontal line from -45 to 45)
+        Graphics.draw_line(obj.transform, -45, 0, 45, 0, obj.color, 2)
+
+      when :text
+        # NEW: Use transform with scaled font size
+        s = obj.scale
+        font_size = (20.0 * s).round.clamp(8, 60)
+        Graphics.draw_text(obj.transform, obj.text, font_size, obj.color)
+      end
     end
-  rescue => e
-    # If there's an exception, show it in console
-    Console.log("ERROR in camera block: #{e.message}")
-    Console.log("Backtrace: #{e.backtrace.first(5).join("\n")}")
+
+    # Simple test text at world origin (INSIDE camera block for world-space rendering)
+    Graphics.draw_text("WORLD", 0, 20, 30, :red)
+    Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
   end
 
   # UI overlay (screen space - not affected by camera)
@@ -307,8 +344,9 @@ def draw
 
   # Draw text over the background
   Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :yellow)
-  Graphics.draw_text("TEST", 10, 35, 24, :red)
-  Graphics.draw_text("Objects: #{@objects.size}", 10, 60, 14, :cyan)
+  Graphics.draw_text("Objects: #{@objects.size}", 10, 35, 16, :cyan)
+  Graphics.draw_text("Camera: (#{@camera_x.round}, #{@camera_y.round}) Zoom: #{@camera.zoom.round(2)}", 10, 55, 14, :white)
+  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove", 10, 75, 12, [200, 200, 200, 255])
 
   # Draw frame border
   Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)
