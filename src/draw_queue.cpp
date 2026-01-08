@@ -151,7 +151,6 @@ void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& 
     cmd.rect.filled = filled;
     cmd.rect.rotation = 0;
     commands_.push_back(cmd);
-
     next_draw_order_++;
 }
 
@@ -270,9 +269,6 @@ void DrawQueue::queue_text(float x, float y, const std::string& content, int fon
     // Use provided z if non-zero, otherwise use draw_order base
     float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
 
-    TraceLog(LOG_INFO, "QUEUE_TEXT: '%s' at (%f, %f) layer=%d z=%f order=%d",
-             content.c_str(), x, y, layer, z_value, next_draw_order_);
-
     DrawCommand cmd;
     cmd.type = DrawCommand::Type::TEXT;
     cmd.layer = layer;
@@ -284,7 +280,6 @@ void DrawQueue::queue_text(float x, float y, const std::string& content, int fon
     cmd.text.color = color;
     cmd.text.content = content;
     commands_.push_back(cmd);
-
     next_draw_order_++;
 }
 
@@ -585,19 +580,29 @@ void DrawQueue::draw_triangle(const DrawCommand& cmd) {
 }
 
 void DrawQueue::draw_text(const DrawCommand& cmd) {
-    TraceLog(LOG_INFO, "DRAW_TEXT: '%s' at (%d, %d) size=%d",
-        cmd.text.content.c_str(),
-        static_cast<int>(cmd.text.x),
-        static_cast<int>(cmd.text.y),
-        cmd.text.font_size);
+    ::Color color = to_raylib(cmd.text.color);
 
-    DrawText(
-        cmd.text.content.c_str(),
-        static_cast<int>(cmd.text.x),
-        static_cast<int>(cmd.text.y),
-        cmd.text.font_size,
-        to_raylib(cmd.text.color)
-    );
+    // If we're inside a camera transform, use DrawTextEx with world coordinates
+    // Text will be affected by camera position and zoom
+    if (active_camera_ != INVALID_CAMERA_HANDLE) {
+        // Text in world space is affected by camera transforms (position, zoom, rotation)
+        // The camera's BeginMode2D/EndMode2D handles the transforms automatically
+        Font default_font = GetFontDefault();
+        Vector2 position = {cmd.text.x, cmd.text.y};
+        float font_size_float = static_cast<float>(cmd.text.font_size);
+        float spacing = font_size_float / 10.0f;  // Spacing between characters
+
+        DrawTextEx(default_font, cmd.text.content.c_str(), position, font_size_float, spacing, color);
+    } else {
+        // Screen space text (UI): use regular DrawText
+        DrawText(
+            cmd.text.content.c_str(),
+            static_cast<int>(cmd.text.x),
+            static_cast<int>(cmd.text.y),
+            cmd.text.font_size,
+            color
+        );
+    }
 }
 
 } // namespace gmr

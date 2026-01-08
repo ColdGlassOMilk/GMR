@@ -1,327 +1,266 @@
 include GMR
 
-# MVP Platformer Demo: Procedural Level Generation with Proper Tile Placement
+# === 3D DEPTH ILLUSION STRESS TEST ===
+# Tests: Z-ordering, scaling, rotation, camera, mixed primitives, sprites, text
+# Goal: Create pseudo-3D scene with objects at different depths bouncing around
 
-FRAME_WIDTH = 56
-FRAME_HEIGHT = 56
-COLUMNS = 7
-
-# Virtual resolution (game renders at this size) - retro 16:9
-VIRTUAL_WIDTH = 320
-VIRTUAL_HEIGHT = 180
-
-# Window size (actual window dimensions)
+# Virtual resolution
+VIRTUAL_WIDTH = 960
+VIRTUAL_HEIGHT = 540
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
 
-GRAVITY = 800.0
-MOVE_SPEED = 200.0
-JUMP_FORCE = -400.0
+# Particle/object definition
+class DepthObject
+  attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text
 
-# Tilemap configuration
-# Tileset is 504x264 = 21 columns x 11 rows of 24x24 tiles
-TILE_SIZE = 24
-TILESET_COLS = 21
-MAP_WIDTH = 80
-MAP_HEIGHT = 25
-MAP_OFFSET_X = -200.0
-MAP_OFFSET_Y = 0.0
+  def initialize(type, color = nil)
+    @type = type  # :sprite, :rect, :circle, :triangle, :line, :text
+    @color = color || [:red, :green, :blue, :yellow, :magenta, :cyan, :orange, :pink].sample
 
-# Camera Y offset to show ground at bottom of screen
-CAMERA_OFFSET_Y = VIRTUAL_HEIGHT * 0.7
+    # Random position (within visible area)
+    @x = rand(-140.0..140.0)
+    @y = rand(-70.0..70.0)
+    @z = rand(2.0..8.0)  # Depth: 2.0 (far) to 8.0 (near) - stay visible
 
-# Character hitbox offsets (relative to sprite position)
-CHAR_HITBOX_OFFSET_X = 15
-CHAR_HITBOX_OFFSET_Y = 8
-CHAR_HITBOX_WIDTH = 26
-CHAR_HITBOX_HEIGHT = 48
+    # Random velocity (slower so you can see z-order changes)
+    @vx = rand(-30.0..30.0)
+    @vy = rand(-30.0..30.0)
+    @vz = rand(-0.5..0.5)  # Slower depth velocity
 
-# === TILE INDEX DEFINITIONS ===
-module Tiles
-  GROUND_TOP_LEFT     = 0
-  GROUND_TOP_CENTER   = 1
-  GROUND_TOP_RIGHT    = 2
-  GROUND_MID_LEFT     = 21
-  GROUND_MID_CENTER   = 22
-  GROUND_MID_RIGHT    = 23
-  GROUND_BOT_LEFT     = 42
-  GROUND_BOT_CENTER   = 43
-  GROUND_BOT_RIGHT    = 44
-  PLAT_TOP_LEFT       = 3
-  PLAT_TOP_CENTER     = 4
-  PLAT_TOP_RIGHT      = 5
-  PLAT_MID_LEFT       = 24
-  PLAT_MID_CENTER     = 25
-  PLAT_MID_RIGHT      = 26
-  PLAT_BOT_LEFT       = 45
-  PLAT_BOT_CENTER     = 46
-  PLAT_BOT_RIGHT      = 47
-  COLUMN_TOP          = 63
-  COLUMN_MID          = 84
-  COLUMN_BOT          = 105
-  THIN_LEFT           = 126
-  THIN_CENTER         = 127
-  THIN_RIGHT          = 128
-  ALT_TOP_LEFT        = 6
-  ALT_TOP_CENTER      = 7
-  ALT_TOP_RIGHT       = 8
-  INNER_TOP_LEFT      = 9
-  INNER_TOP_RIGHT     = 11
-  INNER_BOT_LEFT      = 51
-  INNER_BOT_RIGHT     = 53
-  DECO_GRASS_1        = 189
-  DECO_GRASS_2        = 190
-  DECO_ROCK_1         = 210
-  DECO_ROCK_2         = 211
+    # Rotation
+    @rotation = rand(0.0..360.0)
+    @rotation_speed = rand(-180.0..180.0)
+
+    # Text content (for :text type)
+    if @type == :text
+      words = ["WORLD", "HELLO", "GMR", "TEST", "ZOOM", "3D", "DEPTH"]
+      @text = words.sample
+    end
+  end
+
+  def update(dt)
+    # Update position
+    @x += @vx * dt
+    @y += @vy * dt
+    @z += @vz * dt
+
+    # Bounce off walls (in world space)
+    if @x < -160 || @x > 160
+      @vx *= -1
+      @x = @x.clamp(-160, 160)
+    end
+
+    if @y < -90 || @y > 90
+      @vy *= -1
+      @y = @y.clamp(-90, 90)
+    end
+
+    # Bounce depth (narrower range to keep objects visible)
+    if @z < 2.0 || @z > 8.0
+      @vz *= -1
+      @z = @z.clamp(2.0, 8.0)
+    end
+
+    # Update rotation
+    @rotation += @rotation_speed * dt
+    @rotation %= 360
+  end
+
+  def scale
+    # Objects further away (low z) are smaller
+    # Objects closer (high z) are larger
+    # Scale range adjusted for z=2.0 to z=8.0
+    # At z=2.0: 0.5, at z=8.0: 2.5
+    0.5 + ((@z - 2.0) / 6.0) * 2.0
+  end
+
+  def size
+    # Base size affected by scale (larger base for visibility)
+    (30.0 * scale).round
+  end
+
+  def draw_order_z
+    # Higher z = closer to camera = drawn later (on top)
+    @z
+  end
 end
 
 def init
-  # === WINDOW SETUP (with method chaining) ===
+  # === WINDOW SETUP ===
   Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        # .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
-        .set_filter_point  # Crisp pixel scaling
+        .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
+        .set_filter_point
 
-  # Enable the console with Ruby evaluation (Dev mode)
+
   Console.enable(height: 150).allow_ruby_eval
 
-  # === INPUT MAPPING (with method chaining) ===
+  # === INPUT MAPPING ===
   Input.map(:move_left, [:left, :a])
        .map(:move_right, [:right, :d])
-       .map(:jump, [:space, :up, :w])
-  Input.on(:jump) { do_jump }
+       .map(:move_up, [:up, :w])
+       .map(:move_down, [:down, :s])
+       .map(:reset, [:r])
 
   # === CAMERA ===
   @camera = Camera.new
-  @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, CAMERA_OFFSET_Y)
+  @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, VIRTUAL_HEIGHT / 2.0)
   @camera.zoom = 1.0
+  @camera.target = Mathf::Vec2.new(0, 0)
+  @camera_x = 0.0
+  @camera_y = 0.0
 
-  # === PARALLAX BACKGROUNDS ===
-  @bg1_tex = Texture.load("assets/oak_woods/background/background_layer_1.png")
-  @bg2_tex = Texture.load("assets/oak_woods/background/background_layer_2.png")
-  @bg3_tex = Texture.load("assets/oak_woods/background/background_layer_3.png")
+  @time = 0.0
 
-  # Scale backgrounds for retro resolution
-  bg_scale = 1.5
-  bg_width = 320.0 * bg_scale
-  @bg_base_y = -40  # Increased offset to prevent top gap when jumping
+  # === LOAD SPRITE TEXTURE ===
+  @tex = Texture.load("assets/oak_woods/character/char_blue.png")
 
-  @bg1_sprites = []
-  @bg1_transforms = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Sprite.new(@bg1_tex, t)
-    @bg1_transforms << t
-    @bg1_sprites << s
-  end
-  @bg1_width = bg_width
-  @bg1_speed = 0.1
+  # === CREATE DEPTH OBJECTS ===
+  @objects = []
 
-  @bg2_sprites = []
-  @bg2_transforms = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Sprite.new(@bg2_tex, t)
-    @bg2_transforms << t
-    @bg2_sprites << s
-  end
-  @bg2_width = bg_width
-  @bg2_speed = 0.3
-
-  @bg3_sprites = []
-  @bg3_transforms = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Sprite.new(@bg3_tex, t)
-    @bg3_transforms << t
-    @bg3_sprites << s
-  end
-  @bg3_width = bg_width
-  @bg3_speed = 0.5
-
-  # === TILEMAP ===
-  @tileset_tex = Texture.load("assets/oak_woods/oak_woods_tileset.png")
-  @tilemap = Tilemap.new(@tileset_tex, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
-
-  # Define tile properties - all ground tiles are solid
-  [
-    Tiles::GROUND_TOP_LEFT, Tiles::GROUND_TOP_CENTER, Tiles::GROUND_TOP_RIGHT,
-    Tiles::GROUND_MID_LEFT, Tiles::GROUND_MID_CENTER, Tiles::GROUND_MID_RIGHT,
-    Tiles::GROUND_BOT_LEFT, Tiles::GROUND_BOT_CENTER, Tiles::GROUND_BOT_RIGHT,
-    Tiles::PLAT_TOP_LEFT, Tiles::PLAT_TOP_CENTER, Tiles::PLAT_TOP_RIGHT,
-    Tiles::PLAT_MID_LEFT, Tiles::PLAT_MID_CENTER, Tiles::PLAT_MID_RIGHT,
-    Tiles::PLAT_BOT_LEFT, Tiles::PLAT_BOT_CENTER, Tiles::PLAT_BOT_RIGHT,
-    Tiles::ALT_TOP_LEFT, Tiles::ALT_TOP_CENTER, Tiles::ALT_TOP_RIGHT,
-    Tiles::THIN_LEFT, Tiles::THIN_CENTER, Tiles::THIN_RIGHT,
-    Tiles::COLUMN_TOP, Tiles::COLUMN_MID, Tiles::COLUMN_BOT
-  ].each do |tile_id|
-    @tilemap.define_tile(tile_id, { solid: true })
+  # Add sprites if texture loaded
+  if @tex
+    15.times { @objects << DepthObject.new(:sprite) }
   end
 
-  # Create simple flat ground
-  (0...MAP_WIDTH).each do |x|
-    @tilemap.set(x, 19, Tiles::GROUND_TOP_CENTER)
-    @tilemap.set(x, 20, Tiles::GROUND_MID_CENTER)
-  end
-
-  # === CHARACTER ===
-  begin
-    @char_tex = Texture.load("assets/oak_woods/character/char_blue.png")
-  rescue
-    @char_tex = @tileset_tex
-  end
-
-  # Create transform for character
-  spawn_x = 5
-  spawn_pos_x = MAP_OFFSET_X + spawn_x * TILE_SIZE
-  spawn_pos_y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
-  @char_transform = Transform2D.new(x: spawn_pos_x, y: spawn_pos_y)
-
-  @sprite = Sprite.new(@char_tex, @char_transform)
-  @sprite.source_rect = Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
-
-  @velocity_y = 0.0
-  @on_ground = false
-
-  # === ANIMATION & STATE MACHINE ===
-  begin
-    @animator = Animator.new(@sprite,
-      columns: COLUMNS,
-      frame_width: FRAME_WIDTH,
-      frame_height: FRAME_HEIGHT)
-
-    @animator.add(:idle, frames: 0..5, fps: 8)
-    @animator.add(:run, frames: 14..19, fps: 12)
-    @animator.add(:jump_up, frames: 21..23, fps: 10, loop: false)
-    @animator.add(:fall, frames: 24..26, fps: 10, loop: false)
-    @animator.play(:idle)
-
-    animator = @animator
-    state_machine do
-      state :idle do
-        enter { animator.play(:idle) }
-        on :move, :running
-        on :jump, :jumping
-      end
-
-      state :running do
-        enter { animator.play(:run) }
-        on :stop, :idle
-        on :jump, :jumping
-      end
-
-      state :jumping do
-        enter { animator.play(:jump_up) }
-        on :fall, :falling
-        on :land, :idle
-        on :land_moving, :running
-      end
-
-      state :falling do
-        enter { animator.play(:fall) }
-        on :land, :idle
-        on :land_moving, :running
-      end
-    end
-  rescue => e
-    # Animation/state machine failed, game will run without it
-  end
-end
-
-def do_jump
-  return unless @on_ground
-  @velocity_y = JUMP_FORCE
-  @on_ground = false
-  state_machine.trigger(:jump)
+  # Add primitives
+  10.times { @objects << DepthObject.new(:rect) }
+  10.times { @objects << DepthObject.new(:circle) }
+  8.times { @objects << DepthObject.new(:triangle) }
+  5.times { @objects << DepthObject.new(:line) }
+  5.times { @objects << DepthObject.new(:text) }
 end
 
 def update(dt)
-  moving_left = Input.action_down?(:move_left)
-  moving_right = Input.action_down?(:move_right)
-  moving = moving_left || moving_right
+  @time += dt
 
-  if !@on_ground
-    @velocity_y += GRAVITY * dt
-    state_machine.trigger(:fall) if @velocity_y > 0
+  # Camera controls
+  camera_speed = 100.0
+  @camera_x -= camera_speed * dt if Input.action_down?(:move_left)
+  @camera_x += camera_speed * dt if Input.action_down?(:move_right)
+  @camera_y -= camera_speed * dt if Input.action_down?(:move_up)
+  @camera_y += camera_speed * dt if Input.action_down?(:move_down)
+
+  @camera.target = Mathf::Vec2.new(@camera_x, @camera_y)
+
+  # Zoom controls
+  wheel = Input.mouse_wheel
+  @camera.zoom += wheel * 0.1
+  @camera.zoom = [[@camera.zoom, 0.1].max, 5.0].min
+
+  # Reset camera
+  if Input.action_pressed?(:reset)
+    @camera_x = 0.0
+    @camera_y = 0.0
+    @camera.zoom = 1.0
   end
 
-  @char_transform.x -= MOVE_SPEED * dt if moving_left
-  @char_transform.x += MOVE_SPEED * dt if moving_right
-  @sprite.flip_x = true if moving_left
-  @sprite.flip_x = false if moving_right
-
-  @char_transform.y += @velocity_y * dt
-
-  check_tilemap_collision(moving)
-
-  if @on_ground
-    state_machine.trigger(moving ? :move : :stop)
-  end
-
-  # Update camera to follow player
-  @camera.target = Mathf::Vec2.new(@char_transform.x + FRAME_WIDTH / 2.0, @char_transform.y + FRAME_HEIGHT / 2.0)
-end
-
-def check_tilemap_collision(moving)
-  # Get hitbox in tilemap local coordinates
-  local_x = @char_transform.x + CHAR_HITBOX_OFFSET_X - MAP_OFFSET_X
-  local_y = @char_transform.y + CHAR_HITBOX_OFFSET_Y - MAP_OFFSET_Y
-
-  # Use Collision module to resolve tilemap collision
-  result = Collision.tilemap_resolve(
-    @tilemap,
-    local_x, local_y,
-    CHAR_HITBOX_WIDTH, CHAR_HITBOX_HEIGHT,
-    @velocity_x || 0.0, @velocity_y
-  )
-
-  # Apply resolved position (convert back to world coordinates)
-  @char_transform.x = result.x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
-  @char_transform.y = result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
-  @velocity_y = result.vy
-
-  # Update ground state
-  if result.bottom?
-    if !@on_ground
-      @on_ground = true
-      state_machine.trigger(moving ? :land_moving : :land)
-    end
-  else
-    @on_ground = false
-  end
+  # Update all objects
+  @objects.each { |obj| obj.update(dt) }
 end
 
 def draw
-  Graphics.clear("#5078A0")
+  Graphics.clear("#0a0a1e")
 
-  camera_x = @char_transform.x + FRAME_WIDTH / 2.0
-  camera_y = @char_transform.y + FRAME_HEIGHT / 2.0
+  begin
+    @camera.use do
+      # Draw a reference grid FIRST (before objects)
+      Graphics.draw_line(-150, 0, 150, 0, :green, 2)  # Horizontal axis
+      Graphics.draw_line(0, -80, 0, 80, :green, 2)     # Vertical axis
 
-  base_y = MAP_OFFSET_Y + 18 * TILE_SIZE
-  y_offset = camera_y - base_y
+      # Test rect at origin
+      Graphics.draw_rect(-10, -10, 20, 20, :white)
 
-  draw_parallax_layer(@bg1_transforms, @bg1_sprites, @bg1_width, @bg1_speed, @bg_base_y - y_offset * 0.05, camera_x)
-  draw_parallax_layer(@bg2_transforms, @bg2_sprites, @bg2_width, @bg2_speed, @bg_base_y - y_offset * 0.15, camera_x)
-  draw_parallax_layer(@bg3_transforms, @bg3_sprites, @bg3_width, @bg3_speed, @bg_base_y - y_offset * 0.25, camera_x)
+      # Sort objects by depth (z) to ensure correct draw order
+      sorted = @objects.sort_by { |obj| obj.z }
 
-  @camera.use do
-    @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
-    @sprite.draw
+      sorted.each do |obj|
+        s = obj.scale
+        sz = obj.size
+
+        case obj.type
+        when :sprite
+          next unless @tex
+
+          # Create transform for sprite (more dramatic scaling)
+          transform = Transform2D.new(
+            x: obj.x,
+            y: obj.y,
+            rotation: obj.rotation,
+            scale_x: s * 0.7,
+            scale_y: s * 0.7
+          )
+
+          sprite = Sprite.new(@tex, transform)
+          sprite.source_rect = Rect.new(0, 0, 56, 56)
+          sprite.draw
+
+        when :rect
+          # Filled rect
+          Graphics.draw_rect(obj.x - sz/2, obj.y - sz/2, sz, sz, obj.color)
+
+        when :circle
+          # Mix of filled and outline circles
+          if obj.z > 5.0
+            Graphics.draw_circle(obj.x, obj.y, sz/2, obj.color)
+          else
+            Graphics.draw_circle_outline(obj.x, obj.y, sz/2, obj.color)
+          end
+
+        when :triangle
+          # Rotating triangle
+          rad = obj.rotation * Math::PI / 180.0
+          offset = sz * 0.8
+          x1 = obj.x + Math.cos(rad) * offset
+          y1 = obj.y + Math.sin(rad) * offset
+          x2 = obj.x + Math.cos(rad + 2.094) * offset  # +120 degrees
+          y2 = obj.y + Math.sin(rad + 2.094) * offset
+          x3 = obj.x + Math.cos(rad + 4.189) * offset  # +240 degrees
+          y3 = obj.y + Math.sin(rad + 4.189) * offset
+
+          Graphics.draw_triangle(x1, y1, x2, y2, x3, y3, obj.color)
+
+        when :line
+          # Rotating line
+          rad = obj.rotation * Math::PI / 180.0
+          length = sz * 1.5
+          x1 = obj.x - Math.cos(rad) * length / 2
+          y1 = obj.y - Math.sin(rad) * length / 2
+          x2 = obj.x + Math.cos(rad) * length / 2
+          y2 = obj.y + Math.sin(rad) * length / 2
+
+          Graphics.draw_line(x1, y1, x2, y2, obj.color, 2)
+
+        when :text
+          # Scaled text based on depth
+          # Font size scales with depth to create 3D effect
+          # Note: Text rotation is not supported by raylib's DrawText
+          font_size = (20.0 * s).round.clamp(8, 60)
+          Graphics.draw_text(obj.text, obj.x, obj.y, font_size, obj.color)
+        end
+      end
+
+      # Simple test text at world origin (INSIDE camera block for world-space rendering)
+      Graphics.draw_text("WORLD", 0, 20, 30, :red)
+      Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
+    end
+  rescue => e
+    # If there's an exception, show it in console
+    Console.log("ERROR in camera block: #{e.message}")
+    Console.log("Backtrace: #{e.backtrace.first(5).join("\n")}")
   end
 
-  # Test: Draw a red rectangle to verify we reach this code
-  Graphics.draw_rect(5, 5, 100, 30, :red)
+  # UI overlay (screen space - not affected by camera)
+  fps = GMR::Time.fps
 
-  fps = Time.fps
-  Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :white)
+  # Test: Draw a bright rect to confirm primitives work in screen space
+  Graphics.draw_rect(5, 5, 100, 80, [0, 0, 0, 180])  # Semi-transparent black background
 
-  Graphics.draw_text("TEST", 160, 90, 40, [255, 0, 0, 255])
-end
+  # Draw text over the background
+  Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :yellow)
+  Graphics.draw_text("TEST", 10, 35, 24, :red)
+  Graphics.draw_text("Objects: #{@objects.size}", 10, 60, 14, :cyan)
 
-def draw_parallax_layer(transforms, sprites, width, speed, y_offset, camera_x)
-  offset = -camera_x * speed
-  transforms.each_with_index do |t, i|
-    t.x = offset + (i - 1) * width
-    t.y = y_offset
-    sprites[i].draw
-  end
+  # Draw frame border
+  Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)
 end

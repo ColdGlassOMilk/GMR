@@ -138,10 +138,21 @@ static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
     mrb_value color_val;
-    mrb_get_args(mrb, "iiiiA", &x, &y, &w, &h, &color_val);
+    mrb_get_args(mrb, "iiiio", &x, &y, &w, &h, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawRectangle(x, y, w, h, to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_rect(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(w),
+        static_cast<float>(h),
+        draw_color,
+        true,  // filled
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -158,10 +169,21 @@ static mrb_value mrb_graphics_draw_rect(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, w, h;
     mrb_value color_val;
-    mrb_get_args(mrb, "iiiiA", &x, &y, &w, &h, &color_val);
+    mrb_get_args(mrb, "iiiio", &x, &y, &w, &h, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawRectangleLines(x, y, w, h, to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_rect(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(w),
+        static_cast<float>(h),
+        draw_color,
+        false,  // not filled (outline only)
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -179,13 +201,21 @@ static mrb_value mrb_graphics_draw_rect_outline(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
     mrb_float x, y, w, h, angle;
     mrb_value color_val;
-    mrb_get_args(mrb, "fffffA", &x, &y, &w, &h, &angle, &color_val);
+    mrb_get_args(mrb, "fffffo", &x, &y, &w, &h, &angle, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    Rectangle rec = {static_cast<float>(x), static_cast<float>(y),
-                     static_cast<float>(w), static_cast<float>(h)};
-    Vector2 origin = {static_cast<float>(w) / 2.0f, static_cast<float>(h) / 2.0f};
-    DrawRectanglePro(rec, origin, static_cast<float>(angle), to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_rect_rotated(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(w),
+        static_cast<float>(h),
+        static_cast<float>(angle),
+        draw_color,
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -196,16 +226,30 @@ static mrb_value mrb_graphics_draw_rect_rotated(mrb_state* mrb, mrb_value) {
 /// @param x2 [Integer] End X position
 /// @param y2 [Integer] End Y position
 /// @param color [Color] Line color
+/// @param thickness [Float] Optional line thickness (default: 1.0)
 /// @returns [nil]
 /// @example GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])
-// GMR::Graphics.draw_line(x1, y1, x2, y2, color)
+/// @example GMR::Graphics.draw_line(0, 0, 100, 100, :red, 3.0)
+// GMR::Graphics.draw_line(x1, y1, x2, y2, color, thickness=1.0)
 static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
     mrb_int x1, y1, x2, y2;
     mrb_value color_val;
-    mrb_get_args(mrb, "iiiiA", &x1, &y1, &x2, &y2, &color_val);
+    mrb_float thickness = 1.0f;
+    mrb_get_args(mrb, "iiiio|f", &x1, &y1, &x2, &y2, &color_val, &thickness);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawLine(x1, y1, x2, y2, to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_line(
+        static_cast<float>(x1),
+        static_cast<float>(y1),
+        static_cast<float>(x2),
+        static_cast<float>(y2),
+        draw_color,
+        static_cast<float>(thickness),
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -223,14 +267,20 @@ static mrb_value mrb_graphics_draw_line(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, thick;
     mrb_value color_val;
-    mrb_get_args(mrb, "fffffA", &x1, &y1, &x2, &y2, &thick, &color_val);
+    mrb_get_args(mrb, "fffffo", &x1, &y1, &x2, &y2, &thick, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawLineEx(
-        Vector2{static_cast<float>(x1), static_cast<float>(y1)},
-        Vector2{static_cast<float>(x2), static_cast<float>(y2)},
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_line(
+        static_cast<float>(x1),
+        static_cast<float>(y1),
+        static_cast<float>(x2),
+        static_cast<float>(y2),
+        draw_color,
         static_cast<float>(thick),
-        to_raylib(c)
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
     );
     return mrb_nil_value();
 }
@@ -247,10 +297,20 @@ static mrb_value mrb_graphics_draw_line_thick(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
     mrb_value color_val;
-    mrb_get_args(mrb, "iiiA", &x, &y, &radius, &color_val);
+    mrb_get_args(mrb, "iiio", &x, &y, &radius, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawCircle(x, y, static_cast<float>(radius), to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_circle(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(radius),
+        draw_color,
+        true,  // filled
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -266,10 +326,20 @@ static mrb_value mrb_graphics_draw_circle(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
     mrb_value color_val;
-    mrb_get_args(mrb, "iiiA", &x, &y, &radius, &color_val);
+    mrb_get_args(mrb, "iiio", &x, &y, &radius, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawCircleLines(x, y, static_cast<float>(radius), to_raylib(c));
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_circle(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(radius),
+        draw_color,
+        false,  // not filled (outline only)
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -286,12 +356,22 @@ static mrb_value mrb_graphics_draw_circle_outline(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
     mrb_int x, y, radius;
     mrb_value inner_val, outer_val;
-    mrb_get_args(mrb, "iiiAA", &x, &y, &radius, &inner_val, &outer_val);
+    mrb_get_args(mrb, "iiioo", &x, &y, &radius, &inner_val, &outer_val);
 
     Color inner = parse_color_value(mrb, inner_val, WHITE_COLOR);
     Color outer = parse_color_value(mrb, outer_val, Color{0, 0, 0, 0});
+    DrawColor inner_color{inner.r, inner.g, inner.b, inner.a};
+    DrawColor outer_color{outer.r, outer.g, outer.b, outer.a};
 
-    DrawCircleGradient(x, y, static_cast<float>(radius), to_raylib(inner), to_raylib(outer));
+    DrawQueue::instance().queue_circle_gradient(
+        static_cast<float>(x),
+        static_cast<float>(y),
+        static_cast<float>(radius),
+        inner_color,
+        outer_color,
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
+    );
     return mrb_nil_value();
 }
 
@@ -310,14 +390,22 @@ static mrb_value mrb_graphics_draw_circle_gradient(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
     mrb_value color_val;
-    mrb_get_args(mrb, "ffffffA", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+    mrb_get_args(mrb, "ffffffo", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawTriangle(
-        Vector2{static_cast<float>(x1), static_cast<float>(y1)},
-        Vector2{static_cast<float>(x2), static_cast<float>(y2)},
-        Vector2{static_cast<float>(x3), static_cast<float>(y3)},
-        to_raylib(c)
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_triangle(
+        static_cast<float>(x1),
+        static_cast<float>(y1),
+        static_cast<float>(x2),
+        static_cast<float>(y2),
+        static_cast<float>(x3),
+        static_cast<float>(y3),
+        draw_color,
+        true,  // filled
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
     );
     return mrb_nil_value();
 }
@@ -337,14 +425,22 @@ static mrb_value mrb_graphics_draw_triangle(mrb_state* mrb, mrb_value) {
 static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
     mrb_float x1, y1, x2, y2, x3, y3;
     mrb_value color_val;
-    mrb_get_args(mrb, "ffffffA", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
+    mrb_get_args(mrb, "ffffffo", &x1, &y1, &x2, &y2, &x3, &y3, &color_val);
 
     Color c = parse_color_value(mrb, color_val, WHITE_COLOR);
-    DrawTriangleLines(
-        Vector2{static_cast<float>(x1), static_cast<float>(y1)},
-        Vector2{static_cast<float>(x2), static_cast<float>(y2)},
-        Vector2{static_cast<float>(x3), static_cast<float>(y3)},
-        to_raylib(c)
+    DrawColor draw_color{c.r, c.g, c.b, c.a};
+
+    DrawQueue::instance().queue_triangle(
+        static_cast<float>(x1),
+        static_cast<float>(y1),
+        static_cast<float>(x2),
+        static_cast<float>(y2),
+        static_cast<float>(x3),
+        static_cast<float>(y3),
+        draw_color,
+        false,  // not filled (outline only)
+        static_cast<uint8_t>(RenderLayer::ENTITIES),
+        0.0f   // z (0 = use draw_order)
     );
     return mrb_nil_value();
 }
@@ -1032,7 +1128,7 @@ void register_graphics(mrb_state* mrb) {
     mrb_define_module_function(mrb, graphics, "draw_rect_outline", mrb_graphics_draw_rect_outline, MRB_ARGS_REQ(5));
     mrb_define_module_function(mrb, graphics, "draw_rect_rotated", mrb_graphics_draw_rect_rotated, MRB_ARGS_REQ(6));
 
-    mrb_define_module_function(mrb, graphics, "draw_line", mrb_graphics_draw_line, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "draw_line", mrb_graphics_draw_line, MRB_ARGS_ARG(5, 1));
     mrb_define_module_function(mrb, graphics, "draw_line_thick", mrb_graphics_draw_line_thick, MRB_ARGS_REQ(6));
 
     mrb_define_module_function(mrb, graphics, "draw_circle", mrb_graphics_draw_circle, MRB_ARGS_REQ(4));

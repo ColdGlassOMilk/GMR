@@ -572,7 +572,7 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
     }
 #endif
 
-    // Always print formatted error to stderr (human-readable)
+    // Print formatted error to stderr (human-readable)
     fprintf(stderr, "\n=== Script Error ===\n");
     if (context) {
         fprintf(stderr, "Context: %s\n", context);
@@ -586,6 +586,7 @@ bool Loader::handle_exception(mrb_state* mrb, const char* context) {
             fprintf(stderr, "  %s\n", line.c_str());
         }
     }
+
     fprintf(stderr, "====================\n\n");
 
     // Note: Error reporting to IDE debugger happens via debug server (port 5678)

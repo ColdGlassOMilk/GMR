@@ -61,6 +61,7 @@ static Color symbol_to_color(mrb_state* mrb, mrb_sym sym, bool& found) {
     if (strcmp(name, "white") == 0) return Color{255, 255, 255, 255};
     if (strcmp(name, "red") == 0) return Color{255, 0, 0, 255};
     if (strcmp(name, "green") == 0) return Color{0, 255, 0, 255};
+    if (strcmp(name, "lime") == 0) return Color{0, 255, 0, 255};  // Alias for green
     if (strcmp(name, "blue") == 0) return Color{0, 0, 255, 255};
     if (strcmp(name, "yellow") == 0) return Color{255, 255, 0, 255};
     if (strcmp(name, "cyan") == 0) return Color{0, 255, 255, 255};
@@ -101,8 +102,13 @@ Color parse_color_value(mrb_state* mrb, mrb_value val, const Color& default_colo
         bool found = false;
         Color c = symbol_to_color(mrb, mrb_symbol(val), found);
         if (!found) {
-            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Unknown color symbol: %s",
-                       mrb_sym_name(mrb, mrb_symbol(val)));
+            const char* name = mrb_sym_name(mrb, mrb_symbol(val));
+            mrb_raisef(mrb, E_ARGUMENT_ERROR,
+                "Unknown color symbol: :%s\n"
+                "Valid colors: :black, :white, :red, :green, :lime, :blue, :yellow, :cyan, :magenta, "
+                ":orange, :purple, :pink, :brown, :gray, :dark_gray, :light_gray, :transparent\n"
+                "Or use [r,g,b], [r,g,b,a], or \"#RRGGBB\" format",
+                name);
         }
         return c;
     }

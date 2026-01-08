@@ -789,6 +789,17 @@ static mrb_value mrb_input_push_context(mrb_state* mrb, mrb_value self) {
 
     const char* name = mrb_sym_name(mrb, name_sym);
     auto& ctx_stack = gmr_input::ContextStack::instance();
+
+    // Validate that the context exists
+    if (!ctx_stack.has(name)) {
+        mrb_raisef(mrb, E_ARGUMENT_ERROR,
+            "Unknown input context: :%s\n"
+            "Context must be defined with input_context before use.\n"
+            "Example: input_context :%s do ... end",
+            name, name);
+        return self;
+    }
+
     ctx_stack.push(name);
 
     // Check for blocks_global option
@@ -826,7 +837,19 @@ static mrb_value mrb_input_set_context(mrb_state* mrb, mrb_value self) {
     mrb_get_args(mrb, "n", &name_sym);
 
     const char* name = mrb_sym_name(mrb, name_sym);
-    gmr_input::ContextStack::instance().set(name);
+    auto& ctx_stack = gmr_input::ContextStack::instance();
+
+    // Validate that the context exists
+    if (!ctx_stack.has(name)) {
+        mrb_raisef(mrb, E_ARGUMENT_ERROR,
+            "Unknown input context: :%s\n"
+            "Context must be defined with input_context before use.\n"
+            "Example: input_context :%s do ... end",
+            name, name);
+        return self;
+    }
+
+    ctx_stack.set(name);
 
     return self;
 }
