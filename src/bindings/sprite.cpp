@@ -13,6 +13,7 @@
 #include <mruby/array.h>
 #include <mruby/variable.h>
 #include <cstring>
+#include <raylib.h>
 #include <cmath>
 
 // Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
@@ -32,19 +33,19 @@ namespace gmr {
 namespace bindings {
 
 /// @class Sprite
-/// @description A drawable 2D sprite with built-in transform properties.
-///   Sprites combine a texture with position, rotation, scale, and origin for easy rendering.
+/// @description A drawable 2D sprite that references a Transform2D for spatial properties.
+///   Sprites are pure rendering components - they reference a texture and a transform.
+///   All spatial properties (position, rotation, scale, origin) are managed by the Transform2D.
 ///   By default, draw order determines layering (later drawn = on top). Set an explicit z value
 ///   to override this behavior for specific sprites.
 /// @example # Complete game entity with sprite, animation, and collision
 ///   class Player
-///     attr_reader :sprite
+///     attr_reader :sprite, :transform
 ///
 ///     def initialize(x, y)
 ///       @texture = GMR::Graphics::Texture.load("assets/player.png")
-///       @sprite = Sprite.new(@texture)
-///       @sprite.x = x
-///       @sprite.y = y
+///       @transform = Transform2D.new(x: x, y: y)
+///       @sprite = Sprite.new(@texture, @transform)
 ///       @sprite.source_rect = Rect.new(0, 0, 32, 48)
 ///       @sprite.center_origin
 ///       @sprite.z = 10  # Above background, below UI
@@ -67,9 +68,9 @@ namespace bindings {
 ///       # Flip sprite based on direction
 ///       @sprite.flip_x = !@facing_right
 ///
-///       # Update position
-///       @sprite.x += @velocity.x * dt
-///       @sprite.y += @velocity.y * dt
+///       # Update position via transform
+///       @transform.x += @velocity.x * dt
+///       @transform.y += @velocity.y * dt
 ///     end
 ///
 ///     def draw
@@ -77,7 +78,7 @@ namespace bindings {
 ///     end
 ///
 ///     def bounds
-///       Rect.new(@sprite.x - 16, @sprite.y - 24, 32, 48)
+///       Rect.new(@transform.x - 16, @transform.y - 24, 32, 48)
 ///     end
 ///   end
 /// @example # Particle effect with many sprites
@@ -85,20 +86,18 @@ namespace bindings {
 ///     def initialize(x, y, count: 50)
 ///       @texture = GMR::Graphics::Texture.load("assets/particle.png")
 ///       @particles = count.times.map do
-///         p = Sprite.new(@texture)
-///         p.x = x
-///         p.y = y
-///         p.alpha = 1.0
-///         p.center_origin
-///         p.scale = GMR::Math.random(0.3, 1.0)
-///         { sprite: p, vx: GMR::Math.random(-100, 100), vy: GMR::Math.random(-150, -50), life: GMR::Math.random(0.5, 1.5) }
+///         t = Transform2D.new(x: x, y: y, scale_x: GMR::Math.random(0.3, 1.0), scale_y: GMR::Math.random(0.3, 1.0))
+///         t.center_origin
+///         s = Sprite.new(@texture, t)
+///         s.alpha = 1.0
+///         { sprite: s, transform: t, vx: GMR::Math.random(-100, 100), vy: GMR::Math.random(-150, -50), life: GMR::Math.random(0.5, 1.5) }
 ///       end
 ///     end
 ///
 ///     def update(dt)
 ///       @particles.each do |p|
-///         p[:sprite].x += p[:vx] * dt
-///         p[:sprite].y += p[:vy] * dt
+///         p[:transform].x += p[:vx] * dt
+///         p[:transform].y += p[:vy] * dt
 ///         p[:vy] += 200 * dt  # Gravity
 ///         p[:life] -= dt
 ///         p[:sprite].alpha = [p[:life] / 0.5, 1.0].min
@@ -113,7 +112,8 @@ namespace bindings {
 /// @example # Sprite layering with z-index for isometric game
 ///   class GameWorld
 ///     def initialize
-///       @floor = Sprite.new(floor_tex)
+///       @floor_transform = Transform2D.new
+///       @floor = Sprite.new(floor_tex, @floor_transform)
 ///       @floor.z = 0  # Always bottom layer
 ///
 ///       @entities = []
@@ -125,8 +125,8 @@ namespace bindings {
 ///     def draw
 ///       @floor.draw
 ///       # Sort entities by y position for proper layering
-///       @entities.sort_by! { |e| e.sprite.y }
-///       @entities.each { |e| e.sprite.z = e.sprite.y; e.draw }
+///       @entities.sort_by! { |e| e.transform.y }
+///       @entities.each { |e| e.sprite.z = e.transform.y; e.draw }
 ///     end
 ///   end
 
@@ -259,29 +259,23 @@ static TextureHandle get_texture_handle_from_value(mrb_state* mrb, mrb_value tex
 // ============================================================================
 
 /// @method initialize
-/// @description Create a new Sprite from a texture with optional initial values.
-/// @param texture [Texture] The texture to use for this sprite
-/// @param x [Float] Initial X position (default: 0)
-/// @param y [Float] Initial Y position (default: 0)
-/// @param rotation [Float] Initial rotation in degrees (default: 0)
-/// @param scale_x [Float] Initial X scale (default: 1.0)
-/// @param scale_y [Float] Initial Y scale (default: 1.0)
-/// @param z [Float] Explicit z-index for layering (default: nil, uses draw order)
-/// @param source_rect [Rect] Region of texture to draw (default: entire texture)
+/// @description Create a new sprite with a texture and transform.
+/// @param texture [Texture] The texture to render
+/// @param transform [Transform2D] The transform defining position, rotation, scale, and origin
 /// @returns [Sprite] The new sprite
-/// @example sprite = Sprite.new(texture)
-/// @example sprite = Sprite.new(texture, x: 100, y: 50, rotation: 45)
-/// @example sprite = Sprite.new(spritesheet, source_rect: Rect.new(0, 0, 32, 32))
+/// @example
+///   transform = Transform2D.new(x: 100, y: 100, rotation: 45)
+///   sprite = Sprite.new(my_texture, transform)
 static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value texture_val;
-    mrb_value kwargs = mrb_nil_value();
-    mrb_get_args(mrb, "o|H", &texture_val, &kwargs);
+    mrb_value transform_val;
+    mrb_get_args(mrb, "oo", &texture_val, &transform_val);
 
     // Create sprite
     SpriteHandle handle = SpriteManager::instance().create();
     SpriteState* s = SpriteManager::instance().get(handle);
 
-    // Get texture handle from Ruby Texture object (stored in C DATA struct, not ivar)
+    // Get texture handle from Ruby Texture object
     s->texture = get_texture_handle_from_value(mrb, texture_val);
     if (s->texture == INVALID_HANDLE) {
         SpriteManager::instance().destroy(handle);
@@ -289,41 +283,12 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
         return mrb_nil_value();
     }
 
-    // Parse keyword arguments
-    if (!mrb_nil_p(kwargs)) {
-        mrb_value keys = mrb_hash_keys(mrb, kwargs);
-        mrb_int len = RARRAY_LEN(keys);
-
-        for (mrb_int i = 0; i < len; i++) {
-            mrb_value key = mrb_ary_ref(mrb, keys, i);
-            mrb_value val = mrb_hash_get(mrb, kwargs, key);
-
-            const char* key_name = nullptr;
-            if (mrb_symbol_p(key)) {
-                key_name = mrb_sym_name(mrb, mrb_symbol(key));
-            } else if (mrb_string_p(key)) {
-                key_name = mrb_string_cstr(mrb, key);
-            }
-
-            if (key_name) {
-                if (strcmp(key_name, "x") == 0) {
-                    s->position.x = static_cast<float>(mrb_as_float(mrb, val));
-                } else if (strcmp(key_name, "y") == 0) {
-                    s->position.y = static_cast<float>(mrb_as_float(mrb, val));
-                } else if (strcmp(key_name, "rotation") == 0) {
-                    s->rotation = static_cast<float>(mrb_as_float(mrb, val)) * DEG_TO_RAD;
-                } else if (strcmp(key_name, "scale_x") == 0) {
-                    s->scale.x = static_cast<float>(mrb_as_float(mrb, val));
-                } else if (strcmp(key_name, "scale_y") == 0) {
-                    s->scale.y = static_cast<float>(mrb_as_float(mrb, val));
-                } else if (strcmp(key_name, "z") == 0) {
-                    s->z = static_cast<float>(mrb_as_float(mrb, val));
-                } else if (strcmp(key_name, "source_rect") == 0) {
-                    s->source_rect = extract_rect(mrb, val);
-                    s->use_source_rect = true;
-                }
-            }
-        }
+    // Get transform handle
+    s->transform = get_transform_handle(mrb, transform_val);
+    if (s->transform == INVALID_HANDLE) {
+        SpriteManager::instance().destroy(handle);
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid or nil transform object passed to Sprite.new");
+        return mrb_nil_value();
     }
 
     // Attach handle to Ruby object
@@ -331,8 +296,9 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
     data->handle = handle;
     mrb_data_init(self, data, &sprite_data_type);
 
-    // Store texture reference to prevent GC
+    // Store references to prevent GC
     mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@texture"), texture_val);
+    mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@transform"), transform_val);
 
     return self;
 }
@@ -341,284 +307,93 @@ static mrb_value mrb_sprite_initialize(mrb_state* mrb, mrb_value self) {
 // Position Getters/Setters
 // ============================================================================
 
-/// @method x
-/// @description Get the X position of the sprite.
-/// @returns [Float] The X position
-/// @example x_pos = sprite.x
-static mrb_value mrb_sprite_x(mrb_state* mrb, mrb_value self) {
+// ============================================================================
+// Transform
+// ============================================================================
+
+/// @method transform
+/// @description Get the Transform2D handle associated with this sprite.
+/// @returns [Transform2D] The sprite's transform
+/// @example t = sprite.transform
+///   t.x = 100
+static mrb_value mrb_sprite_transform(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
     GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->position.x);
+
+    if (s->transform == INVALID_HANDLE) {
+        return mrb_nil_value();
+    }
+
+    // Return the existing Transform2D Ruby object
+    // We need to create a new Ruby wrapper for the existing handle
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* transform_class = mrb_class_get_under(mrb, graphics, "Transform2D");
+
+    // Access the external transform_data_type
+    extern const mrb_data_type transform_data_type;
+
+    struct TransformData {
+        TransformHandle handle;
+    };
+    TransformData* tdata = static_cast<TransformData*>(mrb_malloc(mrb, sizeof(TransformData)));
+    tdata->handle = s->transform;
+
+    mrb_value transform_obj = mrb_obj_value(mrb_data_object_alloc(mrb, transform_class, tdata, &transform_data_type));
+
+    return transform_obj;
 }
 
-/// @method y
-/// @description Get the Y position of the sprite.
-/// @returns [Float] The Y position
-/// @example y_pos = sprite.y
-static mrb_value mrb_sprite_y(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->position.y);
-}
-
-/// @method x=
-/// @description Set the X position of the sprite.
-/// @param value [Float] The new X position
-/// @returns [Float] The value that was set
-/// @example sprite.x = 100
-/// @example sprite.x += 5  # Move right by 5 pixels
-static mrb_value mrb_sprite_set_x(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->position.x = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-/// @method y=
-/// @description Set the Y position of the sprite.
-/// @param value [Float] The new Y position
-/// @returns [Float] The value that was set
-/// @example sprite.y = 200
-/// @example sprite.y += 10  # Move down by 10 pixels
-static mrb_value mrb_sprite_set_y(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->position.y = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-/// @method position
-/// @description Get the position as a Vec2.
-/// @returns [Vec2] The position vector
-/// @example pos = sprite.position
-static mrb_value mrb_sprite_position(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return create_vec2(mrb, s->position.x, s->position.y);
-}
-
-/// @method position=
-/// @description Set the position using a Vec2.
-/// @param value [Vec2] The new position vector
-/// @returns [Vec2] The value that was set
-/// @example sprite.position = Vec2.new(100, 200)
-static mrb_value mrb_sprite_set_position(mrb_state* mrb, mrb_value self) {
+/// @method transform=
+/// @description Set the Transform2D for this sprite.
+/// @param value [Transform2D] The transform to use
+/// @returns [Transform2D] The value that was set
+/// @example sprite.transform = Transform2D.new(x: 100, y: 200)
+static mrb_value mrb_sprite_set_transform(mrb_state* mrb, mrb_value self) {
     mrb_value val;
     mrb_get_args(mrb, "o", &val);
+
     SpriteData* data = get_sprite_data(mrb, self);
     GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
     GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->position = extract_vec2(mrb, val);
-    return val;
-}
 
-// ============================================================================
-// Rotation
-// ============================================================================
+    // Get TransformHandle from Transform2D object
+    extern const mrb_data_type transform_data_type;
+    struct TransformData {
+        TransformHandle handle;
+    };
+    TransformData* tdata = static_cast<TransformData*>(mrb_data_get_ptr(mrb, val, &transform_data_type));
 
-/// @method rotation
-/// @description Get the rotation in degrees.
-/// @returns [Float] The rotation angle in degrees
-/// @example angle = sprite.rotation
-static mrb_value mrb_sprite_rotation(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->rotation * RAD_TO_DEG);
-}
+    if (!tdata) {
+        mrb_raise(mrb, E_TYPE_ERROR, "Expected Transform2D object");
+        return mrb_nil_value();
+    }
 
-/// @method rotation=
-/// @description Set the rotation in degrees. Positive values rotate clockwise.
-/// @param value [Float] The new rotation angle in degrees
-/// @returns [Float] The value that was set
-/// @example sprite.rotation = 45
-/// @example sprite.rotation += 90 * dt  # Rotate 90 degrees per second
-static mrb_value mrb_sprite_set_rotation(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->rotation = static_cast<float>(val) * DEG_TO_RAD;
-    return mrb_float_value(mrb, val);
-}
-
-// ============================================================================
-// Scale
-// ============================================================================
-
-/// @method scale_x
-/// @description Get the X scale factor.
-/// @returns [Float] The X scale (1.0 = normal size)
-/// @example sx = sprite.scale_x
-static mrb_value mrb_sprite_scale_x(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->scale.x);
-}
-
-/// @method scale_y
-/// @description Get the Y scale factor.
-/// @returns [Float] The Y scale (1.0 = normal size)
-/// @example sy = sprite.scale_y
-static mrb_value mrb_sprite_scale_y(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->scale.y);
-}
-
-/// @method scale_x=
-/// @description Set the X scale factor. Values greater than 1 stretch, less than 1 shrink.
-/// @param value [Float] The new X scale (1.0 = normal size)
-/// @returns [Float] The value that was set
-/// @example sprite.scale_x = 2.0  # Double width
-static mrb_value mrb_sprite_set_scale_x(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->scale.x = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-/// @method scale_y=
-/// @description Set the Y scale factor. Values greater than 1 stretch, less than 1 shrink.
-/// @param value [Float] The new Y scale (1.0 = normal size)
-/// @returns [Float] The value that was set
-/// @example sprite.scale_y = 0.5  # Half height
-static mrb_value mrb_sprite_set_scale_y(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->scale.y = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-// ============================================================================
-// Origin
-// ============================================================================
-
-/// @method origin_x
-/// @description Get the X origin (pivot point) for rotation and scaling.
-/// @returns [Float] The X origin offset in pixels
-/// @example ox = sprite.origin_x
-static mrb_value mrb_sprite_origin_x(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->origin.x);
-}
-
-/// @method origin_y
-/// @description Get the Y origin (pivot point) for rotation and scaling.
-/// @returns [Float] The Y origin offset in pixels
-/// @example oy = sprite.origin_y
-static mrb_value mrb_sprite_origin_y(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return mrb_float_value(mrb, s->origin.y);
-}
-
-/// @method origin_x=
-/// @description Set the X origin (pivot point) for rotation and scaling.
-/// @param value [Float] The X origin offset in pixels
-/// @returns [Float] The value that was set
-/// @example sprite.origin_x = 16  # Pivot 16px from left
-static mrb_value mrb_sprite_set_origin_x(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->origin.x = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-/// @method origin_y=
-/// @description Set the Y origin (pivot point) for rotation and scaling.
-/// @param value [Float] The Y origin offset in pixels
-/// @returns [Float] The value that was set
-/// @example sprite.origin_y = 16  # Pivot 16px from top
-static mrb_value mrb_sprite_set_origin_y(mrb_state* mrb, mrb_value self) {
-    mrb_float val;
-    mrb_get_args(mrb, "f", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->origin.y = static_cast<float>(val);
-    return mrb_float_value(mrb, val);
-}
-
-/// @method origin
-/// @description Get the origin (pivot point) as a Vec2.
-/// @returns [Vec2] The origin vector
-/// @example origin = sprite.origin
-static mrb_value mrb_sprite_origin(mrb_state* mrb, mrb_value self) {
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    return create_vec2(mrb, s->origin.x, s->origin.y);
-}
-
-/// @method origin=
-/// @description Set the origin (pivot point) using a Vec2.
-/// @param value [Vec2] The new origin vector
-/// @returns [Vec2] The value that was set
-/// @example sprite.origin = Vec2.new(16, 16)
-static mrb_value mrb_sprite_set_origin(mrb_state* mrb, mrb_value self) {
-    mrb_value val;
-    mrb_get_args(mrb, "o", &val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-    s->origin = extract_vec2(mrb, val);
+    s->transform = tdata->handle;
     return val;
 }
 
 /// @method center_origin
-/// @description Set the origin to the center of the sprite, so it rotates and scales
+/// @description Set the transform's origin to the center of the sprite, so it rotates and scales
 ///   around its center. Uses texture dimensions or source_rect if set.
 /// @returns [Sprite] self for chaining
 /// @example sprite.center_origin
-/// @example sprite = Sprite.new(tex).center_origin  # Method chaining
+/// @example sprite = Sprite.new(tex, transform).center_origin  # Method chaining
 static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
     SpriteData* data = get_sprite_data(mrb, self);
     GMR_REQUIRE_SPRITE_DATA(data);
     SpriteState* s = SpriteManager::instance().get(data->handle);
     GMR_REQUIRE_SPRITE_STATE(s, data->handle);
+
+    // Get transform
+    auto* transform = TransformManager::instance().get(s->transform);
+    if (!transform) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Sprite has no valid transform");
+        return mrb_nil_value();
+    }
 
     // Get texture dimensions
     float w, h;
@@ -635,8 +410,9 @@ static mrb_value mrb_sprite_center_origin(mrb_state* mrb, mrb_value self) {
         }
     }
 
-    s->origin.x = w / 2.0f;
-    s->origin.y = h / 2.0f;
+    transform->origin.x = w / 2.0f;
+    transform->origin.y = h / 2.0f;
+    TransformManager::instance().mark_dirty(s->transform);
 
     return self;
 }
@@ -966,46 +742,10 @@ static mrb_value mrb_sprite_height(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
-// Parent Hierarchy
+// Parent Hierarchy - REMOVED
 // ============================================================================
-
-/// @method parent
-/// @description Get the parent Transform2D. Returns nil if no parent is set.
-/// @returns [Transform2D, nil] The parent transform, or nil if none
-/// @example parent = sprite.parent
-static mrb_value mrb_sprite_parent(mrb_state* mrb, mrb_value self) {
-    return mrb_iv_get(mrb, self, mrb_intern_cstr(mrb, "@parent"));
-}
-
-/// @method parent=
-/// @description Set a Transform2D as the parent. The sprite will transform relative to
-///   the parent's world transform. Set to nil to remove the parent.
-/// @param value [Transform2D, nil] The parent transform, or nil to clear
-/// @returns [Transform2D, nil] The value that was set
-/// @example # Sprite follows a transform
-///   turret_base = Transform2D.new(x: 200, y: 200)
-///   @gun_sprite = Sprite.new(gun_tex)
-///   @gun_sprite.parent = turret_base
-///   @gun_sprite.y = -20  # Offset from turret
-///   turret_base.rotation += 1  # Gun rotates with base!
-static mrb_value mrb_sprite_set_parent(mrb_state* mrb, mrb_value self) {
-    mrb_value parent_val;
-    mrb_get_args(mrb, "o", &parent_val);
-    SpriteData* data = get_sprite_data(mrb, self);
-    GMR_REQUIRE_SPRITE_DATA(data);
-    SpriteState* s = SpriteManager::instance().get(data->handle);
-    GMR_REQUIRE_SPRITE_STATE(s, data->handle);
-
-    if (mrb_nil_p(parent_val)) {
-        s->parent_transform = INVALID_HANDLE;
-    } else {
-        s->parent_transform = get_transform_handle(mrb, parent_val);
-    }
-
-    // Store parent reference to prevent GC
-    mrb_iv_set(mrb, self, mrb_intern_cstr(mrb, "@parent"), parent_val);
-    return parent_val;
-}
+// Parenting is now handled by Transform2D hierarchy directly.
+// Use sprite.transform.parent = other_transform instead of sprite.parent.
 
 // ============================================================================
 // Draw
@@ -1091,33 +831,11 @@ void register_sprite(mrb_state* mrb) {
     MRB_SET_INSTANCE_TT(sprite_class, MRB_TT_CDATA);
 
     // Constructor
-    mrb_define_method(mrb, sprite_class, "initialize", mrb_sprite_initialize, MRB_ARGS_ARG(1, 1));
+    mrb_define_method(mrb, sprite_class, "initialize", mrb_sprite_initialize, MRB_ARGS_REQ(2));
 
-    // Position
-    mrb_define_method(mrb, sprite_class, "x", mrb_sprite_x, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "y", mrb_sprite_y, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "x=", mrb_sprite_set_x, MRB_ARGS_REQ(1));
-    mrb_define_method(mrb, sprite_class, "y=", mrb_sprite_set_y, MRB_ARGS_REQ(1));
-    mrb_define_method(mrb, sprite_class, "position", mrb_sprite_position, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "position=", mrb_sprite_set_position, MRB_ARGS_REQ(1));
-
-    // Rotation
-    mrb_define_method(mrb, sprite_class, "rotation", mrb_sprite_rotation, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "rotation=", mrb_sprite_set_rotation, MRB_ARGS_REQ(1));
-
-    // Scale
-    mrb_define_method(mrb, sprite_class, "scale_x", mrb_sprite_scale_x, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "scale_y", mrb_sprite_scale_y, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "scale_x=", mrb_sprite_set_scale_x, MRB_ARGS_REQ(1));
-    mrb_define_method(mrb, sprite_class, "scale_y=", mrb_sprite_set_scale_y, MRB_ARGS_REQ(1));
-
-    // Origin
-    mrb_define_method(mrb, sprite_class, "origin", mrb_sprite_origin, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "origin=", mrb_sprite_set_origin, MRB_ARGS_REQ(1));
-    mrb_define_method(mrb, sprite_class, "origin_x", mrb_sprite_origin_x, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "origin_y", mrb_sprite_origin_y, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "origin_x=", mrb_sprite_set_origin_x, MRB_ARGS_REQ(1));
-    mrb_define_method(mrb, sprite_class, "origin_y=", mrb_sprite_set_origin_y, MRB_ARGS_REQ(1));
+    // Transform (replaces position, rotation, scale, origin)
+    mrb_define_method(mrb, sprite_class, "transform", mrb_sprite_transform, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sprite_class, "transform=", mrb_sprite_set_transform, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, sprite_class, "center_origin", mrb_sprite_center_origin, MRB_ARGS_NONE());
 
     // Z-index
@@ -1145,10 +863,6 @@ void register_sprite(mrb_state* mrb) {
     // Dimensions
     mrb_define_method(mrb, sprite_class, "width", mrb_sprite_width, MRB_ARGS_NONE());
     mrb_define_method(mrb, sprite_class, "height", mrb_sprite_height, MRB_ARGS_NONE());
-
-    // Parent hierarchy
-    mrb_define_method(mrb, sprite_class, "parent", mrb_sprite_parent, MRB_ARGS_NONE());
-    mrb_define_method(mrb, sprite_class, "parent=", mrb_sprite_set_parent, MRB_ARGS_REQ(1));
 
     // Draw
     mrb_define_method(mrb, sprite_class, "draw", mrb_sprite_draw, MRB_ARGS_NONE());

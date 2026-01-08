@@ -106,30 +106,33 @@ def init
   @bg_base_y = -40  # Increased offset to prevent top gap when jumping
 
   @bg1_sprites = []
+  @bg1_transforms = []
   3.times do
-    s = Sprite.new(@bg1_tex)
-    s.scale_x = bg_scale
-    s.scale_y = bg_scale
+    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
+    s = Sprite.new(@bg1_tex, t)
+    @bg1_transforms << t
     @bg1_sprites << s
   end
   @bg1_width = bg_width
   @bg1_speed = 0.1
 
   @bg2_sprites = []
+  @bg2_transforms = []
   3.times do
-    s = Sprite.new(@bg2_tex)
-    s.scale_x = bg_scale
-    s.scale_y = bg_scale
+    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
+    s = Sprite.new(@bg2_tex, t)
+    @bg2_transforms << t
     @bg2_sprites << s
   end
   @bg2_width = bg_width
   @bg2_speed = 0.3
 
   @bg3_sprites = []
+  @bg3_transforms = []
   3.times do
-    s = Sprite.new(@bg3_tex)
-    s.scale_x = bg_scale
-    s.scale_y = bg_scale
+    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
+    s = Sprite.new(@bg3_tex, t)
+    @bg3_transforms << t
     @bg3_sprites << s
   end
   @bg3_width = bg_width
@@ -166,13 +169,15 @@ def init
   rescue
     @char_tex = @tileset_tex
   end
-  @sprite = Sprite.new(@char_tex)
-  @sprite.source_rect = Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 
-  # Find spawn point
+  # Create transform for character
   spawn_x = 5
-  @sprite.x = MAP_OFFSET_X + spawn_x * TILE_SIZE
-  @sprite.y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
+  spawn_pos_x = MAP_OFFSET_X + spawn_x * TILE_SIZE
+  spawn_pos_y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
+  @char_transform = Transform2D.new(x: spawn_pos_x, y: spawn_pos_y)
+
+  @sprite = Sprite.new(@char_tex, @char_transform)
+  @sprite.source_rect = Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 
   @velocity_y = 0.0
   @on_ground = false
@@ -239,12 +244,12 @@ def update(dt)
     state_machine.trigger(:fall) if @velocity_y > 0
   end
 
-  @sprite.x -= MOVE_SPEED * dt if moving_left
-  @sprite.x += MOVE_SPEED * dt if moving_right
+  @char_transform.x -= MOVE_SPEED * dt if moving_left
+  @char_transform.x += MOVE_SPEED * dt if moving_right
   @sprite.flip_x = true if moving_left
   @sprite.flip_x = false if moving_right
 
-  @sprite.y += @velocity_y * dt
+  @char_transform.y += @velocity_y * dt
 
   check_tilemap_collision(moving)
 
@@ -253,13 +258,13 @@ def update(dt)
   end
 
   # Update camera to follow player
-  @camera.target = Mathf::Vec2.new(@sprite.x + FRAME_WIDTH / 2.0, @sprite.y + FRAME_HEIGHT / 2.0)
+  @camera.target = Mathf::Vec2.new(@char_transform.x + FRAME_WIDTH / 2.0, @char_transform.y + FRAME_HEIGHT / 2.0)
 end
 
 def check_tilemap_collision(moving)
   # Get hitbox in tilemap local coordinates
-  local_x = @sprite.x + CHAR_HITBOX_OFFSET_X - MAP_OFFSET_X
-  local_y = @sprite.y + CHAR_HITBOX_OFFSET_Y - MAP_OFFSET_Y
+  local_x = @char_transform.x + CHAR_HITBOX_OFFSET_X - MAP_OFFSET_X
+  local_y = @char_transform.y + CHAR_HITBOX_OFFSET_Y - MAP_OFFSET_Y
 
   # Use Collision module to resolve tilemap collision
   result = Collision.tilemap_resolve(
@@ -270,8 +275,8 @@ def check_tilemap_collision(moving)
   )
 
   # Apply resolved position (convert back to world coordinates)
-  @sprite.x = result.x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
-  @sprite.y = result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
+  @char_transform.x = result.x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
+  @char_transform.y = result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
   @velocity_y = result.vy
 
   # Update ground state
@@ -288,15 +293,15 @@ end
 def draw
   Graphics.clear("#5078A0")
 
-  camera_x = @sprite.x + FRAME_WIDTH / 2.0
-  camera_y = @sprite.y + FRAME_HEIGHT / 2.0
+  camera_x = @char_transform.x + FRAME_WIDTH / 2.0
+  camera_y = @char_transform.y + FRAME_HEIGHT / 2.0
 
   base_y = MAP_OFFSET_Y + 18 * TILE_SIZE
   y_offset = camera_y - base_y
 
-  draw_parallax_layer(@bg1_sprites, @bg1_width, @bg1_speed, @bg_base_y - y_offset * 0.05, camera_x)
-  draw_parallax_layer(@bg2_sprites, @bg2_width, @bg2_speed, @bg_base_y - y_offset * 0.15, camera_x)
-  draw_parallax_layer(@bg3_sprites, @bg3_width, @bg3_speed, @bg_base_y - y_offset * 0.25, camera_x)
+  draw_parallax_layer(@bg1_transforms, @bg1_sprites, @bg1_width, @bg1_speed, @bg_base_y - y_offset * 0.05, camera_x)
+  draw_parallax_layer(@bg2_transforms, @bg2_sprites, @bg2_width, @bg2_speed, @bg_base_y - y_offset * 0.15, camera_x)
+  draw_parallax_layer(@bg3_transforms, @bg3_sprites, @bg3_width, @bg3_speed, @bg_base_y - y_offset * 0.25, camera_x)
 
   @camera.use do
     @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
@@ -304,11 +309,11 @@ def draw
   end
 end
 
-def draw_parallax_layer(sprites, width, speed, y_offset, camera_x)
+def draw_parallax_layer(transforms, sprites, width, speed, y_offset, camera_x)
   offset = -camera_x * speed
-  sprites.each_with_index do |s, i|
-    s.x = offset + (i - 1) * width
-    s.y = y_offset
-    s.draw
+  transforms.each_with_index do |t, i|
+    t.x = offset + (i - 1) * width
+    t.y = y_offset
+    sprites[i].draw
   end
 end

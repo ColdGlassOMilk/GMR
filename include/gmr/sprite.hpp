@@ -14,14 +14,8 @@ struct SpriteState {
     Rect source_rect{0, 0, 0, 0};
     bool use_source_rect{false};
 
-    // Embedded transform (owned by sprite, not a handle)
-    Vec2 position{0.0f, 0.0f};
-    float rotation{0.0f};            // Radians internally
-    Vec2 scale{1.0f, 1.0f};
-    Vec2 origin{0.0f, 0.0f};         // Pivot point
-
-    // Optional parent transform for hierarchy
-    TransformHandle parent_transform{INVALID_HANDLE};
+    // Transform reference (required)
+    TransformHandle transform{INVALID_HANDLE};
 
     // Visual properties
     Color color{255, 255, 255, 255}; // Tint

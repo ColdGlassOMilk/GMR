@@ -320,7 +320,7 @@ void register_top_level_aliases(mrb_state* mrb) {
     RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
 
     // Graphics classes -> GMR top-level
-    // Sprite, Texture, Tilemap, Camera, Rect become accessible after "include GMR"
+    // Sprite, Texture, Tilemap, Camera, Rect, Transform2D become accessible after "include GMR"
     mrb_define_const(mrb, gmr, "Sprite",
         mrb_obj_value(mrb_class_get_under(mrb, graphics, "Sprite")));
     mrb_define_const(mrb, gmr, "Texture",
@@ -331,6 +331,8 @@ void register_top_level_aliases(mrb_state* mrb) {
         mrb_obj_value(mrb_class_get_under(mrb, graphics, "Camera2D")));
     mrb_define_const(mrb, gmr, "Rect",
         mrb_obj_value(mrb_class_get_under(mrb, graphics, "Rect")));
+    mrb_define_const(mrb, gmr, "Transform2D",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Transform2D")));
 
     // Animation classes -> GMR top-level
     // Tween, Animator, SpriteAnimation become accessible after "include GMR"

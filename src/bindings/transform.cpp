@@ -10,6 +10,7 @@
 #include <mruby/array.h>
 #include <cstring>
 #include <cmath>
+#include <raylib.h>
 
 // Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
 #define GMR_REQUIRE_TRANSFORM_DATA(data) \
@@ -35,12 +36,11 @@ namespace bindings {
 /// @example # Rotating collectible with bobbing animation
 ///   class Collectible
 ///     def initialize(x, y)
-///       @transform = Transform2D.new(x: x, y: y)
-///       @transform.origin_x = 16  # Center pivot (32x32 sprite)
-///       @transform.origin_y = 16
+///       @transform = Transform2D.new(x: x, y: y, origin_x: 16, origin_y: 16)
 ///       @base_y = y
 ///       @time = 0
-///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/coin.png"))
+///       @texture = GMR::Graphics::Texture.load("assets/coin.png")
+///       @sprite = Sprite.new(@texture, @transform)
 ///     end
 ///
 ///     def update(dt)
@@ -52,29 +52,21 @@ namespace bindings {
 ///     end
 ///
 ///     def draw
-///       @sprite.x = @transform.x
-///       @sprite.y = @transform.y
-///       @sprite.rotation = @transform.rotation
-///       @sprite.origin_x = @transform.origin_x
-///       @sprite.origin_y = @transform.origin_y
 ///       @sprite.draw
 ///     end
 ///   end
 /// @example # Tank with rotating turret using parent hierarchy
 ///   class Tank
 ///     def initialize(x, y)
-///       @body = Transform2D.new(x: x, y: y)
-///       @body.origin_x = 32  # Center of 64x64 tank body
-///       @body.origin_y = 32
+///       @body = Transform2D.new(x: x, y: y, origin_x: 32, origin_y: 32)
 ///
-///       @turret = Transform2D.new
-///       @turret.parent = @body
-///       @turret.y = -8  # Turret slightly forward
-///       @turret.origin_x = 8   # Turret pivot point
-///       @turret.origin_y = 16
+///       @turret = Transform2D.new(y: -8, origin_x: 8, origin_y: 16)
+///       @turret.parent = @body  # Turret follows body
 ///
-///       @body_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/tank_body.png"))
-///       @turret_sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/tank_turret.png"))
+///       body_tex = GMR::Graphics::Texture.load("assets/tank_body.png")
+///       turret_tex = GMR::Graphics::Texture.load("assets/tank_turret.png")
+///       @body_sprite = Sprite.new(body_tex, @body)
+///       @turret_sprite = Sprite.new(turret_tex, @turret)
 ///     end
 ///
 ///     def update(dt)
@@ -104,31 +96,16 @@ namespace bindings {
 ///     end
 ///
 ///     def draw
-///       # Body sprite
-///       @body_sprite.x = @body.x
-///       @body_sprite.y = @body.y
-///       @body_sprite.rotation = @body.rotation
-///       @body_sprite.origin_x = @body.origin_x
-///       @body_sprite.origin_y = @body.origin_y
 ///       @body_sprite.draw
-///
-///       # Turret sprite (uses world position from hierarchy)
-///       turret_pos = @turret.world_position
-///       @turret_sprite.x = turret_pos.x
-///       @turret_sprite.y = turret_pos.y
-///       @turret_sprite.rotation = @body.rotation + @turret.rotation  # Combined rotation
-///       @turret_sprite.origin_x = @turret.origin_x
-///       @turret_sprite.origin_y = @turret.origin_y
-///       @turret_sprite.draw
+///       @turret_sprite.draw  # Automatically uses world transform from hierarchy
 ///     end
 ///   end
 /// @example # Scaling effects for damage feedback
 ///   class Enemy
 ///     def initialize(x, y)
-///       @transform = Transform2D.new(x: x, y: y)
-///       @transform.origin_x = 16
-///       @transform.origin_y = 16
-///       @sprite = GMR::Sprite.new(GMR::Graphics::Texture.load("assets/enemy.png"))
+///       @transform = Transform2D.new(x: x, y: y, origin_x: 16, origin_y: 16)
+///       enemy_tex = GMR::Graphics::Texture.load("assets/enemy.png")
+///       @sprite = Sprite.new(enemy_tex, @transform)
 ///     end
 ///
 ///     def take_damage(amount)
@@ -619,6 +596,165 @@ static mrb_value mrb_transform_world_position(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
+// New Features: Cached World Transforms
+// ============================================================================
+
+/// @method world_rotation
+/// @description Get the final world rotation after applying all parent transforms.
+///   For transforms without a parent, this equals the local rotation. For parented
+///   transforms, this returns the combined rotation of the entire hierarchy.
+/// @returns [Float] The world rotation in degrees
+/// @example child_world_rot = transform.world_rotation
+static mrb_value mrb_transform_world_rotation(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    float world_rot = TransformManager::instance().get_world_rotation(data->handle);
+    return mrb_float_value(mrb, world_rot * RAD_TO_DEG);  // Convert to degrees
+}
+
+/// @method world_scale
+/// @description Get the final world scale after applying all parent transforms.
+///   For transforms without a parent, this equals the local scale. For parented
+///   transforms, this returns the combined scale of the entire hierarchy.
+/// @returns [Vec2] The world scale
+/// @example world_s = transform.world_scale
+static mrb_value mrb_transform_world_scale(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    Vec2 world_scale = TransformManager::instance().get_world_scale(data->handle);
+    return create_vec2(mrb, world_scale.x, world_scale.y);
+}
+
+// ============================================================================
+// New Features: Direction Queries
+// ============================================================================
+
+/// @method forward
+/// @description Get the forward direction vector after world rotation.
+///   The forward vector points in the direction the transform is facing (0 degrees = right).
+/// @returns [Vec2] The normalized forward direction
+/// @example forward = transform.forward
+///   transform.x += forward.x * speed * dt  # Move forward
+static mrb_value mrb_transform_forward(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    Vec2 forward = TransformManager::instance().get_world_forward(data->handle);
+    return create_vec2(mrb, forward.x, forward.y);
+}
+
+/// @method right
+/// @description Get the right direction vector after world rotation.
+///   The right vector points perpendicular to forward (90 degrees clockwise).
+/// @returns [Vec2] The normalized right direction
+/// @example right = transform.right
+///   transform.x += right.x * strafe_speed * dt  # Strafe right
+static mrb_value mrb_transform_right(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    Vec2 right = TransformManager::instance().get_world_right(data->handle);
+    return create_vec2(mrb, right.x, right.y);
+}
+
+// ============================================================================
+// New Features: Utility Functions
+// ============================================================================
+
+/// @method snap_to_grid!
+/// @description Snap the position to the nearest grid cell.
+///   Useful for tile-based games or ensuring pixel-perfect alignment.
+/// @param grid_size [Float] The size of each grid cell in pixels
+/// @returns [nil]
+/// @example transform.snap_to_grid!(16)  # Snap to 16x16 grid
+static mrb_value mrb_transform_snap_to_grid(mrb_state* mrb, mrb_value self) {
+    mrb_float grid_size;
+    mrb_get_args(mrb, "f", &grid_size);
+
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    TransformManager::instance().snap_position_to_grid(data->handle, static_cast<float>(grid_size));
+    return mrb_nil_value();
+}
+
+/// @method round_to_pixel!
+/// @description Round the position to the nearest integer pixel coordinates.
+///   Useful for pixel-art games to avoid sub-pixel rendering artifacts.
+/// @returns [nil]
+/// @example transform.round_to_pixel!  # Ensure crisp pixel alignment
+static mrb_value mrb_transform_round_to_pixel(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    TransformManager::instance().round_position_to_pixel(data->handle);
+    return mrb_nil_value();
+}
+
+// ============================================================================
+// New Features: Interpolation (Class Methods)
+// ============================================================================
+
+/// @method Transform2D.lerp_position
+/// @description Linearly interpolate between two positions.
+/// @param a [Vec2] Start position
+/// @param b [Vec2] End position
+/// @param t [Float] Interpolation factor (0.0 to 1.0)
+/// @returns [Vec2] The interpolated position
+/// @example pos = Transform2D.lerp_position(start_pos, end_pos, 0.5)
+static mrb_value mrb_transform_lerp_position(mrb_state* mrb, mrb_value self) {
+    mrb_value a_val, b_val;
+    mrb_float t;
+    mrb_get_args(mrb, "oof", &a_val, &b_val, &t);
+
+    Vec2 a = extract_vec2(mrb, a_val);
+    Vec2 b = extract_vec2(mrb, b_val);
+    Vec2 result = TransformManager::lerp_position(a, b, static_cast<float>(t));
+
+    return create_vec2(mrb, result.x, result.y);
+}
+
+/// @method Transform2D.lerp_rotation
+/// @description Interpolate between two rotation angles using shortest path.
+///   Automatically handles wrapping (e.g., 350° to 10° goes through 0°, not 340°).
+/// @param a [Float] Start rotation in degrees
+/// @param b [Float] End rotation in degrees
+/// @param t [Float] Interpolation factor (0.0 to 1.0)
+/// @returns [Float] The interpolated rotation in degrees
+/// @example rot = Transform2D.lerp_rotation(0, 270, 0.5)  # Returns 315 (shortest path)
+static mrb_value mrb_transform_lerp_rotation(mrb_state* mrb, mrb_value self) {
+    mrb_float a, b, t;
+    mrb_get_args(mrb, "fff", &a, &b, &t);
+
+    float a_rad = static_cast<float>(a) * DEG_TO_RAD;
+    float b_rad = static_cast<float>(b) * DEG_TO_RAD;
+    float result_rad = TransformManager::lerp_rotation(a_rad, b_rad, static_cast<float>(t));
+
+    return mrb_float_value(mrb, result_rad * RAD_TO_DEG);
+}
+
+/// @method Transform2D.lerp_scale
+/// @description Linearly interpolate between two scale vectors.
+/// @param a [Vec2] Start scale
+/// @param b [Vec2] End scale
+/// @param t [Float] Interpolation factor (0.0 to 1.0)
+/// @returns [Vec2] The interpolated scale
+/// @example scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), 0.5)
+static mrb_value mrb_transform_lerp_scale(mrb_state* mrb, mrb_value self) {
+    mrb_value a_val, b_val;
+    mrb_float t;
+    mrb_get_args(mrb, "oof", &a_val, &b_val, &t);
+
+    Vec2 a = extract_vec2(mrb, a_val);
+    Vec2 b = extract_vec2(mrb, b_val);
+    Vec2 result = TransformManager::lerp_scale(a, b, static_cast<float>(t));
+
+    return create_vec2(mrb, result.x, result.y);
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -662,6 +798,23 @@ void register_transform(mrb_state* mrb) {
 
     // World position
     mrb_define_method(mrb, transform_class, "world_position", mrb_transform_world_position, MRB_ARGS_NONE());
+
+    // New: Cached world transforms
+    mrb_define_method(mrb, transform_class, "world_rotation", mrb_transform_world_rotation, MRB_ARGS_NONE());
+    mrb_define_method(mrb, transform_class, "world_scale", mrb_transform_world_scale, MRB_ARGS_NONE());
+
+    // New: Direction queries
+    mrb_define_method(mrb, transform_class, "forward", mrb_transform_forward, MRB_ARGS_NONE());
+    mrb_define_method(mrb, transform_class, "right", mrb_transform_right, MRB_ARGS_NONE());
+
+    // New: Utility functions
+    mrb_define_method(mrb, transform_class, "snap_to_grid!", mrb_transform_snap_to_grid, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, transform_class, "round_to_pixel!", mrb_transform_round_to_pixel, MRB_ARGS_NONE());
+
+    // New: Interpolation (class methods)
+    mrb_define_class_method(mrb, transform_class, "lerp_position", mrb_transform_lerp_position, MRB_ARGS_REQ(3));
+    mrb_define_class_method(mrb, transform_class, "lerp_rotation", mrb_transform_lerp_rotation, MRB_ARGS_REQ(3));
+    mrb_define_class_method(mrb, transform_class, "lerp_scale", mrb_transform_lerp_scale, MRB_ARGS_REQ(3));
 }
 
 } // namespace bindings

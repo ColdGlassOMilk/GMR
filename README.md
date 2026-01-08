@@ -60,16 +60,6 @@ def draw
 end
 ```
 
-### Learning Path
-
-New to GMR? Here's the recommended order to learn the engine:
-
-1. **Quick Start** (above) - Get running in 2 minutes
-2. **Next Example** (below) - Add sprites and animation
-3. **Core Concepts** - Understand input, graphics, and game loops
-4. **Complete Platformer Example** - See everything working together
-5. **API Reference** - Look up specific methods as needed
-
 ### Next Example: Animated Sprite
 
 Building on the minimal example, add a sprite with animation:
@@ -86,10 +76,13 @@ def init
     i.move_right [:d, :right]
   end
 
-  # Load texture and create sprite
+  # Create transform (handles position, rotation, scale, origin)
+  @transform = Transform2D.new(x: 400, y: 300)
+
+  # Load texture and create sprite with transform
   @texture = Texture.load("assets/player.png")
-  @sprite = Sprite.new(@texture, x: 400, y: 300)
-  @sprite.center_origin
+  @sprite = Sprite.new(@texture, @transform)
+  @sprite.center_origin  # Sets origin on the transform
 
   # Create animation (frames 0-3 from a spritesheet with 8 columns)
   @anim = SpriteAnimation.new(@sprite,
@@ -106,12 +99,12 @@ def update(dt)
   speed = 200 * dt
 
   if Input.action_down?(:move_left)
-    @sprite.x -= speed
+    @transform.x -= speed
     @facing = -1
   end
 
   if Input.action_down?(:move_right)
-    @sprite.x += speed
+    @transform.x += speed
     @facing = 1
   end
 
@@ -125,8 +118,9 @@ end
 ```
 
 This example introduces:
+- **Transform2D** - Manages position, rotation, scale, and origin
 - **Texture loading** - `Texture.load` (top-level alias for `Graphics::Texture`)
-- **Sprite creation** - `Sprite.new` with position
+- **Sprite creation** - `Sprite.new(texture, transform)` requires a Transform2D
 - **Sprite animation** - `SpriteAnimation` with spritesheet support
 - **Sprite flipping** - `flip_x` for facing direction
 - **Color formats** - hex strings like `"#141428"`
@@ -221,11 +215,16 @@ GMR supports both raw input polling and an action mapping system.
 Define logical actions mapped to physical inputs:
 
 ```ruby
-# Block DSL - define multiple actions at once
+# Method Chaining - fluent interface
+Input.map(:move_left, [:left, :a])
+     .map(:move_right, [:right, :d])
+     .map(:jump, [:space, :up, :w])
+
+# Block DSL - alternative syntax for defining multiple actions
 input do |i|
   i.move_left [:a, :left]
   i.move_right [:d, :right]
-  i.jump :space
+  i.jump [:space, :up, :w]
   i.attack :z, mouse: :left    # Keyboard + mouse binding
   i.pause :escape
 end
@@ -237,8 +236,9 @@ def update(dt)
   @player.jump if Input.action_pressed?(:jump)
 end
 
-# Callbacks for discrete events
+# Callbacks for discrete events (works with both styles)
 Input.on(:pause) { toggle_pause }
+Input.on(:jump) { do_jump }
 Input.on(:attack, when: :pressed) { @player.attack }
 ```
 
@@ -320,27 +320,38 @@ end
 # Load texture once
 @texture = Texture.load("assets/player.png")
 
-# Create sprite with options
-@sprite = Sprite.new(@texture,
+# Create transform for spatial properties
+@transform = Transform2D.new(
   x: 100, y: 100,
-  rotation: 0,
-  scale_x: 1.0, scale_y: 1.0
+  rotation: 0,         # Degrees
+  scale_x: 1.0,
+  scale_y: 1.0
 )
 
-# Sprite properties
-@sprite.x = 200
-@sprite.y = 150
-@sprite.position = Mathf::Vec2.new(200, 150)
-@sprite.rotation = 45                    # Degrees
-@sprite.scale_x = 2.0
+# Create sprite with texture and transform
+@sprite = Sprite.new(@texture, @transform)
+
+# Modify transform properties
+@transform.x = 200
+@transform.y = 150
+@transform.position = Mathf::Vec2.new(200, 150)
+@transform.rotation = 45                 # Degrees
+@transform.scale_x = 2.0
+@transform.origin = Mathf::Vec2.new(16, 16)  # Pivot point
+
+# Sprite rendering properties
 @sprite.alpha = 0.8                      # 0.0 to 1.0
 @sprite.color = :red                     # Tint (also accepts rgb(), hex, array)
 @sprite.flip_x = true                    # Mirror horizontally
-@sprite.center_origin                    # Pivot at center
+@sprite.center_origin                    # Sets origin to texture center
 @sprite.source_rect = Rect.new(0, 0, 32, 32)  # Spritesheet region
 
 # Draw sprite (queued for batch rendering)
 @sprite.draw
+
+# Access the sprite's transform
+transform = @sprite.transform
+puts "Position: #{transform.x}, #{transform.y}"
 ```
 
 #### Tilemaps
@@ -370,6 +381,59 @@ end
 # Draw (supports camera offset)
 @tilemap.draw(0, 0)
 ```
+
+#### Transform2D
+
+Transform2D is the unified spatial transformation system. All sprites require a Transform2D to define their position, rotation, scale, and origin.
+
+```ruby
+# Create transform
+@transform = Transform2D.new(
+  x: 100, y: 100,
+  rotation: 45,        # Degrees
+  scale_x: 2.0,
+  scale_y: 2.0,
+  origin_x: 16,        # Pivot point
+  origin_y: 16
+)
+
+# Modify properties
+@transform.x = 200
+@transform.y += 50
+@transform.rotation += 90
+@transform.scale_x = 1.5
+
+# Parent-child hierarchy
+@gun_transform = Transform2D.new(y: -20)  # Offset from parent
+@gun_transform.parent = @turret_transform
+# Now gun rotates with turret automatically!
+
+# World space queries (accounts for parent hierarchy)
+world_pos = @transform.world_position
+world_rot = @transform.world_rotation    # Combined rotation
+world_scale = @transform.world_scale     # Combined scale
+
+# Direction vectors (useful for movement)
+forward = @transform.forward    # Direction the transform is facing
+right = @transform.right        # Perpendicular to forward
+@transform.x += forward.x * speed * dt   # Move forward
+
+# Utility functions
+@transform.snap_to_grid!(16)    # Snap to 16x16 grid
+@transform.round_to_pixel!      # Pixel-perfect positioning
+
+# Interpolation (smooth transitions)
+new_pos = Transform2D.lerp_position(start_pos, end_pos, t)
+new_rot = Transform2D.lerp_rotation(0, 270, 0.5)  # Shortest path
+new_scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), t)
+```
+
+**Key Features:**
+- **Unified System** - Single source of truth for all spatial transforms
+- **Hierarchy Support** - Parent-child relationships with automatic propagation
+- **Cached Performance** - World transforms computed once and cached
+- **Matrix-Based** - Mathematically correct 2D affine transformations
+- **Ruby-Safe** - Handle-based architecture prevents memory issues
 
 ---
 
@@ -625,29 +689,32 @@ Smooth property animations with easing:
 ```ruby
 include GMR
 
-# Basic tween
+# Tween sprite properties
 Tween.to(@sprite, :alpha, 0.0, duration: 0.5, ease: :out_quad)
 
-# With callback
-Tween.to(@sprite, :x, 200, duration: 0.3, ease: :out_back)
+# Tween transform properties
+Tween.to(@transform, :x, 200, duration: 0.3, ease: :out_back)
   .on_complete { puts "Arrived!" }
 
 # Chained animations (squash/stretch on land)
 def on_land
-  Tween.to(@sprite, :scale_y, 0.7, duration: 0.05, ease: :out_quad)
+  Tween.to(@transform, :scale_y, 0.7, duration: 0.05, ease: :out_quad)
     .on_complete do
-      Tween.to(@sprite, :scale_y, 1.0, duration: 0.15, ease: :out_elastic)
+      Tween.to(@transform, :scale_y, 1.0, duration: 0.15, ease: :out_elastic)
     end
 end
 
 # Menu slide-in
 def show_menu
-  @menu.x = -200
-  Tween.to(@menu, :x, 50, duration: 0.4, ease: :out_back)
+  @menu_transform.x = -200
+  Tween.to(@menu_transform, :x, 50, duration: 0.4, ease: :out_back)
 end
 
+# Rotate smoothly
+Tween.to(@transform, :rotation, 360, duration: 2.0, ease: :in_out_quad)
+
 # Tween control
-@tween = Tween.to(@sprite, :y, 100, duration: 1.0)
+@tween = Tween.to(@transform, :y, 100, duration: 1.0)
 @tween.pause
 @tween.resume
 @tween.cancel
@@ -718,13 +785,13 @@ def init
   end
 
   # Player state
-  @x, @y = 100, 300
   @vx, @vy = 0, 0
   @on_ground = false
   @facing = 1
 
-  # Sprite setup
-  @sprite = Sprite.new(Texture.load("assets/player.png"))
+  # Transform and sprite setup
+  @transform = Transform2D.new(x: 100, y: 300)
+  @sprite = Sprite.new(Texture.load("assets/player.png"), @transform)
   @sprite.center_origin
 
   # Animation lookup for state machine
@@ -785,12 +852,12 @@ def update(dt)
 
   # === PHYSICS ===
   @vy += GRAVITY * dt unless @on_ground
-  @x += @vx * dt
-  @y += @vy * dt
+  @transform.x += @vx * dt
+  @transform.y += @vy * dt
 
   # Ground collision
-  if @y >= GROUND_Y
-    @y = GROUND_Y
+  if @transform.y >= GROUND_Y
+    @transform.y = GROUND_Y
     @vy = 0
     @on_ground = true
   else
@@ -810,12 +877,10 @@ def update(dt)
   end
 
   # === UPDATE SPRITE ===
-  @sprite.x = @x
-  @sprite.y = @y
   @sprite.flip_x = @facing < 0
 
   # === CAMERA ===
-  @camera.target = Mathf::Vec2.new(@x, @y - 50)
+  @camera.target = Mathf::Vec2.new(@transform.x, @transform.y - 50)
 end
 
 def draw
@@ -838,15 +903,15 @@ For better organization, extract the player into a class:
 include GMR
 
 class Player
-  attr_reader :x, :y
+  attr_reader :transform
 
   def initialize(x, y)
-    @x, @y = x, y
+    @transform = Transform2D.new(x: x, y: y)
     @vx, @vy = 0, 0
     @on_ground = false
     @facing = 1
 
-    @sprite = Sprite.new(Texture.load("assets/player.png"))
+    @sprite = Sprite.new(Texture.load("assets/player.png"), @transform)
     @sprite.center_origin
 
     @animations = {
@@ -898,11 +963,11 @@ class Player
 
     # Physics
     @vy += 600 * dt unless @on_ground
-    @x += @vx * dt
-    @y += @vy * dt
+    @transform.x += @vx * dt
+    @transform.y += @vy * dt
 
-    if @y >= 400
-      @y, @vy, @on_ground = 400, 0, true
+    if @transform.y >= 400
+      @transform.y, @vy, @on_ground = 400, 0, true
     else
       @on_ground = false
     end
@@ -917,7 +982,6 @@ class Player
     end
 
     # Sprite
-    @sprite.x, @sprite.y = @x, @y
     @sprite.flip_x = @facing < 0
   end
 
@@ -926,7 +990,7 @@ class Player
   end
 
   def position
-    Mathf::Vec2.new(@x, @y)
+    @transform.position
   end
 end
 
@@ -1112,7 +1176,7 @@ gmrcli docs               # Generate documentation
 
 All classes and modules live under the `GMR` namespace. Use `include GMR` at the top of your scripts to access them without the prefix.
 
-**Top-Level Aliases**: After `include GMR`, these classes are available directly: `Sprite`, `Texture`, `Tilemap`, `Camera`, `Rect`, `Tween`, `Animator`, `SpriteAnimation`.
+**Top-Level Aliases**: After `include GMR`, these classes are available directly: `Sprite`, `Texture`, `Tilemap`, `Camera`, `Rect`, `Tween`, `Animator`, `SpriteAnimation`, `Transform2D`.
 
 **Color Formats**: All color parameters accept: `:red` (symbols), `"#FF0000"` (hex), `rgb(255, 0, 0)` (helper), or `[255, 0, 0]` (arrays).
 
@@ -1122,7 +1186,8 @@ All classes and modules live under the `GMR` namespace. Use `include GMR` at the
 |--------------|-------------|
 | `Graphics` | `clear(color)`, `draw_rect`, `draw_rect_outline`, `draw_circle`, `draw_circle_outline`, `draw_line`, `draw_line_thick`, `draw_text`, `measure_text`, `rgb(r, g, b, a)` |
 | `Texture` | `.load(path)`, `draw(x, y)`, `draw_ex(x, y, rotation, scale)`, `width`, `height` |
-| `Sprite` | `.new(texture, **opts)`, `x`, `y`, `position`, `rotation`, `scale_x`, `scale_y`, `alpha`, `color`, `flip_x`, `flip_y`, `origin`, `center_origin`, `source_rect`, `draw` |
+| `Transform2D` | `.new(x:, y:, rotation:, scale_x:, scale_y:, origin_x:, origin_y:)`, `x`, `y`, `position`, `rotation`, `scale_x`, `scale_y`, `origin`, `parent`, `world_position`, `world_rotation`, `world_scale`, `forward`, `right`, `snap_to_grid!`, `round_to_pixel!`, `.lerp_position`, `.lerp_rotation`, `.lerp_scale` |
+| `Sprite` | `.new(texture, transform)`, `transform`, `alpha`, `color`, `flip_x`, `flip_y`, `center_origin`, `source_rect`, `draw` |
 | `Tilemap` | `.new(tileset, tw, th, w, h)`, `set(x, y, tile)`, `fill`, `fill_rect`, `draw`, `solid?`, `hazard?`, `platform?`, `define_tile` |
 | `Camera` | `.new`, `target`, `offset`, `zoom`, `rotation`, `follow(obj, smoothing:, deadzone:)`, `bounds=`, `shake(strength:, duration:)`, `use { }`, `screen_to_world`, `world_to_screen` |
 | `Rect` | `.new(x, y, w, h)`, `x`, `y`, `w`, `h` |

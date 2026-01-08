@@ -46,6 +46,50 @@ Vec2 Matrix2D::transform_point(const Vec2& p) const {
     };
 }
 
+bool Matrix2D::is_invertible() const {
+    // Calculate determinant
+    float det = a * d - b * c;
+    // Matrix is invertible if determinant is non-zero
+    return std::abs(det) > 1e-6f;
+}
+
+Matrix2D Matrix2D::inverse() const {
+    float det = a * d - b * c;
+
+    // Handle degenerate case
+    if (std::abs(det) < 1e-6f) {
+        return Matrix2D::identity();
+    }
+
+    float inv_det = 1.0f / det;
+
+    Matrix2D result;
+    result.a = d * inv_det;
+    result.b = -b * inv_det;
+    result.c = -c * inv_det;
+    result.d = a * inv_det;
+    result.tx = (b * ty - d * tx) * inv_det;
+    result.ty = (c * tx - a * ty) * inv_det;
+
+    return result;
+}
+
+Vec2 Matrix2D::transform_inverse_point(const Vec2& p) const {
+    return inverse().transform_point(p);
+}
+
+Vec2 Matrix2D::transform_direction(const Vec2& dir) const {
+    // Transform direction without translation
+    return Vec2{
+        a * dir.x + b * dir.y,
+        c * dir.x + d * dir.y
+    };
+}
+
+Vec2 Matrix2D::transform_inverse_direction(const Vec2& dir) const {
+    return inverse().transform_direction(dir);
+}
+
 // TransformManager implementation
 
 TransformManager& TransformManager::instance() {
@@ -116,6 +160,24 @@ void TransformManager::recompute_world_matrix(TransformHandle handle) {
         state->world_matrix = local;
     }
 
+    // Cache decomposed world values from the matrix
+    // Extract world position from translation component
+    state->cached_world_position.x = state->world_matrix.tx;
+    state->cached_world_position.y = state->world_matrix.ty;
+
+    // Extract world rotation using atan2
+    state->cached_world_rotation = std::atan2(state->world_matrix.c, state->world_matrix.a);
+
+    // Extract world scale (length of transformed basis vectors)
+    state->cached_world_scale.x = std::sqrt(
+        state->world_matrix.a * state->world_matrix.a +
+        state->world_matrix.c * state->world_matrix.c
+    );
+    state->cached_world_scale.y = std::sqrt(
+        state->world_matrix.b * state->world_matrix.b +
+        state->world_matrix.d * state->world_matrix.d
+    );
+
     state->dirty = false;
 }
 
@@ -176,6 +238,96 @@ std::vector<TransformHandle> TransformManager::get_children(TransformHandle pare
 void TransformManager::clear() {
     transforms_.clear();
     next_id_ = 0;
+}
+
+// Cached world transform accessors
+Vec2 TransformManager::get_world_position(TransformHandle handle) {
+    // Ensure world matrix is up to date (triggers cache update)
+    get_world_matrix(handle);
+    auto* state = get(handle);
+    return state ? state->cached_world_position : Vec2{0.0f, 0.0f};
+}
+
+float TransformManager::get_world_rotation(TransformHandle handle) {
+    // Ensure world matrix is up to date (triggers cache update)
+    get_world_matrix(handle);
+    auto* state = get(handle);
+    return state ? state->cached_world_rotation : 0.0f;
+}
+
+Vec2 TransformManager::get_world_scale(TransformHandle handle) {
+    // Ensure world matrix is up to date (triggers cache update)
+    get_world_matrix(handle);
+    auto* state = get(handle);
+    return state ? state->cached_world_scale : Vec2{1.0f, 1.0f};
+}
+
+// Transform direction queries
+Vec2 TransformManager::get_world_forward(TransformHandle handle) {
+    const Matrix2D& mat = get_world_matrix(handle);
+    // Forward vector is the first column of rotation (after removing scale)
+    auto* state = get(handle);
+    if (!state) return Vec2{1.0f, 0.0f};
+
+    float cos_r = std::cos(state->cached_world_rotation);
+    float sin_r = std::sin(state->cached_world_rotation);
+    return Vec2{cos_r, sin_r};
+}
+
+Vec2 TransformManager::get_world_right(TransformHandle handle) {
+    const Matrix2D& mat = get_world_matrix(handle);
+    // Right vector is perpendicular to forward
+    auto* state = get(handle);
+    if (!state) return Vec2{0.0f, 1.0f};
+
+    float cos_r = std::cos(state->cached_world_rotation);
+    float sin_r = std::sin(state->cached_world_rotation);
+    return Vec2{-sin_r, cos_r};
+}
+
+// Utility functions
+void TransformManager::snap_position_to_grid(TransformHandle handle, float grid_size) {
+    auto* state = get(handle);
+    if (!state || grid_size <= 0.0f) return;
+
+    state->position.x = std::round(state->position.x / grid_size) * grid_size;
+    state->position.y = std::round(state->position.y / grid_size) * grid_size;
+    mark_dirty(handle);
+}
+
+void TransformManager::round_position_to_pixel(TransformHandle handle) {
+    auto* state = get(handle);
+    if (!state) return;
+
+    state->position.x = std::round(state->position.x);
+    state->position.y = std::round(state->position.y);
+    mark_dirty(handle);
+}
+
+// Interpolation utilities
+Vec2 TransformManager::lerp_position(const Vec2& a, const Vec2& b, float t) {
+    return Vec2{
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t
+    };
+}
+
+float TransformManager::lerp_rotation(float a, float b, float t) {
+    // Shortest path rotation interpolation
+    float diff = b - a;
+
+    // Wrap diff to [-PI, PI]
+    while (diff > 3.14159265358979323846f) diff -= 2.0f * 3.14159265358979323846f;
+    while (diff < -3.14159265358979323846f) diff += 2.0f * 3.14159265358979323846f;
+
+    return a + diff * t;
+}
+
+Vec2 TransformManager::lerp_scale(const Vec2& a, const Vec2& b, float t) {
+    return Vec2{
+        a.x + (b.x - a.x) * t,
+        a.y + (b.y - a.y) * t
+    };
 }
 
 } // namespace gmr
