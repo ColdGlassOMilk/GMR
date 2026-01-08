@@ -99,6 +99,10 @@ void Loader::register_all_bindings() {
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);
+
+    // Create top-level aliases in GMR module for common classes
+    // (Sprite, Texture, Camera, Tween, etc. become accessible after "include GMR")
+    bindings::register_top_level_aliases(mrb_);
 }
 
 void Loader::load_file(const fs::path& path) {

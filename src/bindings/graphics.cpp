@@ -87,15 +87,38 @@ static const Color WHITE_COLOR{255, 255, 255, 255};
 ///     GMR::Graphics.draw_rect_outline(x, y, width, height, [100, 100, 100])
 ///   end
 
+/// @function rgb
+/// @description Create a color array from RGB(A) values. Convenience helper.
+/// @param r [Integer] Red component (0-255)
+/// @param g [Integer] Green component (0-255)
+/// @param b [Integer] Blue component (0-255)
+/// @param a [Integer] Alpha component (0-255, default: 255)
+/// @returns [Array<Integer>] Color array [r, g, b, a]
+/// @example Graphics.clear(rgb(20, 20, 40))
+/// @example sprite.color = rgb(255, 100, 100)
+static mrb_value mrb_graphics_rgb(mrb_state* mrb, mrb_value) {
+    mrb_int r, g, b, a = 255;
+    mrb_get_args(mrb, "iii|i", &r, &g, &b, &a);
+
+    mrb_value arr = mrb_ary_new_capa(mrb, 4);
+    mrb_ary_push(mrb, arr, mrb_fixnum_value(r));
+    mrb_ary_push(mrb, arr, mrb_fixnum_value(g));
+    mrb_ary_push(mrb, arr, mrb_fixnum_value(b));
+    mrb_ary_push(mrb, arr, mrb_fixnum_value(a));
+    return arr;
+}
+
 /// @function clear
 /// @description Clear the screen with a solid color
-/// @param color [Color] The background color
+/// @param color [Color] The background color (array, hex string, or named symbol)
 /// @returns [nil]
 /// @example GMR::Graphics.clear([20, 20, 40])
+/// @example GMR::Graphics.clear("#141428")
+/// @example GMR::Graphics.clear(:dark_gray)
 // GMR::Graphics.clear(color)
 static mrb_value mrb_graphics_clear(mrb_state* mrb, mrb_value) {
     mrb_value color_val;
-    mrb_get_args(mrb, "A", &color_val);
+    mrb_get_args(mrb, "o", &color_val);
 
     Color c = parse_color_value(mrb, color_val, State::instance().clear_color);
     ClearBackground(to_raylib(c));
@@ -987,6 +1010,11 @@ static mrb_value mrb_tilemap_damage(mrb_state* mrb, mrb_value self) {
 
 void register_graphics(mrb_state* mrb) {
     RClass* graphics = get_gmr_submodule(mrb, "Graphics");
+    RClass* gmr = get_gmr_module(mrb);
+
+    // rgb() helper - available on both Graphics and GMR module for convenience
+    mrb_define_module_function(mrb, graphics, "rgb", mrb_graphics_rgb, MRB_ARGS_ARG(3, 1));
+    mrb_define_module_function(mrb, gmr, "rgb", mrb_graphics_rgb, MRB_ARGS_ARG(3, 1));
 
     // Module functions (stateless drawing)
     mrb_define_module_function(mrb, graphics, "clear", mrb_graphics_clear, MRB_ARGS_REQ(1));

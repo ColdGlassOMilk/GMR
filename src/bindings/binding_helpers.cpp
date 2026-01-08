@@ -28,13 +28,89 @@ Color parse_color(mrb_state* mrb, mrb_value* argv, mrb_int argc, const Color& de
     return default_color;
 }
 
+// Parse hex color string like "#RGB", "#RRGGBB", or "#RRGGBBAA"
+static Color parse_color_from_hex(const char* hex, const Color& default_color) {
+    if (!hex || hex[0] != '#') return default_color;
+    hex++; // Skip '#'
+
+    size_t len = strlen(hex);
+    int r = 0, g = 0, b = 0, a = 255;
+
+    if (len == 3) {
+        sscanf(hex, "%1x%1x%1x", &r, &g, &b);
+        r *= 17; g *= 17; b *= 17;  // Expand #RGB to #RRGGBB
+    } else if (len == 6) {
+        sscanf(hex, "%2x%2x%2x", &r, &g, &b);
+    } else if (len == 8) {
+        sscanf(hex, "%2x%2x%2x%2x", &r, &g, &b, &a);
+    } else {
+        return default_color;
+    }
+
+    return Color{static_cast<uint8_t>(r), static_cast<uint8_t>(g),
+                 static_cast<uint8_t>(b), static_cast<uint8_t>(a)};
+}
+
+// Map color symbol to Color (returns sentinel value for unknown symbols)
+static Color symbol_to_color(mrb_state* mrb, mrb_sym sym, bool& found) {
+    const char* name = mrb_sym_name(mrb, sym);
+    found = true;
+
+    // Basic palette (CSS-like names)
+    if (strcmp(name, "black") == 0) return Color{0, 0, 0, 255};
+    if (strcmp(name, "white") == 0) return Color{255, 255, 255, 255};
+    if (strcmp(name, "red") == 0) return Color{255, 0, 0, 255};
+    if (strcmp(name, "green") == 0) return Color{0, 255, 0, 255};
+    if (strcmp(name, "blue") == 0) return Color{0, 0, 255, 255};
+    if (strcmp(name, "yellow") == 0) return Color{255, 255, 0, 255};
+    if (strcmp(name, "cyan") == 0) return Color{0, 255, 255, 255};
+    if (strcmp(name, "magenta") == 0) return Color{255, 0, 255, 255};
+    if (strcmp(name, "orange") == 0) return Color{255, 165, 0, 255};
+    if (strcmp(name, "purple") == 0) return Color{128, 0, 128, 255};
+    if (strcmp(name, "pink") == 0) return Color{255, 192, 203, 255};
+    if (strcmp(name, "brown") == 0) return Color{139, 69, 19, 255};
+    if (strcmp(name, "gray") == 0 || strcmp(name, "grey") == 0)
+        return Color{128, 128, 128, 255};
+    if (strcmp(name, "dark_gray") == 0 || strcmp(name, "dark_grey") == 0)
+        return Color{64, 64, 64, 255};
+    if (strcmp(name, "light_gray") == 0 || strcmp(name, "light_grey") == 0)
+        return Color{192, 192, 192, 255};
+    if (strcmp(name, "transparent") == 0) return Color{0, 0, 0, 0};
+
+    found = false;
+    return Color{0, 0, 0, 255};
+}
+
 Color parse_color_value(mrb_state* mrb, mrb_value val, const Color& default_color) {
     if (mrb_nil_p(val)) {
         return default_color;
     }
 
+    // Hex string: "#RGB", "#RRGGBB", "#RRGGBBAA"
+    if (mrb_string_p(val)) {
+        const char* str = mrb_str_to_cstr(mrb, val);
+        if (str[0] == '#') {
+            return parse_color_from_hex(str, default_color);
+        }
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Color string must start with '#'");
+        return default_color;
+    }
+
+    // Named color symbol: :red, :blue, :dark_gray
+    if (mrb_symbol_p(val)) {
+        bool found = false;
+        Color c = symbol_to_color(mrb, mrb_symbol(val), found);
+        if (!found) {
+            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Unknown color symbol: %s",
+                       mrb_sym_name(mrb, mrb_symbol(val)));
+        }
+        return c;
+    }
+
+    // Array: [r, g, b] or [r, g, b, a]
     if (!mrb_array_p(val)) {
-        mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected color array [r,g,b] or [r,g,b,a]");
+        mrb_raise(mrb, E_ARGUMENT_ERROR,
+            "Expected color as [r,g,b], [r,g,b,a], \"#RRGGBB\", or :symbol");
         return default_color;
     }
 
@@ -232,6 +308,38 @@ gmr::input::InputPhase parse_input_phase(mrb_state* mrb, mrb_value arg) {
         "Unknown input phase :%s. Valid phases: :pressed, :released, :held, :down",
         name);
     return gmr::input::InputPhase::Pressed;  // Unreachable, but satisfies compiler
+}
+
+// ============================================================================
+// Top-Level Class Aliases
+// ============================================================================
+
+void register_top_level_aliases(mrb_state* mrb) {
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* animation = mrb_module_get_under(mrb, gmr, "Animation");
+
+    // Graphics classes -> GMR top-level
+    // Sprite, Texture, Tilemap, Camera, Rect become accessible after "include GMR"
+    mrb_define_const(mrb, gmr, "Sprite",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Sprite")));
+    mrb_define_const(mrb, gmr, "Texture",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Texture")));
+    mrb_define_const(mrb, gmr, "Tilemap",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Tilemap")));
+    mrb_define_const(mrb, gmr, "Camera",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Camera2D")));
+    mrb_define_const(mrb, gmr, "Rect",
+        mrb_obj_value(mrb_class_get_under(mrb, graphics, "Rect")));
+
+    // Animation classes -> GMR top-level
+    // Tween, Animator, SpriteAnimation become accessible after "include GMR"
+    mrb_define_const(mrb, gmr, "Tween",
+        mrb_obj_value(mrb_class_get_under(mrb, animation, "Tween")));
+    mrb_define_const(mrb, gmr, "Animator",
+        mrb_obj_value(mrb_class_get_under(mrb, animation, "Animator")));
+    mrb_define_const(mrb, gmr, "SpriteAnimation",
+        mrb_obj_value(mrb_class_get_under(mrb, animation, "SpriteAnimation")));
 }
 
 } // namespace bindings

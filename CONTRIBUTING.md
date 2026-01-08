@@ -26,7 +26,9 @@ gmrcli dev
 2. [DSL Design Rules](#dsl-design-rules)
 3. [Contributor Guardrails](#contributor-guardrails)
 4. [Architectural Notes](#architectural-notes)
-5. [Roadmap](#roadmap)
+5. [Testing & Validation](#testing--validation)
+6. [Roadmap](#roadmap)
+7. [Engine/Tooling Contract](#enginetooling-contract)
 
 ---
 
@@ -379,6 +381,55 @@ When NOT to return `self`:
 - C++: snake_case for functions, CamelCase for classes
 - Symbols: past tense for events (`:jumped`), present for states (`:jumping`)
 
+### Error Handling Standards
+
+GMR follows "fail loudly" - errors should be visible and informative, not silent.
+
+**When to Raise Exceptions**:
+- Invalid arguments (wrong type, out of range, unknown symbol)
+- Missing required resources (file not found, texture failed to load)
+- Invalid state transitions (calling methods on disposed objects)
+- API misuse (calling draw outside of draw phase)
+
+**When to Return nil/Default**:
+- Optional lookups that may legitimately not exist
+- Query methods when the answer is "nothing" (e.g., `Input.char_pressed` when no key was pressed)
+
+**Error Message Format**:
+```
+[ClassName.method_name] Clear description of what went wrong. Expected: X, got: Y.
+```
+
+Example: `[Input.map] Unknown key symbol: :spce. Did you mean :space?`
+
+**Binding Validation Pattern**:
+```cpp
+// GOOD: Validate at entry, fail with helpful message
+static mrb_value mrb_example_method(mrb_state* mrb, mrb_value self) {
+    mrb_value arg;
+    mrb_get_args(mrb, "o", &arg);
+
+    if (!mrb_symbol_p(arg)) {
+        mrb_raisef(mrb, E_TYPE_ERROR,
+            "Expected Symbol, got %s", mrb_obj_classname(mrb, arg));
+    }
+
+    int key = symbol_to_key(mrb, arg);
+    if (key < 0) {
+        mrb_raisef(mrb, E_ARGUMENT_ERROR,
+            "Unknown key symbol: %s", mrb_sym_name(mrb, mrb_symbol(arg)));
+    }
+
+    // ... proceed with valid input
+}
+```
+
+**Common Error Types**:
+- `TypeError` - Wrong argument type
+- `ArgumentError` - Invalid argument value (including unknown symbols)
+- `RuntimeError` - Operation failed for external reasons
+- `LoadError` - Resource file not found or failed to parse
+
 ---
 
 ## Architectural Notes
@@ -396,10 +447,8 @@ When NOT to return `self`:
 
 ### Known Issues to Address
 
-1. **CollisionResult returns hash** - Should return proper Ruby object with methods
-2. **Input symbol typos fail silently** - Should raise on unknown symbols
-3. **InputManager couples to StateMachineManager** - Consider event queue pattern
-4. **Global State singleton** - Makes testing harder; consider injection
+1. **InputManager couples to StateMachineManager** - InputManager directly calls StateMachineManager to trigger state transitions on input events. Consider an event queue pattern to decouple these systems.
+2. **Global State singleton** - The `State` singleton stores screen dimensions and virtual resolution settings, making isolated testing difficult. Consider dependency injection for better testability.
 
 ### Key Files
 
@@ -415,13 +464,76 @@ When NOT to return `self`:
 
 ---
 
+## Testing & Validation
+
+GMR uses **manual testing with hot-reload feedback** rather than automated test suites. This is a deliberate choice aligned with the project's emphasis on iteration speed and developer experience.
+
+### Testing Philosophy
+
+- **Hot-reload is the test runner** - Save your change, see the result in <50ms
+- **REPL console for exploration** - Press backtick to test functions interactively
+- **Visual verification** - Games are visual; many bugs are obvious when you see them
+- **Automated testing is not required** - But is welcome for pure-logic components
+
+### Before Submitting a PR
+
+**For Ruby API Changes**:
+1. Create a minimal test script in `game/scripts/` that exercises the new/changed API
+2. Run `gmrcli dev` and verify the behavior matches documentation
+3. Test edge cases: nil inputs, invalid symbols, boundary values
+4. Verify error messages are helpful (not cryptic stack traces)
+
+**For C++ Binding Changes**:
+1. Build both debug and release: `gmrcli build debug && gmrcli build release`
+2. Test from Ruby using the REPL console
+3. Verify handle lifecycle (create, use, dispose) works correctly
+4. Check for memory leaks using debug build output
+
+**For Core System Changes** (DrawQueue, InputManager, AnimationManager):
+1. Run the included demo game (`gmrcli dev`)
+2. Test with multiple sprites, animations, and input actions
+3. Verify hot-reload still works after your changes
+4. Check console output for warnings or errors
+
+### Validation Checklist
+
+Before marking a PR ready for review:
+
+- [ ] `gmrcli build debug` succeeds with no warnings
+- [ ] `gmrcli build release` succeeds
+- [ ] Demo game runs without errors
+- [ ] Hot-reload works (modify `game/scripts/main.rb`, see changes)
+- [ ] REPL console opens and executes Ruby code
+- [ ] New features have corresponding documentation updates
+
+### Using the REPL for Testing
+
+The built-in console is your interactive test environment:
+
+```ruby
+# Test a new API method
+Animation::Tween.to(@sprite, :x, 500, duration: 0.5)
+
+# Inspect state
+state_machine.state  # => :idle
+
+# Modify game state live
+@player.x = 100
+@camera.zoom = 2.0
+
+# Test error handling
+Input.map(:test, :invalid_key)  # Should raise ArgumentError
+```
+
+---
+
 ## Roadmap
 
 ### Priority 1: Strengthen Core
 
-- **CollisionResult as proper object** - Replace hash with Ruby class
-- **Input symbol validation** - Raise on unknown key/action symbols
 - **Lightweight entity grouping** - Optional wrapper for sprite + animator + state machine
+- **Decouple InputManager from StateMachineManager** - Event queue pattern for cleaner architecture
+- **State injection for testing** - Make State configurable for isolated unit tests
 
 ### Priority 2: Necessary Completeness
 
@@ -445,6 +557,49 @@ When NOT to return `self`:
 | Built-in physics | Rejected | Complexity explosion |
 | Visual editor | Rejected | Code is truth |
 | ECS | Rejected | Over-engineering |
+
+---
+
+## Engine/Tooling Contract
+
+GMR provides stable interfaces for downstream tooling (IDE integrations, language servers, build tools). This section documents the stability guarantees.
+
+### API Stability Tiers
+
+| Tier | Meaning | Examples |
+|------|---------|----------|
+| **Stable** | Will not change without major version bump. Safe to depend on. | `Graphics`, `Input`, `Animation::Tween`, `Sprite`, `Tilemap` |
+| **Experimental** | May change between minor versions. Use with caution. | `Core::Node`, scene graph features |
+| **Internal** | No stability guarantee. Do not use in tooling. | Manager singletons, handle internals, C++ implementation details |
+
+### Machine-Readable Outputs
+
+GMR generates structured data for tooling consumption:
+
+| File | Purpose | Stability |
+|------|---------|-----------|
+| `engine/language/api.json` | Complete API specification (classes, methods, parameters, types) | Stable |
+| `engine/language/syntax.json` | Language syntax definitions for highlighting/parsing | Stable |
+| `engine/language/version.json` | Engine and protocol version information | Stable |
+| CLI JSON output (`-o json`) | Structured command results for IDE integration | Stable (protocol v1) |
+
+**Regenerate with**: `gmrcli docs`
+
+### Breaking Change Policy
+
+1. **Stable APIs**: Breaking changes require major version bump and migration guide
+2. **Experimental APIs**: Breaking changes noted in changelog, no migration required
+3. **Internal APIs**: May change at any time without notice
+4. **Machine-readable outputs**: Schema changes are versioned; new fields may be added but existing fields are not removed
+
+### Tooling Integration Guidelines
+
+When building tools that integrate with GMR:
+
+- **Prefer** `api.json` over parsing source code
+- **Use** CLI JSON output for build/run automation
+- **Avoid** depending on internal class names or manager singletons
+- **Check** `version.json` for compatibility before parsing
 
 ---
 

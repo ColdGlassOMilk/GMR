@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GMR</title>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        canvas { display: block; }
+        #loading { color: #fff; font-family: sans-serif; position: absolute; }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading...</div>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    <script>
+        var Module = {
+            canvas: document.getElementById('canvas'),
+            setStatus: function(t) { document.getElementById('loading').style.display = t ? 'block' : 'none'; },
+            onRuntimeInitialized: function() { Module.setStatus(''); }
+        };
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>

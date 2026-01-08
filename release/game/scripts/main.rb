@@ -91,14 +91,14 @@ def init
   Input.on(:jump) { do_jump }
 
   # === CAMERA ===
-  @camera = Camera.new
+  @camera = Graphics::Camera2D.new
   @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, CAMERA_OFFSET_Y)
   @camera.zoom = 1.0
 
   # === PARALLAX BACKGROUNDS ===
-  @bg1_tex = Texture.load("assets/oak_woods/background/background_layer_1.png")
-  @bg2_tex = Texture.load("assets/oak_woods/background/background_layer_2.png")
-  @bg3_tex = Texture.load("assets/oak_woods/background/background_layer_3.png")
+  @bg1_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_1.png")
+  @bg2_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_2.png")
+  @bg3_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_3.png")
 
   # Scale backgrounds for retro resolution
   bg_scale = 1.5
@@ -107,7 +107,7 @@ def init
 
   @bg1_sprites = []
   3.times do
-    s = Sprite.new(@bg1_tex)
+    s = Graphics::Sprite.new(@bg1_tex)
     s.scale_x = bg_scale
     s.scale_y = bg_scale
     @bg1_sprites << s
@@ -117,7 +117,7 @@ def init
 
   @bg2_sprites = []
   3.times do
-    s = Sprite.new(@bg2_tex)
+    s = Graphics::Sprite.new(@bg2_tex)
     s.scale_x = bg_scale
     s.scale_y = bg_scale
     @bg2_sprites << s
@@ -127,7 +127,7 @@ def init
 
   @bg3_sprites = []
   3.times do
-    s = Sprite.new(@bg3_tex)
+    s = Graphics::Sprite.new(@bg3_tex)
     s.scale_x = bg_scale
     s.scale_y = bg_scale
     @bg3_sprites << s
@@ -136,8 +136,8 @@ def init
   @bg3_speed = 0.5
 
   # === TILEMAP ===
-  @tileset_tex = Texture.load("assets/oak_woods/oak_woods_tileset.png")
-  @tilemap = Tilemap.new(@tileset_tex, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
+  @tileset_tex = Graphics::Texture.load("assets/oak_woods/oak_woods_tileset.png")
+  @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
 
   # Define tile properties - all ground tiles are solid
   [
@@ -162,12 +162,12 @@ def init
 
   # === CHARACTER ===
   begin
-    @char_tex = Texture.load("assets/oak_woods/character/char_blue.png")
+    @char_tex = Graphics::Texture.load("assets/oak_woods/character/char_blue.png")
   rescue
     @char_tex = @tileset_tex
   end
-  @sprite = Sprite.new(@char_tex)
-  @sprite.source_rect = Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
+  @sprite = Graphics::Sprite.new(@char_tex)
+  @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 
   # Find spawn point
   spawn_x = 5
@@ -179,7 +179,7 @@ def init
 
   # === ANIMATION & STATE MACHINE ===
   begin
-    @animator = Animator.new(@sprite,
+    @animator = Animation::Animator.new(@sprite,
       columns: COLUMNS,
       frame_width: FRAME_WIDTH,
       frame_height: FRAME_HEIGHT)
@@ -286,7 +286,7 @@ def check_tilemap_collision(moving)
 end
 
 def draw
-  Graphics.clear("#5078A0")
+  Graphics.clear([80, 120, 160])
 
   camera_x = @sprite.x + FRAME_WIDTH / 2.0
   camera_y = @sprite.y + FRAME_HEIGHT / 2.0

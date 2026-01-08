@@ -20,7 +20,10 @@ namespace bindings {
 // Parse color from mruby args - supports [r,g,b], [r,g,b,a], or r,g,b / r,g,b,a
 Color parse_color(mrb_state* mrb, mrb_value* argv, mrb_int argc, const Color& default_color);
 
-// Parse a single color value (array [r,g,b] or [r,g,b,a])
+// Parse a single color value - supports:
+//   - Array: [r,g,b] or [r,g,b,a]
+//   - Hex string: "#RGB", "#RRGGBB", "#RRGGBBAA"
+//   - Named symbol: :red, :blue, :dark_gray, etc.
 Color parse_color_value(mrb_state* mrb, mrb_value val, const Color& default_color);
 
 // Helper to return boolean
@@ -40,6 +43,10 @@ RClass* get_gmr_submodule(mrb_state* mrb, const char* name);
 
 // Initialize the full GMR module hierarchy - call once at startup
 void init_gmr_modules(mrb_state* mrb);
+
+// Register top-level aliases for common classes (Sprite, Camera, Tween, etc.)
+// Call after all classes are registered to create GMR::Sprite -> GMR::Graphics::Sprite aliases
+void register_top_level_aliases(mrb_state* mrb);
 
 // ============================================================================
 // Symbol/Key Mapping Helpers (for Input module)

@@ -55,10 +55,81 @@ def update(dt)
 end
 
 def draw
-  Graphics.clear([20, 20, 40])
-  Graphics.draw_circle(@x, @y, 20, [100, 200, 255])
+  Graphics.clear(:dark_gray)
+  Graphics.draw_circle(@x, @y, 20, :cyan)
 end
 ```
+
+### Learning Path
+
+New to GMR? Here's the recommended order to learn the engine:
+
+1. **Quick Start** (above) - Get running in 2 minutes
+2. **Next Example** (below) - Add sprites and animation
+3. **Core Concepts** - Understand input, graphics, and game loops
+4. **Complete Platformer Example** - See everything working together
+5. **API Reference** - Look up specific methods as needed
+
+### Next Example: Animated Sprite
+
+Building on the minimal example, add a sprite with animation:
+
+```ruby
+include GMR
+
+def init
+  Window.set_title("Animated Sprite")
+
+  # Input mapping
+  input do |i|
+    i.move_left [:a, :left]
+    i.move_right [:d, :right]
+  end
+
+  # Load texture and create sprite
+  @texture = Texture.load("assets/player.png")
+  @sprite = Sprite.new(@texture, x: 400, y: 300)
+  @sprite.center_origin
+
+  # Create animation (frames 0-3 from a spritesheet with 8 columns)
+  @anim = SpriteAnimation.new(@sprite,
+    frames: 0..3,
+    fps: 8,
+    columns: 8
+  )
+  @anim.play
+
+  @facing = 1
+end
+
+def update(dt)
+  speed = 200 * dt
+
+  if Input.action_down?(:move_left)
+    @sprite.x -= speed
+    @facing = -1
+  end
+
+  if Input.action_down?(:move_right)
+    @sprite.x += speed
+    @facing = 1
+  end
+
+  @sprite.flip_x = @facing < 0
+end
+
+def draw
+  Graphics.clear("#141428")
+  @sprite.draw
+end
+```
+
+This example introduces:
+- **Texture loading** - `Texture.load` (top-level alias for `Graphics::Texture`)
+- **Sprite creation** - `Sprite.new` with position
+- **Sprite animation** - `SpriteAnimation` with spritesheet support
+- **Sprite flipping** - `flip_x` for facing direction
+- **Color formats** - hex strings like `"#141428"`
 
 ---
 
@@ -85,8 +156,8 @@ end
 
 def draw
   # Called every frame for rendering
-  Graphics.clear([20, 20, 40])
-  Graphics.draw_circle(@player_x, @player_y, 20, [100, 200, 255])
+  Graphics.clear(rgb(20, 20, 40))
+  Graphics.draw_circle(@player_x, @player_y, 20, rgb(100, 200, 255))
 end
 ```
 
@@ -112,7 +183,7 @@ class GameScene < Scene
 
   def draw
     # Called every frame for rendering
-    Graphics.clear([20, 20, 40])
+    Graphics.clear(:dark_gray)
     @player.draw
   end
 
@@ -227,26 +298,30 @@ key = Input.key_pressed           # Last key code
 
 ```ruby
 def draw
-  Graphics.clear([20, 20, 40])                              # Clear with color
-  Graphics.draw_rect(10, 10, 100, 50, [255, 0, 0])          # Filled rectangle
-  Graphics.draw_rect_outline(10, 10, 100, 50, [255, 255, 255])
-  Graphics.draw_circle(200, 100, 30, [0, 255, 0])           # Filled circle
-  Graphics.draw_circle_outline(200, 100, 30, [255, 255, 255])
-  Graphics.draw_line(0, 0, 100, 100, [255, 255, 0])         # Line
-  Graphics.draw_text("Score: #{@score}", 10, 10, 20, [255, 255, 255])
+  Graphics.clear("#141428")                               # Hex color
+  Graphics.draw_rect(10, 10, 100, 50, :red)               # Named color
+  Graphics.draw_rect_outline(10, 10, 100, 50, :white)
+  Graphics.draw_circle(200, 100, 30, rgb(0, 255, 0))      # rgb() helper
+  Graphics.draw_circle_outline(200, 100, 30, :white)
+  Graphics.draw_line(0, 0, 100, 100, :yellow)             # Line
+  Graphics.draw_text("Score: #{@score}", 10, 10, 20, [255, 255, 255])  # Array still works
 end
 ```
 
-Colors are `[r, g, b]` or `[r, g, b, a]` arrays with values 0-255.
+**Color Formats** - All drawing methods accept colors in multiple formats:
+- Named symbols: `:red`, `:blue`, `:dark_gray`, `:transparent`, etc.
+- Hex strings: `"#RGB"`, `"#RRGGBB"`, `"#RRGGBBAA"`
+- Helper function: `rgb(r, g, b)` or `rgb(r, g, b, a)`
+- Arrays: `[r, g, b]` or `[r, g, b, a]` (values 0-255)
 
 #### Textures & Sprites
 
 ```ruby
 # Load texture once
-@texture = Graphics::Texture.load("assets/player.png")
+@texture = Texture.load("assets/player.png")
 
 # Create sprite with options
-@sprite = Graphics::Sprite.new(@texture,
+@sprite = Sprite.new(@texture,
   x: 100, y: 100,
   rotation: 0,
   scale_x: 1.0, scale_y: 1.0
@@ -259,10 +334,10 @@ Colors are `[r, g, b]` or `[r, g, b, a]` arrays with values 0-255.
 @sprite.rotation = 45                    # Degrees
 @sprite.scale_x = 2.0
 @sprite.alpha = 0.8                      # 0.0 to 1.0
-@sprite.color = [255, 100, 100]          # Tint
+@sprite.color = :red                     # Tint (also accepts rgb(), hex, array)
 @sprite.flip_x = true                    # Mirror horizontally
 @sprite.center_origin                    # Pivot at center
-@sprite.source_rect = Graphics::Rect.new(0, 0, 32, 32)  # Spritesheet region
+@sprite.source_rect = Rect.new(0, 0, 32, 32)  # Spritesheet region
 
 # Draw sprite (queued for batch rendering)
 @sprite.draw
@@ -272,8 +347,8 @@ Colors are `[r, g, b]` or `[r, g, b, a]` arrays with values 0-255.
 
 ```ruby
 # Create tilemap from tileset texture
-@tilemap = Graphics::Tilemap.new(
-  Graphics::Texture.load("assets/tiles.png"),
+@tilemap = Tilemap.new(
+  Texture.load("assets/tiles.png"),
   16, 16,    # Tile width, height
   100, 50    # Map width, height in tiles
 )
@@ -300,13 +375,13 @@ Colors are `[r, g, b]` or `[r, g, b, a]` arrays with values 0-255.
 
 ### Camera
 
-The Camera2D class provides smooth following, screen shake, and coordinate conversion:
+The Camera class provides smooth following, screen shake, and coordinate conversion:
 
 ```ruby
 include GMR
 
 def init
-  @camera = Graphics::Camera2D.new
+  @camera = Camera.new
   @camera.offset = Mathf::Vec2.new(480, 270)   # Screen center (half of 960x540)
   @camera.zoom = 2.0
 end
@@ -318,11 +393,11 @@ def update(dt)
   # Or with a deadzone (player can move without camera following)
   @camera.follow(@player,
     smoothing: 0.08,
-    deadzone: Graphics::Rect.new(-30, -20, 60, 40)
+    deadzone: Rect.new(-30, -20, 60, 40)
   )
 
   # Constrain camera to level bounds
-  @camera.bounds = Graphics::Rect.new(0, 0, @level.width, @level.height)
+  @camera.bounds = Rect.new(0, 0, @level.width, @level.height)
 end
 
 def draw
@@ -334,7 +409,7 @@ def draw
   end
 
   # UI drawn outside camera.use is in screen coordinates
-  Graphics.draw_text("Score: #{@score}", 10, 10, 20, [255, 255, 255])
+  Graphics.draw_text("Score: #{@score}", 10, 10, 20, :white)
 end
 
 # Screen shake on impact
@@ -367,16 +442,16 @@ include GMR
 class Player
   def initialize(x, y)
     @x, @y = x, y
-    @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+    @sprite = Sprite.new(Texture.load("assets/player.png"))
     @on_ground = true
     @stamina = 100
 
     # Animation lookup for state machine
     @animations = {
-      idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
-      run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
-      jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 10, loop: false, columns: 8),
-      fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+      idle: SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+      run: SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+      jump: SpriteAnimation.new(@sprite, frames: 16..18, fps: 10, loop: false, columns: 8),
+      fall: SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
     }
 
     setup_state_machine
@@ -480,10 +555,10 @@ end
 For direct control over frame-based animations:
 
 ```ruby
-@sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+@sprite = Sprite.new(Texture.load("assets/player.png"))
 
 # Create animation
-@walk_anim = Animation::SpriteAnimation.new(@sprite,
+@walk_anim = SpriteAnimation.new(@sprite,
   frames: 0..5,          # Frame indices (or array: [0, 1, 2, 1])
   fps: 12,               # Frames per second
   loop: true,            # Loop animation (default: true)
@@ -510,7 +585,7 @@ For direct control over frame-based animations:
 For managing multiple animations with transition rules:
 
 ```ruby
-@animator = Animation::Animator.new(@sprite,
+@animator = Animator.new(@sprite,
   frame_width: 48,
   frame_height: 48,
   columns: 8
@@ -551,28 +626,28 @@ Smooth property animations with easing:
 include GMR
 
 # Basic tween
-Animation::Tween.to(@sprite, :alpha, 0.0, duration: 0.5, ease: :out_quad)
+Tween.to(@sprite, :alpha, 0.0, duration: 0.5, ease: :out_quad)
 
 # With callback
-Animation::Tween.to(@sprite, :x, 200, duration: 0.3, ease: :out_back)
+Tween.to(@sprite, :x, 200, duration: 0.3, ease: :out_back)
   .on_complete { puts "Arrived!" }
 
 # Chained animations (squash/stretch on land)
 def on_land
-  Animation::Tween.to(@sprite, :scale_y, 0.7, duration: 0.05, ease: :out_quad)
+  Tween.to(@sprite, :scale_y, 0.7, duration: 0.05, ease: :out_quad)
     .on_complete do
-      Animation::Tween.to(@sprite, :scale_y, 1.0, duration: 0.15, ease: :out_elastic)
+      Tween.to(@sprite, :scale_y, 1.0, duration: 0.15, ease: :out_elastic)
     end
 end
 
 # Menu slide-in
 def show_menu
   @menu.x = -200
-  Animation::Tween.to(@menu, :x, 50, duration: 0.4, ease: :out_back)
+  Tween.to(@menu, :x, 50, duration: 0.4, ease: :out_back)
 end
 
 # Tween control
-@tween = Animation::Tween.to(@sprite, :y, 100, duration: 1.0)
+@tween = Tween.to(@sprite, :y, 100, duration: 1.0)
 @tween.pause
 @tween.resume
 @tween.cancel
@@ -649,15 +724,15 @@ def init
   @facing = 1
 
   # Sprite setup
-  @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+  @sprite = Sprite.new(Texture.load("assets/player.png"))
   @sprite.center_origin
 
   # Animation lookup for state machine
   @animations = {
-    idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
-    run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
-    jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
-    fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+    idle: SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+    run: SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+    jump: SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+    fall: SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
   }
 
   # State machine
@@ -689,7 +764,7 @@ def init
   end
 
   # Camera
-  @camera = Graphics::Camera2D.new
+  @camera = Camera.new
   @camera.offset = Mathf::Vec2.new(480, 270)
   @camera.zoom = 1.0
 
@@ -745,13 +820,13 @@ end
 
 def draw
   @camera.use do
-    Graphics.clear([30, 30, 50])
-    Graphics.draw_rect(0, GROUND_Y, 2000, 200, [60, 60, 80])  # Ground
+    Graphics.clear("#1e1e32")
+    Graphics.draw_rect(0, GROUND_Y, 2000, 200, "#3c3c50")  # Ground
     @sprite.draw
   end
 
   # UI (outside camera)
-  Graphics.draw_text("State: #{state_machine.state}", 10, 10, 16, [255, 255, 255])
+  Graphics.draw_text("State: #{state_machine.state}", 10, 10, 16, :white)
 end
 ```
 
@@ -771,14 +846,14 @@ class Player
     @on_ground = false
     @facing = 1
 
-    @sprite = Graphics::Sprite.new(Graphics::Texture.load("assets/player.png"))
+    @sprite = Sprite.new(Texture.load("assets/player.png"))
     @sprite.center_origin
 
     @animations = {
-      idle: Animation::SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
-      run: Animation::SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
-      jump: Animation::SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
-      fall: Animation::SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
+      idle: SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+      run: SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8),
+      jump: SpriteAnimation.new(@sprite, frames: 16..18, fps: 8, loop: false, columns: 8),
+      fall: SpriteAnimation.new(@sprite, frames: 19..21, fps: 8, columns: 8)
     }
 
     setup_state_machine
@@ -865,7 +940,7 @@ def init
   end
 
   @player = Player.new(100, 300)
-  @camera = Graphics::Camera2D.new
+  @camera = Camera.new
   @camera.offset = Mathf::Vec2.new(480, 270)
   @camera.follow(@player, smoothing: 0.1)
 end
@@ -877,8 +952,8 @@ end
 
 def draw
   @camera.use do
-    Graphics.clear([30, 30, 50])
-    Graphics.draw_rect(0, 400, 2000, 200, [60, 60, 80])
+    Graphics.clear("#1e1e32")
+    Graphics.draw_rect(0, 400, 2000, 200, "#3c3c50")
     @player.draw
   end
 end
@@ -993,7 +1068,7 @@ In the console, you can execute any Ruby code:
 @player.health = 100               # Reset health
 Time.scale = 0.5                   # Slow motion
 @camera.zoom = 3.0                 # Zoom in
-Animation::Tween.to(@camera, :zoom, 1.0, duration: 0.5)  # Animate back
+Tween.to(@camera, :zoom, 1.0, duration: 0.5)  # Animate back
 System.quit                        # Exit game
 ```
 
@@ -1037,24 +1112,28 @@ gmrcli docs               # Generate documentation
 
 All classes and modules live under the `GMR` namespace. Use `include GMR` at the top of your scripts to access them without the prefix.
 
+**Top-Level Aliases**: After `include GMR`, these classes are available directly: `Sprite`, `Texture`, `Tilemap`, `Camera`, `Rect`, `Tween`, `Animator`, `SpriteAnimation`.
+
+**Color Formats**: All color parameters accept: `:red` (symbols), `"#FF0000"` (hex), `rgb(255, 0, 0)` (helper), or `[255, 0, 0]` (arrays).
+
 ### GMR::Graphics
 
 | Class/Module | Key Methods |
 |--------------|-------------|
-| `Graphics` | `clear(color)`, `draw_rect`, `draw_rect_outline`, `draw_circle`, `draw_circle_outline`, `draw_line`, `draw_line_thick`, `draw_text`, `measure_text` |
-| `Graphics::Texture` | `.load(path)`, `draw(x, y)`, `draw_ex(x, y, rotation, scale)`, `width`, `height` |
-| `Graphics::Sprite` | `.new(texture, **opts)`, `x`, `y`, `position`, `rotation`, `scale_x`, `scale_y`, `alpha`, `color`, `flip_x`, `flip_y`, `origin`, `center_origin`, `source_rect`, `draw` |
-| `Graphics::Tilemap` | `.new(tileset, tw, th, w, h)`, `set(x, y, tile)`, `fill`, `fill_rect`, `draw`, `solid?`, `hazard?`, `platform?`, `define_tile` |
-| `Graphics::Camera2D` | `.new`, `target`, `offset`, `zoom`, `rotation`, `follow(obj, smoothing:, deadzone:)`, `bounds=`, `shake(strength:, duration:)`, `use { }`, `screen_to_world`, `world_to_screen` |
-| `Graphics::Rect` | `.new(x, y, w, h)`, `x`, `y`, `w`, `h` |
+| `Graphics` | `clear(color)`, `draw_rect`, `draw_rect_outline`, `draw_circle`, `draw_circle_outline`, `draw_line`, `draw_line_thick`, `draw_text`, `measure_text`, `rgb(r, g, b, a)` |
+| `Texture` | `.load(path)`, `draw(x, y)`, `draw_ex(x, y, rotation, scale)`, `width`, `height` |
+| `Sprite` | `.new(texture, **opts)`, `x`, `y`, `position`, `rotation`, `scale_x`, `scale_y`, `alpha`, `color`, `flip_x`, `flip_y`, `origin`, `center_origin`, `source_rect`, `draw` |
+| `Tilemap` | `.new(tileset, tw, th, w, h)`, `set(x, y, tile)`, `fill`, `fill_rect`, `draw`, `solid?`, `hazard?`, `platform?`, `define_tile` |
+| `Camera` | `.new`, `target`, `offset`, `zoom`, `rotation`, `follow(obj, smoothing:, deadzone:)`, `bounds=`, `shake(strength:, duration:)`, `use { }`, `screen_to_world`, `world_to_screen` |
+| `Rect` | `.new(x, y, w, h)`, `x`, `y`, `w`, `h` |
 
 ### GMR::Animation
 
 | Class/Module | Key Methods |
 |--------------|-------------|
-| `Animation::Tween` | `.to(obj, :prop, value, duration:, ease:)`, `pause`, `resume`, `cancel`, `active?`, `on_complete { }`, `on_update { }` |
-| `Animation::Animator` | `.new(sprite, **opts)`, `add(:name, frames:, fps:, loop:)`, `play(:name)`, `stop`, `current`, `playing?`, `allow_transition`, `allow_from_any`, `on_complete(:name) { }` |
-| `Animation::SpriteAnimation` | `.new(sprite, frames:, fps:, loop:, columns:)`, `play`, `pause`, `stop`, `complete?`, `on_complete { }`, `on_frame_change { }` |
+| `Tween` | `.to(obj, :prop, value, duration:, ease:)`, `pause`, `resume`, `cancel`, `active?`, `on_complete { }`, `on_update { }` |
+| `Animator` | `.new(sprite, **opts)`, `add(:name, frames:, fps:, loop:)`, `play(:name)`, `stop`, `current`, `playing?`, `allow_transition`, `allow_from_any`, `on_complete(:name) { }` |
+| `SpriteAnimation` | `.new(sprite, frames:, fps:, loop:, columns:)`, `play`, `pause`, `stop`, `complete?`, `on_complete { }`, `on_frame_change { }` |
 | `Animation::Ease` | `:linear`, `:in_quad`, `:out_quad`, `:in_out_quad`, `:out_back`, `:out_elastic`, `:out_bounce`, etc. |
 
 ### GMR::Audio

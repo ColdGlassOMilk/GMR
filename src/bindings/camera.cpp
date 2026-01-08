@@ -792,6 +792,10 @@ void register_camera(mrb_state* mrb) {
     // Class methods
     mrb_define_class_method(mrb, camera_class, "current", mrb_camera_class_current, MRB_ARGS_NONE());
     mrb_define_class_method(mrb, camera_class, "current=", mrb_camera_class_set_current, MRB_ARGS_REQ(1));
+
+    // Add Camera alias (Camera2D is the canonical name for backwards compatibility,
+    // but Camera is the preferred short form for a 2D-only engine)
+    mrb_define_const(mrb, graphics, "Camera", mrb_obj_value(camera_class));
 }
 
 } // namespace bindings
