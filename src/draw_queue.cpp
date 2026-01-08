@@ -265,7 +265,9 @@ void DrawQueue::apply_camera_begin(CameraHandle handle) {
     auto* cam = CameraManager::instance().get(handle);
     if (cam) {
         ::Camera2D raylib_cam = {};
-        raylib_cam.target = {cam->target.x, cam->target.y};
+        // Round camera target to nearest pixel for crisp pixel art rendering
+        // This prevents subpixel jitter while keeping smooth camera movement
+        raylib_cam.target = {std::round(cam->target.x), std::round(cam->target.y)};
         raylib_cam.offset = {cam->offset.x + cam->shake_offset.x,
                              cam->offset.y + cam->shake_offset.y};
         raylib_cam.rotation = cam->rotation;
@@ -380,14 +382,11 @@ void DrawQueue::draw_sprite(const DrawCommand& cmd) {
     float world_rot = TransformManager::instance().get_world_rotation(sprite->transform);
     Vec2 world_scale = TransformManager::instance().get_world_scale(sprite->transform);
 
-    // Round position to nearest pixel for crisp pixel art rendering
-    float rounded_x = std::round(world_pos.x);
-    float rounded_y = std::round(world_pos.y);
-
     // Calculate destination rectangle
+    // Note: Camera target is rounded to pixels, so no need to round sprite positions
     float dest_w = std::abs(source.width) * world_scale.x;
     float dest_h = std::abs(source.height) * world_scale.y;
-    Rectangle dest = {rounded_x, rounded_y, dest_w, dest_h};
+    Rectangle dest = {world_pos.x, world_pos.y, dest_w, dest_h};
 
     // Origin for rotation (in dest space) - from transform's origin
     Vector2 origin = {
