@@ -581,7 +581,7 @@ end
 ```ruby
 state_machine do
   state :name do
-    animate :animation_name           # Play animation from @animations hash
+    animate :animation_name           # Auto-play animation on state entry
     enter { }                         # Block called on state entry
     exit { }                          # Block called on state exit
     on :event, :target_state          # Transition on event
@@ -595,6 +595,51 @@ state_machine.state = :forced         # Force state change (bypasses transitions
 state_machine.trigger(:event)         # Trigger event, returns true if transitioned
 state_machine.active?                 # Check if active
 ```
+
+**Animation Integration**
+
+The `animate` directive automatically detects and uses your animation system:
+
+```ruby
+# Option 1: Using Animator (recommended - cleaner API)
+@animator = Animation::Animator.new(@sprite,
+  columns: 8,
+  frame_width: 32,
+  frame_height: 48)
+
+@animator.add(:idle, frames: 0..3, fps: 6)
+@animator.add(:run, frames: 8..13, fps: 12)
+
+state_machine do
+  state :idle do
+    animate :idle    # Calls @animator.play(:idle)
+  end
+
+  state :run do
+    animate :run     # Calls @animator.play(:run)
+  end
+end
+
+# Option 2: Using @animations hash (lower-level, more control)
+@animations = {
+  idle: SpriteAnimation.new(@sprite, frames: 0..3, fps: 6, columns: 8),
+  run: SpriteAnimation.new(@sprite, frames: 8..13, fps: 12, columns: 8)
+}
+
+state_machine do
+  state :idle do
+    animate :idle    # Plays @animations[:idle]
+  end
+
+  state :run do
+    animate :run     # Plays @animations[:run]
+  end
+end
+```
+
+The state machine checks for `@animator` first, then falls back to `@animations`. Both approaches work seamlessly - choose based on your needs:
+- **Use `@animator`** for cleaner code with transition rules and queuing
+- **Use `@animations`** for direct control over individual animation instances
 
 #### Input-Driven Transitions
 

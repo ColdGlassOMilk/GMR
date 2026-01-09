@@ -261,8 +261,22 @@ void StateMachineManager::play_animation(mrb_state* mrb, StateMachineHandle hand
     StateMachineState* machine = get(handle);
     if (!machine) return;
 
-    // First, cache animations if not done yet
-    if (machine->animations.empty()) {
+    mrb_value owner = machine->owner;
+    if (mrb_nil_p(owner)) return;
+
+    // FIRST: Check if owner has @animator (preferred, cleaner API)
+    mrb_value animator = mrb_iv_get(mrb, owner, mrb_intern_lit(mrb, "@animator"));
+    if (!mrb_nil_p(animator)) {
+        // Use Animator.play(name) method
+        mrb_value name_sym = mrb_symbol_value(name);
+        mrb_funcall(mrb, animator, "play", 1, name_sym);
+        return;
+    }
+
+    // FALLBACK: Use @animations hash (original implementation)
+    // Try to cache if empty OR if the specific animation is missing
+    // This fixes timing issues where @animations hash is defined after state_machine do block
+    if (machine->animations.empty() || machine->animations.find(name) == machine->animations.end()) {
         cache_animations(mrb, handle);
     }
 
@@ -271,7 +285,12 @@ void StateMachineManager::play_animation(mrb_state* mrb, StateMachineHandle hand
 
     // Find animation by name
     auto it = machine->animations.find(name);
-    if (it == machine->animations.end()) return;
+    if (it == machine->animations.end()) {
+        // Animation still not found after caching attempt - report error
+        fprintf(stderr, "Warning: Animation '%s' not found in @animations hash for state machine\n",
+                mrb_sym_name(mrb, name));
+        return;
+    }
 
     machine->current_animation = it->second;
 
