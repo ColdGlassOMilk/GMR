@@ -340,8 +340,13 @@ int main(int argc, char* argv[]) {
     gmr::console::ConsoleModule::instance().shutdown();
 
     // Cleanup (only for native - web doesn't reach here)
-    // Clear event queue first while mruby is still available
+    // Clear managers with Ruby references while mruby is still available
+    // Order matches hot reload in loader.cpp - managers cleared before event queue
     if (auto* mrb = loader.mrb()) {
+        gmr::CameraManager::instance().clear(mrb);
+        gmr::animation::AnimationManager::instance().clear(mrb);
+        gmr::state_machine::StateMachineManager::instance().clear(mrb);
+        gmr::input::InputManager::instance().clear(mrb);
         gmr::event::EventQueue::instance().clear(mrb);
     }
     gmr::bindings::cleanup_window();
