@@ -8,6 +8,9 @@
 #include "rlgl.h"
 #include <cstdlib>
 
+// Defined in main.cpp - flag for script-initiated shutdown
+extern bool g_should_quit;
+
 // OpenGL constants for glGetString (avoid including gl.h due to raylib conflicts)
 #if !defined(PLATFORM_WEB)
     #define GL_VENDOR                     0x1F00
@@ -119,13 +122,18 @@ namespace bindings {
 ///   end
 
 /// @function quit
-/// @description Immediately exit the application. Closes the window and terminates
-///   the process.
+/// @description Exit the application cleanly. On native platforms, triggers proper
+///   shutdown through the main loop. On web, this is a no-op (user must close the browser tab).
 /// @returns [nil]
 /// @example GMR::System.quit  # Exit the game
 static mrb_value mrb_system_quit(mrb_state*, mrb_value) {
-    CloseWindow();
-    exit(0);
+    #if !defined(PLATFORM_WEB)
+        // Native: Signal main loop to exit - triggers normal cleanup
+        g_should_quit = true;
+    #else
+        // Web: Can't programmatically exit - browser controls page lifecycle
+        // This is a no-op to prevent exceptions
+    #endif
     return mrb_nil_value();
 }
 

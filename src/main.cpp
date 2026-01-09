@@ -33,6 +33,10 @@ struct GameContext {
 
 static GameContext g_ctx;
 
+// Global flag for script-initiated shutdown
+// Allows GMR::System.quit to trigger clean shutdown through main loop exit
+static bool g_should_quit = false;
+
 // Forward declaration
 void game_loop(void* arg);
 
@@ -229,8 +233,8 @@ int main(int argc, char* argv[]) {
 #endif
 
     double last_time = GetTime();
-    
-    while (!WindowShouldClose()) {
+
+    while (!WindowShouldClose() && !g_should_quit) {
         double current_time = GetTime();
         double dt = current_time - last_time;
         last_time = current_time;
