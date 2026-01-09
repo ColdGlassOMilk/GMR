@@ -14,11 +14,9 @@ Tilemap rendering from Tiled JSON exports.
   - [#draw_region](#draw_region)
   - [#fill](#fill)
   - [#fill_rect](#fill_rect)
-  - [#get](#get)
   - [#hazard?](#hazard)
   - [#ladder?](#ladder)
   - [#platform?](#platform)
-  - [#set](#set)
   - [#slippery?](#slippery)
   - [#solid?](#solid)
   - [#tile_height](#tile_height)
@@ -77,41 +75,6 @@ TODO: Add documentation
 ### tile_height
 
 TODO: Add documentation
-
-**Returns:** `unknown`
-
----
-
-<a id="get"></a>
-
-### get(arg1, arg2)
-
-TODO: Add documentation
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg1` | `Integer` |  |
-| `arg2` | `Integer` |  |
-
-**Returns:** `unknown`
-
----
-
-<a id="set"></a>
-
-### set(arg1, arg2, arg3)
-
-TODO: Add documentation
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `arg1` | `Integer` |  |
-| `arg2` | `Integer` |  |
-| `arg3` | `Integer` |  |
 
 **Returns:** `unknown`
 

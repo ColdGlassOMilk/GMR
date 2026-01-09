@@ -758,6 +758,137 @@ Tween.to(@transform, :rotation, 360, duration: 2.0, ease: :in_out_quad)
 
 ---
 
+### File I/O & Storage
+
+GMR provides two complementary systems for data persistence:
+
+#### File (GMR::File)
+
+Read and write files with automatic cross-platform path handling. Files use logical roots (`:assets` for read-only game content, `:data` for writable save files).
+
+```ruby
+include GMR
+
+# Text files
+File.write_text("save.txt", "Player: Alice\nScore: 1000", root: :data)
+text = File.read_text("save.txt", root: :data)
+
+# JSON files (uses mruby-json gem)
+save_data = { level: 5, score: 1000, name: "Alice" }
+File.write_json("save.json", save_data, root: :data)
+loaded = File.read_json("save.json", root: :data)  # => Hash
+
+# Pretty-print JSON for debugging
+File.write_json("debug.json", data, root: :data, pretty: true)
+
+# Binary files
+bytes = [0x89, 0x50, 0x4E, 0x47].pack("C*")
+File.write_bytes("data.bin", bytes, root: :data)
+loaded_bytes = File.read_bytes("data.bin", root: :data)
+
+# File queries
+File.exists?("save.json", root: :data)         # => true / false
+files = File.list_files("saves", root: :data)  # => ["save1.json", "save2.json"]
+
+# Read game assets
+config = File.read_json("config.json", root: :assets)
+
+# Subdirectories are automatically created
+File.write_text("saves/slot1.txt", "data", root: :data)
+File.write_json("profiles/player.json", player_data, root: :data)
+```
+
+**Key Features:**
+- **Logical roots**: `:assets` (read-only), `:data` (writable)
+- **Cross-platform**: Works identically on native and web builds
+- **Path validation**: Prevents directory traversal and absolute paths
+- **Auto-sync**: Writes to `:data` persist to IndexedDB on web builds
+- **JSON support**: Built-in serialization with optional pretty-printing (via mruby-json)
+- **Auto-directories**: Subdirectories are created automatically on write
+
+**How it works:**
+
+*Native builds:*
+- `:assets` → `game/assets/` (read-only game content)
+- `:data` → `game/assets/data/` (writable save files, inside assets folder)
+- Files persist to disk immediately
+- Hot-reload friendly (assets can be edited while game runs)
+- Data inside assets folder ensures it's packaged for web builds
+
+*Web builds:*
+- `:assets` → `/assets/` (preloaded from WASM package, read-only)
+- `:data` → `/assets/data/` (IDBFS mount, persisted to IndexedDB)
+- Writes automatically sync to browser's IndexedDB storage
+- Data survives page refreshes and browser restarts
+- Directory structure matches native builds
+
+**Security:**
+- Paths are validated to prevent directory traversal (`..` rejected)
+- Absolute paths are rejected (no `/etc/passwd` or `C:/Windows`)
+- Writing to `:assets` root raises an error
+- Invalid characters in paths are rejected on Windows
+
+#### Storage (GMR::Storage)
+
+Simple integer key-value storage for settings, high scores, and unlockables. Perfect for small, frequently-accessed values that don't need complex serialization.
+
+```ruby
+include GMR
+
+# Basic get/set
+Storage.set(:high_score, 1000)
+score = Storage.get(:high_score)            # => 1000
+volume = Storage.get(:volume, 80)           # => 80 (default if missing)
+
+# Increment/decrement
+Storage.increment(:play_count)              # => 1
+Storage.increment(:total_score, 100)        # => 100
+Storage.decrement(:lives, 1)                # => 2
+
+# Check existence and delete
+Storage.has_key?(:high_score)               # => true
+Storage.delete(:high_score)
+Storage.has_key?(:high_score)               # => false
+
+# Shorthand syntax
+Storage[:volume] = 80
+volume = Storage[:volume]
+```
+
+**Key Features:**
+- **Integer values only**: Perfect for scores, settings, counters
+- **Persistent**: Survives game restarts on all platforms
+- **Fast**: Direct binary storage, no parsing overhead
+- **Simple**: No complex serialization, just key-value pairs
+- **Key-based**: Uses string/symbol keys, not array indices
+
+**How it works:**
+
+Storage uses a position-based file format (`storage.data`) with a simple hash function to map keys to positions:
+- Keys (strings/symbols) are hashed to positions (0-999)
+- Each position stores a 32-bit integer
+- File grows automatically as needed
+- Zero values indicate missing/deleted keys
+- File persists to disk (native) or IndexedDB (web via raylib)
+
+**Performance:**
+- O(1) lookups and writes (direct file position access)
+- No JSON parsing overhead
+- Minimal memory footprint
+- Ideal for real-time updates (score increments, setting changes)
+
+**Limitations:**
+- Integer values only (use `File.write_json` for complex data)
+- Maximum 1000 unique keys (hash collision limit)
+- Zero is treated as "missing" (use File for storing actual zeros)
+- Key collisions possible but rare with 1000 positions
+
+**When to use which:**
+- Use **Storage** for simple integers (settings, scores, unlocks, flags)
+- Use **File** for complex data (save states, player profiles, level data, strings)
+
+---
+
 ## Complete Example: Platformer
 
 Here's a complete, working game demonstrating input, state machine, animation, camera, and physics using global hooks:
@@ -1227,6 +1358,13 @@ All classes and modules live under the `GMR` namespace. Use `include GMR` at the
 | `Mathf` | `lerp`, `inverse_lerp`, `clamp`, `wrap`, `smoothstep`, `remap`, `distance`, `distance_squared`, `sign`, `move_toward`, `deg_to_rad`, `rad_to_deg`, `random_int`, `random_float` |
 | `Mathf::Vec2` | `.new(x, y)`, `x`, `y`, `+`, `-`, `*`, `/`, `to_a` |
 | `Mathf::Vec3` | `.new(x, y, z)`, `x`, `y`, `z`, `+`, `-`, `*`, `/` |
+
+### GMR::File & Storage
+
+| Module | Key Methods |
+|--------|-------------|
+| `File` | `read_text(path, root:)`, `read_json(path, root:)`, `read_bytes(path, root:)`, `write_text(path, content, root:)`, `write_json(path, obj, root:, pretty:)`, `write_bytes(path, data, root:)`, `exists?(path, root:)`, `list_files(dir, root:)` |
+| `Storage` | `get(key, default)`, `set(key, value)`, `[key]`, `[key]=`, `has_key?(key)`, `delete(key)`, `increment(key, amount)`, `decrement(key, amount)` |
 
 ### Top-Level Modules
 

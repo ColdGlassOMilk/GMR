@@ -20,8 +20,34 @@ Drawing primitives, textures, and rendering.
   - [draw_triangle](#draw_triangle)
   - [draw_triangle_outline](#draw_triangle_outline)
   - [measure_text](#measure_text)
+  - [rgb](#rgb)
 
 ## Functions
+
+<a id="rgb"></a>
+
+### rgb
+
+Create a color array from RGB(A) values. Convenience helper.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `r` | `Integer` | Red component (0-255) |
+| `g` | `Integer` | Green component (0-255) |
+| `b` | `Integer` | Blue component (0-255) |
+| `a` | `Integer` | Alpha component (0-255, default: 255) |
+
+**Returns:** `Array<Integer>` - Color array [r, g, b, a]
+
+**Example:**
+
+```ruby
+sprite.color = rgb(255, 100, 100)
+```
+
+---
 
 <a id="clear"></a>
 
@@ -33,21 +59,21 @@ Clear the screen with a solid color
 
 | Name | Type | Description |
 |------|------|-------------|
-| `color` | `Color` | The background color |
+| `color` | `Color` | The background color (array, hex string, or named symbol) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.clear([20, 20, 40])
+GMR::Graphics.clear(:dark_gray)
 ```
 
 ---
 
 <a id="draw_rect"></a>
 
-### draw_rect(x, y, w, h, color)
+### draw_rect(transform, width, height, color)
 
 Draw a filled rectangle
 
@@ -55,25 +81,25 @@ Draw a filled rectangle
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x` | `Integer` | X position (left edge) |
-| `y` | `Integer` | Y position (top edge) |
-| `w` | `Integer` | Width in pixels |
-| `h` | `Integer` | Height in pixels |
-| `color` | `Color` | Fill color |
+| `transform_or_x` | `Transform2D|Integer` | Transform2D object OR X position (left edge) |
+| `width_or_y` | `Float|Integer` | Width in pixels (if transform) OR Y position (top edge) |
+| `height_or_w` | `Float|Integer` | Height in pixels (if transform) OR Width in pixels |
+| `color_or_h` | `Color|Integer` | Fill color (if transform) OR Height in pixels |
+| `color` | `Color` | Fill color (if using x,y,w,h) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])
+GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])  # Legacy x,y,w,h
 ```
 
 ---
 
 <a id="draw_rect_outline"></a>
 
-### draw_rect_outline(x, y, w, h, color)
+### draw_rect_outline(transform, width, height, color)
 
 Draw a rectangle outline (not filled)
 
@@ -81,18 +107,18 @@ Draw a rectangle outline (not filled)
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x` | `Integer` | X position (left edge) |
-| `y` | `Integer` | Y position (top edge) |
-| `w` | `Integer` | Width in pixels |
-| `h` | `Integer` | Height in pixels |
-| `color` | `Color` | Outline color |
+| `transform_or_x` | `Transform2D|Integer` | Transform2D object OR X position (left edge) |
+| `width_or_y` | `Float|Integer` | Width in pixels (if transform) OR Y position (top edge) |
+| `height_or_w` | `Float|Integer` | Height in pixels (if transform) OR Width in pixels |
+| `color_or_h` | `Color|Integer` | Outline color (if transform) OR Height in pixels |
+| `color` | `Color` | Outline color (if using x,y,w,h) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])
+GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])  # Legacy x,y,w,h
 ```
 
 ---
@@ -126,7 +152,7 @@ GMR::Graphics.draw_rect_rotated(160, 120, 40, 20, 45.0, [0, 255, 0])
 
 <a id="draw_line"></a>
 
-### draw_line(x1, y1, x2, y2, color)
+### draw_line(transform, x1, y1, x2, y2, color, thickness=1.0)
 
 Draw a line between two points
 
@@ -134,18 +160,20 @@ Draw a line between two points
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x1` | `Integer` | Start X position |
-| `y1` | `Integer` | Start Y position |
-| `x2` | `Integer` | End X position |
-| `y2` | `Integer` | End Y position |
-| `color` | `Color` | Line color |
+| `transform_or_x1` | `Transform2D|Integer` | Transform2D object OR Start X position |
+| `x1_or_y1` | `Float|Integer` | Local X1 (if transform) OR Start Y position |
+| `y1_or_x2` | `Float|Integer` | Local Y1 (if transform) OR End X position |
+| `x2_or_y2` | `Float|Integer` | Local X2 (if transform) OR End Y position |
+| `y2_or_color` | `Float|Color` | Local Y2 (if transform) OR Line color |
+| `color_or_thickness` | `Color|Float` | Line color (if transform) OR Optional thickness |
+| `thickness` | `Float` | Optional line thickness (default: 1.0, transform API only) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])
+GMR::Graphics.draw_line(0, 0, 100, 100, :red, 3.0)  # Legacy with thickness
 ```
 
 ---
@@ -179,7 +207,7 @@ GMR::Graphics.draw_line_thick(0, 0, 100, 100, 3.0, [255, 200, 100])
 
 <a id="draw_circle"></a>
 
-### draw_circle(x, y, radius, color)
+### draw_circle(transform, radius, color)
 
 Draw a filled circle
 
@@ -187,24 +215,24 @@ Draw a filled circle
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x` | `Integer` | Center X position |
-| `y` | `Integer` | Center Y position |
-| `radius` | `Integer` | Circle radius in pixels |
-| `color` | `Color` | Fill color |
+| `transform_or_x` | `Transform2D|Integer` | Transform2D object OR Center X position |
+| `radius_or_y` | `Float|Integer` | Radius in pixels (if transform) OR Center Y position |
+| `color_or_radius` | `Color|Integer` | Fill color (if transform) OR Radius in pixels |
+| `color` | `Color` | Fill color (if using x,y,radius) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])
+GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])  # Legacy x,y,radius
 ```
 
 ---
 
 <a id="draw_circle_outline"></a>
 
-### draw_circle_outline(x, y, radius, color)
+### draw_circle_outline(transform, radius, color)
 
 Draw a circle outline
 
@@ -212,17 +240,17 @@ Draw a circle outline
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x` | `Integer` | Center X position |
-| `y` | `Integer` | Center Y position |
-| `radius` | `Integer` | Circle radius in pixels |
-| `color` | `Color` | Outline color |
+| `transform_or_x` | `Transform2D|Integer` | Transform2D object OR Center X position |
+| `radius_or_y` | `Float|Integer` | Radius in pixels (if transform) OR Center Y position |
+| `color_or_radius` | `Color|Integer` | Outline color (if transform) OR Radius in pixels |
+| `color` | `Color` | Outline color (if using x,y,radius) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])
+GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])  # Legacy x,y,radius
 ```
 
 ---
@@ -255,7 +283,7 @@ GMR::Graphics.draw_circle_gradient(160, 120, 50, [255, 255, 255], [255, 0, 0, 0]
 
 <a id="draw_triangle"></a>
 
-### draw_triangle(x1, y1, x2, y2, x3, y3, color)
+### draw_triangle(transform, x1, y1, x2, y2, x3, y3, color)
 
 Draw a filled triangle
 
@@ -263,27 +291,28 @@ Draw a filled triangle
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x1` | `Float` | First vertex X |
-| `y1` | `Float` | First vertex Y |
-| `x2` | `Float` | Second vertex X |
-| `y2` | `Float` | Second vertex Y |
-| `x3` | `Float` | Third vertex X |
-| `y3` | `Float` | Third vertex Y |
-| `color` | `Color` | Fill color |
+| `transform_or_x1` | `Transform2D|Float` | Transform2D object OR First vertex X |
+| `x1_or_y1` | `Float` | Local X1 (if transform) OR First vertex Y |
+| `y1_or_x2` | `Float` | Local Y1 (if transform) OR Second vertex X |
+| `x2_or_y2` | `Float` | Local X2 (if transform) OR Second vertex Y |
+| `y2_or_x3` | `Float` | Local Y2 (if transform) OR Third vertex X |
+| `x3_or_y3` | `Float` | Local X3 (if transform) OR Third vertex Y |
+| `y3_or_color` | `Float|Color` | Local Y3 (if transform) OR Fill color |
+| `color` | `Color` | Fill color (if using transform) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])
+GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])  # Legacy world coords
 ```
 
 ---
 
 <a id="draw_triangle_outline"></a>
 
-### draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)
+### draw_triangle_outline(transform, x1, y1, x2, y2, x3, y3, color)
 
 Draw a triangle outline
 
@@ -291,27 +320,28 @@ Draw a triangle outline
 
 | Name | Type | Description |
 |------|------|-------------|
-| `x1` | `Float` | First vertex X |
-| `y1` | `Float` | First vertex Y |
-| `x2` | `Float` | Second vertex X |
-| `y2` | `Float` | Second vertex Y |
-| `x3` | `Float` | Third vertex X |
-| `y3` | `Float` | Third vertex Y |
-| `color` | `Color` | Outline color |
+| `transform_or_x1` | `Transform2D|Float` | Transform2D object OR First vertex X |
+| `x1_or_y1` | `Float` | Local X1 (if transform) OR First vertex Y |
+| `y1_or_x2` | `Float` | Local Y1 (if transform) OR Second vertex X |
+| `x2_or_y2` | `Float` | Local X2 (if transform) OR Second vertex Y |
+| `y2_or_x3` | `Float` | Local Y2 (if transform) OR Third vertex X |
+| `x3_or_y3` | `Float` | Local X3 (if transform) OR Third vertex Y |
+| `y3_or_color` | `Float|Color` | Local Y3 (if transform) OR Outline color |
+| `color` | `Color` | Outline color (if using transform) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])
+GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])  # Legacy world coords
 ```
 
 ---
 
 <a id="draw_text"></a>
 
-### draw_text(text, x, y, size, color)
+### draw_text(transform, text, size, color)
 
 Draw text at a position
 
@@ -319,18 +349,18 @@ Draw text at a position
 
 | Name | Type | Description |
 |------|------|-------------|
-| `text` | `String` | The text to draw |
-| `x` | `Integer` | X position (left edge) |
-| `y` | `Integer` | Y position (top edge) |
-| `size` | `Integer` | Font size in pixels |
-| `color` | `Color` | Text color |
+| `transform_or_text` | `Transform2D|String` | Transform2D object OR The text to draw |
+| `text_or_x` | `String|Integer` | Text content (if transform) OR X position (left edge) |
+| `size_or_y` | `Integer` | Font size (if transform) OR Y position (top edge) |
+| `color_or_size` | `Color|Integer` | Text color (if transform) OR Font size in pixels |
+| `color` | `Color` | Text color (if using x,y) |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])
+GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])  # Legacy x,y,size
 ```
 
 ---

@@ -20,32 +20,16 @@ Drawable 2D sprite with built-in transform properties.
   - [#flip_y=](#flip_y)
   - [#height](#height)
   - [#initialize](#initialize)
-  - [#origin](#origin)
-  - [#origin=](#origin)
-  - [#origin_x](#origin_x)
-  - [#origin_x=](#origin_x)
-  - [#origin_y](#origin_y)
-  - [#origin_y=](#origin_y)
-  - [#parent](#parent)
-  - [#parent=](#parent)
+  - [#layer](#layer)
+  - [#layer=](#layer)
   - [#play_animation](#play_animation)
-  - [#position](#position)
-  - [#position=](#position)
-  - [#rotation](#rotation)
-  - [#rotation=](#rotation)
-  - [#scale_x](#scale_x)
-  - [#scale_x=](#scale_x)
-  - [#scale_y](#scale_y)
-  - [#scale_y=](#scale_y)
   - [#source_rect](#source_rect)
   - [#source_rect=](#source_rect)
   - [#texture](#texture)
   - [#texture=](#texture)
+  - [#transform](#transform)
+  - [#transform=](#transform)
   - [#width](#width)
-  - [#x](#x)
-  - [#x=](#x)
-  - [#y](#y)
-  - [#y=](#y)
   - [#z](#z)
   - [#z=](#z)
 
@@ -55,369 +39,62 @@ Drawable 2D sprite with built-in transform properties.
 
 ### #initialize
 
-Create a new Sprite from a texture with optional initial values.
+Create a new sprite with a texture and transform.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `texture` | `Texture` | The texture to use for this sprite |
-| `x` | `Float` | Initial X position (default: 0) |
-| `y` | `Float` | Initial Y position (default: 0) |
-| `rotation` | `Float` | Initial rotation in degrees (default: 0) |
-| `scale_x` | `Float` | Initial X scale (default: 1.0) |
-| `scale_y` | `Float` | Initial Y scale (default: 1.0) |
-| `z` | `Float` | Explicit z-index for layering (default: nil, uses draw order) |
-| `source_rect` | `Rect` | Region of texture to draw (default: entire texture) |
+| `texture` | `Texture` | The texture to render |
+| `transform` | `Transform2D` | The transform defining position, rotation, scale, and origin |
 
 **Returns:** `Sprite` - The new sprite
 
 **Example:**
 
 ```ruby
-sprite = Sprite.new(spritesheet, source_rect: Rect.new(0, 0, 32, 32))
+
+  transform = Transform2D.new(x: 100, y: 100, rotation: 45)
+  sprite = Sprite.new(my_texture, transform)
 ```
 
 ---
 
-<a id="x"></a>
+<a id="transform"></a>
 
-### #x
+### #transform
 
-Get the X position of the sprite.
+Get the Transform2D handle associated with this sprite.
 
-**Returns:** `Float` - The X position
+**Returns:** `Transform2D` - The sprite's transform
 
 **Example:**
 
 ```ruby
-x_pos = sprite.x
+t = sprite.transform
+  t.x = 100
 ```
 
 ---
 
-<a id="y"></a>
+<a id="transform"></a>
 
-### #y
+### #transform=
 
-Get the Y position of the sprite.
-
-**Returns:** `Float` - The Y position
-
-**Example:**
-
-```ruby
-y_pos = sprite.y
-```
-
----
-
-<a id="x"></a>
-
-### #x=
-
-Set the X position of the sprite.
+Set the Transform2D for this sprite.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Float` | The new X position |
+| `value` | `Transform2D` | The transform to use |
 
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.x += 5  # Move right by 5 pixels
-```
-
----
-
-<a id="y"></a>
-
-### #y=
-
-Set the Y position of the sprite.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The new Y position |
-
-**Returns:** `Float` - The value that was set
+**Returns:** `Transform2D` - The value that was set
 
 **Example:**
 
 ```ruby
-sprite.y += 10  # Move down by 10 pixels
-```
-
----
-
-<a id="position"></a>
-
-### #position
-
-Get the position as a Vec2.
-
-**Returns:** `Vec2` - The position vector
-
-**Example:**
-
-```ruby
-pos = sprite.position
-```
-
----
-
-<a id="position"></a>
-
-### #position=
-
-Set the position using a Vec2.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Vec2` | The new position vector |
-
-**Returns:** `Vec2` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.position = Vec2.new(100, 200)
-```
-
----
-
-<a id="rotation"></a>
-
-### #rotation
-
-Get the rotation in degrees.
-
-**Returns:** `Float` - The rotation angle in degrees
-
-**Example:**
-
-```ruby
-angle = sprite.rotation
-```
-
----
-
-<a id="rotation"></a>
-
-### #rotation=
-
-Set the rotation in degrees. Positive values rotate clockwise.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The new rotation angle in degrees |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.rotation += 90 * dt  # Rotate 90 degrees per second
-```
-
----
-
-<a id="scale_x"></a>
-
-### #scale_x
-
-Get the X scale factor.
-
-**Returns:** `Float` - The X scale (1.0 = normal size)
-
-**Example:**
-
-```ruby
-sx = sprite.scale_x
-```
-
----
-
-<a id="scale_y"></a>
-
-### #scale_y
-
-Get the Y scale factor.
-
-**Returns:** `Float` - The Y scale (1.0 = normal size)
-
-**Example:**
-
-```ruby
-sy = sprite.scale_y
-```
-
----
-
-<a id="scale_x"></a>
-
-### #scale_x=
-
-Set the X scale factor. Values greater than 1 stretch, less than 1 shrink.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The new X scale (1.0 = normal size) |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.scale_x = 2.0  # Double width
-```
-
----
-
-<a id="scale_y"></a>
-
-### #scale_y=
-
-Set the Y scale factor. Values greater than 1 stretch, less than 1 shrink.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The new Y scale (1.0 = normal size) |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.scale_y = 0.5  # Half height
-```
-
----
-
-<a id="origin_x"></a>
-
-### #origin_x
-
-Get the X origin (pivot point) for rotation and scaling.
-
-**Returns:** `Float` - The X origin offset in pixels
-
-**Example:**
-
-```ruby
-ox = sprite.origin_x
-```
-
----
-
-<a id="origin_y"></a>
-
-### #origin_y
-
-Get the Y origin (pivot point) for rotation and scaling.
-
-**Returns:** `Float` - The Y origin offset in pixels
-
-**Example:**
-
-```ruby
-oy = sprite.origin_y
-```
-
----
-
-<a id="origin_x"></a>
-
-### #origin_x=
-
-Set the X origin (pivot point) for rotation and scaling.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The X origin offset in pixels |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.origin_x = 16  # Pivot 16px from left
-```
-
----
-
-<a id="origin_y"></a>
-
-### #origin_y=
-
-Set the Y origin (pivot point) for rotation and scaling.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | The Y origin offset in pixels |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.origin_y = 16  # Pivot 16px from top
-```
-
----
-
-<a id="origin"></a>
-
-### #origin
-
-Get the origin (pivot point) as a Vec2.
-
-**Returns:** `Vec2` - The origin vector
-
-**Example:**
-
-```ruby
-origin = sprite.origin
-```
-
----
-
-<a id="origin"></a>
-
-### #origin=
-
-Set the origin (pivot point) using a Vec2.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Vec2` | The new origin vector |
-
-**Returns:** `Vec2` - The value that was set
-
-**Example:**
-
-```ruby
-sprite.origin = Vec2.new(16, 16)
+sprite.transform = Transform2D.new(x: 100, y: 200)
 ```
 
 ---
@@ -426,14 +103,52 @@ sprite.origin = Vec2.new(16, 16)
 
 ### #center_origin
 
-Set the origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.
+Set the transform's origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.
 
 **Returns:** `Sprite` - self for chaining
 
 **Example:**
 
 ```ruby
-sprite = Sprite.new(tex).center_origin  # Method chaining
+sprite = Sprite.new(tex, transform).center_origin  # Method chaining
+```
+
+---
+
+<a id="layer"></a>
+
+### #layer
+
+Get the render layer. Layers control broad draw order categories. Lower values render first (background), higher values render last (foreground/UI). Returns a symbol for known layer values, or an integer for custom layers.
+
+**Returns:** `Symbol, Integer` - The layer as a symbol (:background, :world, :entities, :effects, :ui, :debug) or integer
+
+**Example:**
+
+```ruby
+sprite.layer           # => :entities (default)
+```
+
+---
+
+<a id="layer"></a>
+
+### #layer=
+
+Set the render layer. Layers organize rendering into broad categories. Sprites in lower layers render first (appear behind), higher layers render last (appear in front). Within a layer, use z for fine-grained depth control.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Symbol, Integer` | Layer as symbol (:background, :world, :entities, :effects, :ui, :debug) or integer (0-255) |
+
+**Returns:** `Symbol, Integer` - The value that was set
+
+**Example:**
+
+```ruby
+# Layer organization
 ```
 
 ---
@@ -738,45 +453,6 @@ Get the height of the sprite (from source_rect or texture).
 
 ```ruby
 h = sprite.height
-```
-
----
-
-<a id="parent"></a>
-
-### #parent
-
-Get the parent Transform2D. Returns nil if no parent is set.
-
-**Returns:** `Transform2D, nil` - The parent transform, or nil if none
-
-**Example:**
-
-```ruby
-parent = sprite.parent
-```
-
----
-
-<a id="parent"></a>
-
-### #parent=
-
-Set a Transform2D as the parent. The sprite will transform relative to the parent's world transform. Set to nil to remove the parent.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Transform2D, nil` | The parent transform, or nil to clear |
-
-**Returns:** `Transform2D, nil` - The value that was set
-
-**Example:**
-
-```ruby
-# Sprite follows a transform
-  turret_base = Transform2D.new(x: 200, y: 200)
 ```
 
 ---

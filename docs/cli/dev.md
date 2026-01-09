@@ -15,17 +15,18 @@ Streamlined development workflow that builds and runs.
       Targets:
         debug   - Build debug and run (default)
         release - Build release and run
-        web     - Clean, build web, and start server (always cleans)
+        web     - Build web and start server
 
       Options:
-        --clean     - Clean before building (for fresh native builds)
+        --clean     - Clean before building (for fresh builds)
         --no-run    - Build only, don't run afterward
 
       Examples:
         gmrcli dev              # Build debug, run
         gmrcli dev --clean      # Clean, build debug, run
         gmrcli dev release      # Build release, run
-        gmrcli dev web          # Clean, build web, start server
+        gmrcli dev web          # Build web, start server
+        gmrcli dev web --clean  # Clean, build web, start server
 
 ## Options
 

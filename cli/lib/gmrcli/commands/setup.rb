@@ -533,6 +533,9 @@ module Gmrcli
             conf.gem core: 'mruby-enumerator'
             conf.gem core: 'mruby-compar-ext'
             conf.gem core: 'mruby-toplevel-ext'
+
+            # JSON support
+            conf.gem github: 'mattn/mruby-json'
           end
         RUBY
 
@@ -873,9 +876,9 @@ module Gmrcli
             conf.gem core: 'mruby-compar-ext'
             conf.gem core: 'mruby-toplevel-ext'
 
-            # Extended gems (commented out to reduce build time/ASYNCIFY overhead)
-            # conf.gem core: 'mruby-pack'
-            # conf.gem github: 'mattn/mruby-json'
+            # Extended gems
+            # conf.gem core: 'mruby-pack'  # Commented out to reduce build time/ASYNCIFY overhead
+            conf.gem github: 'mattn/mruby-json'
           end
         RUBY
 

@@ -7,6 +7,11 @@
 ## Table of Contents
 
 - [Instance Methods](#instance-methods)
+  - [#Transform2D.lerp_position](#transform2d.lerp_position)
+  - [#Transform2D.lerp_rotation](#transform2d.lerp_rotation)
+  - [#Transform2D.lerp_scale](#transform2d.lerp_scale)
+  - [#center_origin](#center_origin)
+  - [#forward](#forward)
   - [#initialize](#initialize)
   - [#origin_x](#origin_x)
   - [#origin_x=](#origin_x)
@@ -16,13 +21,18 @@
   - [#parent=](#parent)
   - [#position](#position)
   - [#position=](#position)
+  - [#right](#right)
   - [#rotation](#rotation)
   - [#rotation=](#rotation)
+  - [#round_to_pixel!](#round_to_pixel)
   - [#scale_x](#scale_x)
   - [#scale_x=](#scale_x)
   - [#scale_y](#scale_y)
   - [#scale_y=](#scale_y)
+  - [#snap_to_grid!](#snap_to_grid)
   - [#world_position](#world_position)
+  - [#world_rotation](#world_rotation)
+  - [#world_scale](#world_scale)
   - [#x](#x)
   - [#x=](#x)
   - [#y](#y)
@@ -362,6 +372,29 @@ transform.origin_y = 16  # Pivot 16px from top edge
 
 ---
 
+<a id="center_origin"></a>
+
+### #center_origin
+
+Set the origin to the center of the given dimensions, so the transform rotates and scales around its center point. Useful for sprites, images, or any rectangular object.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `w` | `Float` | The width of the object in pixels |
+| `h` | `Float` | The height of the object in pixels |
+
+**Returns:** `Transform2D` - self for chaining
+
+**Example:**
+
+```ruby
+Transform2D.new(x: 100, y: 100).center_origin(64, 64)  # Method chaining
+```
+
+---
+
 <a id="parent"></a>
 
 ### #parent
@@ -419,6 +452,182 @@ Get the final world position after applying all parent transforms. For transform
   child = Transform2D.new(x: 50, y: 0)
   child.parent = parent
   pos = child.world_position  # Position after rotation by parent
+```
+
+---
+
+<a id="world_rotation"></a>
+
+### #world_rotation
+
+Get the final world rotation after applying all parent transforms. For transforms without a parent, this equals the local rotation. For parented transforms, this returns the combined rotation of the entire hierarchy.
+
+**Returns:** `Float` - The world rotation in degrees
+
+**Example:**
+
+```ruby
+child_world_rot = transform.world_rotation
+```
+
+---
+
+<a id="world_scale"></a>
+
+### #world_scale
+
+Get the final world scale after applying all parent transforms. For transforms without a parent, this equals the local scale. For parented transforms, this returns the combined scale of the entire hierarchy.
+
+**Returns:** `Vec2` - The world scale
+
+**Example:**
+
+```ruby
+world_s = transform.world_scale
+```
+
+---
+
+<a id="forward"></a>
+
+### #forward
+
+Get the forward direction vector after world rotation. The forward vector points in the direction the transform is facing (0 degrees = right).
+
+**Returns:** `Vec2` - The normalized forward direction
+
+**Example:**
+
+```ruby
+forward = transform.forward
+  transform.x += forward.x * speed * dt  # Move forward
+```
+
+---
+
+<a id="right"></a>
+
+### #right
+
+Get the right direction vector after world rotation. The right vector points perpendicular to forward (90 degrees clockwise).
+
+**Returns:** `Vec2` - The normalized right direction
+
+**Example:**
+
+```ruby
+right = transform.right
+  transform.x += right.x * strafe_speed * dt  # Strafe right
+```
+
+---
+
+<a id="snap_to_grid"></a>
+
+### #snap_to_grid!
+
+Snap the position to the nearest grid cell. Useful for tile-based games or ensuring pixel-perfect alignment.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `grid_size` | `Float` | The size of each grid cell in pixels |
+
+**Returns:** `nil`
+
+**Example:**
+
+```ruby
+transform.snap_to_grid!(16)  # Snap to 16x16 grid
+```
+
+---
+
+<a id="round_to_pixel"></a>
+
+### #round_to_pixel!
+
+Round the position to the nearest integer pixel coordinates. Useful for pixel-art games to avoid sub-pixel rendering artifacts.
+
+**Returns:** `nil`
+
+**Example:**
+
+```ruby
+transform.round_to_pixel!  # Ensure crisp pixel alignment
+```
+
+---
+
+<a id="transform2d.lerp_position"></a>
+
+### #Transform2D.lerp_position
+
+Linearly interpolate between two positions.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `a` | `Vec2` | Start position |
+| `b` | `Vec2` | End position |
+| `t` | `Float` | Interpolation factor (0.0 to 1.0) |
+
+**Returns:** `Vec2` - The interpolated position
+
+**Example:**
+
+```ruby
+pos = Transform2D.lerp_position(start_pos, end_pos, 0.5)
+```
+
+---
+
+<a id="transform2d.lerp_rotation"></a>
+
+### #Transform2D.lerp_rotation
+
+Interpolate between two rotation angles using shortest path. Automatically handles wrapping (e.g., 350° to 10° goes through 0°, not 340°).
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `a` | `Float` | Start rotation in degrees |
+| `b` | `Float` | End rotation in degrees |
+| `t` | `Float` | Interpolation factor (0.0 to 1.0) |
+
+**Returns:** `Float` - The interpolated rotation in degrees
+
+**Example:**
+
+```ruby
+rot = Transform2D.lerp_rotation(0, 270, 0.5)  # Returns 315 (shortest path)
+```
+
+---
+
+<a id="transform2d.lerp_scale"></a>
+
+### #Transform2D.lerp_scale
+
+Linearly interpolate between two scale vectors.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `a` | `Vec2` | Start scale |
+| `b` | `Vec2` | End scale |
+| `t` | `Float` | Interpolation factor (0.0 to 1.0) |
+
+**Returns:** `Vec2` - The interpolated scale
+
+**Example:**
+
+```ruby
+scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), 0.5)
 ```
 
 ---

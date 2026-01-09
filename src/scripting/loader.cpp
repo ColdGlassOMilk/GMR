@@ -20,6 +20,8 @@
 #include "gmr/bindings/sprite_animation.hpp"
 #include "gmr/bindings/state_machine.hpp"
 #include "gmr/bindings/animator.hpp"
+#include "gmr/bindings/filesystem.hpp"
+#include "gmr/bindings/storage.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
@@ -98,6 +100,12 @@ void Loader::register_all_bindings() {
 
     // Register State Machine system (GMR::StateMachine)
     bindings::register_state_machine(mrb_);
+
+    // Register File module (GMR::File)
+    bindings::register_file(mrb_);
+
+    // Register Storage module (GMR::Storage)
+    bindings::register_storage(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);

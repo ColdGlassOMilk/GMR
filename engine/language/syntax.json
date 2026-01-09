@@ -352,9 +352,12 @@
   },
   "engine": {
     "modules": [
+      "GMR",
       "GMR::Collision",
+      "GMR::File",
       "GMR::Graphics",
       "GMR::Input",
+      "GMR::Storage",
       "GMR::System",
       "GMR::Time",
       "GMR::Window"
@@ -364,6 +367,7 @@
       "GMR",
       "GMR::Animator",
       "GMR::Audio::Sound",
+      "GMR::CollisionResult",
       "GMR::Ease",
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
@@ -394,7 +398,18 @@
         "distance",
         "distance_squared"
       ],
+      "GMR::File": [
+        "read_text",
+        "read_bytes",
+        "read_json",
+        "write_text",
+        "write_bytes",
+        "write_json",
+        "exists?",
+        "list_files"
+      ],
       "GMR::Graphics": [
+        "rgb",
         "clear",
         "draw_rect",
         "draw_rect_outline",
@@ -437,6 +452,14 @@
         "input",
         "input_context"
       ],
+      "GMR::Storage": [
+        "get",
+        "set",
+        "has_key?",
+        "delete",
+        "increment",
+        "decrement"
+      ],
       "GMR::System": [
         "quit",
         "platform",
@@ -476,6 +499,12 @@
         "elapsed",
         "fps",
         "set_target_fps"
+      ],
+      "GMR": [
+        "lerp_position",
+        "lerp_rotation",
+        "lerp_scale",
+        "inspect"
       ],
       "GMR::Animator": [
         "initialize",
@@ -519,6 +548,20 @@
         "current=",
         "current"
       ],
+      "GMR::CollisionResult": [
+        "x",
+        "y",
+        "vx",
+        "vy",
+        "left?",
+        "right?",
+        "top?",
+        "bottom?",
+        "grounded?",
+        "hit_horizontal?",
+        "hit_vertical?",
+        "any?"
+      ],
       "GMR::Ease": [
         "linear",
         "in_quad",
@@ -554,6 +597,8 @@
         "load",
         "width",
         "height",
+        "release",
+        "ref_count",
         "draw",
         "draw_ex",
         "draw_pro"
@@ -562,8 +607,6 @@
         "new",
         "tile_width",
         "tile_height",
-        "get",
-        "set",
         "fill",
         "fill_rect",
         "draw_region",
@@ -665,25 +708,11 @@
       ],
       "Sprite": [
         "initialize",
-        "x",
-        "y",
-        "x=",
-        "y=",
-        "position",
-        "position=",
-        "rotation",
-        "rotation=",
-        "scale_x",
-        "scale_y",
-        "scale_x=",
-        "scale_y=",
-        "origin_x",
-        "origin_y",
-        "origin_x=",
-        "origin_y=",
-        "origin",
-        "origin=",
+        "transform",
+        "transform=",
         "center_origin",
+        "layer",
+        "layer=",
         "z",
         "z=",
         "color",
@@ -700,8 +729,6 @@
         "source_rect=",
         "width",
         "height",
-        "parent",
-        "parent=",
         "draw",
         "count",
         "play_animation"
@@ -755,9 +782,19 @@
         "scale_y=",
         "origin_x=",
         "origin_y=",
+        "center_origin",
         "parent",
         "parent=",
-        "world_position"
+        "world_position",
+        "world_rotation",
+        "world_scale",
+        "forward",
+        "right",
+        "snap_to_grid!",
+        "round_to_pixel!",
+        "Transform2D.lerp_position",
+        "Transform2D.lerp_rotation",
+        "Transform2D.lerp_scale"
       ],
       "GMR::Tween": [
         "to",
@@ -773,9 +810,6 @@
         "progress",
         "cancel_all",
         "count"
-      ],
-      "GMR": [
-        "inspect"
       ]
     },
     "constants": {

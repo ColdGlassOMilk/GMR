@@ -106,12 +106,12 @@ Set the window size. Has no effect in fullscreen mode.
 | `w` | `Integer` | Window width in pixels |
 | `h` | `Integer` | Window height in pixels |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Window.set_size(1280, 720)
+GMR::Window.set_size(1280, 720).set_title("My Game")
 ```
 
 ---
@@ -128,7 +128,7 @@ Set the window title bar text.
 |------|------|-------------|
 | `title` | `String` | The window title |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
@@ -207,13 +207,13 @@ Set a virtual resolution for pixel-perfect rendering. The game renders to this r
 | `w` | `Integer` | Virtual width in pixels |
 | `h` | `Integer` | Virtual height in pixels |
 
-**Returns:** `Boolean` - true
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
 # Render at 320x240 for retro-style game
-  GMR::Window.set_virtual_resolution(320, 240)
+  GMR::Window.set_virtual_resolution(320, 240).set_filter_point
 ```
 
 ---
@@ -224,7 +224,7 @@ Set a virtual resolution for pixel-perfect rendering. The game renders to this r
 
 Disable virtual resolution and render directly at window size.
 
-**Returns:** `Boolean` - true
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
@@ -258,12 +258,12 @@ end
 
 Set nearest-neighbor (point) filtering for virtual resolution scaling. Produces crisp, pixelated look. Only works when virtual resolution is enabled.
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Window.set_filter_point  # For pixel art games
+GMR::Window.set_virtual_resolution(320, 240).set_filter_point
 ```
 
 ---
@@ -274,12 +274,12 @@ GMR::Window.set_filter_point  # For pixel art games
 
 Set bilinear filtering for virtual resolution scaling. Produces smoother, blended scaling. Only works when virtual resolution is enabled.
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Window.set_filter_bilinear  # For smoother scaling
+GMR::Window.set_virtual_resolution(320, 240).set_filter_bilinear
 ```
 
 ---

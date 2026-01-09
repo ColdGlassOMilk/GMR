@@ -76,7 +76,7 @@ Set the target frame rate. The game will try to maintain this FPS. Set to 0 for 
 |------|------|-------------|
 | `fps` | `Integer` | Target frames per second |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 

@@ -358,6 +358,10 @@ void register_top_level_aliases(mrb_state* mrb) {
         mrb_obj_value(mrb_module_get_under(mrb, gmr, "Core")));
     mrb_define_const(mrb, gmr, "Mathf",
         mrb_obj_value(mrb_module_get_under(mrb, gmr, "Mathf")));
+    mrb_define_const(mrb, gmr, "File",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "File")));
+    mrb_define_const(mrb, gmr, "Storage",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Storage")));
 
     // Graphics classes -> GMR top-level
     // Sprite, Texture, Tilemap, Camera, Rect, Transform2D become accessible after "include GMR"

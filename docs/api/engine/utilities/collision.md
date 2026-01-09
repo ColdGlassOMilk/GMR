@@ -263,7 +263,7 @@ x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)
 
 ### tilemap_resolve
 
-Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.
+Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns a CollisionResult object with resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.
 
 **Parameters:**
 
@@ -277,7 +277,7 @@ Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Return
 | `vx` | `Float` | Current X velocity (for directional checks) |
 | `vy` | `Float` | Current Y velocity (for directional checks) |
 
-**Returns:** `Hash` - Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom
+**Returns:** `CollisionResult` - Collision result with position, velocity, and collision flags
 
 **Example:**
 

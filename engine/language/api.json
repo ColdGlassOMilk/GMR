@@ -128,6 +128,11 @@
       "module": "Camera2D",
       "description": "TODO: Add description"
     },
+    "CollisionResult": {
+      "kind": "class",
+      "module": "GMR::CollisionResult",
+      "description": "TODO: Add description"
+    },
     "Ease": {
       "kind": "class",
       "module": "GMR::Ease",
@@ -534,7 +539,7 @@
           "example": "x, y, w, h = GMR::Collision.tile_rect(5, 3, 16)\n  # Returns [80, 48, 16, 16]\r"
         },
         "tilemap_resolve": {
-          "description": "Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.",
+          "description": "Resolve collision between a hitbox rectangle and a tilemap's solid tiles. Returns a CollisionResult object with resolved position and collision flags. This is the recommended way to handle character-tilemap collisions in platformers.",
           "params": [
             {
               "name": "tilemap",
@@ -573,8 +578,8 @@
             }
           ],
           "returns": {
-            "type": "Hash",
-            "description": "Collision result with keys :x, :y, :vx, :vy, :left, :right, :top, :bottom"
+            "type": "CollisionResult",
+            "description": "Collision result with position, velocity, and collision flags"
           },
           "example": "# In update loop:\n  local_x = @sprite.x + HITBOX_OFFSET_X - MAP_OFFSET_X\r\n  local_y = @sprite.y + HITBOX_OFFSET_Y - MAP_OFFSET_Y\r\n  result = Collision.tilemap_resolve(@tilemap, local_x, local_y, HITBOX_W, HITBOX_H, @vx, @vy)\r"
         },
@@ -640,9 +645,184 @@
         }
       }
     },
+    "GMR::File": {
+      "description": "TODO: Add description",
+      "functions": {
+        "read_text": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file (e.g., \"save.txt\" or \"config/settings.txt\")"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - :assets (read-only) or :data (writable). Default: :data"
+            }
+          ],
+          "example": "# Read from assets\n  config = GMR::File.read_text(\"config.txt\", root: :assets)\r"
+        },
+        "read_bytes": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - :assets or :data. Default: :data"
+            }
+          ],
+          "example": "# Read binary data\n  bytes = GMR::File.read_bytes(\"level.dat\", root: :data)\r"
+        },
+        "read_json": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to JSON file"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - :assets or :data. Default: :data"
+            }
+          ],
+          "example": "# Read JSON save file\n  data = GMR::File.read_json(\"save.json\", root: :data)\r\n  puts data[\"level\"]  # Access parsed data\r"
+        },
+        "write_text": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file"
+            },
+            {
+              "name": "content",
+              "type": "String",
+              "description": "Text content to write"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - must be :data (writes to :assets are rejected). Default: :data"
+            }
+          ],
+          "example": "# Write log file\n  GMR::File.write_text(\"log.txt\", \"Game started\\n\", root: :data)\r"
+        },
+        "write_bytes": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file"
+            },
+            {
+              "name": "data",
+              "type": "String",
+              "description": "Binary data to write"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - must be :data. Default: :data"
+            }
+          ],
+          "example": "# Write binary data\n  GMR::File.write_bytes(\"level.dat\", binary_data, root: :data)\r"
+        },
+        "write_json": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file"
+            },
+            {
+              "name": "data",
+              "type": "Hash, Array",
+              "description": "Ruby object to serialize as JSON"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - must be :data. Default: :data"
+            },
+            {
+              "name": "pretty",
+              "type": "Boolean",
+              "description": "Format JSON with indentation. Default: false (minified)"
+            }
+          ],
+          "example": "# Write JSON with pretty formatting\n  GMR::File.write_json(\"config.json\", data, root: :data, pretty: true)\r"
+        },
+        "exists?": {
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Relative path to file"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - :assets or :data. Default: :data"
+            }
+          ],
+          "example": "# Check if save file exists\n  if GMR::File.exists?(\"save.json\", root: :data)\r\n    data = GMR::File.read_json(\"save.json\", root: :data)\r\n  end\r"
+        },
+        "list_files": {
+          "params": [
+            {
+              "name": "directory",
+              "type": "String",
+              "description": "Relative path to directory"
+            },
+            {
+              "name": "root",
+              "type": "Symbol",
+              "description": "Logical root directory - :assets or :data. Default: :data"
+            }
+          ],
+          "example": "# List save files\n  files = GMR::File.list_files(\"saves\", root: :data)\r\n  files.each { |f| puts f }  # \"save1.json\", \"save2.json\", ...\r"
+        }
+      }
+    },
     "GMR::Graphics": {
       "description": "TODO: Add description",
       "functions": {
+        "rgb": {
+          "description": "Create a color array from RGB(A) values. Convenience helper.",
+          "params": [
+            {
+              "name": "r",
+              "type": "Integer",
+              "description": "Red component (0-255)"
+            },
+            {
+              "name": "g",
+              "type": "Integer",
+              "description": "Green component (0-255)"
+            },
+            {
+              "name": "b",
+              "type": "Integer",
+              "description": "Blue component (0-255)"
+            },
+            {
+              "name": "a",
+              "type": "Integer",
+              "description": "Alpha component (0-255, default: 255)"
+            }
+          ],
+          "returns": {
+            "type": "Array<Integer>",
+            "description": "Color array [r, g, b, a]"
+          },
+          "example": "sprite.color = rgb(255, 100, 100)"
+        },
         "clear": {
           "signature": "clear(color)",
           "description": "Clear the screen with a solid color",
@@ -650,83 +830,83 @@
             {
               "name": "color",
               "type": "Color",
-              "description": "The background color"
+              "description": "The background color (array, hex string, or named symbol)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.clear([20, 20, 40])"
+          "example": "GMR::Graphics.clear(:dark_gray)"
         },
         "draw_rect": {
-          "signature": "draw_rect(x, y, w, h, color)",
+          "signature": "draw_rect(transform, width, height, color)",
           "description": "Draw a filled rectangle",
           "params": [
             {
-              "name": "x",
-              "type": "Integer",
-              "description": "X position (left edge)"
+              "name": "transform_or_x",
+              "type": "Transform2D|Integer",
+              "description": "Transform2D object OR X position (left edge)"
             },
             {
-              "name": "y",
-              "type": "Integer",
-              "description": "Y position (top edge)"
+              "name": "width_or_y",
+              "type": "Float|Integer",
+              "description": "Width in pixels (if transform) OR Y position (top edge)"
             },
             {
-              "name": "w",
-              "type": "Integer",
-              "description": "Width in pixels"
+              "name": "height_or_w",
+              "type": "Float|Integer",
+              "description": "Height in pixels (if transform) OR Width in pixels"
             },
             {
-              "name": "h",
-              "type": "Integer",
-              "description": "Height in pixels"
+              "name": "color_or_h",
+              "type": "Color|Integer",
+              "description": "Fill color (if transform) OR Height in pixels"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Fill color"
+              "description": "Fill color (if using x,y,w,h)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])"
+          "example": "GMR::Graphics.draw_rect(100, 100, 50, 30, [255, 0, 0])  # Legacy x,y,w,h"
         },
         "draw_rect_outline": {
-          "signature": "draw_rect_outline(x, y, w, h, color)",
+          "signature": "draw_rect_outline(transform, width, height, color)",
           "description": "Draw a rectangle outline (not filled)",
           "params": [
             {
-              "name": "x",
-              "type": "Integer",
-              "description": "X position (left edge)"
+              "name": "transform_or_x",
+              "type": "Transform2D|Integer",
+              "description": "Transform2D object OR X position (left edge)"
             },
             {
-              "name": "y",
-              "type": "Integer",
-              "description": "Y position (top edge)"
+              "name": "width_or_y",
+              "type": "Float|Integer",
+              "description": "Width in pixels (if transform) OR Y position (top edge)"
             },
             {
-              "name": "w",
-              "type": "Integer",
-              "description": "Width in pixels"
+              "name": "height_or_w",
+              "type": "Float|Integer",
+              "description": "Height in pixels (if transform) OR Width in pixels"
             },
             {
-              "name": "h",
-              "type": "Integer",
-              "description": "Height in pixels"
+              "name": "color_or_h",
+              "type": "Color|Integer",
+              "description": "Outline color (if transform) OR Height in pixels"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Outline color"
+              "description": "Outline color (if using x,y,w,h)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])"
+          "example": "GMR::Graphics.draw_rect_outline(100, 100, 50, 30, [255, 255, 255])  # Legacy x,y,w,h"
         },
         "draw_rect_rotated": {
           "signature": "draw_rect_rotated(x, y, w, h, angle, color)",
@@ -769,39 +949,49 @@
           "example": "GMR::Graphics.draw_rect_rotated(160, 120, 40, 20, 45.0, [0, 255, 0])"
         },
         "draw_line": {
-          "signature": "draw_line(x1, y1, x2, y2, color)",
+          "signature": "draw_line(transform, x1, y1, x2, y2, color, thickness=1.0)",
           "description": "Draw a line between two points",
           "params": [
             {
-              "name": "x1",
-              "type": "Integer",
-              "description": "Start X position"
+              "name": "transform_or_x1",
+              "type": "Transform2D|Integer",
+              "description": "Transform2D object OR Start X position"
             },
             {
-              "name": "y1",
-              "type": "Integer",
-              "description": "Start Y position"
+              "name": "x1_or_y1",
+              "type": "Float|Integer",
+              "description": "Local X1 (if transform) OR Start Y position"
             },
             {
-              "name": "x2",
-              "type": "Integer",
-              "description": "End X position"
+              "name": "y1_or_x2",
+              "type": "Float|Integer",
+              "description": "Local Y1 (if transform) OR End X position"
             },
             {
-              "name": "y2",
-              "type": "Integer",
-              "description": "End Y position"
+              "name": "x2_or_y2",
+              "type": "Float|Integer",
+              "description": "Local X2 (if transform) OR End Y position"
             },
             {
-              "name": "color",
-              "type": "Color",
-              "description": "Line color"
+              "name": "y2_or_color",
+              "type": "Float|Color",
+              "description": "Local Y2 (if transform) OR Line color"
+            },
+            {
+              "name": "color_or_thickness",
+              "type": "Color|Float",
+              "description": "Line color (if transform) OR Optional thickness"
+            },
+            {
+              "name": "thickness",
+              "type": "Float",
+              "description": "Optional line thickness (default: 1.0, transform API only)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_line(0, 0, 100, 100, [255, 255, 255])"
+          "example": "GMR::Graphics.draw_line(0, 0, 100, 100, :red, 3.0)  # Legacy with thickness"
         },
         "draw_line_thick": {
           "signature": "draw_line_thick(x1, y1, x2, y2, thickness, color)",
@@ -844,64 +1034,64 @@
           "example": "GMR::Graphics.draw_line_thick(0, 0, 100, 100, 3.0, [255, 200, 100])"
         },
         "draw_circle": {
-          "signature": "draw_circle(x, y, radius, color)",
+          "signature": "draw_circle(transform, radius, color)",
           "description": "Draw a filled circle",
           "params": [
             {
-              "name": "x",
-              "type": "Integer",
-              "description": "Center X position"
+              "name": "transform_or_x",
+              "type": "Transform2D|Integer",
+              "description": "Transform2D object OR Center X position"
             },
             {
-              "name": "y",
-              "type": "Integer",
-              "description": "Center Y position"
+              "name": "radius_or_y",
+              "type": "Float|Integer",
+              "description": "Radius in pixels (if transform) OR Center Y position"
             },
             {
-              "name": "radius",
-              "type": "Integer",
-              "description": "Circle radius in pixels"
+              "name": "color_or_radius",
+              "type": "Color|Integer",
+              "description": "Fill color (if transform) OR Radius in pixels"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Fill color"
+              "description": "Fill color (if using x,y,radius)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])"
+          "example": "GMR::Graphics.draw_circle(160, 120, 25, [100, 200, 255])  # Legacy x,y,radius"
         },
         "draw_circle_outline": {
-          "signature": "draw_circle_outline(x, y, radius, color)",
+          "signature": "draw_circle_outline(transform, radius, color)",
           "description": "Draw a circle outline",
           "params": [
             {
-              "name": "x",
-              "type": "Integer",
-              "description": "Center X position"
+              "name": "transform_or_x",
+              "type": "Transform2D|Integer",
+              "description": "Transform2D object OR Center X position"
             },
             {
-              "name": "y",
-              "type": "Integer",
-              "description": "Center Y position"
+              "name": "radius_or_y",
+              "type": "Float|Integer",
+              "description": "Radius in pixels (if transform) OR Center Y position"
             },
             {
-              "name": "radius",
-              "type": "Integer",
-              "description": "Circle radius in pixels"
+              "name": "color_or_radius",
+              "type": "Color|Integer",
+              "description": "Outline color (if transform) OR Radius in pixels"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Outline color"
+              "description": "Outline color (if using x,y,radius)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])"
+          "example": "GMR::Graphics.draw_circle_outline(160, 120, 25, [255, 255, 255])  # Legacy x,y,radius"
         },
         "draw_circle_gradient": {
           "signature": "draw_circle_gradient(x, y, radius, inner_color, outer_color)",
@@ -939,129 +1129,139 @@
           "example": "GMR::Graphics.draw_circle_gradient(160, 120, 50, [255, 255, 255], [255, 0, 0, 0])"
         },
         "draw_triangle": {
-          "signature": "draw_triangle(x1, y1, x2, y2, x3, y3, color)",
+          "signature": "draw_triangle(transform, x1, y1, x2, y2, x3, y3, color)",
           "description": "Draw a filled triangle",
           "params": [
             {
-              "name": "x1",
-              "type": "Float",
-              "description": "First vertex X"
+              "name": "transform_or_x1",
+              "type": "Transform2D|Float",
+              "description": "Transform2D object OR First vertex X"
             },
             {
-              "name": "y1",
+              "name": "x1_or_y1",
               "type": "Float",
-              "description": "First vertex Y"
+              "description": "Local X1 (if transform) OR First vertex Y"
             },
             {
-              "name": "x2",
+              "name": "y1_or_x2",
               "type": "Float",
-              "description": "Second vertex X"
+              "description": "Local Y1 (if transform) OR Second vertex X"
             },
             {
-              "name": "y2",
+              "name": "x2_or_y2",
               "type": "Float",
-              "description": "Second vertex Y"
+              "description": "Local X2 (if transform) OR Second vertex Y"
             },
             {
-              "name": "x3",
+              "name": "y2_or_x3",
               "type": "Float",
-              "description": "Third vertex X"
+              "description": "Local Y2 (if transform) OR Third vertex X"
             },
             {
-              "name": "y3",
+              "name": "x3_or_y3",
               "type": "Float",
-              "description": "Third vertex Y"
+              "description": "Local X3 (if transform) OR Third vertex Y"
+            },
+            {
+              "name": "y3_or_color",
+              "type": "Float|Color",
+              "description": "Local Y3 (if transform) OR Fill color"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Fill color"
+              "description": "Fill color (if using transform)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])"
+          "example": "GMR::Graphics.draw_triangle(100, 50, 50, 150, 150, 150, [255, 0, 0])  # Legacy world coords"
         },
         "draw_triangle_outline": {
-          "signature": "draw_triangle_outline(x1, y1, x2, y2, x3, y3, color)",
+          "signature": "draw_triangle_outline(transform, x1, y1, x2, y2, x3, y3, color)",
           "description": "Draw a triangle outline",
           "params": [
             {
-              "name": "x1",
-              "type": "Float",
-              "description": "First vertex X"
+              "name": "transform_or_x1",
+              "type": "Transform2D|Float",
+              "description": "Transform2D object OR First vertex X"
             },
             {
-              "name": "y1",
+              "name": "x1_or_y1",
               "type": "Float",
-              "description": "First vertex Y"
+              "description": "Local X1 (if transform) OR First vertex Y"
             },
             {
-              "name": "x2",
+              "name": "y1_or_x2",
               "type": "Float",
-              "description": "Second vertex X"
+              "description": "Local Y1 (if transform) OR Second vertex X"
             },
             {
-              "name": "y2",
+              "name": "x2_or_y2",
               "type": "Float",
-              "description": "Second vertex Y"
+              "description": "Local X2 (if transform) OR Second vertex Y"
             },
             {
-              "name": "x3",
+              "name": "y2_or_x3",
               "type": "Float",
-              "description": "Third vertex X"
+              "description": "Local Y2 (if transform) OR Third vertex X"
             },
             {
-              "name": "y3",
+              "name": "x3_or_y3",
               "type": "Float",
-              "description": "Third vertex Y"
+              "description": "Local X3 (if transform) OR Third vertex Y"
+            },
+            {
+              "name": "y3_or_color",
+              "type": "Float|Color",
+              "description": "Local Y3 (if transform) OR Outline color"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Outline color"
+              "description": "Outline color (if using transform)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])"
+          "example": "GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])  # Legacy world coords"
         },
         "draw_text": {
-          "signature": "draw_text(text, x, y, size, color)",
+          "signature": "draw_text(transform, text, size, color)",
           "description": "Draw text at a position",
           "params": [
             {
-              "name": "text",
-              "type": "String",
-              "description": "The text to draw"
+              "name": "transform_or_text",
+              "type": "Transform2D|String",
+              "description": "Transform2D object OR The text to draw"
             },
             {
-              "name": "x",
-              "type": "Integer",
-              "description": "X position (left edge)"
+              "name": "text_or_x",
+              "type": "String|Integer",
+              "description": "Text content (if transform) OR X position (left edge)"
             },
             {
-              "name": "y",
+              "name": "size_or_y",
               "type": "Integer",
-              "description": "Y position (top edge)"
+              "description": "Font size (if transform) OR Y position (top edge)"
             },
             {
-              "name": "size",
-              "type": "Integer",
-              "description": "Font size in pixels"
+              "name": "color_or_size",
+              "type": "Color|Integer",
+              "description": "Text color (if transform) OR Font size in pixels"
             },
             {
               "name": "color",
               "type": "Color",
-              "description": "Text color"
+              "description": "Text color (if using x,y)"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, [255, 255, 255])"
+          "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, [255, 255, 255])  # Legacy x,y,size"
         },
         "measure_text": {
           "signature": "measure_text(text, size)",
@@ -1234,7 +1434,8 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "# Block DSL form\n  GMR::Input.map do |i|\r\n    i.action :jump, key: :space\r\n    i.action :attack, keys: [:z, :x], mouse: :left\r\n  end\r"
         },
@@ -1248,16 +1449,18 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Input.unmap(:jump)"
+          "example": "GMR::Input.unmap(:jump).unmap(:attack)"
         },
         "clear_mappings": {
           "description": "Remove all action mappings.",
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Input.clear_mappings"
+          "example": "GMR::Input.clear_mappings.map(:new_action, :space)"
         },
         "action_down?": {
           "description": "Check if a mapped action is currently active (any bound input is held).",
@@ -1350,17 +1553,24 @@
               "name": "name",
               "type": "Symbol",
               "description": "The context name to push"
+            },
+            {
+              "name": "blocks_global",
+              "type": "Boolean",
+              "description": "(optional) If true, global actions are blocked while this context is active"
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Input.push_context(:menu)\n  # :menu actions are now active, game actions still on stack\r"
+          "example": "GMR::Input.push_context(:pause, blocks_global: true)\n  # :pause actions active, global game actions blocked\r"
         },
         "pop_context": {
           "description": "Pop the current input context from the stack, returning to the previous context.",
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "GMR::Input.pop_context  # Return to previous context"
         },
@@ -1374,7 +1584,8 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "GMR::Input.set_context(:gameplay)"
         },
@@ -1421,6 +1632,91 @@
             "type": "nil"
           },
           "example": "input_context :menu do |i|\n  i.confirm :enter\r\n  i.cancel :escape\r\n  i.navigate_up :up\r\n  i.navigate_down :down\r\nend\r"
+        }
+      }
+    },
+    "GMR::Storage": {
+      "description": "TODO: Add description",
+      "functions": {
+        "get": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key (e.g., \"high_score\", :volume)"
+            },
+            {
+              "name": "default",
+              "type": "Integer",
+              "description": "Default value if key doesn't exist (default: 0)"
+            }
+          ],
+          "example": "# Get volume with default\n  volume = GMR::Storage.get(:volume, 80)\r"
+        },
+        "set": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key (e.g., \"high_score\", :volume)"
+            },
+            {
+              "name": "value",
+              "type": "Integer",
+              "description": "Value to store"
+            }
+          ],
+          "example": "# Save volume setting\n  GMR::Storage.set(:volume, 80)\r"
+        },
+        "has_key?": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key to check"
+            }
+          ],
+          "example": "# Check if high score exists\n  if GMR::Storage.has_key?(\"high_score\")\r\n    score = GMR::Storage.get(\"high_score\")\r\n  end\r"
+        },
+        "delete": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key to delete"
+            }
+          ],
+          "example": "# Delete high score\n  GMR::Storage.delete(\"high_score\")\r"
+        },
+        "increment": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key to increment"
+            },
+            {
+              "name": "amount",
+              "type": "Integer",
+              "description": "Amount to add (default: 1)"
+            }
+          ],
+          "example": "# Add to score\n  GMR::Storage.increment(\"total_score\", 100)\r"
+        },
+        "decrement": {
+          "params": [
+            {
+              "name": "key",
+              "type": "String, Symbol",
+              "description": "Storage key to decrement"
+            },
+            {
+              "name": "amount",
+              "type": "Integer",
+              "description": "Amount to subtract (default: 1)"
+            }
+          ],
+          "example": "# Subtract from currency\n  GMR::Storage.decrement(\"gold\", 50)\r"
         }
       }
     },
@@ -1566,9 +1862,10 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Window.set_size(1280, 720)"
+          "example": "GMR::Window.set_size(1280, 720).set_title(\"My Game\")"
         },
         "set_title": {
           "description": "Set the window title bar text.",
@@ -1580,7 +1877,8 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "GMR::Window.set_title(\"My Awesome Game\")"
         },
@@ -1630,16 +1928,16 @@
             }
           ],
           "returns": {
-            "type": "Boolean",
-            "description": "true"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "# Render at 320x240 for retro-style game\n  GMR::Window.set_virtual_resolution(320, 240)\r"
+          "example": "# Render at 320x240 for retro-style game\n  GMR::Window.set_virtual_resolution(320, 240).set_filter_point\r"
         },
         "clear_virtual_resolution": {
           "description": "Disable virtual resolution and render directly at window size.",
           "returns": {
-            "type": "Boolean",
-            "description": "true"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "GMR::Window.clear_virtual_resolution"
         },
@@ -1654,16 +1952,18 @@
         "set_filter_point": {
           "description": "Set nearest-neighbor (point) filtering for virtual resolution scaling. Produces crisp, pixelated look. Only works when virtual resolution is enabled.",
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Window.set_filter_point  # For pixel art games"
+          "example": "GMR::Window.set_virtual_resolution(320, 240).set_filter_point"
         },
         "set_filter_bilinear": {
           "description": "Set bilinear filtering for virtual resolution scaling. Produces smoother, blended scaling. Only works when virtual resolution is enabled.",
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
-          "example": "GMR::Window.set_filter_bilinear  # For smoother scaling"
+          "example": "GMR::Window.set_virtual_resolution(320, 240).set_filter_bilinear"
         },
         "monitor_count": {
           "description": "Get the number of connected monitors.",
@@ -1772,9 +2072,89 @@
             }
           ],
           "returns": {
-            "type": "nil"
+            "type": "Module",
+            "description": "self for chaining"
           },
           "example": "GMR::Time.set_target_fps(60)  # Lock to 60 FPS"
+        }
+      }
+    },
+    "GMR": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "classMethods": {
+        "lerp_position": {
+          "signature": "lerp_position(arg1, arg2, arg3)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            },
+            {
+              "name": "arg2",
+              "type": "Object"
+            },
+            {
+              "name": "arg3",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "lerp_rotation": {
+          "signature": "lerp_rotation(arg1, arg2, arg3)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Float"
+            },
+            {
+              "name": "arg2",
+              "type": "Float"
+            },
+            {
+              "name": "arg3",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "lerp_scale": {
+          "signature": "lerp_scale(arg1, arg2, arg3)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            },
+            {
+              "name": "arg2",
+              "type": "Object"
+            },
+            {
+              "name": "arg3",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        }
+      },
+      "instanceMethods": {
+        "inspect": {
+          "signature": "inspect",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
         }
       }
     },
@@ -2269,6 +2649,97 @@
         }
       }
     },
+    "GMR::CollisionResult": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "x": {
+          "description": "Get the resolved X position after collision.",
+          "returns": {
+            "type": "Float",
+            "description": "Resolved X position"
+          }
+        },
+        "y": {
+          "description": "Get the resolved Y position after collision.",
+          "returns": {
+            "type": "Float",
+            "description": "Resolved Y position"
+          }
+        },
+        "vx": {
+          "description": "Get the resolved X velocity after collision (zeroed if hit wall).",
+          "returns": {
+            "type": "Float",
+            "description": "Resolved X velocity"
+          }
+        },
+        "vy": {
+          "description": "Get the resolved Y velocity after collision (zeroed if hit floor/ceiling).",
+          "returns": {
+            "type": "Float",
+            "description": "Resolved Y velocity"
+          }
+        },
+        "left?": {
+          "description": "Check if collided with a wall on the left.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit left wall"
+          }
+        },
+        "right?": {
+          "description": "Check if collided with a wall on the right.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit right wall"
+          }
+        },
+        "top?": {
+          "description": "Check if collided with a ceiling.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit ceiling"
+          }
+        },
+        "bottom?": {
+          "description": "Check if collided with the ground (landed).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit ground"
+          }
+        },
+        "grounded?": {
+          "description": "Alias for bottom? - Check if on the ground.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if on ground"
+          }
+        },
+        "hit_horizontal?": {
+          "description": "Check if collided horizontally (left or right wall).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit any horizontal surface"
+          }
+        },
+        "hit_vertical?": {
+          "description": "Check if collided vertically (floor or ceiling).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if hit any vertical surface"
+          }
+        },
+        "any?": {
+          "description": "Geometry collision detection utilities. Provides fast tests for point, rectangle, and circle collisions, as well as tile-based collision helpers.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if any collision happened"
+          },
+          "example": "# Mouse hover detection for UI buttons\n  class Button\r\n    def update(dt)\r\n      mx = GMR::Input.mouse_x\r\n      my = GMR::Input.mouse_y\r"
+        }
+      }
+    },
     "GMR::Ease": {
       "kind": "class",
       "description": "TODO: Add description",
@@ -2531,6 +3002,21 @@
           },
           "example": "puts sprite.height"
         },
+        "release": {
+          "description": "Manually release a reference to the texture. When the reference count reaches 0, the texture is unloaded from memory.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "texture.release  # Release this reference"
+        },
+        "ref_count": {
+          "description": "Get the current reference count for this texture (how many times it's been loaded)",
+          "returns": {
+            "type": "Integer",
+            "description": "Current reference count"
+          },
+          "example": "puts texture.ref_count  # -> 3 (texture is loaded in 3 places)"
+        },
         "draw": {
           "description": "Draw the texture at a position, optionally with a color tint",
           "params": [
@@ -2707,44 +3193,6 @@
           "signature": "tile_height",
           "description": "TODO: Add documentation",
           "params": [],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "get": {
-          "signature": "get(arg1, arg2)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            }
-          ],
-          "returns": {
-            "type": "unknown"
-          }
-        },
-        "set": {
-          "signature": "set(arg1, arg2, arg3)",
-          "description": "TODO: Add documentation",
-          "params": [
-            {
-              "name": "arg1",
-              "type": "Integer"
-            },
-            {
-              "name": "arg2",
-              "type": "Integer"
-            },
-            {
-              "name": "arg3",
-              "type": "Integer"
-            }
-          ],
           "returns": {
             "type": "unknown"
           }
@@ -3994,269 +4442,78 @@
       "description": "TODO: Add description",
       "instanceMethods": {
         "initialize": {
-          "description": "Create a new Sprite from a texture with optional initial values.",
+          "description": "Create a new sprite with a texture and transform.",
           "params": [
             {
               "name": "texture",
               "type": "Texture",
-              "description": "The texture to use for this sprite"
+              "description": "The texture to render"
             },
             {
-              "name": "x",
-              "type": "Float",
-              "description": "Initial X position (default: 0)"
-            },
-            {
-              "name": "y",
-              "type": "Float",
-              "description": "Initial Y position (default: 0)"
-            },
-            {
-              "name": "rotation",
-              "type": "Float",
-              "description": "Initial rotation in degrees (default: 0)"
-            },
-            {
-              "name": "scale_x",
-              "type": "Float",
-              "description": "Initial X scale (default: 1.0)"
-            },
-            {
-              "name": "scale_y",
-              "type": "Float",
-              "description": "Initial Y scale (default: 1.0)"
-            },
-            {
-              "name": "z",
-              "type": "Float",
-              "description": "Explicit z-index for layering (default: nil, uses draw order)"
-            },
-            {
-              "name": "source_rect",
-              "type": "Rect",
-              "description": "Region of texture to draw (default: entire texture)"
+              "name": "transform",
+              "type": "Transform2D",
+              "description": "The transform defining position, rotation, scale, and origin"
             }
           ],
           "returns": {
             "type": "Sprite",
             "description": "The new sprite"
           },
-          "example": "sprite = Sprite.new(spritesheet, source_rect: Rect.new(0, 0, 32, 32))"
+          "example": "\n  transform = Transform2D.new(x: 100, y: 100, rotation: 45)\r\n  sprite = Sprite.new(my_texture, transform)\r"
         },
-        "x": {
-          "description": "Get the X position of the sprite.",
+        "transform": {
+          "description": "Get the Transform2D handle associated with this sprite.",
           "returns": {
-            "type": "Float",
-            "description": "The X position"
+            "type": "Transform2D",
+            "description": "The sprite's transform"
           },
-          "example": "x_pos = sprite.x"
+          "example": "t = sprite.transform\n  t.x = 100\r"
         },
-        "y": {
-          "description": "Get the Y position of the sprite.",
-          "returns": {
-            "type": "Float",
-            "description": "The Y position"
-          },
-          "example": "y_pos = sprite.y"
-        },
-        "x=": {
-          "description": "Set the X position of the sprite.",
+        "transform=": {
+          "description": "Set the Transform2D for this sprite.",
           "params": [
             {
               "name": "value",
-              "type": "Float",
-              "description": "The new X position"
+              "type": "Transform2D",
+              "description": "The transform to use"
             }
           ],
           "returns": {
-            "type": "Float",
+            "type": "Transform2D",
             "description": "The value that was set"
           },
-          "example": "sprite.x += 5  # Move right by 5 pixels"
-        },
-        "y=": {
-          "description": "Set the Y position of the sprite.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The new Y position"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.y += 10  # Move down by 10 pixels"
-        },
-        "position": {
-          "description": "Get the position as a Vec2.",
-          "returns": {
-            "type": "Vec2",
-            "description": "The position vector"
-          },
-          "example": "pos = sprite.position"
-        },
-        "position=": {
-          "description": "Set the position using a Vec2.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Vec2",
-              "description": "The new position vector"
-            }
-          ],
-          "returns": {
-            "type": "Vec2",
-            "description": "The value that was set"
-          },
-          "example": "sprite.position = Vec2.new(100, 200)"
-        },
-        "rotation": {
-          "description": "Get the rotation in degrees.",
-          "returns": {
-            "type": "Float",
-            "description": "The rotation angle in degrees"
-          },
-          "example": "angle = sprite.rotation"
-        },
-        "rotation=": {
-          "description": "Set the rotation in degrees. Positive values rotate clockwise.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The new rotation angle in degrees"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.rotation += 90 * dt  # Rotate 90 degrees per second"
-        },
-        "scale_x": {
-          "description": "Get the X scale factor.",
-          "returns": {
-            "type": "Float",
-            "description": "The X scale (1.0 = normal size)"
-          },
-          "example": "sx = sprite.scale_x"
-        },
-        "scale_y": {
-          "description": "Get the Y scale factor.",
-          "returns": {
-            "type": "Float",
-            "description": "The Y scale (1.0 = normal size)"
-          },
-          "example": "sy = sprite.scale_y"
-        },
-        "scale_x=": {
-          "description": "Set the X scale factor. Values greater than 1 stretch, less than 1 shrink.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The new X scale (1.0 = normal size)"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.scale_x = 2.0  # Double width"
-        },
-        "scale_y=": {
-          "description": "Set the Y scale factor. Values greater than 1 stretch, less than 1 shrink.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The new Y scale (1.0 = normal size)"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.scale_y = 0.5  # Half height"
-        },
-        "origin_x": {
-          "description": "Get the X origin (pivot point) for rotation and scaling.",
-          "returns": {
-            "type": "Float",
-            "description": "The X origin offset in pixels"
-          },
-          "example": "ox = sprite.origin_x"
-        },
-        "origin_y": {
-          "description": "Get the Y origin (pivot point) for rotation and scaling.",
-          "returns": {
-            "type": "Float",
-            "description": "The Y origin offset in pixels"
-          },
-          "example": "oy = sprite.origin_y"
-        },
-        "origin_x=": {
-          "description": "Set the X origin (pivot point) for rotation and scaling.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The X origin offset in pixels"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.origin_x = 16  # Pivot 16px from left"
-        },
-        "origin_y=": {
-          "description": "Set the Y origin (pivot point) for rotation and scaling.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Float",
-              "description": "The Y origin offset in pixels"
-            }
-          ],
-          "returns": {
-            "type": "Float",
-            "description": "The value that was set"
-          },
-          "example": "sprite.origin_y = 16  # Pivot 16px from top"
-        },
-        "origin": {
-          "description": "Get the origin (pivot point) as a Vec2.",
-          "returns": {
-            "type": "Vec2",
-            "description": "The origin vector"
-          },
-          "example": "origin = sprite.origin"
-        },
-        "origin=": {
-          "description": "Set the origin (pivot point) using a Vec2.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Vec2",
-              "description": "The new origin vector"
-            }
-          ],
-          "returns": {
-            "type": "Vec2",
-            "description": "The value that was set"
-          },
-          "example": "sprite.origin = Vec2.new(16, 16)"
+          "example": "sprite.transform = Transform2D.new(x: 100, y: 200)"
         },
         "center_origin": {
-          "description": "Set the origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.",
+          "description": "Set the transform's origin to the center of the sprite, so it rotates and scales around its center. Uses texture dimensions or source_rect if set.",
           "returns": {
             "type": "Sprite",
             "description": "self for chaining"
           },
-          "example": "sprite = Sprite.new(tex).center_origin  # Method chaining"
+          "example": "sprite = Sprite.new(tex, transform).center_origin  # Method chaining"
+        },
+        "layer": {
+          "description": "Get the render layer. Layers control broad draw order categories. Lower values render first (background), higher values render last (foreground/UI). Returns a symbol for known layer values, or an integer for custom layers.",
+          "returns": {
+            "type": "Symbol, Integer",
+            "description": "The layer as a symbol (:background, :world, :entities, :effects, :ui, :debug) or integer"
+          },
+          "example": "sprite.layer           # => :entities (default)"
+        },
+        "layer=": {
+          "description": "Set the render layer. Layers organize rendering into broad categories. Sprites in lower layers render first (appear behind), higher layers render last (appear in front). Within a layer, use z for fine-grained depth control.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Symbol, Integer",
+              "description": "Layer as symbol (:background, :world, :entities, :effects, :ui, :debug) or integer (0-255)"
+            }
+          ],
+          "returns": {
+            "type": "Symbol, Integer",
+            "description": "The value that was set"
+          },
+          "example": "# Layer organization"
         },
         "z": {
           "description": "Get the explicit z-index for layering. Returns nil if using automatic draw order (the default). Higher z values render on top of lower values.",
@@ -4434,29 +4691,6 @@
             "description": "The height in pixels"
           },
           "example": "h = sprite.height"
-        },
-        "parent": {
-          "description": "Get the parent Transform2D. Returns nil if no parent is set.",
-          "returns": {
-            "type": "Transform2D, nil",
-            "description": "The parent transform, or nil if none"
-          },
-          "example": "parent = sprite.parent"
-        },
-        "parent=": {
-          "description": "Set a Transform2D as the parent. The sprite will transform relative to the parent's world transform. Set to nil to remove the parent.",
-          "params": [
-            {
-              "name": "value",
-              "type": "Transform2D, nil",
-              "description": "The parent transform, or nil to clear"
-            }
-          ],
-          "returns": {
-            "type": "Transform2D, nil",
-            "description": "The value that was set"
-          },
-          "example": "# Sprite follows a transform\n  turret_base = Transform2D.new(x: 200, y: 200)\r"
         },
         "draw": {
           "description": "Queue the sprite for rendering. Sprites are drawn in z-order after all draw() calls complete. By default, draw order determines layering (later = on top). Set sprite.z to override with an explicit z-index.",
@@ -4989,6 +5223,26 @@
           },
           "example": "transform.origin_y = 16  # Pivot 16px from top edge"
         },
+        "center_origin": {
+          "description": "Set the origin to the center of the given dimensions, so the transform rotates and scales around its center point. Useful for sprites, images, or any rectangular object.",
+          "params": [
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "The width of the object in pixels"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "The height of the object in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Transform2D",
+            "description": "self for chaining"
+          },
+          "example": "Transform2D.new(x: 100, y: 100).center_origin(64, 64)  # Method chaining"
+        },
         "parent": {
           "description": "Get the parent transform. Returns nil if no parent is set. When a transform has a parent, its position, rotation, and scale are relative to the parent's world transform.",
           "returns": {
@@ -5019,6 +5273,134 @@
             "description": "The world position after parent hierarchy composition"
           },
           "example": "# Get world position of a child transform\n  parent = Transform2D.new(x: 100, y: 100)\r\n  parent.rotation = 90\r\n  child = Transform2D.new(x: 50, y: 0)\r\n  child.parent = parent\r\n  pos = child.world_position  # Position after rotation by parent\r"
+        },
+        "world_rotation": {
+          "description": "Get the final world rotation after applying all parent transforms. For transforms without a parent, this equals the local rotation. For parented transforms, this returns the combined rotation of the entire hierarchy.",
+          "returns": {
+            "type": "Float",
+            "description": "The world rotation in degrees"
+          },
+          "example": "child_world_rot = transform.world_rotation"
+        },
+        "world_scale": {
+          "description": "Get the final world scale after applying all parent transforms. For transforms without a parent, this equals the local scale. For parented transforms, this returns the combined scale of the entire hierarchy.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The world scale"
+          },
+          "example": "world_s = transform.world_scale"
+        },
+        "forward": {
+          "description": "Get the forward direction vector after world rotation. The forward vector points in the direction the transform is facing (0 degrees = right).",
+          "returns": {
+            "type": "Vec2",
+            "description": "The normalized forward direction"
+          },
+          "example": "forward = transform.forward\n  transform.x += forward.x * speed * dt  # Move forward\r"
+        },
+        "right": {
+          "description": "Get the right direction vector after world rotation. The right vector points perpendicular to forward (90 degrees clockwise).",
+          "returns": {
+            "type": "Vec2",
+            "description": "The normalized right direction"
+          },
+          "example": "right = transform.right\n  transform.x += right.x * strafe_speed * dt  # Strafe right\r"
+        },
+        "snap_to_grid!": {
+          "description": "Snap the position to the nearest grid cell. Useful for tile-based games or ensuring pixel-perfect alignment.",
+          "params": [
+            {
+              "name": "grid_size",
+              "type": "Float",
+              "description": "The size of each grid cell in pixels"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "transform.snap_to_grid!(16)  # Snap to 16x16 grid"
+        },
+        "round_to_pixel!": {
+          "description": "Round the position to the nearest integer pixel coordinates. Useful for pixel-art games to avoid sub-pixel rendering artifacts.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "transform.round_to_pixel!  # Ensure crisp pixel alignment"
+        },
+        "Transform2D.lerp_position": {
+          "description": "Linearly interpolate between two positions.",
+          "params": [
+            {
+              "name": "a",
+              "type": "Vec2",
+              "description": "Start position"
+            },
+            {
+              "name": "b",
+              "type": "Vec2",
+              "description": "End position"
+            },
+            {
+              "name": "t",
+              "type": "Float",
+              "description": "Interpolation factor (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The interpolated position"
+          },
+          "example": "pos = Transform2D.lerp_position(start_pos, end_pos, 0.5)"
+        },
+        "Transform2D.lerp_rotation": {
+          "description": "Interpolate between two rotation angles using shortest path. Automatically handles wrapping (e.g., 350° to 10° goes through 0°, not 340°).",
+          "params": [
+            {
+              "name": "a",
+              "type": "Float",
+              "description": "Start rotation in degrees"
+            },
+            {
+              "name": "b",
+              "type": "Float",
+              "description": "End rotation in degrees"
+            },
+            {
+              "name": "t",
+              "type": "Float",
+              "description": "Interpolation factor (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The interpolated rotation in degrees"
+          },
+          "example": "rot = Transform2D.lerp_rotation(0, 270, 0.5)  # Returns 315 (shortest path)"
+        },
+        "Transform2D.lerp_scale": {
+          "description": "Linearly interpolate between two scale vectors.",
+          "params": [
+            {
+              "name": "a",
+              "type": "Vec2",
+              "description": "Start scale"
+            },
+            {
+              "name": "b",
+              "type": "Vec2",
+              "description": "End scale"
+            },
+            {
+              "name": "t",
+              "type": "Float",
+              "description": "Interpolation factor (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The interpolated scale"
+          },
+          "example": "scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), 0.5)"
         }
       }
     },
@@ -5160,20 +5542,6 @@
             "description": "Number of active tweens"
           },
           "example": "puts \"Active tweens: #{GMR::Tween.count}\""
-        }
-      }
-    },
-    "GMR": {
-      "kind": "class",
-      "description": "TODO: Add description",
-      "instanceMethods": {
-        "inspect": {
-          "signature": "inspect",
-          "description": "TODO: Add documentation",
-          "params": [],
-          "returns": {
-            "type": "unknown"
-          }
         }
       }
     }

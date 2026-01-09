@@ -277,7 +277,7 @@ Map an action name to input bindings. Supports two forms: Traditional form maps 
 | `action` | `Symbol` | (optional) The action name for traditional form |
 | `keys` | `Symbol, Array` | (optional) Key(s) to bind for traditional form |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
@@ -303,12 +303,12 @@ Remove an action mapping by name.
 |------|------|-------------|
 | `action` | `Symbol` | The action name to remove |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Input.unmap(:jump)
+GMR::Input.unmap(:jump).unmap(:attack)
 ```
 
 ---
@@ -319,12 +319,12 @@ GMR::Input.unmap(:jump)
 
 Remove all action mappings.
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Input.clear_mappings
+GMR::Input.clear_mappings.map(:new_action, :space)
 ```
 
 ---
@@ -462,14 +462,15 @@ Push a named input context onto the stack. Actions defined in this context becom
 | Name | Type | Description |
 |------|------|-------------|
 | `name` | `Symbol` | The context name to push |
+| `blocks_global` | `Boolean` | (optional) If true, global actions are blocked while this context is active |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
 ```ruby
-GMR::Input.push_context(:menu)
-  # :menu actions are now active, game actions still on stack
+GMR::Input.push_context(:pause, blocks_global: true)
+  # :pause actions active, global game actions blocked
 ```
 
 ---
@@ -480,7 +481,7 @@ GMR::Input.push_context(:menu)
 
 Pop the current input context from the stack, returning to the previous context.
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 
@@ -502,7 +503,7 @@ Replace the entire context stack with a single context. Clears the stack and set
 |------|------|-------------|
 | `name` | `Symbol` | The context name to set |
 
-**Returns:** `nil`
+**Returns:** `Module` - self for chaining
 
 **Example:**
 

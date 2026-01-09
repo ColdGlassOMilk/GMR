@@ -8,9 +8,11 @@
 #include "gmr/input/input_manager.hpp"
 #include "gmr/event/event_queue.hpp"
 #include "gmr/console/console_module.hpp"
+#include "gmr/filesystem/paths.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 
 #if defined(GMR_DEBUG_ENABLED)
 #include "gmr/debug/debug_server.hpp"
@@ -147,7 +149,46 @@ int main(int argc, char* argv[]) {
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(state.screen_width, state.screen_height, "GMR");
     InitAudioDevice();
-    
+
+    // Initialize Emscripten FS for writable /assets/data directory backed by IndexedDB
+    // Note: /assets is preloaded as read-only, but we create a writable /assets/data subdirectory
+    EM_ASM({
+        try {
+            // Try to create /assets/data directory
+            // This may fail if /assets doesn't exist or isn't a directory yet
+            try {
+                FS.mkdir('/assets/data');
+            } catch (e) {
+                // If EEXIST, directory already exists - that's fine
+                // If ENOTDIR, /assets might not be mounted yet - try creating /assets first
+                if (e.errno === 20) { // ENOTDIR
+                    console.log('Creating /assets directory first...');
+                    try {
+                        FS.mkdir('/assets');
+                    } catch (e2) {
+                        if (e2.code !== 'EEXIST') {
+                            console.error('Failed to create /assets:', e2);
+                        }
+                    }
+                    FS.mkdir('/assets/data');
+                } else if (e.code !== 'EEXIST') {
+                    throw e;
+                }
+            }
+
+            // Mount IDBFS for persistence
+            FS.mount(IDBFS, {}, '/assets/data');
+
+            // Synchronously load existing data from IndexedDB
+            FS.syncfs(true, function(err) {
+                if (err) console.error('IDBFS sync failed (load):', err);
+                else console.log('IDBFS initialized and synced from IndexedDB');
+            });
+        } catch (e) {
+            console.error('Failed to initialize IDBFS:', e);
+        }
+    });
+
     auto& loader = gmr::scripting::Loader::instance();
     loader.load("game/scripts");
 
@@ -169,7 +210,14 @@ int main(int argc, char* argv[]) {
     InitAudioDevice();
     SetTargetFPS(60);
     SetExitKey(0);
-    
+
+    // Ensure game/data directory exists for writable storage
+    try {
+        std::filesystem::create_directories("game/data");
+    } catch (...) {
+        fprintf(stderr, "Warning: Failed to create game/data directory\n");
+    }
+
     auto& loader = gmr::scripting::Loader::instance();
     loader.load("game/scripts");
 

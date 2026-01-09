@@ -13,6 +13,8 @@ Loaded image textures for drawing sprites.
   - [#draw_ex](#draw_ex)
   - [#draw_pro](#draw_pro)
   - [#height](#height)
+  - [#ref_count](#ref_count)
+  - [#release](#release)
   - [#width](#width)
 
 ## Class Methods
@@ -72,6 +74,38 @@ Get the texture height in pixels
 
 ```ruby
 puts sprite.height
+```
+
+---
+
+<a id="release"></a>
+
+### #release
+
+Manually release a reference to the texture. When the reference count reaches 0, the texture is unloaded from memory.
+
+**Returns:** `nil`
+
+**Example:**
+
+```ruby
+texture.release  # Release this reference
+```
+
+---
+
+<a id="ref_count"></a>
+
+### #ref_count
+
+Get the current reference count for this texture (how many times it's been loaded)
+
+**Returns:** `Integer` - Current reference count
+
+**Example:**
+
+```ruby
+puts texture.ref_count  # -> 3 (texture is loaded in 3 places)
 ```
 
 ---

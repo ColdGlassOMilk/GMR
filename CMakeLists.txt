@@ -67,6 +67,10 @@ set(SOURCES
     src/bindings/sprite_animation.cpp
     src/bindings/animator.cpp
     src/bindings/state_machine.cpp
+    src/bindings/filesystem.cpp
+    src/bindings/storage.cpp
+    src/filesystem/paths.cpp
+    src/filesystem/operations.cpp
     src/animation/easing.cpp
     src/animation/animation_manager.cpp
     src/state_machine/state_machine_manager.cpp
@@ -187,6 +191,8 @@ if(PLATFORM_WEB)
         -sASYNCIFY_STACK_SIZE=65536
         # Note: ASYNCIFY_ONLY optimization removed - causes quoting issues with Ninja on Windows
         # The full ASYNCIFY pass is slower but more reliable across platforms
+        # IDBFS for IndexedDB persistence
+        -lidbfs.js
     )
 
     # Note: Scripts are compiled into bytecode and embedded in WASM

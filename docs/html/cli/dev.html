@@ -31,7 +31,7 @@
 <span class="hl-command">gmrcli</span> dev [options]
 </code></pre>
 <h2>Description</h2>
-<p>Streamlined development workflow that builds and runs.<br><br>      Targets:<br>        debug   - Build debug and run (default)<br>        release - Build release and run<br>        web     - Clean, build web, and start server (always cleans)<br><br>      Options:<br>        --clean     - Clean before building (for fresh native builds)<br>        --no-run    - Build only, don't run afterward<br><br>      Examples:<br>        gmrcli dev              # Build debug, run<br>        gmrcli dev --clean      # Clean, build debug, run<br>        gmrcli dev release      # Build release, run<br>        gmrcli dev web          # Clean, build web, start server</p>
+<p>Streamlined development workflow that builds and runs.<br><br>      Targets:<br>        debug   - Build debug and run (default)<br>        release - Build release and run<br>        web     - Build web and start server<br><br>      Options:<br>        --clean     - Clean before building (for fresh builds)<br>        --no-run    - Build only, don't run afterward<br><br>      Examples:<br>        gmrcli dev              # Build debug, run<br>        gmrcli dev --clean      # Clean, build debug, run<br>        gmrcli dev release      # Build release, run<br>        gmrcli dev web          # Build web, start server<br>        gmrcli dev web --clean  # Clean, build web, start server</p>
 <h2>Options</h2>
 <table>
 <thead><tr><th>Option</th><th>Alias</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>

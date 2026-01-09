@@ -1,396 +1,267 @@
 include GMR
 
-# === 3D DEPTH ILLUSION STRESS TEST ===
-# Tests: Z-ordering, scaling, rotation, camera, mixed primitives, sprites, text
-# Goal: Create pseudo-3D scene with objects at different depths bouncing around
-
-# Virtual resolution
-VIRTUAL_WIDTH = 960
-VIRTUAL_HEIGHT = 540
-WINDOW_WIDTH = 960
-WINDOW_HEIGHT = 540
-
-# World bounds (much larger than viewport for exploration)
-WORLD_WIDTH = 3840  # 4x viewport width
-WORLD_HEIGHT = 2160 # 4x viewport height
-
-# Simple camera target with position
-class CameraTarget
-  attr_accessor :x, :y
-
-  def initialize(x = 0.0, y = 0.0)
-    @x = x
-    @y = y
-  end
-
-  def position
-    Mathf::Vec2.new(@x, @y)
-  end
-end
-
-# Particle/object definition
-class DepthObject
-  attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text, :transform, :sprite
-
-  def initialize(type, texture = nil, color = nil)
-    @type = type  # :sprite, :rect, :circle, :triangle, :line, :text
-
-    # Generate random color with random alpha (transparency)
-    if color.nil?
-      base_color = [:red, :green, :blue, :yellow, :magenta, :cyan, :orange, :pink].sample
-      # Convert symbol to RGB array and add random alpha (100-255 for visibility)
-      @color = color_with_alpha(base_color, rand(100..255))
-    else
-      @color = color
-    end
-
-    # Calculate world space bounds (much larger than viewport)
-    # Camera is centered at (0, 0), so bounds are ±half of world size
-    half_width = WORLD_WIDTH / 2.0
-    half_height = WORLD_HEIGHT / 2.0
-
-    # Random position (within world area, with some margin)
-    margin = 50.0
-    @x = rand((-half_width + margin)..(half_width - margin))
-    @y = rand((-half_height + margin)..(half_height - margin))
-    @z = rand(2.0..8.0)  # Depth: 2.0 (far) to 8.0 (near) - stay visible
-
-    # Random velocity (slower so you can see z-order changes)
-    @vx = rand(-30.0..30.0)
-    @vy = rand(-30.0..30.0)
-    @vz = rand(-0.5..0.5)  # Slower depth velocity
-
-    # Rotation
-    @rotation = rand(0.0..360.0)
-    @rotation_speed = rand(-180.0..180.0)
-
-    # Text content (for :text type)
-    if @type == :text
-      words = ["WOW", "SUCH 3D", "GMR", "TEST", "ZOOM", "3D", "DEPTH"]
-      @text = words.sample
-    end
-
-    # Create transform for ALL object types (not just sprites)
-    s = scale
-    # Sprites are scaled down (0.15x), primitives are scaled normally (0.3x = 2x larger)
-    scale_multiplier = (@type == :sprite) ? 0.15 : 0.3
-    @transform = Transform2D.new(
-      x: @x,
-      y: @y,
-      rotation: @rotation,
-      scale_x: s * scale_multiplier,
-      scale_y: s * scale_multiplier
-    )
-
-    # Set appropriate origins for each type
-    if @type == :sprite && texture
-      @sprite = Sprite.new(texture, @transform)
-      @sprite.center_origin
-      @sprite.color = @color
-    elsif @type == :rect
-      # Set origin to center for proper rotation (base size 60x60)
-      @transform.center_origin(60, 60)
-    elsif @type == :circle
-      # Circles already rotate around center at (0,0)
-      @transform.origin_x = 0
-      @transform.origin_y = 0
-    elsif @type == :triangle
-      # Triangle vertices are in local space, no origin needed
-      @transform.origin_x = 0
-      @transform.origin_y = 0
-    elsif @type == :line
-      # Line rotates around its center, no origin needed
-      @transform.origin_x = 0
-      @transform.origin_y = 0
-    elsif @type == :text
-      # Text draws from top-left by default
-      @transform.origin_x = 0
-      @transform.origin_y = 0
-    end
-  end
-
-  def color_with_alpha(color_symbol, alpha)
-    # Convert color symbol to [r, g, b, a] array
-    case color_symbol
-    when :red then [255, 0, 0, alpha]
-    when :green then [0, 255, 0, alpha]
-    when :blue then [0, 0, 255, alpha]
-    when :yellow then [255, 255, 0, alpha]
-    when :magenta then [255, 0, 255, alpha]
-    when :cyan then [0, 255, 255, alpha]
-    when :orange then [255, 165, 0, alpha]
-    when :pink then [255, 192, 203, alpha]
-    else [255, 255, 255, alpha]
-    end
-  end
-
-  def update(dt)
-    # Update position
-    @x += @vx * dt
-    @y += @vy * dt
-    @z += @vz * dt
-
-    # Bounce off walls (in world space)
-    # Calculate bounds from world size
-    half_width = WORLD_WIDTH / 2.0
-    half_height = WORLD_HEIGHT / 2.0
-
-    if @x < -half_width || @x > half_width
-      @vx *= -1
-      @x = @x.clamp(-half_width, half_width)
-    end
-
-    if @y < -half_height || @y > half_height
-      @vy *= -1
-      @y = @y.clamp(-half_height, half_height)
-    end
-
-    # Bounce depth (narrower range to keep objects visible)
-    if @z < 2.0 || @z > 8.0
-      @vz *= -1
-      @z = @z.clamp(2.0, 8.0)
-    end
-
-    # Update rotation
-    @rotation += @rotation_speed * dt
-    @rotation %= 360
-
-    # Update transform (used by ALL object types)
-    s = scale
-    scale_multiplier = (@type == :sprite) ? 0.15 : 0.3
-    @transform.x = @x
-    @transform.y = @y
-    @transform.rotation = @rotation
-    @transform.scale_x = s * scale_multiplier
-    @transform.scale_y = s * scale_multiplier
-  end
-
-  def scale
-    # Objects further away (low z) are smaller
-    # Objects closer (high z) are larger
-    # Scale range adjusted for z=2.0 to z=8.0
-    # At z=2.0: 0.5, at z=8.0: 2.5
-    0.5 + ((@z - 2.0) / 6.0) * 2.0
-  end
-
-  def size
-    # Base size affected by scale (larger base for visibility)
-    (30.0 * scale).round
-  end
-
-  def draw_order_z
-    # Higher z = closer to camera = drawn later (on top)
-    @z
-  end
-end
-
-# Helper function to spawn random objects
-def spawn_objects(count, texture = nil)
-  objects = []
-
-  # Randomize types
-  types = []
-
-  # Add sprites if texture available
-  if texture
-    (count * 0.1).round.times { types << :sprite }
-  end
-
-  # Add primitives
-  (count * 0.2).round.times { types << :rect }
-  (count * 0.2).round.times { types << :circle }
-  (count * 0.15).round.times { types << :triangle }
-  (count * 0.1).round.times { types << :line }
-  (count * 0.05).round.times { types << :text }
-
-  # Fill remaining with random types
-  while types.size < count
-    types << [:rect, :circle, :triangle, :line, :text].sample
-  end
-
-  # Shuffle and create objects
-  types.shuffle.each do |type|
-    objects << DepthObject.new(type, texture)
-  end
-
-  objects
-end
-
 def init
-  # === WINDOW SETUP ===
-  Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
-        .set_filter_point
+  @test_results = []
+  @tests_passed = 0
+  @tests_failed = 0
 
-  Console.enable(height: 150).allow_ruby_eval
+  # Run all tests
+  test_write_and_read_text
+  test_write_and_read_json
+  test_write_and_read_json_pretty
+  test_read_bytes
+  test_exists
+  test_path_validation
+  test_write_to_assets_rejected
+  test_default_root
+  test_subdirectory_creation
 
-  # === INPUT MAPPING ===
-  Input.map(:move_left, [:left, :a])
-       .map(:move_right, [:right, :d])
-       .map(:move_up, [:up, :w])
-       .map(:move_down, [:down, :s])
-       .map(:reset, :r)
-       .map(:add_objects, :equal)       # = key (Shift+= gives +)
-       .map(:remove_objects, :minus)    # - key
-
-  # === CAMERA TARGET ===
-  @camera_target = CameraTarget.new(0.0, 0.0)
-
-  # === CAMERA ===
-  @camera = Camera.new
-  @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, VIRTUAL_HEIGHT / 2.0)
-  @camera.zoom = 1.0
-  @camera.follow(@camera_target, smoothing: 0.92)  # Smooth camera follow
-
-  # Set camera bounds to world size (centered at origin)
-  half_w = WORLD_WIDTH / 2.0
-  half_h = WORLD_HEIGHT / 2.0
-  @camera.bounds = Rect.new(-half_w, -half_h, WORLD_WIDTH, WORLD_HEIGHT)
-
-  @time = 0.0
-
-  # === LOAD SPRITE TEXTURE ===
-  @tex = Texture.load("assets/logo.png")
-
-  # === CREATE INITIAL DEPTH OBJECTS ===
-  @objects = spawn_objects(500, @tex)
+  # Storage tests
+  test_storage_get_set
+  test_storage_increment_decrement
+  test_storage_has_key
+  test_storage_delete
+  test_storage_shorthand
 end
 
 def update(dt)
-  @time += dt
-
-  # Camera target controls (camera smoothly follows)
-  camera_speed = 500.0
-  @camera_target.x -= camera_speed * dt if Input.action_down?(:move_left)
-  @camera_target.x += camera_speed * dt if Input.action_down?(:move_right)
-  @camera_target.y -= camera_speed * dt if Input.action_down?(:move_up)
-  @camera_target.y += camera_speed * dt if Input.action_down?(:move_down)
-
-  # Zoom controls
-  wheel = Input.mouse_wheel
-  if wheel != 0
-    @camera.zoom += wheel * 0.1
-    @camera.zoom = [@camera.zoom, 5.0].min  # Max zoom only (min zoom handled by bounds)
-  end
-
-  # Clamp target to valid camera bounds based on current zoom
-  # Calculate visible area at current zoom
-  visible_width = (VIRTUAL_WIDTH / 2.0 * 2.0) / @camera.zoom
-  visible_height = (VIRTUAL_HEIGHT / 2.0 * 2.0) / @camera.zoom
-
-  # Calculate allowable range for target position
-  half_w = WORLD_WIDTH / 2.0
-  half_h = WORLD_HEIGHT / 2.0
-  min_x = -half_w + visible_width / 2.0
-  max_x = half_w - visible_width / 2.0
-  min_y = -half_h + visible_height / 2.0
-  max_y = half_h - visible_height / 2.0
-
-  # Handle case where viewport exceeds world size (zoom out too far)
-  if min_x > max_x
-    @camera_target.x = 0.0  # Center horizontally
-  else
-    @camera_target.x = @camera_target.x.clamp(min_x, max_x)
-  end
-
-  if min_y > max_y
-    @camera_target.y = 0.0  # Center vertically
-  else
-    @camera_target.y = @camera_target.y.clamp(min_y, max_y)
-  end
-
-  # Reset camera
-  if Input.action_pressed?(:reset)
-    @camera_target.x = 0.0
-    @camera_target.y = 0.0
-    @camera.zoom = 1.0
-  end
-
-  # Object count controls
-  if Input.action_pressed?(:add_objects)
-    @objects += spawn_objects(50, @tex)
-  end
-
-  if Input.action_pressed?(:remove_objects)
-    count = [@objects.size, 50].min
-    @objects = @objects[0...-count] if count > 0
-  end
-
-  # Update all objects
-  @objects.each { |obj| obj.update(dt) }
 end
 
 def draw
-  Graphics.clear("#0a0a1e")
+  Graphics.clear("#1a1a2e")
 
-  @camera.use do
-    # Draw world bounds
-    world_half_w = WORLD_WIDTH / 2.0
-    world_half_h = WORLD_HEIGHT / 2.0
-    # Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
+  y = 10
 
-    # Draw viewport reference (smaller box showing initial viewport size)
-    # view_half_w = VIRTUAL_WIDTH / 2.0
-    # view_half_h = VIRTUAL_HEIGHT / 2.0
-    # Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
-    # Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
+  # Header
+  Graphics.draw_text("GMR File I/O & Storage Test Suite", 10, y, 24, :white)
+  y += 35
 
-    # Test rect at origin
-    # Graphics.draw_rect(-10, -10, 20, 20, :white)
+  # Summary
+  total = @tests_passed + @tests_failed
+  status_color = @tests_failed == 0 ? :green : :red
+  Graphics.draw_text("Results: #{@tests_passed}/#{total} passed", 10, y, 18, status_color)
+  y += 30
 
-    # Sort objects by depth (z) to ensure correct draw order
-    sorted = @objects.sort_by { |obj| obj.z }
+  # Test results (scrollable list)
+  @test_results.each do |result|
+    if result.start_with?("[PASS]")
+      Graphics.draw_text(result, 10, y, 14, :green)
+    else
+      Graphics.draw_text(result, 10, y, 14, :red)
+    end
+    y += 18
 
-    sorted.each do |obj|
-      case obj.type
-      when :sprite
-        # Just draw the sprite - it's already set up with transform
-        obj.sprite.draw if obj.sprite
+    # Stop if we run out of screen space
+    break if y > 520
+  end
 
-      when :rect
-        # NEW: Use transform instead of manual calculations (2x larger: 60x60)
-        Graphics.draw_rect(obj.transform, 60, 60, obj.color)
+  # Final status at bottom if all tests fit
+  if @tests_failed == 0 && y < 500
+    Graphics.draw_text("All tests passed!", 10, 520, 16, :green)
+  end
+end
 
-      when :circle
-        # NEW: Use transform - mix of filled and outline circles (2x larger: radius 30)
-        if obj.z > 5.0
-          Graphics.draw_circle(obj.transform, 30, obj.color)
-        else
-          Graphics.draw_circle_outline(obj.transform, 30, obj.color)
-        end
+# === Test Helpers ===
 
-      when :triangle
-        # NEW: Vertices in local space (2x larger equilateral triangle)
-        # For side length ~48: height = 41.6, offset from center = ±20.8 vertically, ±24 horizontally
-        Graphics.draw_triangle(obj.transform, 0, -24, -20.8, 24, 20.8, 24, obj.color)
+def test(name)
+  begin
+    yield
+    @tests_passed += 1
+    @test_results << "[PASS] #{name}"
+  rescue => e
+    @tests_failed += 1
+    @test_results << "[FAIL] #{name}: #{e.message}"
+  end
+end
 
-      when :line
-        # NEW: Line in local space (2x longer: horizontal line from -45 to 45)
-        Graphics.draw_line(obj.transform, -45, 0, 45, 0, obj.color, 2)
+def assert(condition, message = "Assertion failed")
+  raise message unless condition
+end
 
-      when :text
-        # NEW: Use transform with scaled font size
-        s = obj.scale
-        font_size = (20.0 * s).round.clamp(8, 60)
-        Graphics.draw_text(obj.transform, obj.text, font_size, obj.color)
-      end
+def assert_eq(expected, actual, message = nil)
+  msg = message || "Expected #{expected.inspect}, got #{actual.inspect}"
+  raise msg unless expected == actual
+end
+
+def assert_raises(error_class = StandardError)
+  yield
+  raise "Expected #{error_class} to be raised, but nothing was raised"
+rescue error_class
+  # Expected exception was raised
+rescue => e
+  raise "Expected #{error_class}, but got #{e.class}: #{e.message}"
+end
+
+# === Tests ===
+
+def test_write_and_read_text
+  test("write and read text file") do
+    content = "Hello, GMR!\nThis is a test file.\nLine 3."
+    File.write_text("test_text.txt", content, root: :data)
+
+    loaded = File.read_text("test_text.txt", root: :data)
+    assert_eq content, loaded
+  end
+end
+
+def test_write_and_read_json
+  test("write and read JSON (minified)") do
+    data = { "level" => 5, "score" => 1000, "name" => "Player", "inventory" => ["sword", "shield"] }
+    File.write_json("test_save.json", data, root: :data)
+
+    loaded = File.read_json("test_save.json", root: :data)
+    assert_eq data, loaded
+  end
+end
+
+def test_write_and_read_json_pretty
+  test("write and read JSON (pretty)") do
+    data = { "config" => { "volume" => 0.8, "fullscreen" => false } }
+    File.write_json("test_config.json", data, root: :data, pretty: true)
+
+    loaded = File.read_json("test_config.json", root: :data)
+    assert_eq data, loaded
+
+    # Verify it's actually pretty-printed
+    text = File.read_text("test_config.json", root: :data)
+    assert text.include?("\n"), "JSON should be pretty-printed (contain newlines)"
+  end
+end
+
+def test_read_bytes
+  test("read and write bytes") do
+    # Write binary data with null bytes
+    binary_data = "Binary\x00Data\xFF"
+    File.write_bytes("test_bytes.dat", binary_data, root: :data)
+    bytes = File.read_bytes("test_bytes.dat", root: :data)
+
+    assert bytes.is_a?(String), "read_bytes should return a String"
+    assert_eq binary_data.length, bytes.length, "Byte length should match"
+  end
+end
+
+def test_exists
+  test("exists? method") do
+    # Create a file
+    File.write_text("test_exists.txt", "exists", root: :data)
+
+    # Should exist
+    assert File.exists?("test_exists.txt", root: :data), "File should exist"
+
+    # Should not exist
+    assert !File.exists?("nonexistent_file.txt", root: :data), "File should not exist"
+  end
+end
+
+def test_path_validation
+  test("path validation rejects directory traversal") do
+    assert_raises(ArgumentError) do
+      File.read_text("../../../etc/passwd", root: :data)
     end
   end
 
-  # UI overlay (screen space - not affected by camera)
-  fps = GMR::Time.fps
+  test("path validation rejects absolute paths") do
+    assert_raises(ArgumentError) do
+      File.read_text("/etc/passwd", root: :data)
+    end
+  end
+end
 
-  # Test: Draw a bright rect to confirm primitives work in screen space
-  # Graphics.draw_rect(5, 5, 100, 100, [0, 0, 0, 180])  # Semi-transparent black background
+def test_write_to_assets_rejected
+  test("write to :assets root is rejected") do
+    assert_raises(ArgumentError) do
+      File.write_text("test.txt", "content", root: :assets)
+    end
+  end
+end
 
-  # Draw text over the background
-  cam_pos = @camera.target
-  Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :yellow)
-  Graphics.draw_text("Objects: #{@objects.size}", 10, 35, 16, :cyan)
-  Graphics.draw_text("Target: (#{@camera_target.x.round}, #{@camera_target.y.round})", 10, 55, 14, :white)
-  Graphics.draw_text("Camera: (#{cam_pos.x.round}, #{cam_pos.y.round}) Zoom: #{@camera.zoom.round(2)}", 10, 75, 14, :white)
-  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove", 10, 95, 12, [200, 200, 200, 255])
+def test_default_root
+  test("default root is :data") do
+    File.write_text("test_default_root.txt", "default")
+    loaded = File.read_text("test_default_root.txt")
+    assert_eq "default", loaded
+  end
+end
 
-  # Draw frame border
-  # Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)
+def test_subdirectory_creation
+  test("automatic subdirectory creation") do
+    File.write_text("saves/slot1.json", '{"level":1}', root: :data)
+    loaded = File.read_text("saves/slot1.json", root: :data)
+    assert_eq '{"level":1}', loaded
+  end
+end
+
+# === Storage Tests ===
+
+def test_storage_get_set
+  test("Storage get and set") do
+    Storage.set(:test_value, 42)
+    value = Storage.get(:test_value)
+    assert_eq 42, value
+  end
+
+  test("Storage default value") do
+    # Delete first to ensure it doesn't exist
+    Storage.delete(:nonexistent)
+    value = Storage.get(:nonexistent, 999)
+    assert_eq 999, value
+  end
+end
+
+def test_storage_increment_decrement
+  test("Storage increment") do
+    Storage.set(:counter, 10)
+    new_value = Storage.increment(:counter)
+    assert_eq 11, new_value
+    assert_eq 11, Storage.get(:counter)
+  end
+
+  test("Storage increment by amount") do
+    Storage.set(:score, 100)
+    Storage.increment(:score, 50)
+    assert_eq 150, Storage.get(:score)
+  end
+
+  test("Storage decrement") do
+    Storage.set(:lives, 5)
+    new_value = Storage.decrement(:lives)
+    assert_eq 4, new_value
+    assert_eq 4, Storage.get(:lives)
+  end
+
+  test("Storage decrement by amount") do
+    Storage.set(:gold, 100)
+    Storage.decrement(:gold, 30)
+    assert_eq 70, Storage.get(:gold)
+  end
+end
+
+def test_storage_has_key
+  test("Storage has_key? for existing key") do
+    Storage.set(:exists, 123)
+    assert Storage.has_key?(:exists), "Key should exist"
+  end
+
+  test("Storage has_key? for non-existing key") do
+    Storage.delete(:not_exists)
+    assert !Storage.has_key?(:not_exists), "Key should not exist"
+  end
+end
+
+def test_storage_delete
+  test("Storage delete") do
+    Storage.set(:to_delete, 100)
+    assert Storage.has_key?(:to_delete), "Key should exist before delete"
+
+    Storage.delete(:to_delete)
+    assert !Storage.has_key?(:to_delete), "Key should not exist after delete"
+  end
+end
+
+def test_storage_shorthand
+  test("Storage shorthand [] syntax") do
+    Storage[:shorthand] = 777
+    value = Storage[:shorthand]
+    assert_eq 777, value
+  end
 end
