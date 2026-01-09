@@ -234,7 +234,7 @@ def update(dt)
 
   if !@on_ground
     @velocity_y += GRAVITY * dt
-    state_machine.trigger(:fall) if @velocity_y > 0
+    state_machine.trigger(:fall) if @velocity_y > 0 && state_machine.state != :falling
   end
 
   @sprite_transform.x -= MOVE_SPEED * dt if moving_left
@@ -247,7 +247,11 @@ def update(dt)
   check_tilemap_collision(moving)
 
   if @on_ground
-    state_machine.trigger(moving ? :move : :stop)
+    if moving && state_machine.state != :running
+      state_machine.trigger(:move)
+    elsif !moving && state_machine.state != :idle
+      state_machine.trigger(:stop)
+    end
   end
 
   # Update camera to follow player
