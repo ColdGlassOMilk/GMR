@@ -55,9 +55,6 @@ void game_loop(void* arg) {
         // Reset draw queue for new frame
         gmr::DrawQueue::instance().begin_frame();
 
-        // Update camera system (before Ruby update)
-        gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
-
         // Update animation system (tweens and sprite animations)
         gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
@@ -78,6 +75,9 @@ void game_loop(void* arg) {
         if (!console_consumed || !console.is_open()) {
             gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
         }
+
+        // Update camera system (after Ruby update to apply bounds immediately)
+        gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
 
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
@@ -209,9 +209,6 @@ int main(int argc, char* argv[]) {
             // Reset draw queue for new frame
             gmr::DrawQueue::instance().begin_frame();
 
-            // Update camera system (before Ruby update)
-            gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
-
             // Update animation system (tweens and sprite animations)
             gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
@@ -232,6 +229,9 @@ int main(int argc, char* argv[]) {
             if (!console_consumed || !console.is_open()) {
                 gmr::scripting::safe_call(mrb, "update", mrb_float_value(mrb, dt));
             }
+
+            // Update camera system (after Ruby update to apply bounds immediately)
+            gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
 
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());

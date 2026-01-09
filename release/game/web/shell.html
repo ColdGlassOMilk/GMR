@@ -45,8 +45,17 @@
         
         canvas {
             display: block;
+            border: 0 !important;
+            outline: 0 !important;
         }
-        
+
+        canvas:focus,
+        canvas:focus-visible {
+            outline: 0 !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+
         #loading {
             position: absolute;
             top: 50%;
@@ -297,21 +306,6 @@
         document.getElementById('canvas').addEventListener('click', function() {
             this.focus();
         });
-
-        // Prevent browser focus/navigation behavior for backtick / tilde
-        window.addEventListener('keydown', function (e) {
-            // Ignore if typing into an input or textarea
-            const target = e.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-                return;
-            }
-
-            // Use `code` for layout-independent detection
-            if (e.code === 'Backquote') {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }, true); // capture phase
     </script>
     
     {{{ SCRIPT }}}

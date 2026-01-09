@@ -14,6 +14,20 @@ WINDOW_HEIGHT = 540
 WORLD_WIDTH = 3840  # 4x viewport width
 WORLD_HEIGHT = 2160 # 4x viewport height
 
+# Simple camera target with position
+class CameraTarget
+  attr_accessor :x, :y
+
+  def initialize(x = 0.0, y = 0.0)
+    @x = x
+    @y = y
+  end
+
+  def position
+    Mathf::Vec2.new(@x, @y)
+  end
+end
+
 # Particle/object definition
 class DepthObject
   attr_accessor :x, :y, :z, :vx, :vy, :vz, :rotation, :rotation_speed, :type, :color, :text, :transform, :sprite
@@ -179,7 +193,7 @@ def spawn_objects(count, texture = nil)
 
   # Add sprites if texture available
   if texture
-    (count * 0.3).round.times { types << :sprite }
+    (count * 0.1).round.times { types << :sprite }
   end
 
   # Add primitives
@@ -219,13 +233,19 @@ def init
        .map(:add_objects, :equal)       # = key (Shift+= gives +)
        .map(:remove_objects, :minus)    # - key
 
+  # === CAMERA TARGET ===
+  @camera_target = CameraTarget.new(0.0, 0.0)
+
   # === CAMERA ===
   @camera = Camera.new
   @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, VIRTUAL_HEIGHT / 2.0)
   @camera.zoom = 1.0
-  @camera.target = Mathf::Vec2.new(0, 0)
-  @camera_x = 0.0
-  @camera_y = 0.0
+  @camera.follow(@camera_target, smoothing: 0.92)  # Smooth camera follow
+
+  # Set camera bounds to world size (centered at origin)
+  half_w = WORLD_WIDTH / 2.0
+  half_h = WORLD_HEIGHT / 2.0
+  @camera.bounds = Rect.new(-half_w, -half_h, WORLD_WIDTH, WORLD_HEIGHT)
 
   @time = 0.0
 
@@ -233,32 +253,57 @@ def init
   @tex = Texture.load("assets/logo.png")
 
   # === CREATE INITIAL DEPTH OBJECTS ===
-  @objects = spawn_objects(50, @tex)
+  @objects = spawn_objects(500, @tex)
 end
 
 def update(dt)
   @time += dt
 
-  # Camera controls
-  camera_speed = 100.0
-  @camera_x -= camera_speed * dt if Input.action_down?(:move_left)
-  @camera_x += camera_speed * dt if Input.action_down?(:move_right)
-  @camera_y -= camera_speed * dt if Input.action_down?(:move_up)
-  @camera_y += camera_speed * dt if Input.action_down?(:move_down)
-
-  @camera.target = Mathf::Vec2.new(@camera_x, @camera_y)
+  # Camera target controls (camera smoothly follows)
+  camera_speed = 500.0
+  @camera_target.x -= camera_speed * dt if Input.action_down?(:move_left)
+  @camera_target.x += camera_speed * dt if Input.action_down?(:move_right)
+  @camera_target.y -= camera_speed * dt if Input.action_down?(:move_up)
+  @camera_target.y += camera_speed * dt if Input.action_down?(:move_down)
 
   # Zoom controls
   wheel = Input.mouse_wheel
-  @camera.zoom += wheel * 0.1
-  @camera.zoom = [[@camera.zoom, 0.1].max, 5.0].min
+  if wheel != 0
+    @camera.zoom += wheel * 0.1
+    @camera.zoom = [@camera.zoom, 5.0].min  # Max zoom only (min zoom handled by bounds)
+  end
+
+  # Clamp target to valid camera bounds based on current zoom
+  # Calculate visible area at current zoom
+  visible_width = (VIRTUAL_WIDTH / 2.0 * 2.0) / @camera.zoom
+  visible_height = (VIRTUAL_HEIGHT / 2.0 * 2.0) / @camera.zoom
+
+  # Calculate allowable range for target position
+  half_w = WORLD_WIDTH / 2.0
+  half_h = WORLD_HEIGHT / 2.0
+  min_x = -half_w + visible_width / 2.0
+  max_x = half_w - visible_width / 2.0
+  min_y = -half_h + visible_height / 2.0
+  max_y = half_h - visible_height / 2.0
+
+  # Handle case where viewport exceeds world size (zoom out too far)
+  if min_x > max_x
+    @camera_target.x = 0.0  # Center horizontally
+  else
+    @camera_target.x = @camera_target.x.clamp(min_x, max_x)
+  end
+
+  if min_y > max_y
+    @camera_target.y = 0.0  # Center vertically
+  else
+    @camera_target.y = @camera_target.y.clamp(min_y, max_y)
+  end
 
   # Reset camera
   if Input.action_pressed?(:reset)
-    @camera_x = 0.0
-    @camera_y = 0.0
+    @camera_target.x = 0.0
+    @camera_target.y = 0.0
     @camera.zoom = 1.0
-    @camera.target = Mathf::Vec2.new(0, 0)
   end
 
   # Object count controls
@@ -268,7 +313,7 @@ def update(dt)
 
   if Input.action_pressed?(:remove_objects)
     count = [@objects.size, 50].min
-    @objects.pop(count)
+    @objects = @objects[0...-count] if count > 0
   end
 
   # Update all objects
@@ -282,16 +327,16 @@ def draw
     # Draw world bounds
     world_half_w = WORLD_WIDTH / 2.0
     world_half_h = WORLD_HEIGHT / 2.0
-    Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
+    # Graphics.draw_rect_outline(-world_half_w, -world_half_h, WORLD_WIDTH, WORLD_HEIGHT, [100, 100, 100, 255])
 
     # Draw viewport reference (smaller box showing initial viewport size)
-    view_half_w = VIRTUAL_WIDTH / 2.0
-    view_half_h = VIRTUAL_HEIGHT / 2.0
-    Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
-    Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
+    # view_half_w = VIRTUAL_WIDTH / 2.0
+    # view_half_h = VIRTUAL_HEIGHT / 2.0
+    # Graphics.draw_line(-view_half_w, 0, view_half_w, 0, :green, 2)  # Horizontal axis
+    # Graphics.draw_line(0, -view_half_h, 0, view_half_h, :green, 2)  # Vertical axis
 
     # Test rect at origin
-    Graphics.draw_rect(-10, -10, 20, 20, :white)
+    # Graphics.draw_rect(-10, -10, 20, 20, :white)
 
     # Sort objects by depth (z) to ensure correct draw order
     sorted = @objects.sort_by { |obj| obj.z }
@@ -330,24 +375,22 @@ def draw
         Graphics.draw_text(obj.transform, obj.text, font_size, obj.color)
       end
     end
-
-    # Simple test text at world origin (INSIDE camera block for world-space rendering)
-    Graphics.draw_text("WORLD", 0, 20, 30, :red)
-    Graphics.draw_text("CENTER", -30, -20, 20, :yellow)
   end
 
   # UI overlay (screen space - not affected by camera)
   fps = GMR::Time.fps
 
   # Test: Draw a bright rect to confirm primitives work in screen space
-  Graphics.draw_rect(5, 5, 100, 80, [0, 0, 0, 180])  # Semi-transparent black background
+  # Graphics.draw_rect(5, 5, 100, 100, [0, 0, 0, 180])  # Semi-transparent black background
 
   # Draw text over the background
+  cam_pos = @camera.target
   Graphics.draw_text("FPS: #{fps}", 10, 10, 20, :yellow)
   Graphics.draw_text("Objects: #{@objects.size}", 10, 35, 16, :cyan)
-  Graphics.draw_text("Camera: (#{@camera_x.round}, #{@camera_y.round}) Zoom: #{@camera.zoom.round(2)}", 10, 55, 14, :white)
-  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove", 10, 75, 12, [200, 200, 200, 255])
+  Graphics.draw_text("Target: (#{@camera_target.x.round}, #{@camera_target.y.round})", 10, 55, 14, :white)
+  Graphics.draw_text("Camera: (#{cam_pos.x.round}, #{cam_pos.y.round}) Zoom: #{@camera.zoom.round(2)}", 10, 75, 14, :white)
+  Graphics.draw_text("Controls: WASD/Arrows=Pan | Wheel=Zoom | R=Reset | +/-=Add/Remove", 10, 95, 12, [200, 200, 200, 255])
 
   # Draw frame border
-  Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)
+  # Graphics.draw_rect_outline(1, 1, VIRTUAL_WIDTH - 2, VIRTUAL_HEIGHT - 2, :white)
 end

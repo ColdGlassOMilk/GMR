@@ -606,13 +606,12 @@ void DrawQueue::draw_rect(const DrawCommand& cmd) {
         float w = cmd.rect.width * std::abs(world_scale.x);
         float h = cmd.rect.height * std::abs(world_scale.y);
 
-        if (world_rot != 0.0f || transform->origin.x != 0.0f || transform->origin.y != 0.0f) {
-            // Rotated/origin-based rect - use DrawRectanglePro
+        if (world_rot != 0.0f) {
+            // Rotated rect - use DrawRectanglePro
+            // Transform matrix already bakes origin offset into world_pos
+            // (same as sprites - see draw_sprite comments)
             Rectangle rect = {world_pos.x, world_pos.y, w, h};
-            Vector2 origin = {
-                transform->origin.x * world_scale.x,
-                transform->origin.y * world_scale.y
-            };
+            Vector2 origin = {0, 0};
             float rotation_degrees = world_rot * (180.0f / 3.14159265358979323846f);
             DrawRectanglePro(rect, origin, rotation_degrees, color);
         } else {

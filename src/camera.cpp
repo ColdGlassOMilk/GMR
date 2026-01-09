@@ -212,9 +212,22 @@ Vec2 CameraManager::apply_deadzone(Camera2DState& cam, const Vec2& target_pos) {
 }
 
 void CameraManager::clamp_to_bounds(Camera2DState& cam) {
-    // Calculate visible area in world space
+    // Calculate visible area in world space at current zoom
     float visible_width = (cam.offset.x * 2.0f) / cam.zoom;
     float visible_height = (cam.offset.y * 2.0f) / cam.zoom;
+
+    // First, clamp zoom to prevent viewport from exceeding world bounds
+    // Calculate minimum zoom needed to keep viewport within bounds
+    float min_zoom_x = (cam.offset.x * 2.0f) / cam.bounds.width;
+    float min_zoom_y = (cam.offset.y * 2.0f) / cam.bounds.height;
+    float min_zoom = std::max(min_zoom_x, min_zoom_y);
+
+    if (cam.zoom < min_zoom) {
+        cam.zoom = min_zoom;
+        // Recalculate visible area with clamped zoom
+        visible_width = (cam.offset.x * 2.0f) / cam.zoom;
+        visible_height = (cam.offset.y * 2.0f) / cam.zoom;
+    }
 
     // Calculate min/max target positions to keep camera within bounds
     float min_x = cam.bounds.x + visible_width / 2.0f;
@@ -222,8 +235,9 @@ void CameraManager::clamp_to_bounds(Camera2DState& cam) {
     float min_y = cam.bounds.y + visible_height / 2.0f;
     float max_y = cam.bounds.y + cam.bounds.height - visible_height / 2.0f;
 
-    // Handle case where bounds are smaller than visible area
+    // Clamp target position
     if (min_x > max_x) {
+        // Viewport exactly matches or exceeds world width - center it
         cam.target.x = cam.bounds.x + cam.bounds.width / 2.0f;
     } else {
         if (cam.target.x < min_x) cam.target.x = min_x;
@@ -231,6 +245,7 @@ void CameraManager::clamp_to_bounds(Camera2DState& cam) {
     }
 
     if (min_y > max_y) {
+        // Viewport exactly matches or exceeds world height - center it
         cam.target.y = cam.bounds.y + cam.bounds.height / 2.0f;
     } else {
         if (cam.target.y < min_y) cam.target.y = min_y;
