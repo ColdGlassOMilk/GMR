@@ -3,6 +3,7 @@
 #include "gmr/input/input_manager.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include "gmr/state.hpp"
+#include "gmr/camera.hpp"
 #include "raylib.h"
 #include <vector>
 
@@ -179,6 +180,118 @@ static mrb_value mrb_input_mouse_y(mrb_state* mrb, mrb_value) {
         return mrb_fixnum_value(static_cast<int>((GetMouseY() - offset_y) / scale));
     }
     return mrb_fixnum_value(GetMouseY());
+}
+
+// ============================================================================
+// Mouse World Position (using camera projection)
+// ============================================================================
+
+/// @function mouse_world_x
+/// @description Get the mouse X position in world coordinates using the current camera.
+///   Converts screen mouse position to world space using the camera's projection.
+///   If no camera is active, returns the screen position divided by 100 (default PPU).
+/// @returns [Float] Mouse X position in world units
+/// @example world_x = GMR::Input.mouse_world_x
+///   @player.target_x = world_x
+static mrb_value mrb_input_mouse_world_x(mrb_state* mrb, mrb_value) {
+    auto& state = State::instance();
+
+    // Get screen-space mouse position (accounting for virtual resolution)
+    float screen_x;
+    if (state.use_virtual_resolution) {
+        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
+        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        float scale = (scale_x < scale_y) ? scale_x : scale_y;
+
+        int scaled_width = static_cast<int>(state.virtual_width * scale);
+        int offset_x = (GetScreenWidth() - scaled_width) / 2;
+
+        screen_x = static_cast<float>(GetMouseX() - offset_x) / scale;
+    } else {
+        screen_x = static_cast<float>(GetMouseX());
+    }
+
+    // Convert to world coordinates using current camera
+    CameraHandle current = CameraManager::instance().current();
+    if (current != INVALID_CAMERA_HANDLE) {
+        Camera2DState* cam = CameraManager::instance().get(current);
+        if (cam) {
+            // Get screen-space Y as well for proper conversion
+            float screen_y;
+            if (state.use_virtual_resolution) {
+                float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
+                float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+                float scale = (scale_x < scale_y) ? scale_x : scale_y;
+
+                int scaled_height = static_cast<int>(state.virtual_height * scale);
+                int offset_y = (GetScreenHeight() - scaled_height) / 2;
+
+                screen_y = static_cast<float>(GetMouseY() - offset_y) / scale;
+            } else {
+                screen_y = static_cast<float>(GetMouseY());
+            }
+
+            Vec2 world = cam->screen_to_world({screen_x, screen_y});
+            return mrb_float_value(mrb, world.x);
+        }
+    }
+
+    // No camera - return screen position divided by default PPU (100)
+    return mrb_float_value(mrb, screen_x / 100.0f);
+}
+
+/// @function mouse_world_y
+/// @description Get the mouse Y position in world coordinates using the current camera.
+///   Converts screen mouse position to world space using the camera's projection.
+///   If no camera is active, returns the screen position divided by 100 (default PPU).
+/// @returns [Float] Mouse Y position in world units
+/// @example world_y = GMR::Input.mouse_world_y
+///   @player.target_y = world_y
+static mrb_value mrb_input_mouse_world_y(mrb_state* mrb, mrb_value) {
+    auto& state = State::instance();
+
+    // Get screen-space mouse position (accounting for virtual resolution)
+    float screen_y;
+    if (state.use_virtual_resolution) {
+        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
+        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        float scale = (scale_x < scale_y) ? scale_x : scale_y;
+
+        int scaled_height = static_cast<int>(state.virtual_height * scale);
+        int offset_y = (GetScreenHeight() - scaled_height) / 2;
+
+        screen_y = static_cast<float>(GetMouseY() - offset_y) / scale;
+    } else {
+        screen_y = static_cast<float>(GetMouseY());
+    }
+
+    // Convert to world coordinates using current camera
+    CameraHandle current = CameraManager::instance().current();
+    if (current != INVALID_CAMERA_HANDLE) {
+        Camera2DState* cam = CameraManager::instance().get(current);
+        if (cam) {
+            // Get screen-space X as well for proper conversion
+            float screen_x;
+            if (state.use_virtual_resolution) {
+                float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
+                float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+                float scale = (scale_x < scale_y) ? scale_x : scale_y;
+
+                int scaled_width = static_cast<int>(state.virtual_width * scale);
+                int offset_x = (GetScreenWidth() - scaled_width) / 2;
+
+                screen_x = static_cast<float>(GetMouseX() - offset_x) / scale;
+            } else {
+                screen_x = static_cast<float>(GetMouseX());
+            }
+
+            Vec2 world = cam->screen_to_world({screen_x, screen_y});
+            return mrb_float_value(mrb, world.y);
+        }
+    }
+
+    // No camera - return screen position divided by default PPU (100)
+    return mrb_float_value(mrb, screen_y / 100.0f);
 }
 
 /// @function mouse_down?
@@ -1204,9 +1317,15 @@ static void register_key_constants(mrb_state* mrb, RClass* input) {
 void register_input(mrb_state* mrb) {
     RClass* input = get_gmr_submodule(mrb, "Input");
 
-    // Mouse functions
+    // Mouse functions (screen space)
     mrb_define_module_function(mrb, input, "mouse_x", mrb_input_mouse_x, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, input, "mouse_y", mrb_input_mouse_y, MRB_ARGS_NONE());
+
+    // Mouse functions (world space - using current camera)
+    mrb_define_module_function(mrb, input, "mouse_world_x", mrb_input_mouse_world_x, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, input, "mouse_world_y", mrb_input_mouse_world_y, MRB_ARGS_NONE());
+
+    // Mouse button functions
     mrb_define_module_function(mrb, input, "mouse_down?", mrb_input_mouse_down, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "mouse_pressed?", mrb_input_mouse_pressed, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, input, "mouse_released?", mrb_input_mouse_released, MRB_ARGS_REQ(1));

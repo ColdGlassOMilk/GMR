@@ -43,17 +43,10 @@ static bool is_transform2d(mrb_state* mrb, mrb_value val) {
     return mrb_obj_is_kind_of(mrb, val, transform_class);
 }
 
-// Forward declarations for Font (defined later in file)
-struct FontData {
-    FontHandle handle;
-};
-
+// Font free function (FontData is defined in graphics.hpp)
 static void font_free(mrb_state* mrb, void* ptr) {
     mrb_free(mrb, ptr);
 }
-
-extern const mrb_data_type font_data_type;
-static FontData* get_font_data(mrb_state* mrb, mrb_value self);
 
 // ============================================================================
 // GMR::Graphics Module Functions (Stateless)
@@ -1094,12 +1087,12 @@ static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
 /// @parent GMR::Graphics
 /// @description A loaded font for custom text rendering
 
-// Definition of font_data_type (declared earlier in file)
+// Definition of font_data_type (declared in graphics.hpp)
 const mrb_data_type font_data_type = {
     "GMR::Graphics::Font", font_free
 };
 
-// Implementation of get_font_data (declared earlier in file)
+// Implementation of get_font_data (declared in graphics.hpp)
 FontData* get_font_data(mrb_state* mrb, mrb_value self) {
     return static_cast<FontData*>(mrb_data_get_ptr(mrb, self, &font_data_type));
 }

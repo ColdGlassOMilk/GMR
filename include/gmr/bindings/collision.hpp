@@ -28,10 +28,11 @@ struct CollisionResult {
 namespace collision {
 
 // Resolve collision between a rectangle hitbox and a tilemap
-// x, y: hitbox position in tilemap local coordinates
-// w, h: hitbox dimensions
+// x, y: hitbox position in tilemap local coordinates (WORLD UNITS)
+// w, h: hitbox dimensions (WORLD UNITS)
 // vx, vy: current velocity (for directional checks)
 // tilemap: the tilemap to check against
+// Note: Collision uses world-space coordinates where 1 tile = 1 world unit
 inline CollisionResult tilemap_resolve(
     float x, float y, float w, float h,
     float vx, float vy,
@@ -43,14 +44,19 @@ inline CollisionResult tilemap_resolve(
     result.vx = vx;
     result.vy = vy;
 
-    float tile_w = static_cast<float>(tilemap.tile_width);
-    float tile_h = static_cast<float>(tilemap.tile_height);
+    // World-space tile size: each tile is 1x1 world unit
+    // (tilemap.tile_width/height are in PIXELS for texture sampling, not for collision)
+    constexpr float tile_w = 1.0f;
+    constexpr float tile_h = 1.0f;
+
+    // Small margin for edge detection (in world units)
+    constexpr float edge_margin = 0.08f;  // ~2 pixels at 24 PPU
 
     // Vertical collision (check based on movement direction)
     if (vy < 0) {
         // Moving up - check ceiling
-        int tx_start = static_cast<int>(std::floor((x + 2) / tile_w));
-        int tx_end = static_cast<int>(std::floor((x + w - 3) / tile_w));
+        int tx_start = static_cast<int>(std::floor((x + edge_margin) / tile_w));
+        int tx_end = static_cast<int>(std::floor((x + w - edge_margin) / tile_w));
         int ty = static_cast<int>(std::floor(y / tile_h));
 
         for (int tx = tx_start; tx <= tx_end; ++tx) {
@@ -66,8 +72,8 @@ inline CollisionResult tilemap_resolve(
         }
     } else if (vy >= 0) {
         // Moving down or stationary - check ground
-        int tx_start = static_cast<int>(std::floor((x + 2) / tile_w));
-        int tx_end = static_cast<int>(std::floor((x + w - 3) / tile_w));
+        int tx_start = static_cast<int>(std::floor((x + edge_margin) / tile_w));
+        int tx_end = static_cast<int>(std::floor((x + w - edge_margin) / tile_w));
         int ty = static_cast<int>(std::floor((y + h) / tile_h));
 
         for (int tx = tx_start; tx <= tx_end; ++tx) {
@@ -85,10 +91,11 @@ inline CollisionResult tilemap_resolve(
 
     // Horizontal collision (use resolved Y position)
     float check_y = result.y;
+    constexpr float vert_margin = 0.17f;  // ~4 pixels at 24 PPU
     if (vx < 0) {
         // Moving left - check left wall
-        int ty_start = static_cast<int>(std::floor((check_y + 4) / tile_h));
-        int ty_end = static_cast<int>(std::floor((check_y + h - 4) / tile_h));
+        int ty_start = static_cast<int>(std::floor((check_y + vert_margin) / tile_h));
+        int ty_end = static_cast<int>(std::floor((check_y + h - vert_margin) / tile_h));
         int tx = static_cast<int>(std::floor(x / tile_w));
 
         for (int ty = ty_start; ty <= ty_end; ++ty) {
@@ -104,8 +111,8 @@ inline CollisionResult tilemap_resolve(
         }
     } else if (vx > 0) {
         // Moving right - check right wall
-        int ty_start = static_cast<int>(std::floor((check_y + 4) / tile_h));
-        int ty_end = static_cast<int>(std::floor((check_y + h - 4) / tile_h));
+        int ty_start = static_cast<int>(std::floor((check_y + vert_margin) / tile_h));
+        int ty_end = static_cast<int>(std::floor((check_y + h - vert_margin) / tile_h));
         int tx = static_cast<int>(std::floor((x + w) / tile_w));
 
         for (int ty = ty_start; ty <= ty_end; ++ty) {

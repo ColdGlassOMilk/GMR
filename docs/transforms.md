@@ -1,36 +1,66 @@
 # Transforms
 
-Transform2D is GMR's unified spatial transformation system. Every sprite requires a Transform2D that defines its position, rotation, scale, and origin.
+Transform2D is GMR's unified spatial transformation system. Every sprite requires a Transform2D that defines its position, rotation, scale, origin, and rendering properties like z-order and parallax.
 
 ## Creating Transforms
 
 ```ruby
-# Basic transform at position
-@transform = Transform2D.new(x: 100, y: 100)
+# Basic transform at position (in world units)
+@transform = Transform2D.new(x: 5.0, y: 3.0)
 
 # Full specification
 @transform = Transform2D.new(
-  x: 100,
-  y: 100,
-  rotation: 45,        # Degrees, clockwise
+  x: 5.0,
+  y: 3.0,
+  z: 0,              # Z-order for layering
+  rotation: 45,      # Degrees, clockwise
   scale_x: 2.0,
   scale_y: 2.0,
-  origin_x: 16,        # Pivot point X
-  origin_y: 16         # Pivot point Y
+  origin_x: 0.5,     # Pivot point X (in world units)
+  origin_y: 0.5,     # Pivot point Y (in world units)
+  parallax: 1.0      # Parallax factor (1.0 = scrolls with camera)
 )
 ```
+
+## World-Space Coordinates
+
+Transform positions are in **world units**, not pixels. This provides resolution independence:
+
+```ruby
+# Position in world units
+@transform = Transform2D.new(x: 10.5, y: 7.0)
+
+# Move 5 world units per second
+@transform.x += 5.0 * dt
+```
+
+The camera's `view_height` and `pixels_per_unit` determine how world units map to screen pixels. See [Camera](camera.md) for details.
 
 ## Properties
 
 ### Position
 
 ```ruby
-@transform.x = 200
-@transform.y = 150
+@transform.x = 10.0    # World units
+@transform.y = 5.0
 
 # Using Vec2
-@transform.position = Mathf::Vec2.new(200, 150)
+@transform.position = Mathf::Vec2.new(10.0, 5.0)
 pos = @transform.position  # Returns Vec2
+```
+
+### Z-Order
+
+Z-order controls rendering order. Lower values render first (behind), higher values render on top:
+
+```ruby
+# Background behind player
+@bg_transform.z = -10
+@player_transform.z = 0
+@fg_transform.z = 10
+
+# Set during creation
+@transform = Transform2D.new(x: 0, y: 0, z: 5)
 ```
 
 ### Rotation
@@ -55,15 +85,15 @@ pos = @transform.position  # Returns Vec2
 
 ### Origin (Pivot Point)
 
-The origin is the point around which rotation and scaling occur:
+The origin is the point around which rotation and scaling occur (in world units for the sprite's texture):
 
 ```ruby
-# Set origin to center of a 32x32 sprite
-@transform.origin_x = 16
-@transform.origin_y = 16
+# Set origin to center of a sprite that's 1 world unit square
+@transform.origin_x = 0.5
+@transform.origin_y = 0.5
 
 # Using Vec2
-@transform.origin = Mathf::Vec2.new(16, 16)
+@transform.origin = Mathf::Vec2.new(0.5, 0.5)
 ```
 
 For sprites, use `center_origin` to automatically set the origin to the texture center:
@@ -72,15 +102,49 @@ For sprites, use `center_origin` to automatically set the origin to the texture 
 @sprite.center_origin  # Sets origin on the transform
 ```
 
+### Parallax
+
+Parallax controls how the transform scrolls relative to the camera. Use this for depth effects in side-scrollers and top-down games:
+
+```ruby
+# Background scrolls slower (appears farther away)
+@bg_transform.parallax = 0.5   # 50% of camera movement
+
+# Foreground scrolls faster (appears closer)
+@fg_transform.parallax = 1.5   # 150% of camera movement
+
+# Default: scrolls with camera
+@player_transform.parallax = 1.0
+```
+
+#### Parallax Examples
+
+```ruby
+# Sky layer - barely moves
+@sky_transform = Transform2D.new(parallax: 0.1, z: -100)
+
+# Far mountains
+@mountains_transform = Transform2D.new(parallax: 0.3, z: -80)
+
+# Near trees
+@trees_transform = Transform2D.new(parallax: 0.7, z: -20)
+
+# Game objects - scroll with camera
+@player_transform = Transform2D.new(parallax: 1.0, z: 0)
+
+# Rain overlay - scrolls faster for depth effect
+@rain_transform = Transform2D.new(parallax: 1.2, z: 50)
+```
+
 ## Parent-Child Hierarchy
 
 Transforms can be parented to create hierarchies. Child transforms inherit position, rotation, and scale from their parent.
 
 ```ruby
 # Create a turret on a tank
-@tank_transform = Transform2D.new(x: 400, y: 300)
-@turret_transform = Transform2D.new(y: -20)  # Offset from tank
-@gun_transform = Transform2D.new(x: 30)      # Offset from turret
+@tank_transform = Transform2D.new(x: 10.0, y: 5.0)
+@turret_transform = Transform2D.new(y: -0.5)  # Offset from tank in world units
+@gun_transform = Transform2D.new(x: 1.0)      # Offset from turret
 
 # Set up hierarchy
 @turret_transform.parent = @tank_transform
@@ -88,7 +152,7 @@ Transforms can be parented to create hierarchies. Child transforms inherit posit
 
 # Now when tank moves, turret and gun follow
 # When turret rotates, gun rotates with it
-@tank_transform.x += 100
+@tank_transform.x += 5.0 * dt
 @turret_transform.rotation = 45  # Gun points at 45 degrees relative to turret
 ```
 
@@ -97,12 +161,12 @@ Transforms can be parented to create hierarchies. Child transforms inherit posit
 Local coordinates are relative to the parent. World coordinates are the final computed position.
 
 ```ruby
-# Child at local position (10, 0)
-@child = Transform2D.new(x: 10)
-@child.parent = @parent  # Parent at (100, 100)
+# Child at local position (1, 0) world units
+@child = Transform2D.new(x: 1.0)
+@child.parent = @parent  # Parent at (10, 5)
 
-@child.x                 # 10 (local)
-@child.world_position    # Vec2(110, 100) (world)
+@child.x                 # 1.0 (local)
+@child.world_position    # Vec2(11.0, 5.0) (world)
 
 # World rotation combines parent and child
 @parent.rotation = 30
@@ -126,7 +190,7 @@ forward = @transform.forward
 # Right vector (perpendicular to forward)
 right = @transform.right
 
-# Move in facing direction
+# Move in facing direction (world units per second)
 @transform.x += forward.x * speed * dt
 @transform.y += forward.y * speed * dt
 
@@ -139,14 +203,14 @@ right = @transform.right
 
 ### Pixel Snapping
 
-For pixel-perfect rendering:
+For pixel-perfect rendering (when using virtual resolution):
 
 ```ruby
 # Round position to nearest pixel
 @transform.round_to_pixel!
 
-# Snap to grid
-@transform.snap_to_grid!(16)  # Snap to 16x16 grid
+# Snap to grid (in world units)
+@transform.snap_to_grid!(1.0)  # Snap to 1 world unit grid
 ```
 
 ### Interpolation
@@ -175,7 +239,7 @@ new_scale = Transform2D.lerp_scale(
 
 ```ruby
 def update(dt)
-  # Get direction to target
+  # Get direction to target (in world units)
   dx = @target.transform.x - @transform.x
   dy = @target.transform.y - @transform.y
 
@@ -213,11 +277,11 @@ end
 ```ruby
 class Player
   def initialize
-    @transform = Transform2D.new(x: 400, y: 300)
+    @transform = Transform2D.new(x: 10.0, y: 5.0)
     @sprite = Sprite.new(Texture.load("player.png"), @transform)
 
     # Weapon attached to player
-    @weapon_transform = Transform2D.new(x: 20, y: -5)
+    @weapon_transform = Transform2D.new(x: 0.8, y: -0.2)  # Offset in world units
     @weapon_transform.parent = @transform
     @weapon = Sprite.new(Texture.load("weapon.png"), @weapon_transform)
   end
@@ -232,22 +296,40 @@ class Player
 end
 ```
 
+### Parallax Background Layer
+
+```ruby
+def create_parallax_layer(texture, parallax_factor, z_order)
+  transform = Transform2D.new(
+    x: 0, y: 0,
+    z: z_order,
+    parallax: parallax_factor
+  )
+  Sprite.new(texture, transform)
+end
+
+# Create layered background
+@sky = create_parallax_layer(Texture.load("sky.png"), 0.1, -100)
+@mountains = create_parallax_layer(Texture.load("mountains.png"), 0.3, -80)
+@trees = create_parallax_layer(Texture.load("trees.png"), 0.6, -40)
+```
+
 ## With Sprites
 
 Every sprite requires a transform:
 
 ```ruby
-@transform = Transform2D.new(x: 100, y: 100)
+@transform = Transform2D.new(x: 5.0, y: 3.0)
 @texture = Texture.load("player.png")
 @sprite = Sprite.new(@texture, @transform)
 
 # The sprite uses the transform for all spatial properties
-@transform.x += 50      # Sprite moves
-@transform.rotation = 45 # Sprite rotates
-@transform.scale_x = 2   # Sprite scales
+@transform.x += 2.0 * dt      # Sprite moves (2 world units/sec)
+@transform.rotation = 45       # Sprite rotates
+@transform.scale_x = 2         # Sprite scales
 
 # Access transform through sprite
-@sprite.transform.y += 10
+@sprite.transform.y += 1.0 * dt
 ```
 
 ## Performance Notes
@@ -256,10 +338,11 @@ Every sprite requires a transform:
 - Modifying a parent marks all children as dirty
 - Accessing `world_position`, `world_rotation`, or `world_scale` triggers recomputation if dirty
 - For large hierarchies, minimize unnecessary parent changes
+- Parallax calculations happen during rendering, not during transform updates
 
 ## See Also
 
 - [Graphics](graphics.md) - Sprites and rendering
-- [Camera](camera.md) - Camera transforms
+- [Camera](camera.md) - World-space configuration and resolution independence
 - [Animation](animation.md) - Animating transform properties with tweens
 - [API Reference](api/engine/scene/transform2d.md) - Complete Transform2D API

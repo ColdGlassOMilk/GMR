@@ -2,6 +2,54 @@
 
 GMR provides drawing primitives, texture loading, sprites, and tilemaps through the `Graphics` module and related classes.
 
+## Coordinate Systems
+
+GMR uses two coordinate systems:
+
+| Space | Use Case | Description |
+|-------|----------|-------------|
+| **Screen Space** | UI, HUD | Coordinates in logical pixels, auto-scaled |
+| **World Space** | Game objects | Coordinates in world units, camera-transformed |
+
+### Screen Space (UI)
+
+Drawing outside of `camera.use` renders in screen space. UI elements are **automatically scaled** based on a 360p baseline, so your UI looks consistent at any resolution.
+
+```ruby
+def draw
+  @camera.use do
+    # ... world-space rendering
+  end
+
+  # Screen-space UI (outside camera.use)
+  Graphics.draw_text("Score: #{@score}", 10, 10, 16, :white)
+  Graphics.draw_rect(10, 30, 100, 10, :red)
+end
+```
+
+| Render Height | Scale Factor | Size 16 becomes |
+|---------------|--------------|-----------------|
+| 180px | 0.5x | 8 pixels |
+| 360px | 1.0x | 16 pixels |
+| 720px | 2.0x | 32 pixels |
+| 1080px | 3.0x | 48 pixels |
+
+### World Space (Game Objects)
+
+Sprites and tilemaps use world coordinates when rendered inside `camera.use`:
+
+```ruby
+def draw
+  @camera.use do
+    Graphics.clear(:black)
+    @tilemap.draw(0, 0)  # World position (0, 0)
+    @player.draw         # Uses transform's world position
+  end
+end
+```
+
+See [Camera](camera.md) for resolution modes (Resolution-Independent vs Pixel-Perfect).
+
 ## Color Formats
 
 All drawing methods accept colors in multiple formats:
@@ -85,8 +133,28 @@ Graphics.draw_text("Score: #{@score}", 10, 10, 20, :white)
 
 # Measure text before drawing (for centering)
 width = Graphics.measure_text("Hello", 20)
-x = (960 - width) / 2  # Center on 960-wide screen
+x = (Window.width - width) / 2
 Graphics.draw_text("Hello", x, 100, 20, :white)
+```
+
+## UI Auto-Scaling
+
+Screen-space text and primitives use **automatic UI scaling** based on a 360p baseline. This means you design your UI at 360p measurements, and it scales proportionally to any resolution:
+
+| Resolution | Scale Factor | Size 16 becomes |
+|------------|--------------|-----------------|
+| 128x128    | 0.36x        | ~6 pixels       |
+| 320x180    | 0.5x         | 8 pixels        |
+| 640x360    | 1.0x         | 16 pixels       |
+| 1280x720   | 2.0x         | 32 pixels       |
+| 1920x1080  | 3.0x         | 48 pixels       |
+
+```ruby
+# Works at any resolution - text stays proportionally sized
+Graphics.draw_text("Score: 100", 10, 10, 16, :white)
+
+# Position and size are all scaled together
+Graphics.draw_rect(10, 30, 100, 10, :red)  # Health bar
 ```
 
 ## Custom Fonts
@@ -181,7 +249,7 @@ Textures are cached. Multiple `Texture.load` calls with the same path return the
 
 ## Sprites
 
-Sprites combine a texture with spatial properties (via Transform2D) and rendering options.
+Sprites combine a texture with spatial properties (via Transform2D) and rendering options. In world-space rendering, sprite size is determined by the texture dimensions and the asset pixels-per-unit (24 PPU by default).
 
 ### Creating Sprites
 
@@ -189,12 +257,24 @@ Sprites combine a texture with spatial properties (via Transform2D) and renderin
 # Load texture
 @texture = Texture.load("player.png")
 
-# Create transform for position/rotation/scale
-@transform = Transform2D.new(x: 100, y: 100)
+# Create transform for position in world units
+@transform = Transform2D.new(x: 5.0, y: 3.0)
 
 # Create sprite (texture and transform are required)
 @sprite = Sprite.new(@texture, @transform)
 ```
+
+### World-Space Sprite Sizing
+
+Sprites are sized based on their texture dimensions and the asset pixels-per-unit (24 PPU by default):
+
+| Texture Size | World Size |
+|--------------|------------|
+| 24x24 pixels | 1x1 world units |
+| 48x48 pixels | 2x2 world units |
+| 12x24 pixels | 0.5x1 world units |
+
+This means a 24-pixel sprite perfectly covers a 24-pixel tilemap tile (both are 1 world unit).
 
 ### Sprite Properties
 
@@ -213,7 +293,7 @@ Sprites combine a texture with spatial properties (via Transform2D) and renderin
 # Set origin to center (for rotation around center)
 @sprite.center_origin
 
-# Spritesheet region (source rectangle)
+# Spritesheet region (source rectangle in pixels)
 @sprite.source_rect = Rect.new(0, 0, 32, 32)
 ```
 
@@ -221,36 +301,50 @@ Sprites combine a texture with spatial properties (via Transform2D) and renderin
 
 ```ruby
 def draw
-  Graphics.clear(:black)
-  @sprite.draw  # Uses transform position, rotation, scale
+  @camera.use do
+    Graphics.clear(:black)
+    @sprite.draw  # Uses transform position, rotation, scale
+  end
 end
 ```
 
 ### Accessing the Transform
 
 ```ruby
-# Move the sprite by modifying its transform
-@sprite.transform.x += 100 * dt
+# Move the sprite in world units
+@sprite.transform.x += 5.0 * dt   # 5 world units per second
 @sprite.transform.rotation += 90 * dt
 
-# Or access directly
+# Scale the sprite
+@sprite.transform.scale_x = 2.0  # Double width in world units
+
+# Access directly
 transform = @sprite.transform
 puts "Position: #{transform.x}, #{transform.y}"
 ```
 
 ## Tilemaps
 
-Tilemaps render grids of tiles from a tileset texture.
+Tilemaps render grids of tiles from a tileset texture. Each tile occupies exactly 1 world unit.
 
 ### Creating a Tilemap
 
 ```ruby
 @tilemap = Tilemap.new(
   Texture.load("tiles.png"),  # Tileset texture
-  16, 16,                      # Tile width, height in pixels
+  24, 24,                      # Tile width, height in pixels
   100, 50                      # Map width, height in tiles
 )
 ```
+
+### Tilemap World Size
+
+A tilemap's world size is its tile count (since each tile = 1 world unit):
+
+| Map Dimensions | World Size |
+|----------------|------------|
+| 100x50 tiles   | 100x50 world units |
+| 20x15 tiles    | 20x15 world units |
 
 ### Setting Tiles
 
@@ -299,70 +393,130 @@ end
 
 ```ruby
 def draw
-  Graphics.clear(:black)
-  @tilemap.draw(0, 0)  # Draw at offset (0, 0)
+  @camera.use do
+    Graphics.clear(:black)
+    @tilemap.draw(0, 0)  # Draw at world offset (0, 0)
+  end
 end
 ```
 
-For camera support, pass the camera offset:
+The tilemap is automatically culled to only render visible tiles based on the camera view.
+
+## Render Order and Z-Ordering
+
+Sprites and tilemaps support z-ordering for layered rendering. Lower z-values render first (behind), higher values render on top.
+
+### Setting Z-Order
 
 ```ruby
-@camera.use do
-  @tilemap.draw(0, 0)
-end
+# Via transform
+@background.transform.z = -10
+@player.transform.z = 0
+@foreground.transform.z = 10
+
+# Or during creation
+@transform = Transform2D.new(x: 0, y: 0, z: 5)
 ```
 
-## Render Order
+### Parallax Layers
 
-Drawing happens in the order you call draw methods. Later draws appear on top:
+Use the `parallax` property for background layers that scroll at different speeds:
 
 ```ruby
-def draw
-  Graphics.clear(:black)
+# Background scrolls at 50% of camera movement
+@bg_transform = Transform2D.new(parallax: 0.5)
 
-  # Background layer (drawn first, appears behind)
-  @background.draw
+# Foreground scrolls at 150% (faster than camera)
+@fg_transform = Transform2D.new(parallax: 1.5)
 
-  # Tilemap
-  @tilemap.draw(0, 0)
+# Default parallax is 1.0 (scrolls with camera)
+```
 
-  # Game objects
-  @enemies.each(&:draw)
-  @player.draw
+See [Transforms](transforms.md) for more on parallax.
 
-  # Foreground layer
-  @foreground.draw
+## Virtual Resolution (Pixel-Perfect Mode)
 
-  # UI (drawn last, appears on top)
-  Graphics.draw_text("Score: #{@score}", 10, 10, 20, :white)
+For retro-style games, render to a fixed-size texture and scale up. This enables **letterboxing** when aspect ratios don't match.
+
+```ruby
+def init
+  Window.set_size(960, 540)
+  Window.set_virtual_resolution(320, 180)  # Render at 320×180
+  Window.set_filter_point  # Crisp pixel scaling
+
+  @camera = Camera2D.new
+  @camera.view_height = 9
+  @camera.viewport_size = Vec2.new(320, 180)  # Must match!
+  @camera.offset = Vec2.new(160, 90)
 end
 ```
+
+**Important:** When virtual resolution is enabled:
+- `viewport_size` must match the virtual resolution
+- The render texture is scaled to fit the window with letterboxing (black bars)
+- Use `set_filter_point` for crisp pixels, `set_filter_bilinear` for smooth
+
+### Switching Modes at Runtime
+
+```ruby
+def toggle_retro_mode
+  @retro = !@retro
+
+  if @retro
+    # Pixel-Perfect: fixed resolution, letterboxing
+    Window.set_virtual_resolution(320, 180)
+    @camera.viewport_size = Vec2.new(320, 180)
+    @camera.offset = Vec2.new(160, 90)
+  else
+    # Resolution-Independent: native size, no letterboxing
+    Window.clear_virtual_resolution
+    @camera.viewport_size = Vec2.new(Window.width, Window.height)
+    @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
+  end
+end
+```
+
+See [Camera](camera.md) for full documentation on resolution modes.
 
 ## Complete Example
 
 ```ruby
 include GMR
 
+VIEW_HEIGHT = 9
+
 def init
+  Window.set_size(1280, 720)
+
   # Load textures
   @player_texture = Texture.load("player.png")
   @tileset = Texture.load("tiles.png")
 
-  # Create player sprite
-  @player_transform = Transform2D.new(x: 400, y: 300)
+  # Create player (position in world units)
+  @player_transform = Transform2D.new(x: 5, y: 5)
   @player = Sprite.new(@player_texture, @player_transform)
   @player.center_origin
 
-  # Create tilemap
-  @tilemap = Tilemap.new(@tileset, 16, 16, 60, 34)
-  @tilemap.fill(0)  # Floor tile
-  @tilemap.fill_rect(10, 10, 5, 5, 1)  # Some walls
-
+  # Create tilemap (60×34 tiles = 60×34 world units)
+  @tilemap = Tilemap.new(@tileset, 24, 24, 60, 34)
+  @tilemap.fill(0)
+  @tilemap.fill_rect(10, 10, 5, 5, 1)
   @tilemap.define_tile(1, solid: true)
+
+  # Setup camera (Resolution-Independent mode)
+  @camera = Camera2D.new
+  @camera.view_height = VIEW_HEIGHT
+  @camera.viewport_size = Vec2.new(Window.width, Window.height)
+  @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
+end
+
+def on_resize(width, height)
+  @camera.viewport_size = Vec2.new(width, height)
+  @camera.offset = Vec2.new(width / 2, height / 2)
 end
 
 def update(dt)
-  speed = 200 * dt
+  speed = 5.0 * dt
   @player_transform.x -= speed if Input.key_down?(:left)
   @player_transform.x += speed if Input.key_down?(:right)
   @player_transform.y -= speed if Input.key_down?(:up)
@@ -370,22 +524,20 @@ def update(dt)
 end
 
 def draw
-  Graphics.clear("#1a1a2e")
+  @camera.use do
+    Graphics.clear("#1a1a2e")
+    @tilemap.draw(0, 0)
+    @player.draw
+  end
 
-  # Draw tilemap
-  @tilemap.draw(0, 0)
-
-  # Draw player
-  @player.draw
-
-  # Draw UI
+  # UI (screen space, auto-scaled)
   Graphics.draw_text("Arrow keys to move", 10, 10, 16, :white)
 end
 ```
 
 ## See Also
 
-- [Transforms](transforms.md) - Transform2D details
-- [Camera](camera.md) - Camera and scrolling
+- [Camera](camera.md) - World-space rendering and resolution independence
+- [Transforms](transforms.md) - Transform2D, parallax, and z-ordering
 - [Animation](animation.md) - Sprite animation
 - [API Reference](api/engine/graphics/README.md) - Complete Graphics API

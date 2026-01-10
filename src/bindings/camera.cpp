@@ -196,14 +196,22 @@ static mrb_value create_vec2(mrb_state* mrb, float x, float y) {
 
 /// @method initialize
 /// @description Create a new Camera2D with optional initial values.
+///   Resolution-independent: Set view_height (world units visible vertically) and
+///   viewport_size (render resolution) - PPU is calculated automatically.
 /// @param target [Vec2] World position the camera looks at (default: 0,0)
 /// @param offset [Vec2] Screen position offset, typically screen center (default: 0,0)
 /// @param zoom [Float] Zoom level, 1.0 = normal (default: 1.0)
 /// @param rotation [Float] Rotation in degrees (default: 0)
+/// @param view_height [Float] World units visible vertically (default: 7.5)
+/// @param view_size [Vec2] Fixed view size in world units (retro mode with letterboxing)
+/// @param viewport_size [Vec2] Render resolution in pixels (default: 320x180)
 /// @returns [Camera2D] The new camera
-/// @example cam = Camera2D.new
-/// @example cam = Camera2D.new(target: Vec2.new(100, 100), zoom: 2.0)
-/// @example cam = Camera2D.new(offset: Vec2.new(400, 300))  # Center on 800x600 screen
+/// @example # Simple - just set how much world to show
+///   cam = Camera2D.new(view_height: 10)  # 10 world units tall, width from aspect ratio
+/// @example # Retro style - fixed view with letterboxing
+///   cam = Camera2D.new(view_size: Vec2.new(13.33, 7.5))  # Fixed 13.33x7.5 world units
+/// @example # High-res rendering of same view
+///   cam = Camera2D.new(view_height: 7.5, viewport_size: Vec2.new(1920, 1080))
 static mrb_value mrb_camera_initialize(mrb_state* mrb, mrb_value self) {
     mrb_value kwargs = mrb_nil_value();
     mrb_get_args(mrb, "|H", &kwargs);
@@ -211,6 +219,9 @@ static mrb_value mrb_camera_initialize(mrb_state* mrb, mrb_value self) {
     // Create camera
     CameraHandle handle = CameraManager::instance().create();
     Camera2DState* cam = CameraManager::instance().get(handle);
+
+    bool view_height_set = false;
+    bool viewport_set = false;
 
     // Parse keyword arguments
     if (!mrb_nil_p(kwargs)) {
@@ -237,9 +248,37 @@ static mrb_value mrb_camera_initialize(mrb_state* mrb, mrb_value self) {
                     cam->zoom = static_cast<float>(mrb_as_float(mrb,val));
                 } else if (strcmp(key_name, "rotation") == 0) {
                     cam->rotation = static_cast<float>(mrb_as_float(mrb,val));
+                } else if (strcmp(key_name, "view_height") == 0) {
+                    cam->view_height = static_cast<float>(mrb_as_float(mrb,val));
+                    view_height_set = true;
+                } else if (strcmp(key_name, "view_size") == 0) {
+                    Vec2 size = extract_vec2(mrb, val);
+                    cam->view_width = size.x;
+                    cam->view_height = size.y;
+                    view_height_set = true;
+                } else if (strcmp(key_name, "viewport_size") == 0) {
+                    cam->viewport_size = extract_vec2(mrb, val);
+                    viewport_set = true;
                 }
             }
         }
+    }
+
+    // Auto-calculate PPU from view_height and viewport_size
+    cam->update_pixels_per_unit();
+
+    // Auto-set offset to center of viewport (common default)
+    if (!mrb_nil_p(kwargs)) {
+        // Only auto-center if offset wasn't explicitly set
+        mrb_sym offset_sym = mrb_intern_cstr(mrb, "offset");
+        if (!mrb_hash_key_p(mrb, kwargs, mrb_symbol_value(offset_sym))) {
+            cam->offset.x = cam->viewport_size.x / 2.0f;
+            cam->offset.y = cam->viewport_size.y / 2.0f;
+        }
+    } else {
+        // No kwargs, use default centered offset
+        cam->offset.x = cam->viewport_size.x / 2.0f;
+        cam->offset.y = cam->viewport_size.y / 2.0f;
     }
 
     // Attach handle to Ruby object
@@ -377,6 +416,238 @@ static mrb_value mrb_camera_set_rotation(mrb_state* mrb, mrb_value self) {
     cam->rotation = static_cast<float>(val);
     cam->dirty = true;
     return mrb_float_value(mrb, val);
+}
+
+// ============================================================================
+// World-Space Configuration Properties
+// ============================================================================
+
+/// @method pixels_per_unit
+/// @description Get the scale factor (screen pixels per world unit).
+///   This defines the relationship between world coordinates and screen pixels.
+///   At zoom=1.0, one world unit takes up this many pixels on screen.
+/// @returns [Float] The pixels per unit value
+/// @example ppu = camera.pixels_per_unit
+static mrb_value mrb_camera_pixels_per_unit(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return mrb_float_value(mrb, cam->pixels_per_unit);
+}
+
+/// @method pixels_per_unit=
+/// @description Set the scale factor (screen pixels per world unit).
+///   Common values:
+///   - 100.0: Unity-style (default), 1 unit = 100 pixels
+///   - 16/24/32: Tile-based games, 1 unit = 1 tile
+///   - 1.0: 1:1 pixel mapping at zoom=1.0
+/// @param value [Float] The pixels per unit value (must be > 0)
+/// @returns [Float] The value that was set
+/// @example camera.pixels_per_unit = 24.0  # 1 tile = 24 pixels
+/// @example camera.pixels_per_unit = 100.0 # Unity-style default
+static mrb_value mrb_camera_set_pixels_per_unit(mrb_state* mrb, mrb_value self) {
+    mrb_float val;
+    mrb_get_args(mrb, "f", &val);
+
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    if (val <= 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "pixels_per_unit must be greater than 0");
+        return mrb_nil_value();
+    }
+
+    cam->pixels_per_unit = static_cast<float>(val);
+    cam->dirty = true;
+    return mrb_float_value(mrb, val);
+}
+
+/// @method viewport_size
+/// @description Get the viewport dimensions in pixels. This is the size of the
+///   render target (camera's "screen" size), used for aspect ratio and visible bounds.
+/// @returns [Vec2] The viewport size in pixels
+/// @example size = camera.viewport_size
+static mrb_value mrb_camera_viewport_size(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return create_vec2(mrb, cam->viewport_size.x, cam->viewport_size.y);
+}
+
+/// @method viewport_size=
+/// @description Set the viewport dimensions in pixels. This defines the camera's
+///   render target size. Setting this automatically recalculates pixels_per_unit
+///   to maintain the same view_height, providing resolution independence.
+/// @param value [Vec2] The viewport size in pixels
+/// @returns [Vec2] The value that was set
+/// @example camera.viewport_size = Vec2.new(320, 180)  # Retro resolution
+/// @example camera.viewport_size = Vec2.new(1920, 1080) # HD (same view, higher quality)
+static mrb_value mrb_camera_set_viewport_size(mrb_state* mrb, mrb_value self) {
+    mrb_value val;
+    mrb_get_args(mrb, "o", &val);
+
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    cam->viewport_size = extract_vec2(mrb, val);
+    cam->update_pixels_per_unit();  // Auto-recalculate PPU for resolution independence
+    cam->dirty = true;
+    return val;
+}
+
+/// @method visible_bounds
+/// @description Get the world-space bounds currently visible on screen.
+///   This is the rectangle of world coordinates that the camera can see.
+/// @returns [Rect] The visible bounds in world coordinates
+/// @example bounds = camera.visible_bounds
+/// @example # Check if entity is on screen
+/// @example if bounds.contains?(enemy.x, enemy.y)
+/// @example   enemy.draw
+/// @example end
+static mrb_value mrb_camera_visible_bounds(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    Rect bounds = cam->get_visible_bounds();
+
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
+    RClass* rect_class = mrb_class_get_under(mrb, graphics, "Rect");
+    mrb_value args[4] = {
+        mrb_float_value(mrb, bounds.x),
+        mrb_float_value(mrb, bounds.y),
+        mrb_float_value(mrb, bounds.width),
+        mrb_float_value(mrb, bounds.height)
+    };
+    return mrb_obj_new(mrb, rect_class, 4, args);
+}
+
+/// @method visible_width
+/// @description Get the width of the visible world area (in world units).
+/// @returns [Float] The visible width
+/// @example width = camera.visible_width
+static mrb_value mrb_camera_visible_width(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return mrb_float_value(mrb, cam->get_visible_width());
+}
+
+/// @method visible_height
+/// @description Get the height of the visible world area (in world units).
+/// @returns [Float] The visible height
+/// @example height = camera.visible_height
+static mrb_value mrb_camera_visible_height(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return mrb_float_value(mrb, cam->get_visible_height());
+}
+
+/// @method effective_scale
+/// @description Get the effective scale factor (pixels_per_unit * zoom).
+///   This is how many screen pixels one world unit currently occupies.
+/// @returns [Float] The effective scale
+/// @example scale = camera.effective_scale
+static mrb_value mrb_camera_effective_scale(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return mrb_float_value(mrb, cam->get_effective_scale());
+}
+
+/// @method view_height
+/// @description Get the view height in world units (how many world units are visible vertically).
+///   This is the primary control for resolution-independent rendering.
+/// @returns [Float] The view height in world units
+/// @example height = camera.view_height
+static mrb_value mrb_camera_view_height(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+    return mrb_float_value(mrb, cam->view_height);
+}
+
+/// @method view_height=
+/// @description Set the view height in world units (how many world units are visible vertically).
+///   Setting this automatically recalculates pixels_per_unit. Use this for Unity-style
+///   resolution independence where width is derived from aspect ratio.
+/// @param value [Float] The view height in world units (must be > 0)
+/// @returns [Float] The value that was set
+/// @example camera.view_height = 10.0  # 10 world units tall
+static mrb_value mrb_camera_set_view_height(mrb_state* mrb, mrb_value self) {
+    mrb_float val;
+    mrb_get_args(mrb, "f", &val);
+
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    if (val <= 0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "view_height must be greater than 0");
+        return mrb_nil_value();
+    }
+
+    cam->view_height = static_cast<float>(val);
+    cam->view_width = 0.0f;  // Clear view_width for Unity-style (height-only) mode
+    cam->update_pixels_per_unit();
+    cam->dirty = true;
+    return mrb_float_value(mrb, val);
+}
+
+/// @method view_size
+/// @description Get the fixed view size in world units (for retro-style rendering).
+///   Returns nil if using Unity-style (height-only) mode.
+/// @returns [Vec2, nil] The view size in world units, or nil if not in retro mode
+/// @example size = camera.view_size
+static mrb_value mrb_camera_view_size(mrb_state* mrb, mrb_value self) {
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    // Return nil if in Unity-style mode (view_width = 0)
+    if (!cam->is_fixed_view_size()) {
+        return mrb_nil_value();
+    }
+
+    return create_vec2(mrb, cam->view_width, cam->view_height);
+}
+
+/// @method view_size=
+/// @description Set a fixed view size in world units (for retro-style rendering).
+///   This locks both width and height, using letterboxing if the aspect ratio doesn't match.
+///   Set to nil to switch back to Unity-style (height-only) mode.
+/// @param value [Vec2, nil] The view size in world units, or nil for Unity-style mode
+/// @returns [Vec2, nil] The value that was set
+/// @example camera.view_size = Vec2.new(13.33, 7.5)  # Fixed 13.33x7.5 world units
+/// @example camera.view_size = nil  # Switch to Unity-style
+static mrb_value mrb_camera_set_view_size(mrb_state* mrb, mrb_value self) {
+    mrb_value val;
+    mrb_get_args(mrb, "o", &val);
+
+    CameraData* data = get_camera_data(mrb, self);
+    Camera2DState* cam = CameraManager::instance().get(data->handle);
+    if (!cam) return mrb_nil_value();
+
+    if (mrb_nil_p(val)) {
+        // Switch to Unity-style mode
+        cam->view_width = 0.0f;
+    } else {
+        Vec2 size = extract_vec2(mrb, val);
+        if (size.x <= 0 || size.y <= 0) {
+            mrb_raise(mrb, E_ARGUMENT_ERROR, "view_size dimensions must be greater than 0");
+            return mrb_nil_value();
+        }
+        cam->view_width = size.x;
+        cam->view_height = size.y;
+    }
+
+    cam->update_pixels_per_unit();
+    cam->dirty = true;
+    return val;
 }
 
 // ============================================================================
@@ -767,6 +1038,20 @@ void register_camera(mrb_state* mrb) {
     mrb_define_method(mrb, camera_class, "offset=", mrb_camera_set_offset, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, camera_class, "zoom=", mrb_camera_set_zoom, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, camera_class, "rotation=", mrb_camera_set_rotation, MRB_ARGS_REQ(1));
+
+    // World-space configuration
+    mrb_define_method(mrb, camera_class, "pixels_per_unit", mrb_camera_pixels_per_unit, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "pixels_per_unit=", mrb_camera_set_pixels_per_unit, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, camera_class, "viewport_size", mrb_camera_viewport_size, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "viewport_size=", mrb_camera_set_viewport_size, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, camera_class, "view_height", mrb_camera_view_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "view_height=", mrb_camera_set_view_height, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, camera_class, "view_size", mrb_camera_view_size, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "view_size=", mrb_camera_set_view_size, MRB_ARGS_REQ(1));
+    mrb_define_method(mrb, camera_class, "visible_bounds", mrb_camera_visible_bounds, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "visible_width", mrb_camera_visible_width, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "visible_height", mrb_camera_visible_height, MRB_ARGS_NONE());
+    mrb_define_method(mrb, camera_class, "effective_scale", mrb_camera_effective_scale, MRB_ARGS_NONE());
 
     // Follow system
     mrb_define_method(mrb, camera_class, "follow", mrb_camera_follow, MRB_ARGS_OPT(2));

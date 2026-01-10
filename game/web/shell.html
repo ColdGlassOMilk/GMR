@@ -348,17 +348,30 @@
             }
         });
         
-        // Handle fullscreen changes
-        document.addEventListener('fullscreenchange', function() {
-            document.body.classList.toggle('fullscreen', !!document.fullscreenElement);
-        });
+        // Handle fullscreen changes (including webkit prefix)
+        function handleFullscreenChange() {
+            var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            document.body.classList.toggle('fullscreen', isFullscreen);
+
+            // Notify C++ of fullscreen change with new dimensions
+            if (Module._on_fullscreen_change) {
+                var w = isFullscreen ? window.innerWidth : 0;
+                var h = isFullscreen ? window.innerHeight : 0;
+                Module._on_fullscreen_change(isFullscreen ? 1 : 0, w, h);
+            }
+        }
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
         
-        // Mute button
+        // Mute button - calls into C++ via Emscripten
         var muted = false;
         document.getElementById('mute-btn').addEventListener('click', function() {
             muted = !muted;
             this.textContent = muted ? 'Unmute' : 'Mute';
-            // Note: Actual muting would require hooking into the audio system
+            // Call the exported C++ function to set master volume
+            if (Module._set_master_volume) {
+                Module._set_master_volume(muted ? 0.0 : 1.0);
+            }
         });
         
         // Focus canvas on click

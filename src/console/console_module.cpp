@@ -1,5 +1,6 @@
 #include "gmr/console/console_module.hpp"
 #include "gmr/bindings/binding_helpers.hpp"
+#include "gmr/bindings/graphics.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include "gmr/input/input_context.hpp"
 #include "gmr/resources/font_manager.hpp"
@@ -67,6 +68,25 @@ static int measure_console_text(const char* text, int font_size, FontHandle font
     float spacing = static_cast<float>(font_size) / 10.0f;
     Vector2 size = MeasureTextEx(font, text, static_cast<float>(font_size), spacing);
     return static_cast<int>(size.x);
+}
+
+// Get the effective screen width (virtual resolution if enabled, otherwise window)
+static int get_effective_screen_width() {
+    auto& state = State::instance();
+    if (state.use_virtual_resolution) {
+        return state.virtual_width;
+    }
+    return GetScreenWidth();
+}
+
+// Get UI scale factor for auto-scaling UI elements
+static float get_ui_scale() {
+    return State::instance().ui_scale();
+}
+
+// Scale a base value by UI scale factor
+static int scale_ui(int base_value) {
+    return static_cast<int>(static_cast<float>(base_value) * get_ui_scale());
 }
 
 ConsoleModule& ConsoleModule::instance() {
@@ -794,39 +814,47 @@ void ConsoleModule::draw() {
 }
 
 void ConsoleModule::draw_background() {
-    int y = static_cast<int>(current_y_);
-    // Always use full screen width to ensure console spans the entire screen
-    int width = GetScreenWidth();
+    // Style values are at 360p baseline, auto-scaled to virtual resolution
+    float scale = get_ui_scale();
+    int y = static_cast<int>(current_y_ * scale);
+    int height = scale_ui(style_.height);
+    int width = get_effective_screen_width();
 
     // Main background
-    DrawRectangle(0, y, width, style_.height, to_raylib_color(style_.bg_color));
+    DrawRectangle(0, y, width, height, to_raylib_color(style_.bg_color));
 
     // Top border (subtle)
     uint8_t top_border[4] = {40, 50, 70, 255};
-    DrawRectangle(0, y, width, 1, to_raylib_color(top_border));
+    DrawRectangle(0, y, width, std::max(1, scale_ui(1)), to_raylib_color(top_border));
 
     // Bottom border (highlighted)
-    DrawRectangle(0, y + style_.height - 2, width, 2, to_raylib_color(style_.border_color));
+    int border_height = std::max(2, scale_ui(2));
+    DrawRectangle(0, y + height - border_height, width, border_height, to_raylib_color(style_.border_color));
 }
 
 void ConsoleModule::draw_output() {
-    int y = static_cast<int>(current_y_);
-    // Always use full screen width
-    int width = GetScreenWidth();
+    // Style values are at 360p baseline, auto-scaled to virtual resolution
+    float scale = get_ui_scale();
+    int y = static_cast<int>(current_y_ * scale);
+    int height = scale_ui(style_.height);
+    int font_size = scale_ui(style_.font_size);
+    int line_height = scale_ui(style_.line_height);
+    int padding = scale_ui(style_.padding);
+    int width = get_effective_screen_width();
 
-    int output_height = style_.height - 40;
-    int visible_count = output_height / style_.line_height;
+    int output_height = height - scale_ui(40);
+    int visible_count = (line_height > 0) ? (output_height / line_height) : 0;
 
     // Calculate visible range
     int total_lines = static_cast<int>(output_.size());
     int start_idx = std::max(total_lines - visible_count - scroll_offset_, 0);
     int end_idx = std::min(total_lines - scroll_offset_, total_lines);
 
-    int draw_y = y + style_.padding;
+    int draw_y = y + padding;
 
     // Calculate average char width for truncation (approximate)
-    int avg_char_width = measure_console_text("M", style_.font_size, style_.font) ;
-    if (avg_char_width < 1) avg_char_width = 7;
+    int avg_char_width = measure_console_text("M", font_size, style_.font);
+    if (avg_char_width < 1) avg_char_width = scale_ui(7);
 
     for (int i = start_idx; i < end_idx; i++) {
         const auto& entry = output_[i];
@@ -835,51 +863,58 @@ void ConsoleModule::draw_output() {
 
         std::string text = entry.text;
         // Truncate very long lines
-        int max_chars = (width - style_.padding * 2 - 20) / avg_char_width;
+        int max_chars = (width - padding * 2 - scale_ui(20)) / std::max(1, avg_char_width);
         if (static_cast<int>(text.length()) > max_chars && max_chars > 3) {
             text = text.substr(0, max_chars - 3) + "...";
         }
 
-        draw_console_text(text.c_str(), style_.padding, draw_y, style_.font_size, to_raylib_color(color), style_.font);
-        draw_y += style_.line_height;
+        draw_console_text(text.c_str(), padding, draw_y, font_size, to_raylib_color(color), style_.font);
+        draw_y += line_height;
     }
 }
 
 void ConsoleModule::draw_input_line() {
-    int y = static_cast<int>(current_y_);
-    // Always use full screen width
-    int width = GetScreenWidth();
-    int input_y = y + style_.height - 28;
+    // Style values are at 360p baseline, auto-scaled to virtual resolution
+    float scale = get_ui_scale();
+    int y = static_cast<int>(current_y_ * scale);
+    int height = scale_ui(style_.height);
+    int font_size = scale_ui(style_.font_size);
+    int padding = scale_ui(style_.padding);
+    int width = get_effective_screen_width();
+    int input_y = y + height - scale_ui(28);
+    int input_bar_height = scale_ui(28);
 
     // Input background
     uint8_t input_bg[4] = {25, 30, 45, 255};
-    DrawRectangle(0, input_y - 4, width, 28, to_raylib_color(input_bg));
+    DrawRectangle(0, input_y - scale_ui(4), width, input_bar_height, to_raylib_color(input_bg));
 
     // Prompt
     const char* prompt = in_multiline_ ? ".. " : ">> ";
     const uint8_t* prompt_color = open_ ? style_.prompt_color : style_.info_color;
-    draw_console_text(prompt, style_.padding, input_y, style_.font_size, to_raylib_color(prompt_color), style_.font);
+    draw_console_text(prompt, padding, input_y, font_size, to_raylib_color(prompt_color), style_.font);
 
-    int prompt_width = measure_console_text(prompt, style_.font_size, style_.font);
-    int text_x = style_.padding + prompt_width;
+    int prompt_width = measure_console_text(prompt, font_size, style_.font);
+    int text_x = padding + prompt_width;
 
     // Input text
-    draw_console_text(input_.c_str(), text_x, input_y, style_.font_size, to_raylib_color(style_.input_color), style_.font);
+    draw_console_text(input_.c_str(), text_x, input_y, font_size, to_raylib_color(style_.input_color), style_.font);
 
     // Cursor
     if (open_ && cursor_blink_ < 1.0f) {
         std::string before_cursor = input_.substr(0, cursor_pos_);
-        int cursor_x = text_x + measure_console_text(before_cursor.c_str(), style_.font_size, style_.font);
-        DrawRectangle(cursor_x, input_y, 2, style_.font_size + 2, to_raylib_color(style_.cursor_color));
+        int cursor_x = text_x + measure_console_text(before_cursor.c_str(), font_size, style_.font);
+        int cursor_width = std::max(2, scale_ui(2));
+        DrawRectangle(cursor_x, input_y, cursor_width, font_size + scale_ui(2), to_raylib_color(style_.cursor_color));
     }
 
     // History index indicator
     if (history_index_ >= 0) {
         std::string indicator = "[" + std::to_string(command_history_.size() - history_index_) +
                                "/" + std::to_string(command_history_.size()) + "]";
-        int indicator_width = measure_console_text(indicator.c_str(), 12, style_.font);
+        int indicator_font_size = scale_ui(12);
+        int indicator_width = measure_console_text(indicator.c_str(), indicator_font_size, style_.font);
         uint8_t indicator_color[4] = {80, 80, 100, 255};
-        draw_console_text(indicator.c_str(), width - indicator_width - style_.padding, input_y + 1, 12,
+        draw_console_text(indicator.c_str(), width - indicator_width - padding, input_y + scale_ui(1), indicator_font_size,
                  to_raylib_color(indicator_color), style_.font);
     }
 }
@@ -887,24 +922,28 @@ void ConsoleModule::draw_input_line() {
 void ConsoleModule::draw_scrollbar() {
     if (output_.size() <= static_cast<size_t>(visible_lines())) return;
 
-    int y = static_cast<int>(current_y_);
-    int width = (style_.width > 0) ? style_.width : GetScreenWidth();
+    // Style values are at 360p baseline, auto-scaled to virtual resolution
+    float scale = get_ui_scale();
+    int y = static_cast<int>(current_y_ * scale);
+    int height = scale_ui(style_.height);
+    int width = (style_.width > 0) ? scale_ui(style_.width) : get_effective_screen_width();
 
-    int bar_height = style_.height - 50;
-    int bar_x = width - 6;
-    int bar_y = y + 8;
+    int bar_height = height - scale_ui(50);
+    int bar_x = width - scale_ui(6);
+    int bar_y = y + scale_ui(8);
+    int bar_width = std::max(2, scale_ui(4));
 
     // Track
-    DrawRectangle(bar_x, bar_y, 4, bar_height, to_raylib_color(style_.scrollbar_bg));
+    DrawRectangle(bar_x, bar_y, bar_width, bar_height, to_raylib_color(style_.scrollbar_bg));
 
     // Thumb
     float visible_ratio = static_cast<float>(visible_lines()) / output_.size();
-    int thumb_height = std::max(static_cast<int>(visible_ratio * bar_height), 20);
+    int thumb_height = std::max(static_cast<int>(visible_ratio * bar_height), scale_ui(20));
 
     float scroll_ratio = static_cast<float>(scroll_offset_) / std::max(max_scroll(), 1);
     int thumb_y = bar_y + static_cast<int>((1 - scroll_ratio) * (bar_height - thumb_height));
 
-    DrawRectangle(bar_x, thumb_y, 4, thumb_height, to_raylib_color(style_.scrollbar_fg));
+    DrawRectangle(bar_x, thumb_y, bar_width, thumb_height, to_raylib_color(style_.scrollbar_fg));
 }
 
 // ============================================================================
@@ -1017,18 +1056,10 @@ static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value self) {
         // Font - accepts a Graphics::Font object
         mrb_value font_val = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "font")));
         if (!mrb_nil_p(font_val) && mrb_data_p(font_val)) {
-            // Get the font data type from graphics module
-            RClass* gmr = mrb_module_get(mrb, "GMR");
-            RClass* graphics = mrb_class_get_under(mrb, gmr, "Graphics");
-            RClass* font_class = mrb_class_get_under(mrb, graphics, "Font");
-            if (mrb_obj_is_instance_of(mrb, font_val, font_class)) {
-                // Extract FontHandle from Font object
-                // FontData struct has handle as first member
-                struct FontData { FontHandle handle; };
-                auto* font_data = static_cast<FontData*>(DATA_PTR(font_val));
-                if (font_data) {
-                    style.font = font_data->handle;
-                }
+            // Use the properly exported get_font_data function for safe extraction
+            auto* font_data = bindings::get_font_data(mrb, font_val);
+            if (font_data && font_data->handle != INVALID_HANDLE) {
+                style.font = font_data->handle;
             }
         }
 

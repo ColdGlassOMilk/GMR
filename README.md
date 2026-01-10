@@ -12,6 +12,7 @@
 - **Live REPL Console** - Press backtick to open a console mid-game
 - **One Codebase, Every Platform** - Windows, Linux, macOS, or WebAssembly
 - **Ruby Simplicity, Native Speed** - mruby bytecode with raylib rendering
+- **Resolution Independence** - World-space coordinates, auto-scaling UI, retro and HD modes
 - **Batteries Included** - Graphics, tilemaps, audio, input, collision detection
 - **Safe by Design** - Handle-based resource system, no raw pointers in Ruby
 - **Modern CLI Tooling** - `gmrcli dev` to build and run
@@ -134,7 +135,7 @@ This example introduces:
 | [Input](docs/input.md) | Action mapping, raw input, contexts |
 | [Graphics](docs/graphics.md) | Drawing, textures, sprites, tilemaps |
 | [Transforms](docs/transforms.md) | Transform2D, hierarchy, world coordinates |
-| [Camera](docs/camera.md) | Following, shake, coordinate conversion |
+| [Camera](docs/camera.md) | World-space rendering, resolution independence, following |
 | [Animation](docs/animation.md) | SpriteAnimation, Animator, Tweens |
 | [State Machine](docs/state-machine.md) | State DSL, transitions, animation binding |
 | [Audio](docs/audio.md) | Sound effects, music streaming |

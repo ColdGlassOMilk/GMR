@@ -44,9 +44,10 @@ EM_JS(void, js_resize_canvas, (int width, int height), {
 static bool was_fullscreen = false;
 
 // Update screen dimensions from actual canvas size on web
+// Only resize canvas when entering/exiting fullscreen to avoid taking over the page
+// Note: This is a backup for the JS fullscreenchange event handler
 void update_web_screen_size() {
     auto& state = State::instance();
-    if (state.use_virtual_resolution) return;
 
     bool is_fs = js_is_fullscreen();
 
@@ -60,27 +61,80 @@ void update_web_screen_size() {
             int h = js_get_window_height();
             js_resize_canvas(w, h);
             SetWindowSize(w, h);
-            state.screen_width = w;
-            state.screen_height = h;
+            state.canvas_width = w;
+            state.canvas_height = h;
             state.is_fullscreen = true;
         } else {
             // Exited fullscreen - restore original size
             js_resize_canvas(state.windowed_width, state.windowed_height);
             SetWindowSize(state.windowed_width, state.windowed_height);
-            state.screen_width = state.windowed_width;
-            state.screen_height = state.windowed_height;
+            state.canvas_width = state.windowed_width;
+            state.canvas_height = state.windowed_height;
             state.is_fullscreen = false;
         }
+
+        // Update logical screen size if not using virtual resolution
+        if (!state.use_virtual_resolution) {
+            state.screen_width = state.canvas_width;
+            state.screen_height = state.canvas_height;
+        }
     } else if (is_fs) {
-        // While in fullscreen, check if window was resized
+        // While in fullscreen, check if window was resized (browser resize, orientation change)
         int w = js_get_window_width();
         int h = js_get_window_height();
-        if (w != state.screen_width || h != state.screen_height) {
+
+        if (w != state.canvas_width || h != state.canvas_height) {
             js_resize_canvas(w, h);
             SetWindowSize(w, h);
-            state.screen_width = w;
-            state.screen_height = h;
+            state.canvas_width = w;
+            state.canvas_height = h;
+
+            if (!state.use_virtual_resolution) {
+                state.screen_width = w;
+                state.screen_height = h;
+            }
         }
+    }
+}
+
+// Exported functions for JavaScript
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void set_master_volume(float volume) {
+        SetMasterVolume(volume);
+    }
+
+    // Called from JavaScript when fullscreen state changes
+    EMSCRIPTEN_KEEPALIVE
+    void on_fullscreen_change(int is_fullscreen, int width, int height) {
+        auto& state = State::instance();
+
+        if (is_fullscreen) {
+            // Entered fullscreen - resize canvas to provided size
+            js_resize_canvas(width, height);
+            SetWindowSize(width, height);
+            state.canvas_width = width;
+            state.canvas_height = height;
+            state.is_fullscreen = true;
+            was_fullscreen = true;
+        } else {
+            // Exited fullscreen - restore original size
+            js_resize_canvas(state.windowed_width, state.windowed_height);
+            SetWindowSize(state.windowed_width, state.windowed_height);
+            state.canvas_width = state.windowed_width;
+            state.canvas_height = state.windowed_height;
+            state.is_fullscreen = false;
+            was_fullscreen = false;
+        }
+
+        // Update logical screen size if not using virtual resolution
+        if (!state.use_virtual_resolution) {
+            state.screen_width = state.canvas_width;
+            state.screen_height = state.canvas_height;
+        }
+
+        // Signal main loop to notify Ruby of resize
+        state.fullscreen_changed = true;
     }
 }
 #endif
@@ -229,6 +283,8 @@ static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value self) {
     if (!state.is_fullscreen) {
         state.windowed_width = w;
         state.windowed_height = h;
+        state.canvas_width = w;
+        state.canvas_height = h;
         SetWindowSize(w, h);
     }
 
@@ -286,6 +342,8 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
         int my = GetMonitorHeight(monitor);
         SetWindowPosition((mx - state.windowed_width) / 2, (my - state.windowed_height) / 2);
 
+        state.canvas_width = state.windowed_width;
+        state.canvas_height = state.windowed_height;
         if (!state.use_virtual_resolution) {
             state.screen_width = state.windowed_width;
             state.screen_height = state.windowed_height;
@@ -302,6 +360,8 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
         SetWindowSize(mw, mh);
         SetWindowState(FLAG_FULLSCREEN_MODE);
 
+        state.canvas_width = mw;
+        state.canvas_height = mh;
         if (!state.use_virtual_resolution) {
             state.screen_width = mw;
             state.screen_height = mh;
@@ -353,6 +413,8 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
         SetWindowSize(mw, mh);
         SetWindowState(FLAG_FULLSCREEN_MODE);
 
+        state.canvas_width = mw;
+        state.canvas_height = mh;
         if (!state.use_virtual_resolution) {
             state.screen_width = mw;
             state.screen_height = mh;
@@ -367,6 +429,8 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
         int my = GetMonitorHeight(monitor);
         SetWindowPosition((mx - state.windowed_width) / 2, (my - state.windowed_height) / 2);
 
+        state.canvas_width = state.windowed_width;
+        state.canvas_height = state.windowed_height;
         if (!state.use_virtual_resolution) {
             state.screen_width = state.windowed_width;
             state.screen_height = state.windowed_height;
@@ -432,14 +496,9 @@ static mrb_value mrb_window_clear_virtual_resolution(mrb_state* mrb, mrb_value s
         state.use_virtual_resolution = false;
     }
 
-    if (state.is_fullscreen) {
-        int monitor = GetCurrentMonitor();
-        state.screen_width = GetMonitorWidth(monitor);
-        state.screen_height = GetMonitorHeight(monitor);
-    } else {
-        state.screen_width = GetScreenWidth();
-        state.screen_height = GetScreenHeight();
-    }
+    // Use actual canvas/window size (GetScreenWidth works on all platforms)
+    state.screen_width = GetScreenWidth();
+    state.screen_height = GetScreenHeight();
 
     return self;
 }

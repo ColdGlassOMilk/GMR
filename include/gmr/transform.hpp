@@ -41,6 +41,10 @@ struct Transform2DState {
     Vec2 scale{1.0f, 1.0f};
     Vec2 origin{0.0f, 0.0f};      // Pivot point (local space)
 
+    // Parallax scrolling factor (0.0 = fixed to screen, 1.0 = moves with world)
+    // Values between 0-1 create parallax effect (e.g., 0.5 = moves at half camera speed)
+    float parallax{1.0f};
+
     TransformHandle parent{INVALID_HANDLE};
 
     // Cached world matrix (lazy evaluation)

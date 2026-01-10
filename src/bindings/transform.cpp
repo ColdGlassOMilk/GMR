@@ -253,6 +253,8 @@ static mrb_value mrb_transform_initialize(mrb_state* mrb, mrb_value self) {
                     t->origin.x = static_cast<float>(mrb_as_float(mrb, val));
                 } else if (strcmp(key_name, "origin_y") == 0) {
                     t->origin.y = static_cast<float>(mrb_as_float(mrb, val));
+                } else if (strcmp(key_name, "parallax") == 0) {
+                    t->parallax = static_cast<float>(mrb_as_float(mrb, val));
                 }
             }
         }
@@ -511,6 +513,43 @@ static mrb_value mrb_transform_set_origin_y(mrb_state* mrb, mrb_value self) {
     GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
     t->origin.y = static_cast<float>(val);
     TransformManager::instance().mark_dirty(data->handle);
+    return mrb_float_value(mrb, val);
+}
+
+/// @method parallax
+/// @description Get the parallax scrolling factor.
+///   Controls how the object moves relative to the camera:
+///   - 1.0 = moves with the world (default, normal objects)
+///   - 0.0 = fixed to screen (doesn't move with camera)
+///   - 0.5 = moves at half camera speed (distant background)
+///   - 0.1 = moves at 10% camera speed (very distant mountains)
+/// @returns [Float] The parallax factor (0.0 to 1.0)
+/// @example factor = transform.parallax
+static mrb_value mrb_transform_parallax(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+    Transform2DState* t = TransformManager::instance().get(data->handle);
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
+    return mrb_float_value(mrb, t->parallax);
+}
+
+/// @method parallax=
+/// @description Set the parallax scrolling factor for camera-relative movement.
+///   When rendered inside a camera, objects with parallax < 1.0 will appear
+///   to move slower than the camera, creating depth.
+/// @param value [Float] The parallax factor (0.0 = fixed, 1.0 = normal world)
+/// @returns [Float] The value that was set
+/// @example transform.parallax = 0.5   # Moves at half camera speed
+/// @example transform.parallax = 0.1   # Distant background (10% speed)
+/// @example transform.parallax = 0.0   # Fixed to screen (HUD elements)
+static mrb_value mrb_transform_set_parallax(mrb_state* mrb, mrb_value self) {
+    mrb_float val;
+    mrb_get_args(mrb, "f", &val);
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+    Transform2DState* t = TransformManager::instance().get(data->handle);
+    GMR_REQUIRE_TRANSFORM_STATE(t, data->handle);
+    t->parallax = static_cast<float>(val);
     return mrb_float_value(mrb, val);
 }
 
@@ -816,6 +855,10 @@ void register_transform(mrb_state* mrb) {
     mrb_define_method(mrb, transform_class, "origin_x=", mrb_transform_set_origin_x, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, transform_class, "origin_y=", mrb_transform_set_origin_y, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, transform_class, "center_origin", mrb_transform_center_origin, MRB_ARGS_REQ(2));
+
+    // Parallax
+    mrb_define_method(mrb, transform_class, "parallax", mrb_transform_parallax, MRB_ARGS_NONE());
+    mrb_define_method(mrb, transform_class, "parallax=", mrb_transform_set_parallax, MRB_ARGS_REQ(1));
 
     // Parent hierarchy
     mrb_define_method(mrb, transform_class, "parent", mrb_transform_parent, MRB_ARGS_NONE());

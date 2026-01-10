@@ -1,53 +1,80 @@
 include GMR
 
-# MVP Platformer Demo: Procedural Level Generation with Proper Tile Placement
+# MVP Platformer Demo: World-Space Coordinates
+# This demo uses world units where 1 unit = 1 tile = 24 pixels
 
-FRAME_WIDTH = 56
-FRAME_HEIGHT = 56
+# === WORLD-SPACE CONFIGURATION ===
+# view_height: how many world units are visible vertically (PPU is calculated automatically)
+# At 180px viewport height with 7.5 view_height: PPU = 180/7.5 = 24
+VIEW_HEIGHT = 7.5
+
+# Sprite frame dimensions (in pixels for texture sampling)
+FRAME_WIDTH_PX = 56
+FRAME_HEIGHT_PX = 56
 COLUMNS = 7
 
-# Virtual resolution (game renders at this size) - retro 16:9
-VIRTUAL_WIDTH = 320
-VIRTUAL_HEIGHT = 180
+# Asset PPU: pixels per unit at which assets are designed (24px = 1 world unit)
+ASSET_PPU = 24.0
+
+# Sprite frame dimensions in world units
+FRAME_WIDTH = FRAME_WIDTH_PX / ASSET_PPU   # ~2.33 units
+FRAME_HEIGHT = FRAME_HEIGHT_PX / ASSET_PPU # ~2.33 units
+
+# Virtual resolution for retro mode
+RETRO_WIDTH = 128
+RETRO_HEIGHT = 128
 
 # Window size (actual window dimensions)
 WINDOW_WIDTH = 960
 WINDOW_HEIGHT = 540
 
-GRAVITY = 800.0
-MOVE_SPEED = 200.0
-JUMP_FORCE = -400.0
+# Native mode uses actual window size (no virtual resolution)
+
+# Physics in world units per second
+GRAVITY = 33.33        # ~800 pixels/sec^2 / 24 = 33.33 units/sec^2
+MOVE_SPEED = 8.33      # ~200 pixels/sec / 24 = 8.33 units/sec
+JUMP_FORCE = -16.67    # ~-400 pixels/sec / 24 = -16.67 units/sec
 
 # Audio
 SFX_VOLUME = 0.5
 MUSIC_VOLUME = 0.7
 
-# Tilemap configuration
-# Tileset is 504x264 = 21 columns x 11 rows of 24x24 tiles
-TILE_SIZE = 24
+# Tilemap configuration (in tiles/world units)
+# Tileset is 504x264 = 21 columns x 11 rows of 24x24 pixel tiles
+TILE_SIZE_PX = 24      # Pixel size for texture sampling
+TILE_SIZE = 1.0        # World size: 1 tile = 1 world unit
 TILESET_COLS = 21
-MAP_WIDTH = 80
-MAP_HEIGHT = 25
-MAP_OFFSET_X = -200.0
+MAP_WIDTH = 80         # Map width in tiles
+MAP_HEIGHT = 25        # Map height in tiles
+MAP_OFFSET_X = -8.33   # -200 pixels / 24 = -8.33 units
 MAP_OFFSET_Y = 0.0
 
-# Camera Y offset to show ground at bottom of screen
-CAMERA_OFFSET_Y = VIRTUAL_HEIGHT * 0.7
+# Camera Y offset to show ground at bottom of screen (percentage of virtual height)
+CAMERA_OFFSET_Y_PERCENT = 0.7
 
-# Camera smoothing and deadzone
-CAMERA_SMOOTHING = 0.92         # 0.0 = instant, 1.0 = very smooth (high value for buttery smooth camera)
-CAMERA_DEADZONE_WIDTH = 40.0    # Small horizontal deadzone
-CAMERA_DEADZONE_HEIGHT = 20.0   # Small vertical deadzone
+# Camera smoothing and deadzone (deadzone now in world units)
+CAMERA_SMOOTHING = 0.85
+CAMERA_DEADZONE_WIDTH = 1.0    # ~24 pixels / 24 = 1 unit
+CAMERA_DEADZONE_HEIGHT = 0.5   # ~12 pixels / 24 = 0.5 units
 
-# Screen shake settings
-ATTACK_SHAKE_STRENGTH = 6.0     # Pixels of max shake offset
-ATTACK_SHAKE_DURATION = 0.30    # Shake duration in seconds
+# Parallax layer configuration (world units)
+# Background textures are 320x180 pixels, which at 24 ASSET_PPU = 13.33 x 7.5 world units
+# We'll use the actual texture size for proper tiling
+BG_LAYER_WIDTH = 320.0 / ASSET_PPU   # ~13.33 world units per panel
+BG_LAYER_Y = -1.67                          # Y position in world units (-40 pixels / 24)
+BG_PARALLAX_1 = 0.1                         # Distant sky layer (moves slowest)
+BG_PARALLAX_2 = 0.3                         # Middle tree layer
+BG_PARALLAX_3 = 0.5                         # Foreground bushes (moves fastest)
 
-# Character hitbox offsets (relative to sprite position)
-CHAR_HITBOX_OFFSET_X = 15
-CHAR_HITBOX_OFFSET_Y = 8
-CHAR_HITBOX_WIDTH = 26
-CHAR_HITBOX_HEIGHT = 48
+# Screen shake settings (now in world units)
+ATTACK_SHAKE_STRENGTH = 0.25   # 6 pixels / 24 = 0.25 units
+ATTACK_SHAKE_DURATION = 0.30
+
+# Character hitbox (in world units)
+CHAR_HITBOX_OFFSET_X = 0.625   # 15 pixels / 24
+CHAR_HITBOX_OFFSET_Y = 0.33    # 8 pixels / 24
+CHAR_HITBOX_WIDTH = 1.08       # 26 pixels / 24
+CHAR_HITBOX_HEIGHT = 2.0       # 48 pixels / 24
 
 # === TILE INDEX DEFINITIONS ===
 module Tiles
@@ -89,16 +116,24 @@ module Tiles
 end
 
 def init
+  # === RESOLUTION MODE ===
+  @retro_mode = false  # Start in native mode (no virtual resolution)
+
   # === WINDOW SETUP (with method chaining) ===
   Window.set_size(WINDOW_WIDTH, WINDOW_HEIGHT)
-        .set_virtual_resolution(VIRTUAL_WIDTH, VIRTUAL_HEIGHT)
         .set_filter_point  # Crisp pixel scaling
 
-  # Enable the console with Ruby evaluation (Dev mode)
-  Console.enable(height: 150).allow_ruby_eval
+  # Start in native mode - use actual window dimensions
+  @virtual_width = Window.width
+  @virtual_height = Window.height
 
   # === FONTS ===
-  @custom_font = Graphics::Font.load("fonts/Ubuntu-Regular.ttf", size: 24)
+  # Load font at size appropriate for HD resolution (will be scaled down for retro mode)
+  @custom_font = Graphics::Font.load("fonts/Ubuntu-Regular.ttf", size: 48)
+
+  # Enable the console with settings for current resolution
+  # Height and font_size are in virtual resolution pixels
+  configure_console
 
   # === AUDIO ===
   @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME)
@@ -111,59 +146,60 @@ def init
        .map(:move_right, [:right, :d])
        .map(:jump, [:space, :up, :w])
        .map(:attack, [:z, :x])          # Attack with Z or X keys
+       .map(:toggle_resolution, [:r])   # Toggle retro/regular resolution
   Input.on(:jump) { do_jump }
   Input.on(:attack) { do_attack }       # Attack callback
+  Input.on(:toggle_resolution) { toggle_resolution }
 
   # === CAMERA ===
-  @camera = Graphics::Camera.new
-  @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, CAMERA_OFFSET_Y)
+  # Configure camera with world-space settings
+  # - viewport_size: render target dimensions in pixels
+  # - view_height: how many world units are visible vertically (PPU auto-calculated)
+  @camera = Graphics::Camera.new(
+    viewport_size: Mathf::Vec2.new(@virtual_width, @virtual_height),
+    view_height: VIEW_HEIGHT
+  )
+  @camera.offset = Mathf::Vec2.new(@virtual_width / 2.0, @virtual_height * CAMERA_OFFSET_Y_PERCENT)
   @camera.zoom = 1.0
 
-  # Configure camera deadzone (centered on screen)
-  deadzone_x = (VIRTUAL_WIDTH / 2.0) - (CAMERA_DEADZONE_WIDTH / 2.0)
-  deadzone_y = CAMERA_OFFSET_Y - (CAMERA_DEADZONE_HEIGHT / 2.0)
-  deadzone = Graphics::Rect.new(deadzone_x, deadzone_y, CAMERA_DEADZONE_WIDTH, CAMERA_DEADZONE_HEIGHT)
+  # Configure camera deadzone in world units (centered on camera target)
+  # Deadzone rect: x/y are offsets from center, width/height are in world units
+  deadzone = Graphics::Rect.new(0, 0, CAMERA_DEADZONE_WIDTH, CAMERA_DEADZONE_HEIGHT)
 
   # === PARALLAX BACKGROUNDS ===
+  # Load background textures
   @bg1_tex = Graphics::Texture.load("oak_woods/background/background_layer_1.png")
   @bg2_tex = Graphics::Texture.load("oak_woods/background/background_layer_2.png")
   @bg3_tex = Graphics::Texture.load("oak_woods/background/background_layer_3.png")
 
-  # Scale backgrounds for retro resolution
+  # Create parallax background sprites - rendered in world space with parallax factors
+  # The player is around y=16-17, ground at y=19. We want backgrounds above ground.
+  #
+  # PARALLAX Y-POSITION CALCULATION:
+  # The parallax formula adds: y += camera_target_y * (1 - parallax)
+  # So to have the background appear at visual_y when camera is at target_y:
+  #   initial_y = visual_y - target_y * (1 - parallax)
+  #
+  # For backgrounds we want them positioned so their bottom edge is hidden behind ground
+  # With camera target around y = 16
+  target_y = 16.0
+  visual_y = 10.0  # Move backgrounds DOWN so bottom edge is behind ground
+
+  # Scale backgrounds up to fill more vertical space
   bg_scale = 1.5
-  bg_width = 320.0 * bg_scale
-  @bg_base_y = -40
 
-  @bg1_sprites = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Graphics::Sprite.new(@bg1_tex, t)
-    @bg1_sprites << { sprite: s, transform: t }
-  end
-  @bg1_width = bg_width
-  @bg1_speed = 0.1
+  bg1_y = visual_y - target_y * (1.0 - BG_PARALLAX_1)
+  bg2_y = visual_y - target_y * (1.0 - BG_PARALLAX_2)
+  bg3_y = visual_y - target_y * (1.0 - BG_PARALLAX_3)
 
-  @bg2_sprites = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Graphics::Sprite.new(@bg2_tex, t)
-    @bg2_sprites << { sprite: s, transform: t }
-  end
-  @bg2_width = bg_width
-  @bg2_speed = 0.3
-
-  @bg3_sprites = []
-  3.times do
-    t = Transform2D.new(scale_x: bg_scale, scale_y: bg_scale)
-    s = Graphics::Sprite.new(@bg3_tex, t)
-    @bg3_sprites << { sprite: s, transform: t }
-  end
-  @bg3_width = bg_width
-  @bg3_speed = 0.5
+  @bg1_sprites = create_parallax_layer(@bg1_tex, BG_PARALLAX_1, bg1_y, -30.0, bg_scale)
+  @bg2_sprites = create_parallax_layer(@bg2_tex, BG_PARALLAX_2, bg2_y, -30.0, bg_scale)
+  @bg3_sprites = create_parallax_layer(@bg3_tex, BG_PARALLAX_3, bg3_y, -30.0, bg_scale)
 
   # === TILEMAP ===
+  # Tilemap uses pixel dimensions for texture sampling
   @tileset_tex = Graphics::Texture.load("oak_woods/oak_woods_tileset.png")
-  @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
+  @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE_PX, TILE_SIZE_PX, MAP_WIDTH, MAP_HEIGHT)
 
   # Define tile properties - all ground tiles are solid
   [
@@ -213,7 +249,8 @@ def init
 
   @sprite_transform = Transform2D.new(x: pos_x, y: pos_y)
   @sprite = Graphics::Sprite.new(@char_tex, @sprite_transform)
-  @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
+  # Source rect uses pixel values for texture sampling
+  @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH_PX, FRAME_HEIGHT_PX)
 
   @velocity_x = 0.0
   @velocity_y = 0.0
@@ -239,10 +276,11 @@ def init
   # === ANIMATION & STATE MACHINE ===
   begin
     # Use Animator for cleaner animation management
+    # Animator uses pixel dimensions for texture sampling
     @animator = Animation::Animator.new(@sprite,
       columns: COLUMNS,
-      frame_width: FRAME_WIDTH,
-      frame_height: FRAME_HEIGHT)
+      frame_width: FRAME_WIDTH_PX,
+      frame_height: FRAME_HEIGHT_PX)
 
     # Core movement animations (REFINED for perfect timing)
     @animator.add(:idle, frames: 0..5, fps: 6, loop: true)           # Slower, calmer breathing
@@ -341,6 +379,53 @@ def do_attack
   @camera.shake(strength: ATTACK_SHAKE_STRENGTH, duration: ATTACK_SHAKE_DURATION)
 end
 
+def configure_console
+  # Console uses 360p baseline values - engine auto-scales to any resolution
+  Console.enable(
+    height: 150,
+    font_size: 14,
+    line_height: 18,
+    padding: 8,
+    font: @custom_font
+  ).allow_ruby_eval
+end
+
+def toggle_resolution
+  @retro_mode = !@retro_mode
+
+  if @retro_mode
+    # Retro mode: use fixed low virtual resolution
+    @virtual_width = RETRO_WIDTH
+    @virtual_height = RETRO_HEIGHT
+    Window.set_virtual_resolution(@virtual_width, @virtual_height)
+  else
+    # Native mode: disable virtual resolution, use actual window size
+    Window.clear_virtual_resolution
+    @virtual_width = Window.width
+    @virtual_height = Window.height
+  end
+
+  # Update camera viewport and offset
+  @camera.viewport_size = Mathf::Vec2.new(@virtual_width, @virtual_height)
+  @camera.offset = Mathf::Vec2.new(@virtual_width / 2.0, @virtual_height * CAMERA_OFFSET_Y_PERCENT)
+
+  # Reconfigure console for new resolution
+  configure_console
+end
+
+# Called by engine when window is resized
+def on_resize(width, height)
+  # Only update in native mode (retro mode has fixed virtual resolution)
+  return if @retro_mode
+
+  @virtual_width = width
+  @virtual_height = height
+
+  # Update camera viewport and offset to match new window size
+  @camera.viewport_size = Mathf::Vec2.new(@virtual_width, @virtual_height)
+  @camera.offset = Mathf::Vec2.new(@virtual_width / 2.0, @virtual_height * CAMERA_OFFSET_Y_PERCENT)
+end
+
 def update(dt)
   moving_left = Input.action_down?(:move_left)
   moving_right = Input.action_down?(:move_right)
@@ -422,30 +507,42 @@ end
 def draw
   Graphics.clear([80, 120, 160])
 
-  # Use camera target for parallax (includes smoothing, deadzone, and shake)
-  camera_x = @camera.target.x
-  camera_y = @camera.target.y
-
-  base_y = MAP_OFFSET_Y + 18 * TILE_SIZE
-  y_offset = camera_y - base_y
-
-  draw_parallax_layer(@bg1_sprites, @bg1_width, @bg1_speed, @bg_base_y - y_offset * 0.05, camera_x)
-  draw_parallax_layer(@bg2_sprites, @bg2_width, @bg2_speed, @bg_base_y - y_offset * 0.15, camera_x)
-  draw_parallax_layer(@bg3_sprites, @bg3_width, @bg3_speed, @bg_base_y - y_offset * 0.25, camera_x)
-
+  # Everything is now drawn inside the camera - parallax is handled automatically
+  # by the Transform2D.parallax property
   @camera.use do
+    # Draw parallax backgrounds (rendered with parallax factor applied)
+    @bg1_sprites.each { |s| s.draw }
+    @bg2_sprites.each { |s| s.draw }
+    @bg3_sprites.each { |s| s.draw }
+
+    # Draw world objects (tilemap and player have parallax=1.0 by default)
     @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
     @sprite.draw
   end
 
-  Graphics.draw_text("#{GMR::Time.fps} FPS", 2, 2, 12, :cyan, font: @custom_font)
+  # HUD text - uses 360p baseline values, engine auto-scales to any resolution
+  mode_name = @retro_mode ? "Retro" : "Native"
+  if @retro_mode
+    Graphics.draw_text("#{GMR::Time.fps} FPS", 5, 5, 30, :cyan)
+    Graphics.draw_text("#{@virtual_width}x#{@virtual_height} [R - Toggle]", 5, 30, 30, :cyan)
+  else
+    Graphics.draw_text("#{GMR::Time.fps} FPS", 5, 5, 18, :cyan, font: @custom_font)
+    Graphics.draw_text("#{@virtual_width}x#{@virtual_height} [R - Toggle]", 5, 22, 18, :cyan, font: @custom_font)
+  end
 end
 
-def draw_parallax_layer(sprites, width, speed, y_offset, camera_x)
-  offset = -camera_x * speed
-  sprites.each_with_index do |obj, i|
-    obj[:transform].x = offset + (i - 1) * width
-    obj[:transform].y = y_offset
-    obj[:sprite].draw
+# Helper to create a parallax layer with multiple repeating panels
+def create_parallax_layer(texture, parallax_factor, y_pos, start_x = 0.0, scale = 1.0)
+  sprites = []
+  # Create enough panels to cover the world width with some overlap
+  # For parallax layers, we need more coverage since they scroll slower
+  num_panels = 7
+
+  num_panels.times do |i|
+    x_pos = start_x + i * BG_LAYER_WIDTH * scale
+    t = Transform2D.new(x: x_pos, y: y_pos, parallax: parallax_factor, scale_x: scale, scale_y: scale)
+    s = Graphics::Sprite.new(texture, t)
+    sprites << s
   end
+  sprites
 end

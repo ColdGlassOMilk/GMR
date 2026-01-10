@@ -20,6 +20,10 @@ Camera2DState::Camera2DState()
     , offset{0.0f, 0.0f}
     , zoom{1.0f}
     , rotation{0.0f}
+    , view_width{0.0f}                  // 0 = Unity-style (derive from aspect ratio)
+    , view_height{7.5f}                 // Default: 7.5 world units tall (180px / 24 ASSET_PPU)
+    , viewport_size{320.0f, 180.0f}     // Default: retro 16:9 resolution
+    , pixels_per_unit{24.0f}            // Derived: 180 / 7.5 = 24
     , follow_target{mrb_nil_value()}
     , smoothing{0.0f}
     , deadzone{0.0f, 0.0f, 0.0f, 0.0f}
@@ -33,6 +37,109 @@ Camera2DState::Camera2DState()
     , shake_offset{0.0f, 0.0f}
     , dirty{true}
 {
+}
+
+void Camera2DState::update_pixels_per_unit() {
+    // PPU is derived from viewport_size and view_height
+    // This ensures the same world view regardless of resolution
+    if (view_height > 0.0f) {
+        pixels_per_unit = viewport_size.y / view_height;
+    }
+}
+
+// ============================================================================
+// World-Space Projection Methods
+// ============================================================================
+
+float Camera2DState::get_effective_scale() const {
+    return pixels_per_unit * zoom;
+}
+
+Vec2 Camera2DState::world_to_screen(const Vec2& world) const {
+    // Transform: World -> View -> Screen
+    // 1. Translate so camera target is at origin (view space)
+    // 2. Apply rotation (if any)
+    // 3. Scale by pixels_per_unit * zoom
+    // 4. Add screen offset (where target appears on screen)
+
+    float scale = get_effective_scale();
+
+    // Translate to view space (relative to camera target)
+    float vx = world.x - target.x;
+    float vy = world.y - target.y;
+
+    // Apply rotation if present
+    if (rotation != 0.0f) {
+        float rad = rotation * static_cast<float>(M_PI) / 180.0f;
+        float cos_r = cosf(rad);
+        float sin_r = sinf(rad);
+        float rx = vx * cos_r - vy * sin_r;
+        float ry = vx * sin_r + vy * cos_r;
+        vx = rx;
+        vy = ry;
+    }
+
+    // Scale to screen space and add offset
+    Vec2 screen;
+    screen.x = vx * scale + offset.x;
+    screen.y = vy * scale + offset.y;
+
+    return screen;
+}
+
+Vec2 Camera2DState::screen_to_world(const Vec2& screen) const {
+    // Inverse transform: Screen -> View -> World
+    float scale = get_effective_scale();
+
+    // Remove offset and scale
+    float vx = (screen.x - offset.x) / scale;
+    float vy = (screen.y - offset.y) / scale;
+
+    // Apply inverse rotation if present
+    if (rotation != 0.0f) {
+        float rad = -rotation * static_cast<float>(M_PI) / 180.0f;  // Negative for inverse
+        float cos_r = cosf(rad);
+        float sin_r = sinf(rad);
+        float rx = vx * cos_r - vy * sin_r;
+        float ry = vx * sin_r + vy * cos_r;
+        vx = rx;
+        vy = ry;
+    }
+
+    // Translate back to world space
+    Vec2 world;
+    world.x = vx + target.x;
+    world.y = vy + target.y;
+
+    return world;
+}
+
+Rect Camera2DState::get_visible_bounds() const {
+    float half_width = get_visible_width() / 2.0f;
+    float half_height = get_visible_height() / 2.0f;
+
+    // Note: This doesn't account for rotation. For rotated cameras,
+    // you'd need to compute the axis-aligned bounding box of the rotated viewport.
+    return Rect{
+        target.x - half_width,
+        target.y - half_height,
+        half_width * 2.0f,
+        half_height * 2.0f
+    };
+}
+
+float Camera2DState::get_visible_width() const {
+    // In fixed view mode (retro), return the fixed view_width
+    // In Unity mode, derive from viewport aspect ratio
+    if (view_width > 0.0f) {
+        return view_width / zoom;  // Fixed width, affected by zoom
+    }
+    return viewport_size.x / get_effective_scale();
+}
+
+float Camera2DState::get_visible_height() const {
+    // Always based on view_height (the primary control)
+    return view_height / zoom;
 }
 
 // ============================================================================
@@ -177,56 +284,55 @@ Vec2 CameraManager::get_target_position(mrb_state* mrb, mrb_value target) {
 }
 
 Vec2 CameraManager::apply_deadzone(Camera2DState& cam, const Vec2& target_pos) {
-    // Deadzone is in screen-space, centered on the camera offset
+    // Deadzone is now in world units, centered on the camera target
     // Only move the camera when the target exits the deadzone
 
-    // Calculate screen-space position of target relative to camera
-    Vec2 screen_pos;
-    screen_pos.x = (target_pos.x - cam.target.x) * cam.zoom + cam.offset.x;
-    screen_pos.y = (target_pos.y - cam.target.y) * cam.zoom + cam.offset.y;
+    // Calculate position of target relative to camera in world space
+    float dx = target_pos.x - cam.target.x;
+    float dy = target_pos.y - cam.target.y;
 
-    // Deadzone bounds (centered on camera offset)
-    float dz_left = cam.offset.x - cam.deadzone.width / 2.0f;
-    float dz_right = cam.offset.x + cam.deadzone.width / 2.0f;
-    float dz_top = cam.offset.y - cam.deadzone.height / 2.0f;
-    float dz_bottom = cam.offset.y + cam.deadzone.height / 2.0f;
+    // Deadzone half-sizes in world units
+    float dz_half_width = cam.deadzone.width / 2.0f;
+    float dz_half_height = cam.deadzone.height / 2.0f;
 
     // Calculate how much we need to adjust the target
     Vec2 adjusted_target = cam.target;
 
     // If target is outside deadzone horizontally, adjust
-    if (screen_pos.x < dz_left) {
-        adjusted_target.x = target_pos.x - (dz_left - cam.offset.x) / cam.zoom;
-    } else if (screen_pos.x > dz_right) {
-        adjusted_target.x = target_pos.x - (dz_right - cam.offset.x) / cam.zoom;
+    if (dx < -dz_half_width) {
+        adjusted_target.x = target_pos.x + dz_half_width;
+    } else if (dx > dz_half_width) {
+        adjusted_target.x = target_pos.x - dz_half_width;
     }
 
     // If target is outside deadzone vertically, adjust
-    if (screen_pos.y < dz_top) {
-        adjusted_target.y = target_pos.y - (dz_top - cam.offset.y) / cam.zoom;
-    } else if (screen_pos.y > dz_bottom) {
-        adjusted_target.y = target_pos.y - (dz_bottom - cam.offset.y) / cam.zoom;
+    if (dy < -dz_half_height) {
+        adjusted_target.y = target_pos.y + dz_half_height;
+    } else if (dy > dz_half_height) {
+        adjusted_target.y = target_pos.y - dz_half_height;
     }
 
     return adjusted_target;
 }
 
 void CameraManager::clamp_to_bounds(Camera2DState& cam) {
-    // Calculate visible area in world space at current zoom
-    float visible_width = (cam.offset.x * 2.0f) / cam.zoom;
-    float visible_height = (cam.offset.y * 2.0f) / cam.zoom;
+    // Calculate visible area in world space using projection methods
+    float visible_width = cam.get_visible_width();
+    float visible_height = cam.get_visible_height();
 
     // First, clamp zoom to prevent viewport from exceeding world bounds
     // Calculate minimum zoom needed to keep viewport within bounds
-    float min_zoom_x = (cam.offset.x * 2.0f) / cam.bounds.width;
-    float min_zoom_y = (cam.offset.y * 2.0f) / cam.bounds.height;
+    float base_visible_width = cam.viewport_size.x / cam.pixels_per_unit;
+    float base_visible_height = cam.viewport_size.y / cam.pixels_per_unit;
+    float min_zoom_x = base_visible_width / cam.bounds.width;
+    float min_zoom_y = base_visible_height / cam.bounds.height;
     float min_zoom = std::max(min_zoom_x, min_zoom_y);
 
     if (cam.zoom < min_zoom) {
         cam.zoom = min_zoom;
         // Recalculate visible area with clamped zoom
-        visible_width = (cam.offset.x * 2.0f) / cam.zoom;
-        visible_height = (cam.offset.y * 2.0f) / cam.zoom;
+        visible_width = cam.get_visible_width();
+        visible_height = cam.get_visible_height();
     }
 
     // Calculate min/max target positions to keep camera within bounds

@@ -2,6 +2,7 @@
 #include "gmr/sprite.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/state.hpp"
 #include "gmr/resources/texture_manager.hpp"
 #include "gmr/resources/tilemap_manager.hpp"
 #include "gmr/resources/font_manager.hpp"
@@ -428,13 +429,23 @@ void DrawQueue::apply_camera_begin(CameraHandle handle) {
     auto* cam = CameraManager::instance().get(handle);
     if (cam) {
         ::Camera2D raylib_cam = {};
-        // Allow sub-pixel camera positioning for buttery smooth camera movement
-        // This works well with high camera smoothing values (0.9+)
+
+        // World-space projection:
+        // The effective scale (pixels_per_unit * zoom) becomes the raylib zoom factor.
+        // This means all world coordinates are automatically multiplied by effective_scale
+        // when rendered, converting world units to screen pixels.
+        float effective_scale = cam->get_effective_scale();
+
+        // Keep smooth camera movement - pixel snapping happens in tile rendering
         raylib_cam.target = {cam->target.x, cam->target.y};
-        raylib_cam.offset = {cam->offset.x + cam->shake_offset.x,
-                             cam->offset.y + cam->shake_offset.y};
+
+        // Shake offset is in world units, convert to screen offset contribution
+        float shake_screen_x = cam->shake_offset.x * effective_scale;
+        float shake_screen_y = cam->shake_offset.y * effective_scale;
+        raylib_cam.offset = {cam->offset.x + shake_screen_x,
+                             cam->offset.y + shake_screen_y};
         raylib_cam.rotation = cam->rotation;
-        raylib_cam.zoom = cam->zoom;
+        raylib_cam.zoom = effective_scale;  // Uses effective scale as raylib zoom
 
         BeginMode2D(raylib_cam);
         active_camera_ = handle;
@@ -526,11 +537,16 @@ void DrawQueue::draw_sprite(const DrawCommand& cmd) {
     // Determine source rectangle
     Rectangle source;
     if (sprite->use_source_rect) {
+        // Apply subpixel inset to prevent texture bleeding from adjacent frames.
+        // When sprites are rendered at non-integer screen positions (due to world-space
+        // coordinates and camera scaling), GPU texture sampling can bleed pixels from
+        // adjacent frames in the spritesheet. A half-texel inset prevents this.
+        constexpr float TEXEL_INSET = 0.5f;
         source = {
-            sprite->source_rect.x,
-            sprite->source_rect.y,
-            sprite->source_rect.width,
-            sprite->source_rect.height
+            sprite->source_rect.x + TEXEL_INSET,
+            sprite->source_rect.y + TEXEL_INSET,
+            sprite->source_rect.width - TEXEL_INSET * 2.0f,
+            sprite->source_rect.height - TEXEL_INSET * 2.0f
         };
     } else {
         source = {
@@ -549,10 +565,38 @@ void DrawQueue::draw_sprite(const DrawCommand& cmd) {
     float world_rot = TransformManager::instance().get_world_rotation(sprite->transform);
     Vec2 world_scale = TransformManager::instance().get_world_scale(sprite->transform);
 
-    // Calculate destination rectangle
-    // Note: Camera target is rounded to pixels, so no need to round sprite positions
-    float dest_w = std::abs(source.width) * world_scale.x;
-    float dest_h = std::abs(source.height) * world_scale.y;
+    // ASSET_PPU: The pixels-per-unit at which all assets were designed.
+    // This decouples sprite world size from camera settings.
+    // A 24px sprite = 1 world unit, matching tilemap (1 tile = 1 world unit).
+    // Camera.pixels_per_unit only affects view scale, NOT sprite intrinsic size.
+    constexpr float ASSET_PPU = 24.0f;
+
+    // Calculate destination rectangle in world units using ORIGINAL sprite dimensions
+    // (source.width/height have texel inset applied, so use original rect values)
+    float original_width = sprite->use_source_rect ? sprite->source_rect.width : static_cast<float>(texture->width);
+    float original_height = sprite->use_source_rect ? sprite->source_rect.height : static_cast<float>(texture->height);
+    float dest_w = std::abs(original_width) * world_scale.x / ASSET_PPU;
+    float dest_h = std::abs(original_height) * world_scale.y / ASSET_PPU;
+
+    // Apply parallax scrolling if rendering within a camera
+    if (active_camera_ != INVALID_CAMERA_HANDLE) {
+        auto* cam = CameraManager::instance().get(active_camera_);
+        if (cam) {
+            // parallax=1.0: moves with world (default)
+            // parallax=0.0: fixed to screen (stationary relative to camera)
+            // parallax=0.5: moves at half camera speed (distant background)
+            float parallax = transform->parallax;
+            if (parallax != 1.0f) {
+                // Add offset to counteract camera movement proportionally
+                // When camera moves by X, parallax object appears to move by X*parallax
+                // We achieve this by offsetting position: pos += target * (1 - parallax)
+                float offset_factor = 1.0f - parallax;
+                world_pos.x += cam->target.x * offset_factor;
+                world_pos.y += cam->target.y * offset_factor;
+            }
+        }
+    }
+
     Rectangle dest = {world_pos.x, world_pos.y, dest_w, dest_h};
 
     // CRITICAL FIX: Transform matrix already bakes origin offset into world_pos
@@ -590,13 +634,23 @@ void DrawQueue::draw_tilemap(const DrawCommand& cmd) {
         end_y = std::min(tilemap->height, cmd.tilemap.region_y + cmd.tilemap.region_h);
     }
 
+    // ASSET_PPU: Must match the constant in draw_sprite() for consistency.
+    // All assets designed at 24 PPU: a 24px tile = 1 world unit.
+    constexpr float ASSET_PPU = 24.0f;
+
+    // World-space tile rendering:
+    // - tile_width/tile_height are in PIXELS (for texture sampling)
+    // - Tile world size = tile_pixel_size / ASSET_PPU
+    // - The camera's effective_scale converts world units to screen pixels
+    float tile_world_size = static_cast<float>(tilemap->tile_width) / ASSET_PPU;
+
     // Draw each tile
     for (int32_t ty = start_y; ty < end_y; ++ty) {
         for (int32_t tx = start_x; tx < end_x; ++tx) {
             int32_t tile_index = tilemap->get(tx, ty);
             if (tile_index < 0) continue;  // Skip empty tiles
 
-            // Calculate source rect from tileset
+            // Calculate source rect from tileset (in pixels for texture sampling)
             int tileset_x = (tile_index % tileset_cols) * tilemap->tile_width;
             int tileset_y = (tile_index / tileset_cols) * tilemap->tile_height;
 
@@ -607,21 +661,28 @@ void DrawQueue::draw_tilemap(const DrawCommand& cmd) {
                 static_cast<float>(tilemap->tile_height)
             };
 
-            // Calculate dest position (adjust for region offset if using region)
-            float dest_x = cmd.tilemap.offset_x + (tx - start_x) * tilemap->tile_width;
-            float dest_y = cmd.tilemap.offset_y + (ty - start_y) * tilemap->tile_height;
-
-            // When using full tilemap (no region), use absolute tile position
-            if (!cmd.tilemap.use_region) {
-                dest_x = cmd.tilemap.offset_x + tx * tilemap->tile_width;
-                dest_y = cmd.tilemap.offset_y + ty * tilemap->tile_height;
+            // Calculate dest position in world units
+            // offset_x/y are in world units, tile positions are grid indices (0, 1, 2...)
+            float dest_x, dest_y;
+            if (cmd.tilemap.use_region) {
+                dest_x = cmd.tilemap.offset_x + (tx - start_x) * tile_world_size;
+                dest_y = cmd.tilemap.offset_y + (ty - start_y) * tile_world_size;
+            } else {
+                dest_x = cmd.tilemap.offset_x + tx * tile_world_size;
+                dest_y = cmd.tilemap.offset_y + ty * tile_world_size;
             }
+
+            // Destination size in world units (1 tile = 1 world unit)
+            // Add a tiny overlap to prevent gaps from floating-point rounding errors
+            // The overlap is 1 pixel in world units (1/effective_scale), ensuring
+            // adjacent tiles touch without visible gaps
+            float overlap = 0.01f;  // Small world-unit overlap to cover rounding errors
 
             Rectangle dest = {
                 dest_x,
                 dest_y,
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
+                tile_world_size + overlap,
+                tile_world_size + overlap
             };
 
             DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, tint);
@@ -908,28 +969,60 @@ void DrawQueue::draw_text(const DrawCommand& cmd) {
     }
 
     if (cmd.text.transform != INVALID_HANDLE) {
-        // TRANSFORM-BASED RENDERING
+        // WORLD-SPACE RENDERING (with Transform2D)
+        // Font size is in WORLD UNITS (like sprites and tilemaps)
+        // The camera's effective_scale converts world units to screen pixels
         auto* transform = TransformManager::instance().get(cmd.text.transform);
         if (!transform) return;
 
         Vec2 world_pos = TransformManager::instance().get_world_position(cmd.text.transform);
         Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.text.transform);
 
-        // Use average scale for font size
-        float scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
-        float scaled_font_size = static_cast<float>(cmd.text.font_size) * scale;
-        float spacing = scaled_font_size / 10.0f;
+        // Apply parallax scrolling (same as sprites)
+        if (active_camera_ != INVALID_CAMERA_HANDLE) {
+            auto* cam = CameraManager::instance().get(active_camera_);
+            if (cam) {
+                float parallax = transform->parallax;
+                if (parallax != 1.0f) {
+                    float offset_factor = 1.0f - parallax;
+                    world_pos.x += cam->target.x * offset_factor;
+                    world_pos.y += cam->target.y * offset_factor;
+                }
+            }
+        }
+
+        // Convert font size from world units to pixels, applying transform scale
+        float avg_scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
+        float font_size_world = static_cast<float>(cmd.text.font_size) * avg_scale;
+
+        // Get camera effective scale to convert world units to screen pixels
+        float effective_scale = 1.0f;
+        if (active_camera_ != INVALID_CAMERA_HANDLE) {
+            auto* cam = CameraManager::instance().get(active_camera_);
+            if (cam) {
+                effective_scale = cam->get_effective_scale();
+            }
+        }
+
+        // Final pixel size = world_size * effective_scale
+        float font_size_pixels = font_size_world * effective_scale;
+        float spacing = font_size_pixels / 10.0f;
 
         Vector2 position = {world_pos.x, world_pos.y};
 
-        DrawTextEx(font, cmd.text.content.c_str(), position, scaled_font_size, spacing, color);
+        DrawTextEx(font, cmd.text.content.c_str(), position, font_size_pixels, spacing, color);
     } else {
-        // LEGACY COORDINATE-BASED RENDERING (backward compat)
-        float font_size_float = static_cast<float>(cmd.text.font_size);
-        float spacing = font_size_float / 10.0f;
-        Vector2 position = {cmd.text.x, cmd.text.y};
+        // SCREEN-SPACE RENDERING with auto-scaling
+        // Developer specifies size at 360p baseline, engine auto-scales to virtual resolution
+        // This means: at 360p, size 14 = 14px. At 1080p, size 14 = 42px. At 128p, size 14 = 5px.
+        auto& state = State::instance();
+        float ui_scale = state.ui_scale();
 
-        DrawTextEx(font, cmd.text.content.c_str(), position, font_size_float, spacing, color);
+        float font_size_scaled = static_cast<float>(cmd.text.font_size) * ui_scale;
+        float spacing = font_size_scaled / 10.0f;
+        Vector2 position = {cmd.text.x * ui_scale, cmd.text.y * ui_scale};
+
+        DrawTextEx(font, cmd.text.content.c_str(), position, font_size_scaled, spacing, color);
     }
 }
 

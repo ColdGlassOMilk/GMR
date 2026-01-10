@@ -1,6 +1,103 @@
 # Camera
 
-The Camera class provides smooth following, screen shake, zoom control, and coordinate conversion for scrolling games.
+The Camera class provides world-space rendering, resolution-independent coordinates, smooth following, screen shake, and zoom control for 2D games.
+
+## Resolution Modes
+
+GMR supports two resolution modes for different game styles. Choose based on your needs:
+
+| Mode | Best For | Aspect Ratio | Black Bars |
+|------|----------|--------------|------------|
+| **Resolution-Independent** | HD games, modern art | Adapts to screen | Never |
+| **Pixel-Perfect** | Retro games, pixel art | Fixed | Yes (letterbox) |
+
+### Resolution-Independent Mode (Recommended for HD)
+
+Render at native window resolution. The camera adapts width to the screen's aspect ratio while maintaining a fixed view height. **No letterboxing, no black bars.**
+
+```ruby
+def init
+  Window.set_size(1280, 720)
+  # NO virtual resolution - render at native size
+
+  @camera = Camera2D.new
+  @camera.view_height = 9  # Always see 9 world units tall
+  @camera.viewport_size = Vec2.new(Window.width, Window.height)
+  @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
+end
+
+def on_resize(width, height)
+  # Camera adapts to new aspect ratio
+  @camera.viewport_size = Vec2.new(width, height)
+  @camera.offset = Vec2.new(width / 2, height / 2)
+end
+```
+
+**How aspect ratio affects visible world:**
+
+| Screen | Aspect | Visible World (view_height = 9) |
+|--------|--------|--------------------------------|
+| 1920×1080 | 16:9 | 16 × 9 world units |
+| 1280×1024 | 5:4 | 11.25 × 9 world units |
+| 2560×1080 | 21:9 | 21.33 × 9 world units |
+| 800×600 | 4:3 | 12 × 9 world units |
+
+Players with ultrawide monitors see more of the world horizontally. Height is always consistent.
+
+### Pixel-Perfect Mode (Recommended for Retro)
+
+Render to a fixed-size texture and scale up to the window. **Letterboxing (black bars) when aspect ratios don't match.** Pixels stay crisp and sharp.
+
+```ruby
+def init
+  Window.set_size(960, 540)
+  Window.set_virtual_resolution(320, 180)  # Fixed render target
+  Window.set_filter_point  # Crisp pixel scaling
+
+  @camera = Camera2D.new
+  @camera.view_height = 9  # 180 / 9 = 20 PPU
+  @camera.viewport_size = Vec2.new(320, 180)  # Must match virtual resolution!
+  @camera.offset = Vec2.new(160, 90)
+end
+
+# No on_resize needed - virtual resolution is fixed
+```
+
+**Important:** When using virtual resolution:
+- `viewport_size` must match the virtual resolution exactly
+- The virtual resolution texture is scaled to fit the window with letterboxing
+- Use `set_filter_point` for crisp pixels or `set_filter_bilinear` for smooth scaling
+
+---
+
+## World-Space Coordinates
+
+GMR uses world units instead of pixels for game logic. This separates your game mechanics from rendering resolution.
+
+### Key Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **World Units** | Abstract units for game logic. A character might be 1 unit tall. |
+| **View Height** | How many world units are visible vertically. |
+| **Viewport Size** | Render resolution in pixels. |
+| **Pixels Per Unit (PPU)** | Derived: `viewport_size.y / view_height`. Converts world to pixels. |
+
+### The PPU Formula
+
+```
+PPU = viewport_size.y / view_height
+```
+
+| Viewport | View Height | PPU | Result |
+|----------|-------------|-----|--------|
+| 180px | 9 | 20 | 20px sprite = 1 world unit |
+| 720px | 9 | 80 | 80px sprite = 1 world unit |
+| 1080px | 9 | 120 | 120px sprite = 1 world unit |
+
+The same game logic works at any resolution - only the visual quality changes.
+
+---
 
 ## Basic Setup
 
@@ -8,27 +105,33 @@ The Camera class provides smooth following, screen shake, zoom control, and coor
 include GMR
 
 def init
-  @camera = Camera.new
+  @camera = Camera2D.new
 
-  # Set the screen center as the camera offset
-  # This keeps the target centered on screen
-  @camera.offset = Mathf::Vec2.new(480, 270)  # Half of 960x540
+  # Configure view (how many world units to show)
+  @camera.view_height = 9
 
-  @player = Player.new(100, 100)
+  # Set viewport to match your render target
+  @camera.viewport_size = Vec2.new(Window.width, Window.height)
+
+  # Center the camera offset on screen
+  @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
+
+  @player = Player.new(0, 0)  # Position in world units
 end
 
 def draw
-  # Everything inside camera.use is transformed
+  # Everything inside camera.use is in world coordinates
   @camera.use do
     @tilemap.draw(0, 0)
     @player.draw
-    @enemies.each(&:draw)
   end
 
-  # UI drawn outside camera.use stays fixed on screen
+  # UI drawn outside camera.use is in screen space
   Graphics.draw_text("Score: #{@score}", 10, 10, 20, :white)
 end
 ```
+
+---
 
 ## Camera Properties
 
@@ -37,30 +140,32 @@ end
 The world position the camera looks at:
 
 ```ruby
-@camera.target = Mathf::Vec2.new(400, 300)
+@camera.target = Vec2.new(5.0, 3.0)  # World coordinates
 
-# Or directly set to player position
+# Follow player position
 @camera.target = @player.transform.position
 ```
 
 ### Offset
 
-Screen position where the target appears:
+Screen position (in pixels) where the target appears:
 
 ```ruby
 # Target appears at screen center
-@camera.offset = Mathf::Vec2.new(480, 270)
+@camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
 
-# Target appears in left third of screen
-@camera.offset = Mathf::Vec2.new(320, 270)
+# Target appears in left third of screen (for side-scrollers)
+@camera.offset = Vec2.new(Window.width / 3, Window.height / 2)
 ```
 
 ### Zoom
 
+Multiplies the effective scale. Affects how much of the world is visible:
+
 ```ruby
-@camera.zoom = 2.0   # 2x zoom (things appear larger)
-@camera.zoom = 0.5   # 0.5x zoom (things appear smaller)
-@camera.zoom = 1.0   # Default (1:1 pixel mapping)
+@camera.zoom = 2.0   # Zoom in (see half as much)
+@camera.zoom = 0.5   # Zoom out (see twice as much)
+@camera.zoom = 1.0   # Default
 ```
 
 ### Rotation
@@ -68,6 +173,8 @@ Screen position where the target appears:
 ```ruby
 @camera.rotation = 45  # Rotate view 45 degrees
 ```
+
+---
 
 ## Following a Target
 
@@ -83,33 +190,29 @@ end
 ### Smooth Follow
 
 ```ruby
-def update(dt)
-  # Smooth following with interpolation
+def init
   @camera.follow(@player, smoothing: 0.1)
 end
 ```
 
 The `smoothing` parameter controls how quickly the camera catches up:
-- `0.1` = Smooth, laggy follow
-- `0.5` = Medium responsiveness
-- `1.0` = Instant snap (no smoothing)
+- `0.0` = Instant snap (no smoothing)
+- `0.1` = Responsive follow
+- `0.5` = Smooth, slightly laggy
+- `0.9` = Very smooth, noticeable lag
 
 ### Follow with Deadzone
 
 A deadzone allows the player to move without the camera following until they reach the edge:
 
 ```ruby
-def update(dt)
-  @camera.follow(@player,
-    smoothing: 0.08,
-    deadzone: Rect.new(-30, -20, 60, 40)
-  )
-end
+@camera.follow(@player,
+  smoothing: 0.08,
+  deadzone: Rect.new(-2, -1, 4, 2)  # World units
+)
 ```
 
-The deadzone is a rectangle centered on the camera's target position. The camera only moves when the player exits this zone.
-
-### Following Any Object
+### Compatible Objects
 
 The `follow` method works with any object that has:
 - A `transform` property returning a Transform2D, or
@@ -117,27 +220,30 @@ The `follow` method works with any object that has:
 - Both `x` and `y` properties
 
 ```ruby
-# All of these work
-@camera.follow(@sprite)           # Has transform
-@camera.follow(@player)           # Has position method
-@camera.follow(@some_object)      # Has x and y
+@camera.follow(@sprite)        # Has transform
+@camera.follow(@player)        # Has position method
+@camera.follow(nil)            # Stop following
 ```
+
+---
 
 ## Camera Bounds
 
-Constrain the camera to level boundaries:
+Constrain the camera to level boundaries (in world units):
 
 ```ruby
 def init
-  @camera = Camera.new
-  @camera.offset = Mathf::Vec2.new(480, 270)
+  @camera = Camera2D.new
+  @camera.view_height = 9
 
-  # Prevent camera from showing outside level bounds
-  @camera.bounds = Rect.new(0, 0, @level.width, @level.height)
+  # Level is 100x50 world units
+  @camera.bounds = Rect.new(0, 0, 100, 50)
 end
 ```
 
-When bounds are set, the camera will not scroll past the edges. This prevents showing empty space outside your level.
+When bounds are set, the camera will not scroll past the edges, preventing empty space from showing outside your level.
+
+---
 
 ## Screen Shake
 
@@ -145,21 +251,21 @@ Add impact feedback with screen shake:
 
 ```ruby
 def on_player_hit
-  @camera.shake(strength: 5, duration: 0.2, frequency: 30)
+  @camera.shake(strength: 0.2, duration: 0.2, frequency: 30)
 end
 
 def on_explosion
-  @camera.shake(strength: 10, duration: 0.5)
+  @camera.shake(strength: 0.5, duration: 0.5)
 end
 ```
 
 | Parameter | Description |
 |-----------|-------------|
-| `strength` | Maximum shake offset in pixels |
+| `strength` | Maximum shake offset in world units |
 | `duration` | How long the shake lasts in seconds |
-| `frequency` | Shake oscillations per second (optional) |
+| `frequency` | Shake oscillations per second (default: 30) |
 
-Shake is additive - multiple shakes can overlap for bigger effects.
+---
 
 ## Coordinate Conversion
 
@@ -167,23 +273,19 @@ Convert between screen and world coordinates:
 
 ### Screen to World
 
-Where in the game world is the mouse pointing?
-
 ```ruby
 def update(dt)
   # Get mouse position in world coordinates
-  mouse_screen = Mathf::Vec2.new(Input.mouse_x, Input.mouse_y)
+  mouse_screen = Vec2.new(Input.mouse_x, Input.mouse_y)
   mouse_world = @camera.screen_to_world(mouse_screen)
 
-  # Now mouse_world.x and mouse_world.y are in game coordinates
+  # Position crosshair at mouse world position
   @crosshair.transform.x = mouse_world.x
   @crosshair.transform.y = mouse_world.y
 end
 ```
 
 ### World to Screen
-
-Where on screen does this world position appear?
 
 ```ruby
 def draw
@@ -195,48 +297,62 @@ def draw
 end
 ```
 
-## Zoom Control
+---
 
-### Mouse Wheel Zoom
+## Handling Window Resize
+
+Update the camera when the window is resized (Resolution-Independent mode only):
 
 ```ruby
-def update(dt)
-  wheel = Input.mouse_wheel
-  if wheel != 0
-    @camera.zoom = Mathf.clamp(@camera.zoom + wheel * 0.25, 0.5, 4.0)
+def on_resize(width, height)
+  @camera.viewport_size = Vec2.new(width, height)
+  @camera.offset = Vec2.new(width / 2, height / 2)
+end
+```
+
+The `on_resize` callback is automatically called by the engine when the window is resized.
+
+---
+
+## Dynamic Mode Switching
+
+Switch between retro and native rendering at runtime:
+
+```ruby
+RETRO_WIDTH = 320
+RETRO_HEIGHT = 180
+
+def toggle_resolution
+  @retro_mode = !@retro_mode
+
+  if @retro_mode
+    # Switch to Pixel-Perfect mode
+    Window.set_virtual_resolution(RETRO_WIDTH, RETRO_HEIGHT)
+    @camera.viewport_size = Vec2.new(RETRO_WIDTH, RETRO_HEIGHT)
+    @camera.offset = Vec2.new(RETRO_WIDTH / 2, RETRO_HEIGHT / 2)
+  else
+    # Switch to Resolution-Independent mode
+    Window.clear_virtual_resolution
+    @camera.viewport_size = Vec2.new(Window.width, Window.height)
+    @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
   end
 end
 ```
 
-### Zoom to Point
-
-Zoom while keeping a specific point stationary:
-
-```ruby
-def zoom_to_mouse(zoom_delta)
-  # Get mouse world position before zoom
-  mouse_screen = Mathf::Vec2.new(Input.mouse_x, Input.mouse_y)
-  world_before = @camera.screen_to_world(mouse_screen)
-
-  # Apply zoom
-  @camera.zoom = Mathf.clamp(@camera.zoom + zoom_delta, 0.5, 4.0)
-
-  # Get mouse world position after zoom
-  world_after = @camera.screen_to_world(mouse_screen)
-
-  # Adjust camera to keep mouse point stationary
-  @camera.target.x += world_before.x - world_after.x
-  @camera.target.y += world_before.y - world_after.y
-end
-```
+---
 
 ## Complete Example
 
 ```ruby
 include GMR
 
+VIEW_HEIGHT = 9
+PLAYER_SPEED = 5.0
+LEVEL_SIZE = Vec2.new(100, 50)
+
 def init
   Window.set_size(960, 540)
+  Window.set_title("Camera Demo")
 
   input do |i|
     i.move_left [:a, :left]
@@ -245,39 +361,45 @@ def init
     i.move_down [:s, :down]
   end
 
-  # Create player
-  @player_transform = Transform2D.new(x: 400, y: 300)
+  # Create player at world position
+  @player_transform = Transform2D.new(x: 10, y: 5)
   @player = Sprite.new(Texture.load("player.png"), @player_transform)
   @player.center_origin
 
   # Setup camera
-  @camera = Camera.new
-  @camera.offset = Mathf::Vec2.new(480, 270)
-  @camera.zoom = 2.0
-  @camera.bounds = Rect.new(0, 0, 2000, 1500)  # Level size
+  @camera = Camera2D.new
+  @camera.view_height = VIEW_HEIGHT
+  @camera.viewport_size = Vec2.new(Window.width, Window.height)
+  @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
+  @camera.bounds = Rect.new(0, 0, LEVEL_SIZE.x, LEVEL_SIZE.y)
 
-  # Create some world content
-  @tilemap = create_tilemap()
+  # Smooth follow with deadzone
+  @camera.follow(@player, smoothing: 0.1, deadzone: Rect.new(-1, -0.5, 2, 1))
+end
+
+def on_resize(width, height)
+  @camera.viewport_size = Vec2.new(width, height)
+  @camera.offset = Vec2.new(width / 2, height / 2)
 end
 
 def update(dt)
-  # Player movement
-  speed = 150 * dt
-  @player_transform.x -= speed if Input.action_down?(:move_left)
-  @player_transform.x += speed if Input.action_down?(:move_right)
-  @player_transform.y -= speed if Input.action_down?(:move_up)
-  @player_transform.y += speed if Input.action_down?(:move_down)
-
-  # Camera follows player smoothly
-  @camera.follow(@player,
-    smoothing: 0.1,
-    deadzone: Rect.new(-50, -30, 100, 60)
-  )
+  if Input.action_down?(:move_left)
+    @player_transform.x -= PLAYER_SPEED * dt
+  end
+  if Input.action_down?(:move_right)
+    @player_transform.x += PLAYER_SPEED * dt
+  end
+  if Input.action_down?(:move_up)
+    @player_transform.y -= PLAYER_SPEED * dt
+  end
+  if Input.action_down?(:move_down)
+    @player_transform.y += PLAYER_SPEED * dt
+  end
 
   # Zoom with mouse wheel
   wheel = Input.mouse_wheel
   if wheel != 0
-    @camera.zoom = Mathf.clamp(@camera.zoom + wheel * 0.25, 1.0, 4.0)
+    @camera.zoom = Mathf.clamp(@camera.zoom + wheel * 0.1, 0.5, 3.0)
   end
 end
 
@@ -286,48 +408,72 @@ def draw
     Graphics.clear("#1e1e32")
     @tilemap.draw(0, 0)
     @player.draw
-
-    # Draw mouse cursor in world space
-    mouse_world = @camera.screen_to_world(
-      Mathf::Vec2.new(Input.mouse_x, Input.mouse_y)
-    )
-    Graphics.draw_circle(mouse_world.x, mouse_world.y, 5, :yellow)
   end
 
-  # UI (fixed to screen)
+  # UI (screen space)
   Graphics.draw_text("WASD to move, scroll to zoom", 10, 10, 16, :white)
-  Graphics.draw_text("Zoom: #{@camera.zoom.round(1)}x", 10, 30, 16, :white)
+  Graphics.draw_text("View: #{@camera.visible_width.round(1)} x #{@camera.visible_height.round(1)}", 10, 30, 16, :white)
 end
 ```
 
-## Multiple Cameras
+---
 
-For split-screen or minimap, create multiple cameras:
+## API Summary
 
-```ruby
-def init
-  @main_camera = Camera.new
-  @main_camera.offset = Mathf::Vec2.new(480, 270)
+### View Configuration
 
-  @minimap_camera = Camera.new
-  @minimap_camera.zoom = 0.1  # Zoomed out for overview
-end
+| Method | Description |
+|--------|-------------|
+| `view_height` | How many world units visible vertically |
+| `viewport_size` | Render resolution in pixels |
+| `pixels_per_unit` | PPU (derived from viewport_size.y / view_height) |
+| `effective_scale` | Final scale factor (PPU × zoom) |
+| `visible_width` | World width visible (affected by zoom) |
+| `visible_height` | World height visible (affected by zoom) |
+| `visible_bounds` | Visible world rectangle |
 
-def draw
-  # Main view
-  @main_camera.use do
-    # Draw game world
-  end
+### Transform
 
-  # Minimap in corner (you'd also set a viewport/scissor for proper minimap)
-  @minimap_camera.use do
-    # Draw simplified world view
-  end
-end
-```
+| Method | Description |
+|--------|-------------|
+| `target` | World position camera looks at |
+| `offset` | Screen position where target appears |
+| `zoom` | Zoom multiplier |
+| `rotation` | Rotation in degrees |
+
+### Following
+
+| Method | Description |
+|--------|-------------|
+| `follow(target, smoothing:, deadzone:)` | Configure automatic following |
+| `bounds` | World bounds for camera clamping |
+
+### Effects
+
+| Method | Description |
+|--------|-------------|
+| `shake(strength:, duration:, frequency:)` | Trigger screen shake |
+
+### Coordinate Conversion
+
+| Method | Description |
+|--------|-------------|
+| `screen_to_world(vec2)` | Convert screen to world position |
+| `world_to_screen(vec2)` | Convert world to screen position |
+
+### Rendering
+
+| Method | Description |
+|--------|-------------|
+| `use { }` | Execute block with camera transform |
+| `begin` / `end` | Manual camera control |
+| `Camera2D.current` | Get/set active camera |
+
+---
 
 ## See Also
 
 - [Graphics](graphics.md) - Drawing and rendering
-- [Transforms](transforms.md) - Transform2D details
-- [API Reference](api/engine/graphics/camera2d.md) - Complete Camera API
+- [Transforms](transforms.md) - Transform2D and parallax
+- [Window API](api/engine/utilities/window.md) - Virtual resolution settings
+- [Camera2D API](api/engine/graphics/camera2d.md) - Complete API reference
