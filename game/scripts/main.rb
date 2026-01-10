@@ -34,6 +34,15 @@ MAP_OFFSET_Y = 0.0
 # Camera Y offset to show ground at bottom of screen
 CAMERA_OFFSET_Y = VIRTUAL_HEIGHT * 0.7
 
+# Camera smoothing and deadzone
+CAMERA_SMOOTHING = 0.92         # 0.0 = instant, 1.0 = very smooth (high value for buttery smooth camera)
+CAMERA_DEADZONE_WIDTH = 40.0    # Small horizontal deadzone
+CAMERA_DEADZONE_HEIGHT = 20.0   # Small vertical deadzone
+
+# Screen shake settings
+ATTACK_SHAKE_STRENGTH = 6.0     # Pixels of max shake offset
+ATTACK_SHAKE_DURATION = 0.30    # Shake duration in seconds
+
 # Character hitbox offsets (relative to sprite position)
 CHAR_HITBOX_OFFSET_X = 15
 CHAR_HITBOX_OFFSET_Y = 8
@@ -90,6 +99,7 @@ def init
 
   # === AUDIO ===
   @jump_sound = Audio::Sound.load("assets/sfx/jump.mp3", volume: SFX_VOLUME)
+  @attack_sound = Audio::Sound.load("assets/sfx/sword_swing.mp3", volume: SFX_VOLUME + 1)
   @music = Audio::Music.load("assets/music/jungle.mp3", volume: MUSIC_VOLUME, loop: true)
   @music.play
 
@@ -97,12 +107,19 @@ def init
   Input.map(:move_left, [:left, :a])
        .map(:move_right, [:right, :d])
        .map(:jump, [:space, :up, :w])
+       .map(:attack, [:z, :x])          # Attack with Z or X keys
   Input.on(:jump) { do_jump }
+  Input.on(:attack) { do_attack }       # Attack callback
 
   # === CAMERA ===
   @camera = Graphics::Camera.new
   @camera.offset = Mathf::Vec2.new(VIRTUAL_WIDTH / 2.0, CAMERA_OFFSET_Y)
   @camera.zoom = 1.0
+
+  # Configure camera deadzone (centered on screen)
+  deadzone_x = (VIRTUAL_WIDTH / 2.0) - (CAMERA_DEADZONE_WIDTH / 2.0)
+  deadzone_y = CAMERA_OFFSET_Y - (CAMERA_DEADZONE_HEIGHT / 2.0)
+  deadzone = Graphics::Rect.new(deadzone_x, deadzone_y, CAMERA_DEADZONE_WIDTH, CAMERA_DEADZONE_HEIGHT)
 
   # === PARALLAX BACKGROUNDS ===
   @bg1_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_1.png")
@@ -160,11 +177,24 @@ def init
     @tilemap.define_tile(tile_id, { solid: true })
   end
 
-  # Create simple flat ground
-  (0...MAP_WIDTH).each do |x|
-    @tilemap.set(x, 19, Tiles::GROUND_TOP_CENTER)
-    @tilemap.set(x, 20, Tiles::GROUND_MID_CENTER)
-  end
+  # Build boundary walls and ground using fill_rect for cleaner code
+  # Wall thickness: 5 tiles on each side to ensure parallax edges are hidden
+  wall_width = 10
+  playable_start = wall_width
+  playable_end = MAP_WIDTH - wall_width - 1
+
+
+  # Ground - top surface and fill below
+  @tilemap.fill_rect(playable_start, 19, playable_end - playable_start + 1, 1, Tiles::GROUND_TOP_CENTER)
+  @tilemap.fill_rect(playable_start, 20, playable_end - playable_start + 1, MAP_HEIGHT - 20, Tiles::GROUND_MID_CENTER)
+
+  # Left wall - solid fill then inner edge
+  @tilemap.fill_rect(0, 0, wall_width, MAP_HEIGHT, Tiles::GROUND_MID_CENTER)
+  # @tilemap.fill_rect(wall_width - 1, 0, 1, MAP_HEIGHT, 24)
+
+  # Right wall - solid fill then inner edge
+  @tilemap.fill_rect(MAP_WIDTH - wall_width, 0, wall_width, MAP_HEIGHT, Tiles::GROUND_MID_CENTER)
+  # @tilemap.fill_rect(MAP_WIDTH - wall_width, MAP_HEIGHT, 1, 19, Tiles::GROUND_MID_LEFT)  # Inner edge column
 
   # === CHARACTER ===
   begin
@@ -174,7 +204,7 @@ def init
   end
 
   # Find spawn point
-  spawn_x = 5
+  spawn_x = wall_width + 5
   pos_x = MAP_OFFSET_X + spawn_x * TILE_SIZE
   pos_y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
 
@@ -182,8 +212,26 @@ def init
   @sprite = Graphics::Sprite.new(@char_tex, @sprite_transform)
   @sprite.source_rect = Graphics::Rect.new(0, 0, FRAME_WIDTH, FRAME_HEIGHT)
 
+  @velocity_x = 0.0
   @velocity_y = 0.0
   @on_ground = false
+
+  # Create a camera target that returns the center of the sprite
+  # The camera.follow() system expects an object with x() and y() methods
+  @camera_target = Object.new
+  def @camera_target.x
+    $sprite_transform.x + FRAME_WIDTH / 2.0
+  end
+  def @camera_target.y
+    $sprite_transform.y + FRAME_HEIGHT / 2.0
+  end
+  $sprite_transform = @sprite_transform  # Store for camera target access
+
+  # Initialize camera position to player center
+  @camera.target = Mathf::Vec2.new(@camera_target.x, @camera_target.y)
+
+  # Setup camera to follow player center with smoothing and deadzone
+  @camera.follow(@camera_target, smoothing: CAMERA_SMOOTHING, deadzone: deadzone)
 
   # === ANIMATION & STATE MACHINE ===
   begin
@@ -193,22 +241,47 @@ def init
       frame_width: FRAME_WIDTH,
       frame_height: FRAME_HEIGHT)
 
-    @animator.add(:idle, frames: 0..5, fps: 8)
-    @animator.add(:run, frames: 14..19, fps: 12)
-    @animator.add(:jump_up, frames: 21..23, fps: 10, loop: false)
-    @animator.add(:fall, frames: 24..26, fps: 10, loop: false)
+    # Core movement animations (REFINED for perfect timing)
+    @animator.add(:idle, frames: 0..5, fps: 6, loop: true)           # Slower, calmer breathing
+    @animator.add(:run, frames: 14..19, fps: 12, loop: true)         # Fast run cycle
+
+    # Jump sequence (IMPROVED with better timing)
+    @animator.add(:jump_up, frames: 22..23, fps: 15, loop: false)    # Faster ascent
+    @animator.add(:fall, frames: 24..26, fps: 12, loop: false)       # Smooth descent
+
+    # Attack animations (NEW - Primary slash attack)
+    @animator.add(:attack, frames: 8..12, fps: 18, loop: false)     # Fast, snappy attack
+
+    # Damage/death animations (NEW)
+    @animator.add(:hurt, frames: 43..47, fps: 15, loop: false)       # Hit reaction
+    @animator.add(:death, frames: 50..57, fps: 10, loop: false)      # Dramatic death
+
+    # Animation completion callbacks - auto-return to idle after animations finish
+    @animator.on_complete(:attack) do
+      state_machine.trigger(:attack_finish) if state_machine.state == :attacking
+    end
+
+    @animator.on_complete(:hurt) do
+      state_machine.trigger(:hurt_finish) if state_machine.state == :hurt
+    end
+
+    @animator.on_complete(:death) do
+      puts "Game Over!"  # Death animation complete
+    end
 
     state_machine do
       state :idle do
         animate :idle
         on :move, :running
         on :jump, :jumping
+        on :attack, :attacking       # NEW: Attack from idle
       end
 
       state :running do
         animate :run
         on :stop, :idle
         on :jump, :jumping
+        on :attack, :attacking       # NEW: Attack while running
       end
 
       state :jumping do
@@ -216,12 +289,29 @@ def init
         on :fall, :falling
         on :land, :idle
         on :land_moving, :running
+        on :attack, :attacking       # NEW: Aerial attack
       end
 
       state :falling do
         animate :fall
         on :land, :idle
         on :land_moving, :running
+        on :attack, :attacking       # NEW: Aerial attack
+      end
+
+      state :attacking do            # NEW STATE: Attack animation
+        animate :attack
+        on :attack_finish, :idle     # Return to idle when attack completes
+      end
+
+      state :hurt do                 # NEW STATE: Damage reaction
+        animate :hurt
+        on :hurt_finish, :idle       # Recover to idle
+      end
+
+      state :dead do                 # NEW STATE: Death animation
+        animate :death
+        # No transitions (game over)
       end
     end
   rescue => e
@@ -237,21 +327,41 @@ def do_jump
   @jump_sound.play
 end
 
+def do_attack
+  # Can attack from idle, running, jumping, or falling states
+  return if state_machine.state == :attacking  # Prevent spam - must finish current attack
+  return if state_machine.state == :hurt       # Can't attack while taking damage
+  return if state_machine.state == :dead       # Can't attack while dead
+
+  state_machine.trigger(:attack)
+  @attack_sound.play  # Play sword swing sound
+  @camera.shake(strength: ATTACK_SHAKE_STRENGTH, duration: ATTACK_SHAKE_DURATION)
+end
+
 def update(dt)
   moving_left = Input.action_down?(:move_left)
   moving_right = Input.action_down?(:move_right)
   moving = moving_left || moving_right
+
+  # Check for attack input - keyboard (Z/X) OR left mouse button
+  if Input.action_pressed?(:attack) || Input.mouse_pressed?(:left)
+    do_attack
+  end
 
   if !@on_ground
     @velocity_y += GRAVITY * dt
     state_machine.trigger(:fall) if @velocity_y > 0 && state_machine.state != :falling
   end
 
-  @sprite_transform.x -= MOVE_SPEED * dt if moving_left
-  @sprite_transform.x += MOVE_SPEED * dt if moving_right
+  # Set horizontal velocity based on input
+  @velocity_x = 0.0
+  @velocity_x = -MOVE_SPEED if moving_left
+  @velocity_x = MOVE_SPEED if moving_right
   @sprite.flip_x = true if moving_left
   @sprite.flip_x = false if moving_right
 
+  # Apply velocities to position
+  @sprite_transform.x += @velocity_x * dt
   @sprite_transform.y += @velocity_y * dt
 
   check_tilemap_collision(moving)
@@ -264,8 +374,7 @@ def update(dt)
     end
   end
 
-  # Update camera to follow player
-  @camera.target = Mathf::Vec2.new(@sprite_transform.x + FRAME_WIDTH / 2.0, @sprite_transform.y + FRAME_HEIGHT / 2.0)
+  # Camera automatically follows @sprite_transform with smoothing and deadzone
 end
 
 def check_tilemap_collision(moving)
@@ -273,21 +382,31 @@ def check_tilemap_collision(moving)
   local_x = @sprite_transform.x + CHAR_HITBOX_OFFSET_X - MAP_OFFSET_X
   local_y = @sprite_transform.y + CHAR_HITBOX_OFFSET_Y - MAP_OFFSET_Y
 
-  # Use Collision module to resolve tilemap collision
-  result = Collision.tilemap_resolve(
+  # Resolve horizontal collision first (pass 0 for vertical velocity)
+  h_result = Collision.tilemap_resolve(
     @tilemap,
     local_x, local_y,
     CHAR_HITBOX_WIDTH, CHAR_HITBOX_HEIGHT,
-    @velocity_x || 0.0, @velocity_y
+    @velocity_x, 0.0
+  )
+  local_x = h_result.x
+  @velocity_x = h_result.vx
+
+  # Then resolve vertical collision (pass 0 for horizontal velocity)
+  v_result = Collision.tilemap_resolve(
+    @tilemap,
+    local_x, local_y,
+    CHAR_HITBOX_WIDTH, CHAR_HITBOX_HEIGHT,
+    0.0, @velocity_y
   )
 
   # Apply resolved position (convert back to world coordinates)
-  @sprite_transform.x = result.x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
-  @sprite_transform.y = result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
-  @velocity_y = result.vy
+  @sprite_transform.x = local_x + MAP_OFFSET_X - CHAR_HITBOX_OFFSET_X
+  @sprite_transform.y = v_result.y + MAP_OFFSET_Y - CHAR_HITBOX_OFFSET_Y
+  @velocity_y = v_result.vy
 
   # Update ground state
-  if result.bottom?
+  if v_result.bottom?
     if !@on_ground
       @on_ground = true
       state_machine.trigger(moving ? :land_moving : :land)
@@ -300,8 +419,9 @@ end
 def draw
   Graphics.clear([80, 120, 160])
 
-  camera_x = @sprite_transform.x + FRAME_WIDTH / 2.0
-  camera_y = @sprite_transform.y + FRAME_HEIGHT / 2.0
+  # Use camera target for parallax (includes smoothing, deadzone, and shake)
+  camera_x = @camera.target.x
+  camera_y = @camera.target.y
 
   base_y = MAP_OFFSET_Y + 18 * TILE_SIZE
   y_offset = camera_y - base_y

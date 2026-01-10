@@ -390,9 +390,9 @@ void DrawQueue::apply_camera_begin(CameraHandle handle) {
     auto* cam = CameraManager::instance().get(handle);
     if (cam) {
         ::Camera2D raylib_cam = {};
-        // Round camera target to nearest pixel for crisp pixel art rendering
-        // This prevents subpixel jitter while keeping smooth camera movement
-        raylib_cam.target = {std::round(cam->target.x), std::round(cam->target.y)};
+        // Allow sub-pixel camera positioning for buttery smooth camera movement
+        // This works well with high camera smoothing values (0.9+)
+        raylib_cam.target = {cam->target.x, cam->target.y};
         raylib_cam.offset = {cam->offset.x + cam->shake_offset.x,
                              cam->offset.y + cam->shake_offset.y};
         raylib_cam.rotation = cam->rotation;
