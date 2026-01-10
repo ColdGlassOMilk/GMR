@@ -2,7 +2,7 @@
   "engine": {
     "name": "GMR",
     "fullName": "Game Middleware for Ruby",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++"
   },
   "language": {
