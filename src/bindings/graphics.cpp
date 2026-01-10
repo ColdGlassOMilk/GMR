@@ -3,6 +3,7 @@
 #include "gmr/state.hpp"
 #include "gmr/resources/texture_manager.hpp"
 #include "gmr/resources/tilemap_manager.hpp"
+#include "gmr/resources/font_manager.hpp"
 #include "gmr/draw_queue.hpp"
 #include "raylib.h"
 #include <cstring>
@@ -41,6 +42,18 @@ static bool is_transform2d(mrb_state* mrb, mrb_value val) {
     RClass* transform_class = mrb_class_get_under(mrb, mrb_module_get(mrb, "GMR"), "Transform2D");
     return mrb_obj_is_kind_of(mrb, val, transform_class);
 }
+
+// Forward declarations for Font (defined later in file)
+struct FontData {
+    FontHandle handle;
+};
+
+static void font_free(mrb_state* mrb, void* ptr) {
+    mrb_free(mrb, ptr);
+}
+
+extern const mrb_data_type font_data_type;
+static FontData* get_font_data(mrb_state* mrb, mrb_value self);
 
 // ============================================================================
 // GMR::Graphics Module Functions (Stateless)
@@ -756,19 +769,34 @@ static mrb_value mrb_graphics_draw_triangle_outline(mrb_state* mrb, mrb_value) {
 /// @param text_or_x [String|Integer] Text content (if transform) OR X position (left edge)
 /// @param size_or_y [Integer] Font size (if transform) OR Y position (top edge)
 /// @param color_or_size [Color|Integer] Text color (if transform) OR Font size in pixels
-/// @param color [Color] Text color (if using x,y)
+/// @param color_or_opts [Color|Hash] Text color (if using x,y) OR options hash
+/// @param opts [Hash] (optional) Options hash. Supports :font for custom font
 /// @returns [nil]
 /// @example GMR::Graphics.draw_text(transform, "Hello!", 20, [255, 255, 255])  # Transform2D + text
 /// @example GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])  # Legacy x,y,size
-// GMR::Graphics.draw_text(transform, text, size, color)
-// GMR::Graphics.draw_text(text, x, y, size, color)
+/// @example GMR::Graphics.draw_text("Hello!", 10, 10, 20, :white, font: @my_font)  # With custom font
+// GMR::Graphics.draw_text(transform, text, size, color, opts?)
+// GMR::Graphics.draw_text(text, x, y, size, color, opts?)
 static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
-    mrb_value arg1, arg2, arg3, arg4, arg5 = mrb_nil_value();
-    int argc = mrb_get_args(mrb, "oooo|o", &arg1, &arg2, &arg3, &arg4, &arg5);
+    mrb_value arg1, arg2, arg3, arg4, arg5 = mrb_nil_value(), arg6 = mrb_nil_value();
+    int argc = mrb_get_args(mrb, "oooo|oo", &arg1, &arg2, &arg3, &arg4, &arg5, &arg6);
+
+    // Helper to extract font handle from options hash
+    auto get_font_from_opts = [mrb](mrb_value opts) -> FontHandle {
+        if (mrb_nil_p(opts) || !mrb_hash_p(opts)) return INVALID_HANDLE;
+
+        mrb_value font_val = mrb_hash_get(mrb, opts,
+            mrb_symbol_value(mrb_intern_cstr(mrb, "font")));
+        if (mrb_nil_p(font_val)) return INVALID_HANDLE;
+
+        FontData* font_data = get_font_data(mrb, font_val);
+        if (font_data) return font_data->handle;
+        return INVALID_HANDLE;
+    };
 
     // Check if first arg is Transform2D
     if (is_transform2d(mrb, arg1)) {
-        // NEW API: draw_text(transform, text, size, color)
+        // NEW API: draw_text(transform, text, size, color, opts?)
         TransformHandle transform = get_transform_handle(mrb, arg1);
         if (transform == INVALID_HANDLE) {
             mrb_raise(mrb, E_ARGUMENT_ERROR, "Invalid Transform2D object");
@@ -781,16 +809,30 @@ static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
         Color c = parse_color_value(mrb, arg4, WHITE_COLOR);
         DrawColor draw_color{c.r, c.g, c.b, c.a};
 
-        DrawQueue::instance().queue_text(
-            transform,
-            text,
-            static_cast<int>(size),
-            draw_color,
-            static_cast<uint8_t>(RenderLayer::UI),
-            0.0f   // z (0 = use draw_order)
-        );
+        FontHandle font = get_font_from_opts(arg5);
+
+        if (font != INVALID_HANDLE) {
+            DrawQueue::instance().queue_text(
+                transform,
+                text,
+                static_cast<int>(size),
+                draw_color,
+                font,
+                static_cast<uint8_t>(RenderLayer::UI),
+                0.0f   // z (0 = use draw_order)
+            );
+        } else {
+            DrawQueue::instance().queue_text(
+                transform,
+                text,
+                static_cast<int>(size),
+                draw_color,
+                static_cast<uint8_t>(RenderLayer::UI),
+                0.0f   // z (0 = use draw_order)
+            );
+        }
     } else {
-        // OLD API: draw_text(text, x, y, size, color)
+        // OLD API: draw_text(text, x, y, size, color, opts?)
         if (argc < 5 || mrb_nil_p(arg5)) {
             mrb_raise(mrb, E_ARGUMENT_ERROR, "draw_text requires 5 arguments when using coordinates: text, x, y, size, color");
             return mrb_nil_value();
@@ -804,14 +846,27 @@ static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
         Color c = parse_color_value(mrb, arg5, WHITE_COLOR);
         DrawColor draw_color{c.r, c.g, c.b, c.a};
 
+        FontHandle font = get_font_from_opts(arg6);
+
         // Queue text for deferred rendering (so it respects camera transforms)
-        DrawQueue::instance().queue_text(
-            static_cast<float>(x),
-            static_cast<float>(y),
-            text,
-            static_cast<int>(size),
-            draw_color
-        );
+        if (font != INVALID_HANDLE) {
+            DrawQueue::instance().queue_text(
+                static_cast<float>(x),
+                static_cast<float>(y),
+                text,
+                static_cast<int>(size),
+                draw_color,
+                font
+            );
+        } else {
+            DrawQueue::instance().queue_text(
+                static_cast<float>(x),
+                static_cast<float>(y),
+                text,
+                static_cast<int>(size),
+                draw_color
+            );
+        }
     }
 
     return mrb_nil_value();
@@ -1029,6 +1084,110 @@ static mrb_value mrb_texture_draw_pro(mrb_state* mrb, mrb_value self) {
         DrawTexturePro(*texture, source, dest, origin, static_cast<float>(rotation), to_raylib(c));
     }
     return mrb_nil_value();
+}
+
+// ============================================================================
+// GMR::Graphics::Font Class
+// ============================================================================
+
+/// @class Font
+/// @parent GMR::Graphics
+/// @description A loaded font for custom text rendering
+
+// Definition of font_data_type (declared earlier in file)
+const mrb_data_type font_data_type = {
+    "GMR::Graphics::Font", font_free
+};
+
+// Implementation of get_font_data (declared earlier in file)
+FontData* get_font_data(mrb_state* mrb, mrb_value self) {
+    return static_cast<FontData*>(mrb_data_get_ptr(mrb, self, &font_data_type));
+}
+
+/// @classmethod load
+/// @description Load a font from a TTF/OTF file
+/// @param path [String] Path to the font file (relative to assets folder)
+/// @param options [Hash] (optional) Options hash. Supports :size (default 32)
+/// @returns [Font] The loaded font object
+/// @raises [RuntimeError] if the file cannot be loaded
+/// @example @font = Graphics::Font.load("fonts/pixel.ttf", size: 16)
+static mrb_value mrb_font_load(mrb_state* mrb, mrb_value klass) {
+    const char* path;
+    mrb_value opts = mrb_nil_value();
+    mrb_get_args(mrb, "z|H", &path, &opts);
+
+    // Default font size
+    int font_size = 32;
+
+    // Parse options hash
+    if (!mrb_nil_p(opts)) {
+        mrb_value size_val = mrb_hash_get(mrb, opts,
+            mrb_symbol_value(mrb_intern_cstr(mrb, "size")));
+        if (!mrb_nil_p(size_val)) {
+            font_size = mrb_fixnum(mrb_to_int(mrb, size_val));
+        }
+    }
+
+    FontHandle handle = FontManager::instance().load(path, font_size);
+    if (handle == INVALID_HANDLE) {
+        mrb_raisef(mrb, E_RUNTIME_ERROR, "Failed to load font: %s", path);
+        return mrb_nil_value();
+    }
+
+    // Create new instance
+    RClass* font_class = mrb_class_ptr(klass);
+    mrb_value obj = mrb_obj_new(mrb, font_class, 0, nullptr);
+
+    // Allocate and set data
+    FontData* data = static_cast<FontData*>(mrb_malloc(mrb, sizeof(FontData)));
+    data->handle = handle;
+    mrb_data_init(obj, data, &font_data_type);
+
+    return obj;
+}
+
+/// @method base_size
+/// @description Get the base size this font was loaded at
+/// @returns [Integer] Base font size in pixels
+/// @example puts @font.base_size  # => 32
+static mrb_value mrb_font_base_size(mrb_state* mrb, mrb_value self) {
+    FontData* data = get_font_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(FontManager::instance().get_base_size(data->handle));
+}
+
+/// @method glyph_count
+/// @description Get the number of glyphs (characters) in this font
+/// @returns [Integer] Number of glyphs
+/// @example puts @font.glyph_count  # => 95
+static mrb_value mrb_font_glyph_count(mrb_state* mrb, mrb_value self) {
+    FontData* data = get_font_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(FontManager::instance().get_glyph_count(data->handle));
+}
+
+/// @method release
+/// @description Manually release a reference to the font. When the reference count reaches 0, the font is unloaded from memory.
+/// @returns [nil]
+/// @example @font.release
+/// @note Fonts are automatically cached and reference counted. You only need to call this if you want to explicitly free memory.
+static mrb_value mrb_font_release(mrb_state* mrb, mrb_value self) {
+    FontData* data = get_font_data(mrb, self);
+    if (data && data->handle != INVALID_HANDLE) {
+        FontManager::instance().release(data->handle);
+        data->handle = INVALID_HANDLE;  // Mark as released
+    }
+    return mrb_nil_value();
+}
+
+/// @method ref_count
+/// @description Get the current reference count for this font (how many times it's been loaded with the same path and size)
+/// @returns [Integer] Current reference count
+/// @example puts @font.ref_count
+static mrb_value mrb_font_ref_count(mrb_state* mrb, mrb_value self) {
+    FontData* data = get_font_data(mrb, self);
+    if (!data) return mrb_fixnum_value(0);
+    return mrb_fixnum_value(FontManager::instance().get_ref_count(data->handle));
 }
 
 // ============================================================================
@@ -1506,7 +1665,7 @@ void register_graphics(mrb_state* mrb) {
     mrb_define_module_function(mrb, graphics, "draw_triangle", mrb_graphics_draw_triangle, MRB_ARGS_REQ(7));
     mrb_define_module_function(mrb, graphics, "draw_triangle_outline", mrb_graphics_draw_triangle_outline, MRB_ARGS_REQ(7));
 
-    mrb_define_module_function(mrb, graphics, "draw_text", mrb_graphics_draw_text, MRB_ARGS_REQ(5));
+    mrb_define_module_function(mrb, graphics, "draw_text", mrb_graphics_draw_text, MRB_ARGS_ARG(4, 2));
     mrb_define_module_function(mrb, graphics, "measure_text", mrb_graphics_measure_text, MRB_ARGS_REQ(2));
 
     // Texture class
@@ -1524,6 +1683,19 @@ void register_graphics(mrb_state* mrb) {
     mrb_define_method(mrb, texture_class, "draw", mrb_texture_draw, MRB_ARGS_ARG(2, 1));
     mrb_define_method(mrb, texture_class, "draw_ex", mrb_texture_draw_ex, MRB_ARGS_ARG(4, 1));
     mrb_define_method(mrb, texture_class, "draw_pro", mrb_texture_draw_pro, MRB_ARGS_ARG(9, 1));
+
+    // Font class
+    RClass* font_class = mrb_define_class_under(mrb, graphics, "Font", mrb->object_class);
+    MRB_SET_INSTANCE_TT(font_class, MRB_TT_CDATA);
+
+    // Class method
+    mrb_define_class_method(mrb, font_class, "load", mrb_font_load, MRB_ARGS_ARG(1, 1));
+
+    // Instance methods
+    mrb_define_method(mrb, font_class, "base_size", mrb_font_base_size, MRB_ARGS_NONE());
+    mrb_define_method(mrb, font_class, "glyph_count", mrb_font_glyph_count, MRB_ARGS_NONE());
+    mrb_define_method(mrb, font_class, "release", mrb_font_release, MRB_ARGS_NONE());
+    mrb_define_method(mrb, font_class, "ref_count", mrb_font_ref_count, MRB_ARGS_NONE());
 
     // Tilemap class
     RClass* tilemap_class = mrb_define_class_under(mrb, graphics, "Tilemap", mrb->object_class);

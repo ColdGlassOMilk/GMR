@@ -97,6 +97,9 @@ def init
   # Enable the console with Ruby evaluation (Dev mode)
   Console.enable(height: 150).allow_ruby_eval
 
+  # === FONTS ===
+  @custom_font = Graphics::Font.load("fonts/Ubuntu-Regular.ttf", size: 24)
+
   # === AUDIO ===
   @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME)
   @attack_sound = Audio::Sound.load("sfx/sword_swing.mp3", volume: SFX_VOLUME + 1)
@@ -434,6 +437,8 @@ def draw
     @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
     @sprite.draw
   end
+
+  Graphics.draw_text("#{GMR::Time.fps} FPS", 2, 2, 12, :cyan, font: @custom_font)
 end
 
 def draw_parallax_layer(sprites, width, speed, y_offset, camera_x)

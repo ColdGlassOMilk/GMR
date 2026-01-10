@@ -52,6 +52,7 @@ set(SOURCES
     src/resources/sound_manager.cpp
     src/resources/music_manager.cpp
     src/resources/tilemap_manager.cpp
+    src/resources/font_manager.cpp
     src/bindings/binding_helpers.cpp
     src/bindings/graphics.cpp
     src/bindings/input.cpp

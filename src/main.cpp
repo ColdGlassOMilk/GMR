@@ -10,6 +10,7 @@
 #include "gmr/console/console_module.hpp"
 #include "gmr/filesystem/paths.hpp"
 #include "gmr/resources/music_manager.hpp"
+#include "gmr/resources/font_manager.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
@@ -383,6 +384,7 @@ int main(int argc, char* argv[]) {
     gmr::DrawQueue::instance().clear();
     gmr::SoundManager::instance().clear();
     gmr::MusicManager::instance().clear();
+    gmr::FontManager::instance().clear();
     gmr::TextureManager::instance().clear();
 
     CloseAudioDevice();

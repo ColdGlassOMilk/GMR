@@ -89,6 +89,74 @@ x = (960 - width) / 2  # Center on 960-wide screen
 Graphics.draw_text("Hello", x, 100, 20, :white)
 ```
 
+## Custom Fonts
+
+Load TTF/OTF fonts for custom typography. Fonts are cached and reference-counted like textures.
+
+### Loading Fonts
+
+```ruby
+# Load a font at a specific size
+@title_font = Graphics::Font.load("fonts/pixel.ttf", size: 32)
+@ui_font = Graphics::Font.load("fonts/roboto.ttf", size: 16)
+
+# Query font properties
+puts @title_font.base_size    # => 32
+puts @title_font.glyph_count  # => 95
+```
+
+The `size:` parameter determines the base resolution of the font. Larger sizes look better when scaled up but use more memory.
+
+### Drawing with Custom Fonts
+
+```ruby
+# Use the font: keyword argument
+Graphics.draw_text("Game Title", 100, 50, 32, :white, font: @title_font)
+Graphics.draw_text("Score: #{@score}", 10, 10, 16, :cyan, font: @ui_font)
+
+# Default font still works (no font: argument)
+Graphics.draw_text("Default Font", 10, 40, 20, :yellow)
+```
+
+### Font Lifecycle
+
+Fonts use reference counting. They're automatically cached by path and size:
+
+```ruby
+# These return the same font handle (cached)
+font1 = Graphics::Font.load("fonts/pixel.ttf", size: 24)
+font2 = Graphics::Font.load("fonts/pixel.ttf", size: 24)
+
+# Different size = different font
+font3 = Graphics::Font.load("fonts/pixel.ttf", size: 48)
+
+# Manually release if needed (decrements ref count)
+font1.release
+```
+
+### Complete Font Example
+
+```ruby
+include GMR
+
+def init
+  @title_font = Graphics::Font.load("fonts/title.ttf", size: 48)
+  @body_font = Graphics::Font.load("fonts/body.ttf", size: 16)
+  @score = 0
+end
+
+def draw
+  Graphics.clear(:black)
+
+  # Large title with custom font
+  Graphics.draw_text("MY GAME", 320, 50, 48, :gold, font: @title_font)
+
+  # UI text with different font
+  Graphics.draw_text("Score: #{@score}", 10, 10, 16, :white, font: @body_font)
+  Graphics.draw_text("Press SPACE to play", 10, 30, 16, :gray, font: @body_font)
+end
+```
+
 ## Textures
 
 Textures are images loaded from files. Load once and reuse.

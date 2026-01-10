@@ -1,6 +1,7 @@
 #ifndef GMR_CONSOLE_MODULE_HPP
 #define GMR_CONSOLE_MODULE_HPP
 
+#include "gmr/types.hpp"
 #include <mruby.h>
 #include <string>
 #include <vector>
@@ -27,12 +28,15 @@ struct ConsoleStyle {
     uint8_t scrollbar_bg[4] = {40, 45, 60, 150};       // Scrollbar track
     uint8_t scrollbar_fg[4] = {80, 120, 180, 200};     // Scrollbar thumb
 
+    // Font
+    FontHandle font{INVALID_HANDLE};  // Custom font (INVALID_HANDLE = default)
+
     // Layout
     int font_size = 14;
     int line_height = 18;
     int padding = 10;
     int height = 300;              // Console height when open
-    int width = 0;                 // 0 = full screen width
+    int width = 0;                 // 0 = full screen width (always spans screen)
 
     // Position: 0=top, 1=bottom
     int position = 0;              // Default: drop from top

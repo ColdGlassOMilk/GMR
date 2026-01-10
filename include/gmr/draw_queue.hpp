@@ -80,8 +80,9 @@ struct TriangleDrawParams {
 
 // Text draw parameters
 struct TextDrawParams {
-    TransformHandle transform{INVALID_HANDLE};  // NEW: Transform-based rendering
-    float x{0}, y{0};  // OLD: World-space coordinates (backward compat)
+    TransformHandle transform{INVALID_HANDLE};  // Transform-based rendering
+    FontHandle font{INVALID_HANDLE};            // Custom font (INVALID_HANDLE = default font)
+    float x{0}, y{0};  // World-space coordinates (backward compat)
     int font_size{20};
     DrawColor color;
     std::string content;
@@ -152,8 +153,11 @@ public:
                         uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
     void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
                     uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
+    // With custom font
+    void queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
+                    FontHandle font, uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
 
-    // NEW: Transform-based queue functions for unified Transform2D support
+    // Transform-based queue functions for unified Transform2D support
     void queue_rect(TransformHandle transform, float width, float height, const DrawColor& color,
                     bool filled = true, uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
     void queue_circle(TransformHandle transform, float radius, const DrawColor& color,
@@ -165,6 +169,9 @@ public:
                     float thickness = 1.0f, uint8_t layer = static_cast<uint8_t>(RenderLayer::ENTITIES), float z = 0.0f);
     void queue_text(TransformHandle transform, const std::string& content, int font_size, const DrawColor& color,
                     uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
+    // Transform-based with custom font
+    void queue_text(TransformHandle transform, const std::string& content, int font_size, const DrawColor& color,
+                    FontHandle font, uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
 
     // Queue camera begin/end commands for deferred camera transforms
     void queue_camera_begin(CameraHandle handle);

@@ -2,6 +2,7 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include "gmr/input/input_context.hpp"
+#include "gmr/resources/font_manager.hpp"
 #include "gmr/state.hpp"
 #include "raylib.h"
 #include <mruby/compile.h>
@@ -41,6 +42,31 @@ static constexpr int KEY_PAGE_DOWN_CODE = 267;
 // Convert our color array to raylib Color
 static ::Color to_raylib_color(const uint8_t* c) {
     return ::Color{c[0], c[1], c[2], c[3]};
+}
+
+// Get font for console rendering (custom or default)
+static Font get_console_font(FontHandle handle) {
+    if (handle != INVALID_HANDLE) {
+        auto* font = FontManager::instance().get(handle);
+        if (font) return *font;
+    }
+    return GetFontDefault();
+}
+
+// Draw text with font (handles both custom and default fonts)
+static void draw_console_text(const char* text, int x, int y, int font_size, ::Color color, FontHandle font_handle) {
+    Font font = get_console_font(font_handle);
+    float spacing = static_cast<float>(font_size) / 10.0f;
+    Vector2 pos = {static_cast<float>(x), static_cast<float>(y)};
+    DrawTextEx(font, text, pos, static_cast<float>(font_size), spacing, color);
+}
+
+// Measure text width with font
+static int measure_console_text(const char* text, int font_size, FontHandle font_handle) {
+    Font font = get_console_font(font_handle);
+    float spacing = static_cast<float>(font_size) / 10.0f;
+    Vector2 size = MeasureTextEx(font, text, static_cast<float>(font_size), spacing);
+    return static_cast<int>(size.x);
 }
 
 ConsoleModule& ConsoleModule::instance() {
@@ -769,7 +795,8 @@ void ConsoleModule::draw() {
 
 void ConsoleModule::draw_background() {
     int y = static_cast<int>(current_y_);
-    int width = (style_.width > 0) ? style_.width : GetScreenWidth();
+    // Always use full screen width to ensure console spans the entire screen
+    int width = GetScreenWidth();
 
     // Main background
     DrawRectangle(0, y, width, style_.height, to_raylib_color(style_.bg_color));
@@ -784,7 +811,8 @@ void ConsoleModule::draw_background() {
 
 void ConsoleModule::draw_output() {
     int y = static_cast<int>(current_y_);
-    int width = (style_.width > 0) ? style_.width : GetScreenWidth();
+    // Always use full screen width
+    int width = GetScreenWidth();
 
     int output_height = style_.height - 40;
     int visible_count = output_height / style_.line_height;
@@ -796,6 +824,10 @@ void ConsoleModule::draw_output() {
 
     int draw_y = y + style_.padding;
 
+    // Calculate average char width for truncation (approximate)
+    int avg_char_width = measure_console_text("M", style_.font_size, style_.font) ;
+    if (avg_char_width < 1) avg_char_width = 7;
+
     for (int i = start_idx; i < end_idx; i++) {
         const auto& entry = output_[i];
         uint8_t color[4];
@@ -803,19 +835,20 @@ void ConsoleModule::draw_output() {
 
         std::string text = entry.text;
         // Truncate very long lines
-        int max_chars = (width - style_.padding * 2 - 20) / 7;
-        if (static_cast<int>(text.length()) > max_chars) {
+        int max_chars = (width - style_.padding * 2 - 20) / avg_char_width;
+        if (static_cast<int>(text.length()) > max_chars && max_chars > 3) {
             text = text.substr(0, max_chars - 3) + "...";
         }
 
-        DrawText(text.c_str(), style_.padding, draw_y, style_.font_size, to_raylib_color(color));
+        draw_console_text(text.c_str(), style_.padding, draw_y, style_.font_size, to_raylib_color(color), style_.font);
         draw_y += style_.line_height;
     }
 }
 
 void ConsoleModule::draw_input_line() {
     int y = static_cast<int>(current_y_);
-    int width = (style_.width > 0) ? style_.width : GetScreenWidth();
+    // Always use full screen width
+    int width = GetScreenWidth();
     int input_y = y + style_.height - 28;
 
     // Input background
@@ -825,18 +858,18 @@ void ConsoleModule::draw_input_line() {
     // Prompt
     const char* prompt = in_multiline_ ? ".. " : ">> ";
     const uint8_t* prompt_color = open_ ? style_.prompt_color : style_.info_color;
-    DrawText(prompt, style_.padding, input_y, style_.font_size, to_raylib_color(prompt_color));
+    draw_console_text(prompt, style_.padding, input_y, style_.font_size, to_raylib_color(prompt_color), style_.font);
 
-    int prompt_width = MeasureText(prompt, style_.font_size);
+    int prompt_width = measure_console_text(prompt, style_.font_size, style_.font);
     int text_x = style_.padding + prompt_width;
 
     // Input text
-    DrawText(input_.c_str(), text_x, input_y, style_.font_size, to_raylib_color(style_.input_color));
+    draw_console_text(input_.c_str(), text_x, input_y, style_.font_size, to_raylib_color(style_.input_color), style_.font);
 
     // Cursor
     if (open_ && cursor_blink_ < 1.0f) {
         std::string before_cursor = input_.substr(0, cursor_pos_);
-        int cursor_x = text_x + MeasureText(before_cursor.c_str(), style_.font_size);
+        int cursor_x = text_x + measure_console_text(before_cursor.c_str(), style_.font_size, style_.font);
         DrawRectangle(cursor_x, input_y, 2, style_.font_size + 2, to_raylib_color(style_.cursor_color));
     }
 
@@ -844,10 +877,10 @@ void ConsoleModule::draw_input_line() {
     if (history_index_ >= 0) {
         std::string indicator = "[" + std::to_string(command_history_.size() - history_index_) +
                                "/" + std::to_string(command_history_.size()) + "]";
-        int indicator_width = MeasureText(indicator.c_str(), 12);
+        int indicator_width = measure_console_text(indicator.c_str(), 12, style_.font);
         uint8_t indicator_color[4] = {80, 80, 100, 255};
-        DrawText(indicator.c_str(), width - indicator_width - style_.padding, input_y + 1, 12,
-                 to_raylib_color(indicator_color));
+        draw_console_text(indicator.c_str(), width - indicator_width - style_.padding, input_y + 1, 12,
+                 to_raylib_color(indicator_color), style_.font);
     }
 }
 
@@ -980,6 +1013,24 @@ static mrb_value mrb_console_enable(mrb_state* mrb, mrb_value self) {
 
         mrb_value width = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "width")));
         if (!mrb_nil_p(width)) style.width = mrb_fixnum(width);
+
+        // Font - accepts a Graphics::Font object
+        mrb_value font_val = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "font")));
+        if (!mrb_nil_p(font_val) && mrb_data_p(font_val)) {
+            // Get the font data type from graphics module
+            RClass* gmr = mrb_module_get(mrb, "GMR");
+            RClass* graphics = mrb_class_get_under(mrb, gmr, "Graphics");
+            RClass* font_class = mrb_class_get_under(mrb, graphics, "Font");
+            if (mrb_obj_is_instance_of(mrb, font_val, font_class)) {
+                // Extract FontHandle from Font object
+                // FontData struct has handle as first member
+                struct FontData { FontHandle handle; };
+                auto* font_data = static_cast<FontData*>(DATA_PTR(font_val));
+                if (font_data) {
+                    style.font = font_data->handle;
+                }
+            }
+        }
 
         mrb_value position = mrb_hash_get(mrb, opts, mrb_symbol_value(mrb_intern_lit(mrb, "position")));
         if (mrb_symbol_p(position)) {
@@ -1208,6 +1259,101 @@ static mrb_value mrb_console_ruby_eval_allowed(mrb_state*, mrb_value) {
     return mrb_bool_value(ConsoleModule::instance().ruby_eval_allowed());
 }
 
+// ============================================================================
+// Kernel method overrides for p, puts, print
+// These output to both stdout AND the console
+// ============================================================================
+
+/// Override Kernel#puts to output to console and stdout
+static mrb_value mrb_kernel_puts_override(mrb_state* mrb, mrb_value self) {
+    mrb_value* argv;
+    mrb_int argc;
+    mrb_get_args(mrb, "*", &argv, &argc);
+
+    auto& console = ConsoleModule::instance();
+
+    if (argc == 0) {
+        // puts with no args prints empty line
+        printf("\n");
+        if (console.is_initialized()) {
+            console.println("", OutputType::INFO);
+        }
+    } else {
+        for (mrb_int i = 0; i < argc; i++) {
+            mrb_value str;
+            if (mrb_array_p(argv[i])) {
+                // For arrays, print each element on its own line
+                mrb_int len = RARRAY_LEN(argv[i]);
+                for (mrb_int j = 0; j < len; j++) {
+                    mrb_value elem = mrb_ary_ref(mrb, argv[i], j);
+                    str = mrb_funcall(mrb, elem, "to_s", 0);
+                    printf("%.*s\n", (int)RSTRING_LEN(str), RSTRING_PTR(str));
+                    if (console.is_initialized()) {
+                        console.println(std::string(RSTRING_PTR(str), RSTRING_LEN(str)), OutputType::INFO);
+                    }
+                }
+            } else {
+                str = mrb_funcall(mrb, argv[i], "to_s", 0);
+                printf("%.*s\n", (int)RSTRING_LEN(str), RSTRING_PTR(str));
+                if (console.is_initialized()) {
+                    console.println(std::string(RSTRING_PTR(str), RSTRING_LEN(str)), OutputType::INFO);
+                }
+            }
+        }
+    }
+
+    return mrb_nil_value();
+}
+
+/// Override Kernel#print to output to console and stdout (no newline)
+static mrb_value mrb_kernel_print_override(mrb_state* mrb, mrb_value self) {
+    mrb_value* argv;
+    mrb_int argc;
+    mrb_get_args(mrb, "*", &argv, &argc);
+
+    auto& console = ConsoleModule::instance();
+    std::string combined;
+
+    for (mrb_int i = 0; i < argc; i++) {
+        mrb_value str = mrb_funcall(mrb, argv[i], "to_s", 0);
+        printf("%.*s", (int)RSTRING_LEN(str), RSTRING_PTR(str));
+        combined += std::string(RSTRING_PTR(str), RSTRING_LEN(str));
+    }
+
+    // For console, we still add as a line (console doesn't support partial lines)
+    if (console.is_initialized() && !combined.empty()) {
+        console.println(combined, OutputType::INFO);
+    }
+
+    return mrb_nil_value();
+}
+
+/// Override Kernel#p to output inspect format to console and stdout
+static mrb_value mrb_kernel_p_override(mrb_state* mrb, mrb_value self) {
+    mrb_value* argv;
+    mrb_int argc;
+    mrb_get_args(mrb, "*", &argv, &argc);
+
+    auto& console = ConsoleModule::instance();
+
+    for (mrb_int i = 0; i < argc; i++) {
+        mrb_value str = mrb_funcall(mrb, argv[i], "inspect", 0);
+        printf("%.*s\n", (int)RSTRING_LEN(str), RSTRING_PTR(str));
+        if (console.is_initialized()) {
+            console.println(std::string(RSTRING_PTR(str), RSTRING_LEN(str)), OutputType::INFO);
+        }
+    }
+
+    // p returns the argument (or array of arguments if multiple)
+    if (argc == 0) {
+        return mrb_nil_value();
+    } else if (argc == 1) {
+        return argv[0];
+    } else {
+        return mrb_ary_new_from_values(mrb, argc, argv);
+    }
+}
+
 void register_console_module(mrb_state* mrb) {
     // Initialize the Ruby commands hash
     g_ruby_commands = mrb_nil_value();
@@ -1244,6 +1390,12 @@ void register_console_module(mrb_state* mrb) {
 
     // Initialize the console module with mruby state
     ConsoleModule::instance().init(mrb);
+
+    // Override Kernel methods to output to console as well as stdout
+    RClass* kernel = mrb->kernel_module;
+    mrb_define_method(mrb, kernel, "puts", mrb_kernel_puts_override, MRB_ARGS_ANY());
+    mrb_define_method(mrb, kernel, "print", mrb_kernel_print_override, MRB_ARGS_ANY());
+    mrb_define_method(mrb, kernel, "p", mrb_kernel_p_override, MRB_ARGS_ANY());
 }
 
 } // namespace console
