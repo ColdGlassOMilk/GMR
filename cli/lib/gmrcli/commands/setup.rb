@@ -232,11 +232,28 @@ module Gmrcli
       end
 
       # Checkout a specific git ref after cloning
+      # Always called to ensure pinned version is checked out, even if directory already exists
       def checkout_pinned_version(src_dir, ref, name)
         return if ref == "master" || ref == "main"
 
+        # Check if already on the correct ref (skip for performance)
+        current_ref = begin
+          # Try exact tag match first, then branch name
+          result = Shell.run("git describe --tags --exact-match HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD", chdir: src_dir, capture: true)
+          result&.strip
+        rescue
+          nil
+        end
+
+        if current_ref == ref
+          UI.info "#{name} already on #{ref}"
+          return
+        end
+
         UI.info "Checking out #{name} #{ref}..."
-        # Fetch tags if checking out a tag
+        # Unshallow if needed (shallow clones may not have all tags)
+        Shell.run("git fetch --unshallow 2>/dev/null || true", chdir: src_dir, verbose: verbose?)
+        # Fetch tags to ensure we have the ref
         Shell.run("git fetch --tags", chdir: src_dir, verbose: verbose?)
         Shell.run!("git checkout #{ref}", chdir: src_dir, verbose: verbose?)
       end
@@ -505,9 +522,9 @@ module Gmrcli
           UI.spinner("Cloning mruby") do
             Shell.git_clone(mruby_git_repo, src_dir, verbose: verbose?)
           end
-          # Checkout pinned version from engine.json
-          checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
         end
+        # Always ensure pinned version is checked out (even if directory already existed)
+        checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
 
         # Clean previous build
         FileUtils.rm_rf(File.join(src_dir, "build", "host"))
@@ -645,9 +662,9 @@ module Gmrcli
           UI.spinner("Cloning raylib") do
             Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
           end
-          # Checkout pinned version from engine.json
-          checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
         end
+        # Always ensure pinned version is checked out (even if directory already existed)
+        checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
 
         build_dir = File.join(src_dir, "build-native")
         FileUtils.rm_rf(build_dir)
@@ -777,11 +794,11 @@ module Gmrcli
           UI.spinner("Cloning raylib") do
             Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
           end
-          # Checkout pinned version from engine.json
-          checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
         else
           JsonEmitter.stage_progress(:raylib_web, 10, "Source already cloned", substage: "clone")
         end
+        # Always ensure pinned version is checked out (even if directory already existed)
+        checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
 
         build_dir = File.join(src_dir, "build-web")
         FileUtils.rm_rf(build_dir)
@@ -857,11 +874,11 @@ module Gmrcli
           UI.spinner("Cloning mruby") do
             Shell.git_clone(mruby_git_repo, src_dir, verbose: verbose?)
           end
-          # Checkout pinned version from engine.json
-          checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
         else
           JsonEmitter.stage_progress(:mruby_web, 10, "Source already cloned", substage: "clone")
         end
+        # Always ensure pinned version is checked out (even if directory already existed)
+        checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
 
         # Clean previous build
         FileUtils.rm_rf(File.join(src_dir, "build", "emscripten"))
