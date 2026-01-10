@@ -11,6 +11,9 @@ module Gmrcli
       true
     end
 
+    # Map -v and --version to version command
+    map %w[-v --version] => :version
+
     # Override Thor's error handling for prettier output
     def self.handle_no_command_error(command, has_namespace = $thor_runner)
       UI.error "Unknown command: #{command}"
@@ -18,7 +21,7 @@ module Gmrcli
       exit 1
     end
 
-    class_option :verbose, type: :boolean, default: false, aliases: "-v",
+    class_option :verbose, type: :boolean, default: false,
                            desc: "Show detailed output"
     class_option :output, type: :string, default: "json", aliases: "-o",
                           desc: "Output format: json (default), text"
@@ -245,6 +248,30 @@ module Gmrcli
       end
     end
 
+    # === Bump Command ===
+
+    desc "bump PART", "Bump engine version (major|minor|patch)"
+    long_desc <<~DESC
+      Increment the engine version following semantic versioning:
+        major         - Incompatible API changes (1.0.0 -> 2.0.0)
+        minor         - New backwards-compatible features (1.0.0 -> 1.1.0)
+        patch/revision - Backwards-compatible bug fixes (1.0.0 -> 1.0.1)
+
+      This command will:
+        1. Verify the working tree is clean
+        2. Update engine.json with the new version
+        3. Update engine/language/version.json
+        4. Commit the changes
+        5. Create an annotated git tag v<version>
+
+      After bumping, push with: git push && git push --tags
+    DESC
+    def bump(part)
+      ErrorHandler.wrap(command: "bump") do
+        Commands::Bump.new(options.to_h.transform_keys(&:to_sym)).run(part)
+      end
+    end
+
     # === Dev Command ===
 
     desc "dev [TARGET]", "Build and run in one command"
@@ -318,11 +345,63 @@ module Gmrcli
 
     # === Info Commands ===
 
-    desc "version", "Show gmrcli version"
+    desc "version", "Show version information"
+    long_desc <<~DESC
+      Display version information for gmrcli, GMR engine, and dependencies.
+
+      Shows:
+        - gmrcli version (the CLI tool)
+        - GMR engine version (from engine.json)
+        - Pinned dependency versions (raylib, mruby)
+        - Installed toolchain versions (gcc, cmake, etc.)
+    DESC
     def version
+      # Read engine.json for version info
+      engine_json_path = File.join(Platform.gmr_root, "engine.json")
+      engine_info = {}
+      dependencies = {}
+
+      if File.exist?(engine_json_path)
+        data = JSON.parse(File.read(engine_json_path))
+        engine_info = {
+          name: data.dig("engine", "name") || "GMR",
+          version: data.dig("engine", "version") || "unknown"
+        }
+        deps = data["dependencies"] || {}
+        dependencies = {
+          raylib: deps.dig("raylib", "version") || "unknown",
+          mruby: deps.dig("mruby", "version") || "unknown",
+          emscripten: deps.dig("emscripten", "version") || "unknown"
+        }
+      end
+
+      # Collect toolchain versions
+      toolchain = {}
+      %w[gcc g++ cmake ninja].each do |tool|
+        if Platform.command_exists?(tool)
+          ver = Shell.capture("#{tool} --version")&.lines&.first&.strip
+          # Extract just the version number for cleaner output
+          toolchain[tool] = ver || "installed"
+        end
+      end
+
+      # Check for emcc (Emscripten compiler) - installed version may differ from pinned
+      if Platform.command_exists?("emcc")
+        ver = Shell.capture("emcc --version")&.lines&.first&.strip
+        toolchain["emcc"] = ver || "installed"
+      end
+
+      # Ruby version
+      toolchain["ruby"] = RUBY_VERSION
+
       result = {
-        gmrcli_version: VERSION,
-        protocol_version: Protocol::VERSION,
+        gmrcli: {
+          version: VERSION,
+          protocol: Protocol::VERSION
+        },
+        engine: engine_info,
+        dependencies: dependencies,
+        toolchain: toolchain,
         platform: Platform.name,
         gmr_root: Platform.gmr_root
       }
@@ -331,8 +410,33 @@ module Gmrcli
       JsonEmitter.emit_success_envelope(command: "version", result: result)
 
       # Human output
-      UI.info "gmrcli #{VERSION}"
-      UI.info "Protocol: #{Protocol::VERSION}"
+      UI.blank
+      UI.step "GMR Version Info"
+      UI.blank
+
+      # Engine version (prominent)
+      if engine_info[:version]
+        UI.info "  GMR Engine    #{engine_info[:version]}"
+      end
+      UI.info "  gmrcli        #{VERSION}"
+      UI.blank
+
+      # Dependencies
+      UI.step "Dependencies (pinned)"
+      UI.info "  raylib        #{dependencies[:raylib] || 'not configured'}"
+      UI.info "  mruby         #{dependencies[:mruby] || 'not configured'}"
+      UI.info "  emscripten    #{dependencies[:emscripten] || 'not configured'}"
+      UI.blank
+
+      # Toolchain
+      UI.step "Toolchain"
+      toolchain.each do |tool, ver|
+        # Truncate long version strings for display
+        display_ver = ver.to_s.length > 50 ? ver.to_s[0..47] + "..." : ver
+        UI.info "  #{tool.ljust(12)}  #{display_ver}"
+      end
+      UI.blank
+
       UI.info "Platform: #{Platform.name}"
       UI.info "GMR root: #{Platform.gmr_root}" if Platform.gmr_engine?(Platform.gmr_root)
     end

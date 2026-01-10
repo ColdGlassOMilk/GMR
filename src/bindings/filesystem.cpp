@@ -202,12 +202,12 @@ static mrb_value mrb_fs_read_json(mrb_state* mrb, mrb_value self) {
 /// @function write_text
 /// @param path [String] Relative path to file
 /// @param content [String] Text content to write
-/// @param root [Symbol] Logical root directory - must be :data (writes to :assets are rejected). Default: :data
+/// @param root [Symbol] Optional. Only :data is allowed (writes to :assets are rejected). Default: :data
 /// @return [Boolean] true on success
 /// @raise [RuntimeError] if write fails
 /// @raise [ArgumentError] if path is invalid or root is :assets
-/// @example # Write log file
-///   GMR::File.write_text("log.txt", "Game started\n", root: :data)
+/// @example # Write log file (root: :data is implied)
+///   GMR::File.write_text("log.txt", "Game started\n")
 static mrb_value mrb_fs_write_text(mrb_state* mrb, mrb_value self) {
     const char* path_cstr;
     const char* content_cstr;
@@ -247,12 +247,12 @@ static mrb_value mrb_fs_write_text(mrb_state* mrb, mrb_value self) {
 /// @function write_bytes
 /// @param path [String] Relative path to file
 /// @param data [String] Binary data to write
-/// @param root [Symbol] Logical root directory - must be :data. Default: :data
+/// @param root [Symbol] Optional. Only :data is allowed. Default: :data
 /// @return [Boolean] true on success
 /// @raise [RuntimeError] if write fails
 /// @raise [ArgumentError] if path is invalid or root is :assets
-/// @example # Write binary data
-///   GMR::File.write_bytes("level.dat", binary_data, root: :data)
+/// @example # Write binary data (root: :data is implied)
+///   GMR::File.write_bytes("level.dat", binary_data)
 static mrb_value mrb_fs_write_bytes(mrb_state* mrb, mrb_value self) {
     const char* path_cstr;
     mrb_value data_val;
@@ -301,15 +301,15 @@ static mrb_value mrb_fs_write_bytes(mrb_state* mrb, mrb_value self) {
 /// @function write_json
 /// @param path [String] Relative path to file
 /// @param data [Hash, Array] Ruby object to serialize as JSON
-/// @param root [Symbol] Logical root directory - must be :data. Default: :data
+/// @param root [Symbol] Optional. Only :data is allowed. Default: :data
 /// @param pretty [Boolean] Format JSON with indentation. Default: false (minified)
 /// @return [Boolean] true on success
 /// @raise [RuntimeError] if write fails or JSON serialization fails
 /// @raise [ArgumentError] if path is invalid or root is :assets
-/// @example # Write JSON save file (minified)
-///   GMR::File.write_json("save.json", { level: 5, score: 1000 }, root: :data)
+/// @example # Write JSON save file (minified, root: :data implied)
+///   GMR::File.write_json("save.json", { level: 5, score: 1000 })
 /// @example # Write JSON with pretty formatting
-///   GMR::File.write_json("config.json", data, root: :data, pretty: true)
+///   GMR::File.write_json("config.json", data, pretty: true)
 static mrb_value mrb_fs_write_json(mrb_state* mrb, mrb_value self) {
     const char* path_cstr;
     mrb_value data_obj;

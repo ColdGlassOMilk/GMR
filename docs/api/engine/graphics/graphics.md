@@ -341,9 +341,9 @@ GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])
 
 <a id="draw_text"></a>
 
-### draw_text(transform, text, size, color, font:)
+### draw_text(transform, text, size, color, opts?)
 
-Draw text at a position, optionally with a custom font.
+Draw text at a position
 
 **Parameters:**
 
@@ -353,20 +353,15 @@ Draw text at a position, optionally with a custom font.
 | `text_or_x` | `String|Integer` | Text content (if transform) OR X position (left edge) |
 | `size_or_y` | `Integer` | Font size (if transform) OR Y position (top edge) |
 | `color_or_size` | `Color|Integer` | Text color (if transform) OR Font size in pixels |
-| `color` | `Color` | Text color (if using x,y) |
-| `font:` | `Font` | (Optional) Custom font loaded via `Graphics::Font.load` |
+| `color_or_opts` | `Color|Hash` | Text color (if using x,y) OR options hash |
+| `opts` | `Hash` | (optional) Options hash. Supports :font for custom font |
 
 **Returns:** `nil`
 
 **Example:**
 
 ```ruby
-# Default font
-GMR::Graphics.draw_text("Hello!", 10, 10, 20, [255, 255, 255])
-
-# Custom font
-@font = Graphics::Font.load("fonts/pixel.ttf", size: 24)
-GMR::Graphics.draw_text("Custom!", 10, 40, 24, :white, font: @font)
+GMR::Graphics.draw_text("Hello!", 10, 10, 20, :white, font: @my_font)  # With custom font
 ```
 
 ---

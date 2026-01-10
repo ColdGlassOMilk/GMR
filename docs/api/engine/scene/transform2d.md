@@ -17,6 +17,8 @@
   - [#origin_x=](#origin_x)
   - [#origin_y](#origin_y)
   - [#origin_y=](#origin_y)
+  - [#parallax](#parallax)
+  - [#parallax=](#parallax)
   - [#parent](#parent)
   - [#parent=](#parent)
   - [#position](#position)
@@ -30,6 +32,7 @@
   - [#scale_y](#scale_y)
   - [#scale_y=](#scale_y)
   - [#snap_to_grid!](#snap_to_grid)
+  - [#to_h](#to_h)
   - [#world_position](#world_position)
   - [#world_rotation](#world_rotation)
   - [#world_scale](#world_scale)
@@ -372,6 +375,44 @@ transform.origin_y = 16  # Pivot 16px from top edge
 
 ---
 
+<a id="parallax"></a>
+
+### #parallax
+
+Get the parallax scrolling factor. Controls how the object moves relative to the camera: - 1.0 = moves with the world (default, normal objects) - 0.0 = fixed to screen (doesn't move with camera) - 0.5 = moves at half camera speed (distant background) - 0.1 = moves at 10% camera speed (very distant mountains)
+
+**Returns:** `Float` - The parallax factor (0.0 to 1.0)
+
+**Example:**
+
+```ruby
+factor = transform.parallax
+```
+
+---
+
+<a id="parallax"></a>
+
+### #parallax=
+
+Set the parallax scrolling factor for camera-relative movement. When rendered inside a camera, objects with parallax < 1.0 will appear to move slower than the camera, creating depth.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Float` | The parallax factor (0.0 = fixed, 1.0 = normal world) |
+
+**Returns:** `Float` - The value that was set
+
+**Example:**
+
+```ruby
+transform.parallax = 0.0   # Fixed to screen (HUD elements)
+```
+
+---
+
 <a id="center_origin"></a>
 
 ### #center_origin
@@ -628,6 +669,22 @@ Linearly interpolate between two scale vectors.
 
 ```ruby
 scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), 0.5)
+```
+
+---
+
+<a id="to_h"></a>
+
+### #to_h
+
+Convert Transform2D to a hash for JSON serialization. Includes a "_type" field for automatic deserialization. Only includes local transform values (not world transform).
+
+**Example:**
+
+```ruby
+transform = Transform2D.new(x: 100, y: 50, rotation: 45)
+  data = transform.to_h
+  json = GMR::JSON.stringify(data)
 ```
 
 ---

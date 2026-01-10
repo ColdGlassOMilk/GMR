@@ -638,7 +638,7 @@ void ConsoleModule::register_builtin_commands() {
         [this](const std::vector<std::string>&) { hide(); return ""; });
 
     register_command("version", "Show engine version",
-        [](const std::vector<std::string>&) { return "GMR Engine v1.0"; });
+        [](const std::vector<std::string>&) { return "GMR Engine v" GMR_VERSION; });
 
 #if defined(GMR_DEBUG_ENABLED)
     register_command("vars", "List global ($) variables",

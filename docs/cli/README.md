@@ -11,8 +11,9 @@ Command-line interface for GMR game development.
 | [start](start.md) (default) (alias: run) | Run the game |
 | [new](new.md) | Create a new GMR game project |
 | [docs](docs.md) | Generate all documentation |
+| [bump](bump.md) | Bump engine version (major|minor|patch) |
 | [dev](dev.md) | Build and run in one command |
-| [version](version.md) | Show gmrcli version |
+| [version](version.md) | Show version information |
 | [info](info.md) | Show environment information |
 
 ## Global Options
@@ -21,7 +22,7 @@ These options are available for all commands:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `--verbose` (`-v`) | boolean | `false` | Show detailed output |
+| `--verbose` | boolean | `false` | Show detailed output |
 | `--output` (`-o`) | string | `json` | Output format: json (default), text |
 | `--protocol_version` | string | - | Request specific protocol version (e.g., v1) |
 

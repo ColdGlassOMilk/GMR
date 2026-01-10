@@ -2,266 +2,223 @@
 
 # Camera2D
 
-2D camera for world-space rendering, resolution-independent coordinates, scrolling, zooming, and screen effects.
-
-## Quick Start
-
-GMR supports two resolution modes. Choose based on your game style:
-
-### Resolution-Independent Mode (HD Games)
-
-Render at native window size. Width adapts to aspect ratio. **No letterboxing.**
-
-```ruby
-def init
-  Window.set_size(1280, 720)
-
-  @camera = Camera2D.new
-  @camera.view_height = 9  # 9 world units visible vertically
-  @camera.viewport_size = Vec2.new(Window.width, Window.height)
-  @camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
-end
-
-def on_resize(width, height)
-  @camera.viewport_size = Vec2.new(width, height)
-  @camera.offset = Vec2.new(width / 2, height / 2)
-end
-```
-
-### Pixel-Perfect Mode (Retro Games)
-
-Render to fixed-size texture. **Letterboxing when aspect ratios differ.**
-
-```ruby
-def init
-  Window.set_size(960, 540)
-  Window.set_virtual_resolution(320, 180)
-  Window.set_filter_point
-
-  @camera = Camera2D.new
-  @camera.view_height = 9
-  @camera.viewport_size = Vec2.new(320, 180)  # Must match virtual resolution!
-  @camera.offset = Vec2.new(160, 90)
-end
-```
-
-See [Camera Guide](../../../camera.md) for detailed documentation.
-
----
-
-## Overview
-
-The Camera2D class provides:
-- **World-space coordinates**: Work in world units instead of pixels
-- **Resolution independence**: Same game view at any resolution
-- **Smooth following**: Camera follows targets with optional smoothing and deadzone
-- **View configuration**: Control visible area via `view_height`
-- **Screen effects**: Zoom, rotation, and screen shake
+2D camera for scrolling, zooming, and screen effects.
 
 ## Table of Contents
 
-- [Constructor](#constructor)
-- [View Configuration](#view-configuration)
-  - [#view_height](#view_height)
-  - [#view_height=](#view_height-1)
-  - [#view_size](#view_size)
-  - [#view_size=](#view_size-1)
-  - [#viewport_size](#viewport_size)
-  - [#viewport_size=](#viewport_size-1)
-  - [#pixels_per_unit](#pixels_per_unit)
-  - [#pixels_per_unit=](#pixels_per_unit-1)
-  - [#effective_scale](#effective_scale)
-  - [#visible_width](#visible_width)
-  - [#visible_height](#visible_height)
-  - [#visible_bounds](#visible_bounds)
-- [Transform Properties](#transform-properties)
-  - [#target](#target)
-  - [#target=](#target-1)
-  - [#offset](#offset)
-  - [#offset=](#offset-1)
-  - [#zoom](#zoom)
-  - [#zoom=](#zoom-1)
-  - [#rotation](#rotation)
-  - [#rotation=](#rotation-1)
-- [Following](#following)
-  - [#follow](#follow)
-  - [#bounds](#bounds)
-  - [#bounds=](#bounds-1)
-- [Screen Effects](#screen-effects)
-  - [#shake](#shake)
-- [Coordinate Conversion](#coordinate-conversion)
-  - [#screen_to_world](#screen_to_world)
-  - [#world_to_screen](#world_to_screen)
-- [Rendering](#rendering)
-  - [#use](#use)
+- [Instance Methods](#instance-methods)
   - [#begin](#begin)
+  - [#bounds](#bounds)
+  - [#bounds=](#bounds)
+  - [#current](#current)
+  - [#current=](#current)
+  - [#effective_scale](#effective_scale)
   - [#end](#end)
-- [Class Methods](#class-methods)
-  - [.current](#current)
-  - [.current=](#current-1)
+  - [#follow](#follow)
+  - [#initialize](#initialize)
+  - [#offset](#offset)
+  - [#offset=](#offset)
+  - [#pixels_per_unit](#pixels_per_unit)
+  - [#pixels_per_unit=](#pixels_per_unit)
+  - [#rotation](#rotation)
+  - [#rotation=](#rotation)
+  - [#screen_to_world](#screen_to_world)
+  - [#shake](#shake)
+  - [#target](#target)
+  - [#target=](#target)
+  - [#use](#use)
+  - [#view_height](#view_height)
+  - [#view_height=](#view_height)
+  - [#view_size](#view_size)
+  - [#view_size=](#view_size)
+  - [#viewport_size](#viewport_size)
+  - [#viewport_size=](#viewport_size)
+  - [#visible_bounds](#visible_bounds)
+  - [#visible_height](#visible_height)
+  - [#visible_width](#visible_width)
+  - [#world_to_screen](#world_to_screen)
+  - [#zoom](#zoom)
+  - [#zoom=](#zoom)
 
----
-
-## Constructor
+## Instance Methods
 
 <a id="initialize"></a>
 
 ### #initialize
 
-Create a new Camera2D with optional initial values.
+Create a new Camera2D with optional initial values. Resolution-independent: Set view_height (world units visible vertically) and viewport_size (render resolution) - PPU is calculated automatically.
 
 **Parameters:**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `target` | `Vec2` | `(0, 0)` | World position the camera looks at |
-| `offset` | `Vec2` | `(0, 0)` | Screen position where target appears |
-| `zoom` | `Float` | `1.0` | Zoom level multiplier |
-| `rotation` | `Float` | `0` | Rotation in degrees |
+| Name | Type | Description |
+|------|------|-------------|
+| `target` | `Vec2` | World position the camera looks at (default: 0,0) |
+| `offset` | `Vec2` | Screen position offset, typically screen center (default: 0,0) |
+| `zoom` | `Float` | Zoom level, 1.0 = normal (default: 1.0) |
+| `rotation` | `Float` | Rotation in degrees (default: 0) |
+| `view_height` | `Float` | World units visible vertically (default: 7.5) |
+| `view_size` | `Vec2` | Fixed view size in world units (retro mode with letterboxing) |
+| `viewport_size` | `Vec2` | Render resolution in pixels (default: 320x180) |
 
 **Returns:** `Camera2D` - The new camera
 
 **Example:**
 
 ```ruby
-# Basic camera centered on screen
-cam = Camera2D.new(offset: Vec2.new(Window.width / 2, Window.height / 2))
-
-# Camera with initial view configuration
-cam = Camera2D.new
-cam.view_height = 9
-cam.viewport_size = Vec2.new(Window.width, Window.height)
+# High-res rendering of same view
+  cam = Camera2D.new(view_height: 7.5, viewport_size: Vec2.new(1920, 1080))
 ```
 
 ---
 
-## View Configuration
+<a id="target"></a>
 
-<a id="view_height"></a>
+### #target
 
-### #view_height
+Get the world position the camera is looking at.
 
-Get the view height in world units (how many world units are visible vertically).
-
-**Returns:** `Float` - The view height in world units
+**Returns:** `Vec2` - The camera's target position
 
 **Example:**
 
 ```ruby
-height = camera.view_height  # => 9
+target = camera.target
 ```
 
 ---
 
-<a id="view_height-1"></a>
+<a id="offset"></a>
 
-### #view_height=
+### #offset
 
-Set the view height in world units. This is the primary control for resolution-independent rendering. Setting this automatically recalculates `pixels_per_unit`.
+Get the screen position offset (where the target appears on screen). Typically set to screen center for centered camera following.
+
+**Returns:** `Vec2` - The camera's offset position
+
+**Example:**
+
+```ruby
+offset = camera.offset
+```
+
+---
+
+<a id="zoom"></a>
+
+### #zoom
+
+Get the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.
+
+**Returns:** `Float` - The zoom level
+
+**Example:**
+
+```ruby
+z = camera.zoom
+```
+
+---
+
+<a id="rotation"></a>
+
+### #rotation
+
+Get the camera rotation in degrees.
+
+**Returns:** `Float` - The rotation angle
+
+**Example:**
+
+```ruby
+angle = camera.rotation
+```
+
+---
+
+<a id="target"></a>
+
+### #target=
+
+Set the world position the camera looks at.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Float` | View height in world units (must be > 0) |
-
-**Returns:** `Float` - The value that was set
-
-**Example:**
-
-```ruby
-camera.view_height = 10.0  # 10 world units visible vertically
-# Width is derived from aspect ratio automatically
-```
-
----
-
-<a id="view_size"></a>
-
-### #view_size
-
-Get the fixed view size in world units. Returns `nil` if using Unity-style (height-only) mode.
-
-**Returns:** `Vec2, nil` - The view size in world units, or nil
-
-**Example:**
-
-```ruby
-size = camera.view_size
-if size
-  puts "Fixed view: #{size.x} x #{size.y} world units"
-else
-  puts "Using height-only mode"
-end
-```
-
----
-
-<a id="view_size-1"></a>
-
-### #view_size=
-
-Set a fixed view size in world units (retro-style rendering). This locks both width and height, using letterboxing if the aspect ratio doesn't match. Set to `nil` for Unity-style (height-only) mode.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Vec2, nil` | View size in world units, or nil for Unity-style |
-
-**Returns:** `Vec2, nil` - The value that was set
-
-**Example:**
-
-```ruby
-# Fixed 16:9 view (retro mode)
-camera.view_size = Vec2.new(16, 9)
-
-# Switch back to Unity-style (derive width from aspect ratio)
-camera.view_size = nil
-```
-
----
-
-<a id="viewport_size"></a>
-
-### #viewport_size
-
-Get the viewport dimensions in pixels.
-
-**Returns:** `Vec2` - The viewport size in pixels
-
-**Example:**
-
-```ruby
-viewport = camera.viewport_size
-puts "Rendering at #{viewport.x}x#{viewport.y}"
-```
-
----
-
-<a id="viewport_size-1"></a>
-
-### #viewport_size=
-
-Set the viewport dimensions in pixels. This defines the camera's render target size. Setting this automatically recalculates `pixels_per_unit` to maintain the same view height, providing resolution independence.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Vec2` | Viewport size in pixels |
+| `value` | `Vec2` | The target position |
 
 **Returns:** `Vec2` - The value that was set
 
 **Example:**
 
 ```ruby
-# Match window size
-camera.viewport_size = Vec2.new(Window.width, Window.height)
+camera.target = player.position
+```
 
-# Retro resolution
-camera.viewport_size = Vec2.new(320, 180)
+---
+
+<a id="offset"></a>
+
+### #offset=
+
+Set the screen position offset. The target appears at this screen position. Set to screen center for centered following.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Vec2` | The offset position |
+
+**Returns:** `Vec2` - The value that was set
+
+**Example:**
+
+```ruby
+camera.offset = Vec2.new(400, 300)  # Center on 800x600 screen
+```
+
+---
+
+<a id="zoom"></a>
+
+### #zoom=
+
+Set the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Float` | The zoom level (must be > 0) |
+
+**Returns:** `Float` - The value that was set
+
+**Example:**
+
+```ruby
+camera.zoom = 0.5    # Zoom out (see more of the world)
+```
+
+---
+
+<a id="rotation"></a>
+
+### #rotation=
+
+Set the camera rotation in degrees.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Float` | The rotation angle in degrees |
+
+**Returns:** `Float` - The value that was set
+
+**Example:**
+
+```ruby
+camera.rotation += 10 * dt  # Rotate over time
 ```
 
 ---
@@ -270,46 +227,90 @@ camera.viewport_size = Vec2.new(320, 180)
 
 ### #pixels_per_unit
 
-Get the pixels-per-unit ratio. This is derived from `viewport_size.y / view_height`.
+Get the scale factor (screen pixels per world unit). This defines the relationship between world coordinates and screen pixels. At zoom=1.0, one world unit takes up this many pixels on screen.
 
-**Returns:** `Float` - Pixels per world unit
+**Returns:** `Float` - The pixels per unit value
 
 **Example:**
 
 ```ruby
-ppu = camera.pixels_per_unit  # => 20 for 180p viewport with view_height=9
+ppu = camera.pixels_per_unit
 ```
 
 ---
 
-<a id="pixels_per_unit-1"></a>
+<a id="pixels_per_unit"></a>
 
 ### #pixels_per_unit=
 
-Manually set the pixels-per-unit ratio. Prefer setting `view_height` instead for resolution independence.
+Set the scale factor (screen pixels per world unit). Common values: - 100.0: Unity-style (default), 1 unit = 100 pixels - 16/24/32: Tile-based games, 1 unit = 1 tile - 1.0: 1:1 pixel mapping at zoom=1.0
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Float` | Pixels per world unit (must be > 0) |
+| `value` | `Float` | The pixels per unit value (must be > 0) |
 
 **Returns:** `Float` - The value that was set
-
----
-
-<a id="effective_scale"></a>
-
-### #effective_scale
-
-Get the effective scale factor (PPU * zoom). This is the final multiplier applied when converting world coordinates to screen pixels.
-
-**Returns:** `Float` - The effective scale
 
 **Example:**
 
 ```ruby
-scale = camera.effective_scale  # => 48.0 for PPU=24 and zoom=2
+camera.pixels_per_unit = 100.0 # Unity-style default
+```
+
+---
+
+<a id="viewport_size"></a>
+
+### #viewport_size
+
+Get the viewport dimensions in pixels. This is the size of the render target (camera's "screen" size), used for aspect ratio and visible bounds.
+
+**Returns:** `Vec2` - The viewport size in pixels
+
+**Example:**
+
+```ruby
+size = camera.viewport_size
+```
+
+---
+
+<a id="viewport_size"></a>
+
+### #viewport_size=
+
+Set the viewport dimensions in pixels. This defines the camera's render target size. Setting this automatically recalculates pixels_per_unit to maintain the same view_height, providing resolution independence.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `value` | `Vec2` | The viewport size in pixels |
+
+**Returns:** `Vec2` - The value that was set
+
+**Example:**
+
+```ruby
+camera.viewport_size = Vec2.new(1920, 1080) # HD (same view, higher quality)
+```
+
+---
+
+<a id="visible_bounds"></a>
+
+### #visible_bounds
+
+Get the world-space bounds currently visible on screen. This is the rectangle of world coordinates that the camera can see.
+
+**Returns:** `Rect` - The visible bounds in world coordinates
+
+**Example:**
+
+```ruby
+end
 ```
 
 ---
@@ -318,9 +319,9 @@ scale = camera.effective_scale  # => 48.0 for PPU=24 and zoom=2
 
 ### #visible_width
 
-Get the visible width in world units (affected by zoom).
+Get the width of the visible world area (in world units).
 
-**Returns:** `Float` - Visible world width
+**Returns:** `Float` - The visible width
 
 **Example:**
 
@@ -334,9 +335,9 @@ width = camera.visible_width
 
 ### #visible_height
 
-Get the visible height in world units (affected by zoom).
+Get the height of the visible world area (in world units).
 
-**Returns:** `Float` - Visible world height
+**Returns:** `Float` - The visible height
 
 **Example:**
 
@@ -346,225 +347,141 @@ height = camera.visible_height
 
 ---
 
-<a id="visible_bounds"></a>
+<a id="effective_scale"></a>
 
-### #visible_bounds
+### #effective_scale
 
-Get the world-space bounds currently visible on screen.
+Get the effective scale factor (pixels_per_unit * zoom). This is how many screen pixels one world unit currently occupies.
 
-**Returns:** `Rect` - The visible bounds in world coordinates
-
-**Example:**
-
-```ruby
-bounds = camera.visible_bounds
-# bounds.x, bounds.y = top-left corner
-# bounds.width, bounds.height = visible area
-```
-
----
-
-## Transform Properties
-
-<a id="target"></a>
-
-### #target
-
-Get the world position the camera is looking at.
-
-**Returns:** `Vec2` - The camera's target position in world units
+**Returns:** `Float` - The effective scale
 
 **Example:**
 
 ```ruby
-target = camera.target
-puts "Camera at #{target.x}, #{target.y}"
+scale = camera.effective_scale
 ```
 
 ---
 
-<a id="target-1"></a>
+<a id="view_height"></a>
 
-### #target=
+### #view_height
 
-Set the world position the camera looks at.
+Get the view height in world units (how many world units are visible vertically). This is the primary control for resolution-independent rendering.
+
+**Returns:** `Float` - The view height in world units
+
+**Example:**
+
+```ruby
+height = camera.view_height
+```
+
+---
+
+<a id="view_height"></a>
+
+### #view_height=
+
+Set the view height in world units (how many world units are visible vertically). Setting this automatically recalculates pixels_per_unit. Use this for Unity-style resolution independence where width is derived from aspect ratio.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Vec2` | Target position in world units |
-
-**Returns:** `Vec2` - The value that was set
-
-**Example:**
-
-```ruby
-camera.target = player.position
-camera.target = Vec2.new(50, 25)
-```
-
----
-
-<a id="offset"></a>
-
-### #offset
-
-Get the screen position offset (where the target appears on screen). Typically set to screen center for centered camera following.
-
-**Returns:** `Vec2` - The camera's offset position in pixels
-
----
-
-<a id="offset-1"></a>
-
-### #offset=
-
-Set the screen position offset. The target appears at this screen position.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Vec2` | Offset position in pixels |
-
-**Returns:** `Vec2` - The value that was set
-
-**Example:**
-
-```ruby
-# Center the target on screen
-camera.offset = Vec2.new(Window.width / 2, Window.height / 2)
-
-# Side-scroller: target in left third
-camera.offset = Vec2.new(Window.width / 3, Window.height / 2)
-```
-
----
-
-<a id="zoom"></a>
-
-### #zoom
-
-Get the zoom level. 1.0 = normal, 2.0 = 2x magnification, 0.5 = zoomed out.
-
-**Returns:** `Float` - The zoom level
-
----
-
-<a id="zoom-1"></a>
-
-### #zoom=
-
-Set the zoom level. Affects the effective scale and visible area.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `value` | `Float` | Zoom level (must be > 0) |
+| `value` | `Float` | The view height in world units (must be > 0) |
 
 **Returns:** `Float` - The value that was set
 
 **Example:**
 
 ```ruby
-camera.zoom = 2.0   # Zoom in (see half as much, things appear larger)
-camera.zoom = 0.5   # Zoom out (see twice as much)
+camera.view_height = 10.0  # 10 world units tall
 ```
 
 ---
 
-<a id="rotation"></a>
+<a id="view_size"></a>
 
-### #rotation
+### #view_size
 
-Get the camera rotation in degrees.
+Get the fixed view size in world units (for retro-style rendering). Returns nil if using Unity-style (height-only) mode.
 
-**Returns:** `Float` - The rotation angle
+**Returns:** `Vec2, nil` - The view size in world units, or nil if not in retro mode
+
+**Example:**
+
+```ruby
+size = camera.view_size
+```
 
 ---
 
-<a id="rotation-1"></a>
+<a id="view_size"></a>
 
-### #rotation=
+### #view_size=
 
-Set the camera rotation in degrees.
+Set a fixed view size in world units (for retro-style rendering). This locks both width and height, using letterboxing if the aspect ratio doesn't match. Set to nil to switch back to Unity-style (height-only) mode.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Float` | Rotation angle in degrees |
+| `value` | `Vec2, nil` | The view size in world units, or nil for Unity-style mode |
 
-**Returns:** `Float` - The value that was set
+**Returns:** `Vec2, nil` - The value that was set
 
 **Example:**
 
 ```ruby
-camera.rotation = 45  # Tilt view 45 degrees
+camera.view_size = nil  # Switch to Unity-style
 ```
 
 ---
-
-## Following
 
 <a id="follow"></a>
 
 ### #follow
 
-Configure the camera to follow a target object with optional smoothing and deadzone. The target must respond to `position` (returning Vec2) or have `x`/`y` methods. Call with `nil` to stop following.
+Configure the camera to follow a target object with optional smoothing and deadzone. The target must respond to `position` (returning Vec2) or have `x`/`y` methods. Call with nil to stop following.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `target` | `Object, nil` | Object to follow, or nil to stop |
-| `smoothing` | `Float` | Smoothing factor 0-1 (0=instant, default: 0) |
-| `deadzone` | `Rect` | Rectangle in world units where target can move freely |
+| `target` | `Object, nil` | Object with position/x/y to follow, or nil to stop |
+| `smoothing` | `Float` | Smoothing factor 0-1 (0=instant, 0.1=smooth, default: 0) |
+| `deadzone` | `Rect` | Rectangle where target can move without camera moving |
 
 **Returns:** `Camera2D` - self for chaining
 
 **Example:**
 
 ```ruby
-# Simple follow
-camera.follow(@player)
-
-# Smooth follow
-camera.follow(@player, smoothing: 0.1)
-
-# Smooth follow with deadzone
-camera.follow(@player, smoothing: 0.08, deadzone: Rect.new(-2, -1, 4, 2))
-
 # Stop following
-camera.follow(nil)
+  camera.follow(nil)
 ```
 
 ---
 
-<a id="bounds-1"></a>
+<a id="bounds"></a>
 
 ### #bounds=
 
-Set camera bounds to constrain movement within a world region. The camera will not show areas outside these bounds. Set to `nil` to remove bounds.
+Set camera bounds to constrain movement within a world region. The camera will not show areas outside these bounds. Set to nil to remove bounds.
 
 **Parameters:**
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Rect, nil` | World bounds, or nil to remove |
+| `value` | `Rect, nil` | The world bounds, or nil to remove |
 
 **Returns:** `Rect, nil` - The value that was set
 
 **Example:**
 
 ```ruby
-# Constrain to level
-camera.bounds = Rect.new(0, 0, 100, 50)  # World units
-
-# Remove bounds
-camera.bounds = nil
+camera.bounds = nil  # No bounds
 ```
 
 ---
@@ -575,11 +492,15 @@ camera.bounds = nil
 
 Get the current camera bounds. Returns nil if no bounds are set.
 
-**Returns:** `Rect, nil` - The world bounds, or nil
+**Returns:** `Rect, nil` - The world bounds, or nil if unbounded
+
+**Example:**
+
+```ruby
+rect = camera.bounds
+```
 
 ---
-
-## Screen Effects
 
 <a id="shake"></a>
 
@@ -589,44 +510,18 @@ Trigger a screen shake effect. The shake decays over the duration.
 
 **Parameters:**
 
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| `strength` | `Float` | `5.0` | Maximum shake offset in world units |
-| `duration` | `Float` | `0.3` | Duration in seconds |
-| `frequency` | `Float` | `30.0` | Shake oscillation frequency in Hz |
+| Name | Type | Description |
+|------|------|-------------|
+| `strength` | `Float` | Maximum shake offset in pixels (default: 5.0) |
+| `duration` | `Float` | How long the shake lasts in seconds (default: 0.3) |
+| `frequency` | `Float` | Shake oscillation frequency in Hz (default: 30.0) |
 
 **Returns:** `Camera2D` - self for chaining
 
 **Example:**
 
 ```ruby
-camera.shake(strength: 0.3, duration: 0.2)
-camera.shake(strength: 0.5, duration: 0.5, frequency: 20)
-```
-
----
-
-## Coordinate Conversion
-
-<a id="screen_to_world"></a>
-
-### #screen_to_world
-
-Convert a screen position to world coordinates. Useful for mouse picking and click-to-move.
-
-**Parameters:**
-
-| Name | Type | Description |
-|------|------|-------------|
-| `position` | `Vec2` | Screen position in pixels |
-
-**Returns:** `Vec2` - World position
-
-**Example:**
-
-```ruby
-mouse_screen = Vec2.new(Input.mouse_x, Input.mouse_y)
-mouse_world = camera.screen_to_world(mouse_screen)
+camera.shake(strength: 3, duration: 0.2, frequency: 20)
 ```
 
 ---
@@ -641,40 +536,57 @@ Convert a world position to screen coordinates. Useful for placing UI elements r
 
 | Name | Type | Description |
 |------|------|-------------|
-| `position` | `Vec2` | World position |
+| `position` | `Vec2` | The world position |
 
-**Returns:** `Vec2` - Screen position in pixels
+**Returns:** `Vec2` - The screen position
 
 **Example:**
 
 ```ruby
-screen_pos = camera.world_to_screen(enemy.position)
-# Draw health bar at screen_pos
+health_bar_x = camera.world_to_screen(enemy.position).x
 ```
 
 ---
 
-## Rendering
+<a id="screen_to_world"></a>
+
+### #screen_to_world
+
+Convert a screen position to world coordinates. Useful for mouse picking and click-to-move.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `position` | `Vec2` | The screen position |
+
+**Returns:** `Vec2` - The world position
+
+**Example:**
+
+```ruby
+click_target = camera.screen_to_world(Vec2.new(mouse_x, mouse_y))
+```
+
+---
 
 <a id="use"></a>
 
 ### #use
 
-Execute a block with this camera's transform applied. All sprites and tilemaps drawn within the block will be rendered with the camera transform. This works correctly with z-ordering.
+Execute a block with this camera's transform applied. All sprites drawn within the block will be rendered with the camera transform applied during the deferred rendering pass. This works correctly with z-ordering.
 
 **Returns:** `Object` - The return value of the block
 
 **Example:**
 
 ```ruby
-camera.use do
-  Graphics.clear(:black)
-  @tilemap.draw(0, 0)
-  @player.draw
-end
-
-# UI drawn outside (screen space)
-Graphics.draw_text("Score: #{@score}", 10, 10, 16, :white)
+# Nested cameras
+  world_camera.use do
+    draw_world()
+  end
+  # UI drawn outside camera (screen space)
+  draw_ui()
 ```
 
 ---
@@ -683,9 +595,15 @@ Graphics.draw_text("Score: #{@score}", 10, 10, 16, :white)
 
 ### #begin
 
-Begin camera transform. All subsequent draws will use this camera until `end` is called. Prefer `use { }` block syntax when possible.
+Begin camera transform. All subsequent sprite draws will use this camera until `end` is called. Prefer `use { }` block syntax when possible.
 
 **Returns:** `Camera2D` - self for chaining
+
+**Example:**
+
+```ruby
+camera.begin
+```
 
 ---
 
@@ -699,11 +617,9 @@ End camera transform. Should be called after `begin`.
 
 ---
 
-## Class Methods
+<a id="current"></a>
 
-<a id="current-1"></a>
-
-### .current=
+### #current=
 
 Set the current active camera (class method). This camera will be used for sprite rendering and coordinate transformations.
 
@@ -711,55 +627,33 @@ Set the current active camera (class method). This camera will be used for sprit
 
 | Name | Type | Description |
 |------|------|-------------|
-| `value` | `Camera2D, nil` | Camera to make current, or nil to clear |
+| `value` | `Camera2D, nil` | The camera to make current, or nil to clear |
 
 **Returns:** `Camera2D, nil` - The value that was set
 
 **Example:**
 
 ```ruby
-Camera2D.current = @main_camera
-Camera2D.current = nil  # Clear
+Camera2D.current = nil  # No camera
 ```
 
 ---
 
 <a id="current"></a>
 
-### .current
+### #current
 
 Get the current active camera (class method). Returns nil if no camera is set.
 
 **Returns:** `Camera2D, nil` - The current camera, or nil
 
----
-
-## Resolution Independence
-
-The camera system provides resolution independence through the `view_height` property. Here's how the key values relate:
-
-| Property | Description | Formula |
-|----------|-------------|---------|
-| `view_height` | World units visible vertically | Primary control |
-| `viewport_size` | Render resolution in pixels | Set to match window/virtual resolution |
-| `pixels_per_unit` | Pixels per world unit | `viewport_size.y / view_height` |
-| `effective_scale` | Final pixel multiplier | `pixels_per_unit * zoom` |
-
-**Example: Same Game View at Different Resolutions**
+**Example:**
 
 ```ruby
-# Low resolution (retro)
-camera.view_height = 9
-camera.viewport_size = Vec2.new(320, 180)
-# PPU = 180 / 9 = 20
-
-# High resolution (HD)
-camera.view_height = 9
-camera.viewport_size = Vec2.new(1920, 1080)
-# PPU = 1080 / 9 = 120
-
-# Both show the same 9 world units vertically - just at different quality
+cam = Camera2D.current
 ```
+
+---
 
 ---
 

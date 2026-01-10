@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(gmr VERSION 0.1.0 LANGUAGES CXX)
+
+# Read engine version from engine.json (single source of truth)
+include(cmake/ReadEngineVersion.cmake)
+read_engine_version(GMR_VERSION_MAJOR GMR_VERSION_MINOR GMR_VERSION_PATCH)
+set(GMR_VERSION "${GMR_VERSION_MAJOR}.${GMR_VERSION_MINOR}.${GMR_VERSION_PATCH}")
+
+project(gmr VERSION ${GMR_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,6 +80,8 @@ set(SOURCES
     src/bindings/state_machine.cpp
     src/bindings/filesystem.cpp
     src/bindings/storage.cpp
+    src/bindings/json.cpp
+    src/bindings/serializable.cpp
     src/filesystem/paths.cpp
     src/filesystem/operations.cpp
     src/animation/easing.cpp
@@ -105,6 +113,14 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}/generated
+)
+
+# Version definition (from engine.json via ReadEngineVersion.cmake)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    GMR_VERSION="${GMR_VERSION}"
+    GMR_VERSION_MAJOR=${GMR_VERSION_MAJOR}
+    GMR_VERSION_MINOR=${GMR_VERSION_MINOR}
+    GMR_VERSION_PATCH=${GMR_VERSION_PATCH}
 )
 
 # Platform-specific setup

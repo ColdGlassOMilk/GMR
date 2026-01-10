@@ -53,6 +53,18 @@ Machine-readable error codes returned by gmrcli.
 | `PLATFORM.UNSUPPORTED` | 50 | Unsupported platform |
 | `PLATFORM.WRONG_ENV` | 51 | Wrong environment |
 
+## VERSION
+
+| Code | Exit | Description |
+|------|------|-------------|
+| `VERSION.DIRTY_TREE` | 63 | Uncommitted changes |
+| `VERSION.GIT_NOT_FOUND` | 62 | Git not available |
+| `VERSION.INVALID_FORMAT` | 65 | Invalid version format |
+| `VERSION.INVALID_PART` | 60 | Invalid version part |
+| `VERSION.NOT_GIT_REPO` | 61 | Not a git repository |
+| `VERSION.NO_ENGINE_JSON` | 64 | engine.json not found |
+| `VERSION.TAG_EXISTS` | 66 | Git tag already exists |
+
 ## PROTOCOL
 
 | Code | Exit | Description |

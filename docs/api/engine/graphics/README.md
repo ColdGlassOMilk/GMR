@@ -14,7 +14,6 @@ Drawing primitives, textures, sprites, and rendering.
 - [Camera2D](camera2d.md) - 2D camera for scrolling, zooming, and screen effects.
 - [Texture](texture.md) - Loaded image textures for drawing sprites.
 - [Tilemap](tilemap.md) - Tilemap rendering from Tiled JSON exports.
-- [Font](font.md) - Custom TTF/OTF font loading for text rendering.
 
 ---
 

@@ -76,7 +76,7 @@ void ReplSession::register_builtin_commands() {
     });
 
     register_command("version", "Show engine version", [](const std::vector<std::string>&) {
-        return "GMR Engine v1.0";
+        return "GMR Engine v" GMR_VERSION;
     });
 
     register_command("history", "Show command history", [this](const std::vector<std::string>&) {

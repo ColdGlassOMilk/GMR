@@ -52,6 +52,15 @@ module Gmrcli
       "PLATFORM.WRONG_ENV" => { exit_code: 51, description: "Wrong environment" },
       "PLATFORM.MISSING_TOOL" => { exit_code: 52, description: "Required tool missing" },
 
+      # Version/bump errors (60-69)
+      "VERSION.INVALID_PART" => { exit_code: 60, description: "Invalid version part" },
+      "VERSION.NOT_GIT_REPO" => { exit_code: 61, description: "Not a git repository" },
+      "VERSION.GIT_NOT_FOUND" => { exit_code: 62, description: "Git not available" },
+      "VERSION.DIRTY_TREE" => { exit_code: 63, description: "Uncommitted changes" },
+      "VERSION.NO_ENGINE_JSON" => { exit_code: 64, description: "engine.json not found" },
+      "VERSION.INVALID_FORMAT" => { exit_code: 65, description: "Invalid version format" },
+      "VERSION.TAG_EXISTS" => { exit_code: 66, description: "Git tag already exists" },
+
       # Protocol errors (2)
       "PROTOCOL.UNSUPPORTED" => { exit_code: 2, description: "Unsupported protocol version" },
 

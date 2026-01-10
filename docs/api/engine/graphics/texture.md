@@ -29,7 +29,7 @@ Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.
 
 | Name | Type | Description |
 |------|------|-------------|
-| `path` | `String` | Path to the image file (relative to game root) |
+| `path` | `String` | Path to the image file (relative to assets folder) |
 
 **Returns:** `Texture` - The loaded texture object
 
@@ -39,7 +39,7 @@ Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.
 **Example:**
 
 ```ruby
-sprite = GMR::Graphics::Texture.load("assets/player.png")
+sprite = GMR::Graphics::Texture.load("player.png")
 ```
 
 ---
@@ -164,7 +164,7 @@ sprite.draw_ex(160, 120, 45.0, 2.0)
 
 ### #draw_pro
 
-A tile-based map for efficient rendering of large worlds using a tileset texture
+A loaded font for custom text rendering
 
 **Parameters:**
 

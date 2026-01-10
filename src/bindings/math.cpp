@@ -866,6 +866,65 @@ static mrb_value mrb_math_random_float(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Serialization Support (to_h methods)
+// ============================================================================
+
+/// @method to_h
+/// @description Convert Vec2 to a hash for JSON serialization.
+///   Includes a "_type" field for automatic deserialization.
+/// @return [Hash] { "_type" => "Vec2", "x" => x, "y" => y }
+/// @example vec = Vec2.new(100, 200)
+///   data = vec.to_h  # { "_type" => "Vec2", "x" => 100.0, "y" => 200.0 }
+///   json = GMR::JSON.stringify(data)
+static mrb_value mrb_vec2_to_h(mrb_state* mrb, mrb_value self) {
+    Vec2Data* data = get_vec2_data(mrb, self);
+
+    mrb_value hash = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "_type"), mrb_str_new_lit(mrb, "Vec2"));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "x"), mrb_float_value(mrb, data->x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "y"), mrb_float_value(mrb, data->y));
+
+    return hash;
+}
+
+/// @method to_h
+/// @description Convert Vec3 to a hash for JSON serialization.
+///   Includes a "_type" field for automatic deserialization.
+/// @return [Hash] { "_type" => "Vec3", "x" => x, "y" => y, "z" => z }
+/// @example vec = Vec3.new(1, 2, 3)
+///   data = vec.to_h  # { "_type" => "Vec3", "x" => 1.0, "y" => 2.0, "z" => 3.0 }
+static mrb_value mrb_vec3_to_h(mrb_state* mrb, mrb_value self) {
+    Vec3Data* data = get_vec3_data(mrb, self);
+
+    mrb_value hash = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "_type"), mrb_str_new_lit(mrb, "Vec3"));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "x"), mrb_float_value(mrb, data->x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "y"), mrb_float_value(mrb, data->y));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "z"), mrb_float_value(mrb, data->z));
+
+    return hash;
+}
+
+/// @method to_h
+/// @description Convert Rect to a hash for JSON serialization.
+///   Includes a "_type" field for automatic deserialization.
+/// @return [Hash] { "_type" => "Rect", "x" => x, "y" => y, "w" => w, "h" => h }
+/// @example rect = Rect.new(10, 20, 100, 50)
+///   data = rect.to_h  # { "_type" => "Rect", "x" => 10.0, "y" => 20.0, "w" => 100.0, "h" => 50.0 }
+static mrb_value mrb_rect_to_h(mrb_state* mrb, mrb_value self) {
+    RectData* data = get_rect_data(mrb, self);
+
+    mrb_value hash = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "_type"), mrb_str_new_lit(mrb, "Rect"));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "x"), mrb_float_value(mrb, data->x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "y"), mrb_float_value(mrb, data->y));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "w"), mrb_float_value(mrb, data->w));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "h"), mrb_float_value(mrb, data->h));
+
+    return hash;
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -887,6 +946,7 @@ void register_math(mrb_state* mrb) {
     mrb_define_method(mrb, vec2_class, "to_s", mrb_vec2_to_s, MRB_ARGS_NONE());
     mrb_define_method(mrb, vec2_class, "inspect", mrb_vec2_to_s, MRB_ARGS_NONE());
     mrb_define_method(mrb, vec2_class, "to_a", mrb_vec2_to_a, MRB_ARGS_NONE());
+    mrb_define_method(mrb, vec2_class, "to_h", mrb_vec2_to_h, MRB_ARGS_NONE());
 
     // Vec3 class under GMR::Mathf module
     RClass* vec3_class = mrb_define_class_under(mrb, mathf, "Vec3", mrb->object_class);
@@ -902,6 +962,7 @@ void register_math(mrb_state* mrb) {
     mrb_define_method(mrb, vec3_class, "/", mrb_vec3_div, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, vec3_class, "to_s", mrb_vec3_to_s, MRB_ARGS_NONE());
     mrb_define_method(mrb, vec3_class, "inspect", mrb_vec3_to_s, MRB_ARGS_NONE());
+    mrb_define_method(mrb, vec3_class, "to_h", mrb_vec3_to_h, MRB_ARGS_NONE());
 
     // Rect class under GMR::Graphics module
     RClass* graphics = mrb_module_get_under(mrb, gmr, "Graphics");
@@ -915,6 +976,7 @@ void register_math(mrb_state* mrb) {
     mrb_define_method(mrb, rect_class, "h", mrb_rect_h, MRB_ARGS_NONE());
     mrb_define_method(mrb, rect_class, "to_s", mrb_rect_to_s, MRB_ARGS_NONE());
     mrb_define_method(mrb, rect_class, "inspect", mrb_rect_to_s, MRB_ARGS_NONE());
+    mrb_define_method(mrb, rect_class, "to_h", mrb_rect_to_h, MRB_ARGS_NONE());
 
     // GMR::Mathf module (named to avoid conflict with Ruby's Math)
     RClass* math_module = get_gmr_submodule(mrb, "Mathf");

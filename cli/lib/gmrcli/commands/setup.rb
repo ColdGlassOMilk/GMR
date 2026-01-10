@@ -41,8 +41,8 @@ module Gmrcli
             @stages_skipped << "packages"
             JsonEmitter.stage_skip(:packages, reason: "Skipped via --skip-pacman")
           end
-          run_stage(:mruby_native, "Building mruby (native)") { build_mruby_native }
-          run_stage(:raylib_native, "Building raylib (native)") { build_raylib_native }
+          run_stage(:mruby_native, "Building mruby #{mruby_version_display} (native)") { build_mruby_native }
+          run_stage(:raylib_native, "Building raylib #{raylib_version_display} (native)") { build_raylib_native }
         else
           %w[packages mruby_native raylib_native].each do |stage|
             @stages_skipped << stage
@@ -51,9 +51,9 @@ module Gmrcli
         end
 
         unless skip_web?
-          run_stage(:emscripten, "Setting up Emscripten") { setup_emscripten }
-          run_stage(:raylib_web, "Building raylib (web)") { build_raylib_web }
-          run_stage(:mruby_web, "Building mruby (web)") { build_mruby_web; create_env_script }
+          run_stage(:emscripten, "Setting up Emscripten #{emscripten_version_display}") { setup_emscripten }
+          run_stage(:raylib_web, "Building raylib #{raylib_version_display} (web)") { build_raylib_web }
+          run_stage(:mruby_web, "Building mruby #{mruby_version_display} (web)") { build_mruby_web; create_env_script }
         else
           %w[emscripten raylib_web mruby_web].each do |stage|
             @stages_skipped << stage
@@ -167,6 +167,78 @@ module Gmrcli
 
       def verbose?
         options[:verbose]
+      end
+
+      # === Dependency Version Pinning ===
+
+      # Read dependency configuration from engine.json
+      def dependency_config
+        @dependency_config ||= begin
+          engine_json = File.join(Platform.gmr_root, "engine.json")
+          if File.exist?(engine_json)
+            JSON.parse(File.read(engine_json)).dig("dependencies") || {}
+          else
+            {}
+          end
+        end
+      end
+
+      # Get the git ref (tag/branch/commit) for raylib
+      def raylib_git_ref
+        dependency_config.dig("raylib", "ref") || "master"
+      end
+
+      # Get the git repository URL for raylib
+      def raylib_git_repo
+        dependency_config.dig("raylib", "repository") || "https://github.com/raysan5/raylib.git"
+      end
+
+      # Get the git ref (tag/branch/commit) for mruby
+      def mruby_git_ref
+        dependency_config.dig("mruby", "ref") || "master"
+      end
+
+      # Get the git repository URL for mruby
+      def mruby_git_repo
+        dependency_config.dig("mruby", "repository") || "https://github.com/mruby/mruby.git"
+      end
+
+      # Get the version string for raylib (for display)
+      def raylib_version_display
+        version = dependency_config.dig("raylib", "version")
+        version ? "v#{version}" : ""
+      end
+
+      # Get the version string for mruby (for display)
+      def mruby_version_display
+        version = dependency_config.dig("mruby", "version")
+        version ? "v#{version}" : ""
+      end
+
+      # Get the git repository URL for emscripten
+      def emscripten_git_repo
+        dependency_config.dig("emscripten", "repository") || "https://github.com/emscripten-core/emsdk.git"
+      end
+
+      # Get the pinned emscripten version (or "latest" if not specified)
+      def emscripten_version
+        dependency_config.dig("emscripten", "version") || "latest"
+      end
+
+      # Get the version string for emscripten (for display)
+      def emscripten_version_display
+        version = dependency_config.dig("emscripten", "version")
+        version ? "v#{version}" : ""
+      end
+
+      # Checkout a specific git ref after cloning
+      def checkout_pinned_version(src_dir, ref, name)
+        return if ref == "master" || ref == "main"
+
+        UI.info "Checking out #{name} #{ref}..."
+        # Fetch tags if checking out a tag
+        Shell.run("git fetch --tags", chdir: src_dir, verbose: verbose?)
+        Shell.run!("git checkout #{ref}", chdir: src_dir, verbose: verbose?)
       end
 
       # === SSL Fix ===
@@ -425,18 +497,20 @@ module Gmrcli
           return
         end
 
-        UI.step "Building mruby (native)..."
+        UI.step "Building mruby #{mruby_version_display} (native)..."
 
         # Clone if needed (might already exist from web build)
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:mruby_native, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning mruby") do
-            Shell.git_clone("https://github.com/mruby/mruby.git", src_dir, verbose: verbose?)
+            Shell.git_clone(mruby_git_repo, src_dir, verbose: verbose?)
           end
+          # Checkout pinned version from engine.json
+          checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
         end
 
         # Clean previous build
-        FileUtils.rm_rf(File.join(src_dir, "build", "native"))
+        FileUtils.rm_rf(File.join(src_dir, "build", "host"))
 
         # Create build config for native
         JsonEmitter.stage_progress(:mruby_native, 20, "Creating build config", substage: "configure")
@@ -476,7 +550,7 @@ module Gmrcli
           FileUtils.mkdir_p(File.join(install_dir, "include"))
 
           # Copy library
-          lib_src = File.join(src_dir, "build", "native", "lib", "libmruby.a")
+          lib_src = File.join(src_dir, "build", "host", "lib", "libmruby.a")
           lib_dst = File.join(install_dir, "lib")
           FileUtils.cp(lib_src, lib_dst)
 
@@ -495,7 +569,7 @@ module Gmrcli
         # MRB_USE_DEBUG_HOOK only needed for Ruby debugger in Debug builds
         # mrbc binary still needed for compiling scripts during build
         config_content = <<~RUBY
-          MRuby::Build.new('native') do |conf|
+          MRuby::Build.new('host') do |conf|
             toolchain :gcc
 
             conf.cc do |cc|
@@ -563,14 +637,16 @@ module Gmrcli
           return
         end
 
-        UI.step "Building raylib (native)..."
+        UI.step "Building raylib #{raylib_version_display} (native)..."
 
         # Clone if needed
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:raylib_native, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
-            Shell.git_clone("https://github.com/raysan5/raylib.git", src_dir, verbose: verbose?)
+            Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
           end
+          # Checkout pinned version from engine.json
+          checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
         end
 
         build_dir = File.join(src_dir, "build-native")
@@ -620,7 +696,8 @@ module Gmrcli
       # === Emscripten Setup ===
 
       def setup_emscripten
-        UI.step "Setting up Emscripten SDK..."
+        emsdk_ver = emscripten_version
+        UI.step "Setting up Emscripten SDK #{emscripten_version_display}..."
 
         emsdk_dir = File.join(Platform.deps_dir, "emsdk")
         emscripten_path = File.join(emsdk_dir, "upstream", "emscripten")
@@ -629,7 +706,7 @@ module Gmrcli
         unless Dir.exist?(emsdk_dir)
           JsonEmitter.stage_progress(:emscripten, 10, "Cloning emsdk repository", substage: "clone")
           UI.spinner("Cloning emsdk") do
-            Shell.git_clone("https://github.com/emscripten-core/emsdk.git", emsdk_dir, verbose: verbose?)
+            Shell.git_clone(emscripten_git_repo, emsdk_dir, verbose: verbose?)
           end
         else
           JsonEmitter.stage_progress(:emscripten, 10, "emsdk already cloned", substage: "clone")
@@ -637,13 +714,13 @@ module Gmrcli
 
         # Install emscripten if needed
         unless Dir.exist?(emscripten_path)
-          JsonEmitter.stage_progress(:emscripten, 30, "Installing Emscripten SDK", substage: "install")
-          UI.spinner("Installing Emscripten (this takes a while)") do
-            Shell.run!("./emsdk install latest", chdir: emsdk_dir, verbose: verbose?)
+          JsonEmitter.stage_progress(:emscripten, 30, "Installing Emscripten SDK #{emsdk_ver}", substage: "install")
+          UI.spinner("Installing Emscripten #{emscripten_version_display} (this takes a while)") do
+            Shell.run!("./emsdk install #{emsdk_ver}", chdir: emsdk_dir, verbose: verbose?)
           end
           JsonEmitter.stage_progress(:emscripten, 70, "Activating Emscripten", substage: "activate")
           UI.spinner("Activating Emscripten") do
-            Shell.run!("./emsdk activate latest", chdir: emsdk_dir, verbose: verbose?)
+            Shell.run!("./emsdk activate #{emsdk_ver}", chdir: emsdk_dir, verbose: verbose?)
           end
         else
           JsonEmitter.stage_progress(:emscripten, 70, "Emscripten already installed", substage: "cached")
@@ -692,14 +769,16 @@ module Gmrcli
           return
         end
 
-        UI.step "Building raylib (web)..."
+        UI.step "Building raylib #{raylib_version_display} (web)..."
 
         # Clone if needed (might already exist from native build)
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:raylib_web, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
-            Shell.git_clone("https://github.com/raysan5/raylib.git", src_dir, verbose: verbose?)
+            Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
           end
+          # Checkout pinned version from engine.json
+          checkout_pinned_version(src_dir, raylib_git_ref, "raylib")
         else
           JsonEmitter.stage_progress(:raylib_web, 10, "Source already cloned", substage: "clone")
         end
@@ -770,14 +849,16 @@ module Gmrcli
           return
         end
 
-        UI.step "Building mruby (web)..."
+        UI.step "Building mruby #{mruby_version_display} (web)..."
 
         # Clone if needed
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:mruby_web, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning mruby") do
-            Shell.git_clone("https://github.com/mruby/mruby.git", src_dir, verbose: verbose?)
+            Shell.git_clone(mruby_git_repo, src_dir, verbose: verbose?)
           end
+          # Checkout pinned version from engine.json
+          checkout_pinned_version(src_dir, mruby_git_ref, "mruby")
         else
           JsonEmitter.stage_progress(:mruby_web, 10, "Source already cloned", substage: "clone")
         end

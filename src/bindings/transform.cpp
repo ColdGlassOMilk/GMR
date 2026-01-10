@@ -818,6 +818,39 @@ static mrb_value mrb_transform_lerp_scale(mrb_state* mrb, mrb_value self) {
 }
 
 // ============================================================================
+// Serialization Support
+// ============================================================================
+
+/// @method to_h
+/// @description Convert Transform2D to a hash for JSON serialization.
+///   Includes a "_type" field for automatic deserialization.
+///   Only includes local transform values (not world transform).
+/// @return [Hash] { "_type" => "Transform2D", "x" => x, "y" => y, "rotation" => r, "scale_x" => sx, "scale_y" => sy, "origin_x" => ox, "origin_y" => oy, "parallax" => p }
+/// @example transform = Transform2D.new(x: 100, y: 50, rotation: 45)
+///   data = transform.to_h
+///   json = GMR::JSON.stringify(data)
+static mrb_value mrb_transform_to_h(mrb_state* mrb, mrb_value self) {
+    TransformData* data = get_transform_data(mrb, self);
+    GMR_REQUIRE_TRANSFORM_DATA(data);
+
+    Transform2DState* state = TransformManager::instance().get(data->handle);
+    GMR_REQUIRE_TRANSFORM_STATE(state, data->handle);
+
+    mrb_value hash = mrb_hash_new(mrb);
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "_type"), mrb_str_new_lit(mrb, "Transform2D"));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "x"), mrb_float_value(mrb, state->position.x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "y"), mrb_float_value(mrb, state->position.y));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "rotation"), mrb_float_value(mrb, state->rotation * RAD_TO_DEG));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "scale_x"), mrb_float_value(mrb, state->scale.x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "scale_y"), mrb_float_value(mrb, state->scale.y));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "origin_x"), mrb_float_value(mrb, state->origin.x));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "origin_y"), mrb_float_value(mrb, state->origin.y));
+    mrb_hash_set(mrb, hash, mrb_str_new_lit(mrb, "parallax"), mrb_float_value(mrb, state->parallax));
+
+    return hash;
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -883,6 +916,9 @@ void register_transform(mrb_state* mrb) {
     mrb_define_class_method(mrb, transform_class, "lerp_position", mrb_transform_lerp_position, MRB_ARGS_REQ(3));
     mrb_define_class_method(mrb, transform_class, "lerp_rotation", mrb_transform_lerp_rotation, MRB_ARGS_REQ(3));
     mrb_define_class_method(mrb, transform_class, "lerp_scale", mrb_transform_lerp_scale, MRB_ARGS_REQ(3));
+
+    // Serialization
+    mrb_define_method(mrb, transform_class, "to_h", mrb_transform_to_h, MRB_ARGS_NONE());
 }
 
 } // namespace bindings

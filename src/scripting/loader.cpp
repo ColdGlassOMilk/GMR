@@ -22,6 +22,8 @@
 #include "gmr/bindings/animator.hpp"
 #include "gmr/bindings/filesystem.hpp"
 #include "gmr/bindings/storage.hpp"
+#include "gmr/bindings/json.hpp"
+#include "gmr/bindings/serializable.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
@@ -106,6 +108,12 @@ void Loader::register_all_bindings() {
 
     // Register Storage module (GMR::Storage)
     bindings::register_storage(mrb_);
+
+    // Register JSON utilities (GMR::JSON)
+    bindings::register_json(mrb_);
+
+    // Register Serializable module (GMR::Serializable)
+    bindings::register_serializable(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);

@@ -357,6 +357,7 @@
       "GMR::File",
       "GMR::Graphics",
       "GMR::Input",
+      "GMR::JSON",
       "GMR::Storage",
       "GMR::System",
       "GMR::Time",
@@ -370,11 +371,13 @@
       "GMR::Audio::Sound",
       "GMR::CollisionResult",
       "GMR::Ease",
+      "GMR::Graphics::Font",
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
       "GMR::Mathf",
       "GMR::Scene",
       "GMR::SceneManager",
+      "GMR::Serializable",
       "GMR::SpriteAnimation",
       "GMR::StateMachine",
       "GMR::Tween",
@@ -428,6 +431,8 @@
       "GMR::Input": [
         "mouse_x",
         "mouse_y",
+        "mouse_world_x",
+        "mouse_world_y",
         "mouse_down?",
         "mouse_pressed?",
         "mouse_released?",
@@ -452,6 +457,10 @@
         "has_context?",
         "input",
         "input_context"
+      ],
+      "GMR::JSON": [
+        "parse",
+        "stringify"
       ],
       "GMR::Storage": [
         "get",
@@ -502,10 +511,13 @@
         "set_target_fps"
       ],
       "GMR": [
+        "included",
         "lerp_position",
         "lerp_rotation",
         "lerp_scale",
-        "inspect"
+        "inspect",
+        "flipped_x?",
+        "flipped_y?"
       ],
       "GMR::Animator": [
         "initialize",
@@ -565,6 +577,18 @@
         "offset=",
         "zoom=",
         "rotation=",
+        "pixels_per_unit",
+        "pixels_per_unit=",
+        "viewport_size",
+        "viewport_size=",
+        "visible_bounds",
+        "visible_width",
+        "visible_height",
+        "effective_scale",
+        "view_height",
+        "view_height=",
+        "view_size",
+        "view_size=",
         "follow",
         "bounds=",
         "bounds",
@@ -620,7 +644,8 @@
         "in_bounce",
         "out_bounce",
         "in_out_bounce",
-        "apply"
+        "apply",
+        "list"
       ],
       "GMR::Graphics::Texture": [
         "load",
@@ -631,6 +656,13 @@
         "draw",
         "draw_ex",
         "draw_pro"
+      ],
+      "GMR::Graphics::Font": [
+        "load",
+        "base_size",
+        "glyph_count",
+        "release",
+        "ref_count"
       ],
       "GMR::Graphics::Tilemap": [
         "new",
@@ -695,7 +727,8 @@
         "deg_to_rad",
         "rad_to_deg",
         "random_int",
-        "random_float"
+        "random_float",
+        "to_h"
       ],
       "Node": [
         "initialize",
@@ -734,6 +767,14 @@
         "add_overlay",
         "remove_overlay",
         "has_overlay?"
+      ],
+      "GMR::Serializable": [
+        "field",
+        "serializable",
+        "serialize",
+        "to_json",
+        "deserialize",
+        "from_json"
       ],
       "Sprite": [
         "initialize",
@@ -811,6 +852,8 @@
         "scale_y=",
         "origin_x=",
         "origin_y=",
+        "parallax",
+        "parallax=",
         "center_origin",
         "parent",
         "parent=",
@@ -823,7 +866,8 @@
         "round_to_pixel!",
         "Transform2D.lerp_position",
         "Transform2D.lerp_rotation",
-        "Transform2D.lerp_scale"
+        "Transform2D.lerp_scale",
+        "to_h"
       ],
       "GMR::Tween": [
         "to",

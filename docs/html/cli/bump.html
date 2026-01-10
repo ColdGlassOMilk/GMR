@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>gmrcli docs - gmrcli</title>
+  <title>gmrcli bump - gmrcli</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,8 +15,8 @@
           <a href="build.html">build</a>
           <a href="start.html">start</a>
           <a href="new.html">new</a>
-          <a href="docs.html" class="active">docs</a>
-          <a href="bump.html">bump</a>
+          <a href="docs.html">docs</a>
+          <a href="bump.html" class="active">bump</a>
           <a href="dev.html">dev</a>
           <a href="version.html">version</a>
           <a href="info.html">info</a>
@@ -25,18 +25,18 @@
     </div>
   </nav>
 <div class="container">
-<h1>gmrcli docs</h1>
-<p>Generate all documentation</p>
+<h1>gmrcli bump</h1>
+<p>Bump engine version (major|minor|patch)</p>
 <h2>Usage</h2>
 <pre><code>
-<span class="hl-command">gmrcli</span> docs [options]
+<span class="hl-command">gmrcli</span> bump [options]
 </code></pre>
 <h2>Description</h2>
-<p>Regenerates all API and CLI documentation:<br>        - JSON files (engine/language/*.json)<br>        - Markdown files (docs/api/*.md, docs/cli/*.md)<br>        - HTML files (docs/html/api/*.html, docs/html/cli/*.html)<br><br>      This is the same documentation generated during 'gmrcli setup',<br>      but can be run independently when you've made changes to:<br>        - C++ binding source files (src/bindings/*.cpp)<br>        - CLI command files (cli/lib/gmrcli/commands/*.rb)</p>
+<p>Increment the engine version following semantic versioning:<br>        major         - Incompatible API changes (1.0.0 -&gt; 2.0.0)<br>        minor         - New backwards-compatible features (1.0.0 -&gt; 1.1.0)<br>        patch/revision - Backwards-compatible bug fixes (1.0.0 -&gt; 1.0.1)<br><br>      This command will:<br>        1. Verify the working tree is clean<br>        2. Update engine.json with the new version<br>        3. Update engine/language/version.json<br>        4. Commit the changes<br>        5. Create an annotated git tag v&lt;version&gt;<br><br>      After bumping, push with: git push &amp;&amp; git push --tags</p>
 <h2>Examples</h2>
 <pre><code>
 <span class=<span class="hl<span class="hl-flag">-string</span>">"hl<span class="hl-flag">-comment</span>"</span>># Basic usage</span>
-<span class="hl-command">gmrcli</span> docs
+<span class="hl-command">gmrcli</span> bump
 </code></pre>
 </div>
   <footer class="footer">

@@ -148,6 +148,11 @@
       "module": "GMR::Graphics::Texture",
       "description": "TODO: Add description"
     },
+    "Font": {
+      "kind": "class",
+      "module": "GMR::Graphics::Font",
+      "description": "TODO: Add description"
+    },
     "Tilemap": {
       "kind": "class",
       "module": "GMR::Graphics::Tilemap",
@@ -186,6 +191,11 @@
     "SceneManager": {
       "kind": "class",
       "module": "GMR::SceneManager",
+      "description": "TODO: Add description"
+    },
+    "Serializable": {
+      "kind": "class",
+      "module": "GMR::Serializable",
       "description": "TODO: Add description"
     },
     "Sprite": {
@@ -713,10 +723,10 @@
             {
               "name": "root",
               "type": "Symbol",
-              "description": "Logical root directory - must be :data (writes to :assets are rejected). Default: :data"
+              "description": "Optional. Only :data is allowed (writes to :assets are rejected). Default: :data"
             }
           ],
-          "example": "# Write log file\n  GMR::File.write_text(\"log.txt\", \"Game started\\n\", root: :data)\r"
+          "example": "# Write log file (root: :data is implied)\n  GMR::File.write_text(\"log.txt\", \"Game started\\n\")\r"
         },
         "write_bytes": {
           "params": [
@@ -733,10 +743,10 @@
             {
               "name": "root",
               "type": "Symbol",
-              "description": "Logical root directory - must be :data. Default: :data"
+              "description": "Optional. Only :data is allowed. Default: :data"
             }
           ],
-          "example": "# Write binary data\n  GMR::File.write_bytes(\"level.dat\", binary_data, root: :data)\r"
+          "example": "# Write binary data (root: :data is implied)\n  GMR::File.write_bytes(\"level.dat\", binary_data)\r"
         },
         "write_json": {
           "params": [
@@ -753,7 +763,7 @@
             {
               "name": "root",
               "type": "Symbol",
-              "description": "Logical root directory - must be :data. Default: :data"
+              "description": "Optional. Only :data is allowed. Default: :data"
             },
             {
               "name": "pretty",
@@ -761,7 +771,7 @@
               "description": "Format JSON with indentation. Default: false (minified)"
             }
           ],
-          "example": "# Write JSON with pretty formatting\n  GMR::File.write_json(\"config.json\", data, root: :data, pretty: true)\r"
+          "example": "# Write JSON with pretty formatting\n  GMR::File.write_json(\"config.json\", data, pretty: true)\r"
         },
         "exists?": {
           "params": [
@@ -1234,7 +1244,7 @@
           "example": "GMR::Graphics.draw_triangle_outline(100, 50, 50, 150, 150, 150, [255, 255, 255])  # Legacy world coords"
         },
         "draw_text": {
-          "signature": "draw_text(transform, text, size, color)",
+          "signature": "draw_text(transform, text, size, color, opts?)",
           "description": "Draw text at a position",
           "params": [
             {
@@ -1258,15 +1268,20 @@
               "description": "Text color (if transform) OR Font size in pixels"
             },
             {
-              "name": "color",
-              "type": "Color",
-              "description": "Text color (if using x,y)"
+              "name": "color_or_opts",
+              "type": "Color|Hash",
+              "description": "Text color (if using x,y) OR options hash"
+            },
+            {
+              "name": "opts",
+              "type": "Hash",
+              "description": "(optional) Options hash. Supports :font for custom font"
             }
           ],
           "returns": {
             "type": "nil"
           },
-          "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, [255, 255, 255])  # Legacy x,y,size"
+          "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, :white, font: @my_font)  # With custom font"
         },
         "measure_text": {
           "signature": "measure_text(text, size)",
@@ -1309,6 +1324,22 @@
             "description": "Mouse Y position"
           },
           "example": "y = GMR::Input.mouse_y"
+        },
+        "mouse_world_x": {
+          "description": "Get the mouse X position in world coordinates using the current camera. Converts screen mouse position to world space using the camera's projection. If no camera is active, returns the screen position divided by 100 (default PPU).",
+          "returns": {
+            "type": "Float",
+            "description": "Mouse X position in world units"
+          },
+          "example": "world_x = GMR::Input.mouse_world_x"
+        },
+        "mouse_world_y": {
+          "description": "Get the mouse Y position in world coordinates using the current camera. Converts screen mouse position to world space using the camera's projection. If no camera is active, returns the screen position divided by 100 (default PPU).",
+          "returns": {
+            "type": "Float",
+            "description": "Mouse Y position in world units"
+          },
+          "example": "world_y = GMR::Input.mouse_world_y"
         },
         "mouse_down?": {
           "description": "Check if a mouse button is currently held down.",
@@ -1637,6 +1668,38 @@
             "type": "nil"
           },
           "example": "input_context :menu do |i|\n  i.confirm :enter\r\n  i.cancel :escape\r\n  i.navigate_up :up\r\n  i.navigate_down :down\r\nend\r"
+        }
+      }
+    },
+    "GMR::JSON": {
+      "description": "TODO: Add description",
+      "functions": {
+        "parse": {
+          "description": "Parse a JSON string into a Ruby object (Hash or Array).",
+          "params": [
+            {
+              "name": "json_string",
+              "type": "String",
+              "description": "The JSON string to parse"
+            }
+          ],
+          "example": "items = GMR::JSON.parse('[\"sword\", \"shield\", \"potion\"]')\n  puts items[0]   # \"sword\"\r"
+        },
+        "stringify": {
+          "description": "Convert a Ruby object to a JSON string. Supports Hash, Array, String, Fixnum, Float, true, false, and nil. Objects with a to_h method will be converted via that method.",
+          "params": [
+            {
+              "name": "data",
+              "type": "Object",
+              "description": "The Ruby object to serialize"
+            },
+            {
+              "name": "pretty",
+              "type": "Boolean",
+              "description": "If true, format with indentation (default: false)"
+            }
+          ],
+          "example": "json = GMR::JSON.stringify(data, true)  # Pretty print"
         }
       }
     },
@@ -2088,6 +2151,19 @@
       "kind": "class",
       "description": "TODO: Add description",
       "classMethods": {
+        "included": {
+          "signature": "included(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Object"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
         "lerp_position": {
           "signature": "lerp_position(arg1, arg2, arg3)",
           "description": "TODO: Add documentation",
@@ -2155,6 +2231,22 @@
       "instanceMethods": {
         "inspect": {
           "signature": "inspect",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "flipped_x?": {
+          "signature": "flipped_x?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "flipped_y?": {
+          "signature": "flipped_y?",
           "description": "TODO: Add documentation",
           "params": [],
           "returns": {
@@ -2660,7 +2752,7 @@
       "description": "TODO: Add description",
       "instanceMethods": {
         "initialize": {
-          "description": "Create a new Camera2D with optional initial values.",
+          "description": "Create a new Camera2D with optional initial values. Resolution-independent: Set view_height (world units visible vertically) and viewport_size (render resolution) - PPU is calculated automatically.",
           "params": [
             {
               "name": "target",
@@ -2681,13 +2773,28 @@
               "name": "rotation",
               "type": "Float",
               "description": "Rotation in degrees (default: 0)"
+            },
+            {
+              "name": "view_height",
+              "type": "Float",
+              "description": "World units visible vertically (default: 7.5)"
+            },
+            {
+              "name": "view_size",
+              "type": "Vec2",
+              "description": "Fixed view size in world units (retro mode with letterboxing)"
+            },
+            {
+              "name": "viewport_size",
+              "type": "Vec2",
+              "description": "Render resolution in pixels (default: 320x180)"
             }
           ],
           "returns": {
             "type": "Camera2D",
             "description": "The new camera"
           },
-          "example": "cam = Camera2D.new(offset: Vec2.new(400, 300))  # Center on 800x600 screen"
+          "example": "# High-res rendering of same view\n  cam = Camera2D.new(view_height: 7.5, viewport_size: Vec2.new(1920, 1080))\r"
         },
         "target": {
           "description": "Get the world position the camera is looking at.",
@@ -2780,6 +2887,130 @@
             "description": "The value that was set"
           },
           "example": "camera.rotation += 10 * dt  # Rotate over time"
+        },
+        "pixels_per_unit": {
+          "description": "Get the scale factor (screen pixels per world unit). This defines the relationship between world coordinates and screen pixels. At zoom=1.0, one world unit takes up this many pixels on screen.",
+          "returns": {
+            "type": "Float",
+            "description": "The pixels per unit value"
+          },
+          "example": "ppu = camera.pixels_per_unit"
+        },
+        "pixels_per_unit=": {
+          "description": "Set the scale factor (screen pixels per world unit). Common values: - 100.0: Unity-style (default), 1 unit = 100 pixels - 16/24/32: Tile-based games, 1 unit = 1 tile - 1.0: 1:1 pixel mapping at zoom=1.0",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The pixels per unit value (must be > 0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "camera.pixels_per_unit = 100.0 # Unity-style default"
+        },
+        "viewport_size": {
+          "description": "Get the viewport dimensions in pixels. This is the size of the render target (camera's \"screen\" size), used for aspect ratio and visible bounds.",
+          "returns": {
+            "type": "Vec2",
+            "description": "The viewport size in pixels"
+          },
+          "example": "size = camera.viewport_size"
+        },
+        "viewport_size=": {
+          "description": "Set the viewport dimensions in pixels. This defines the camera's render target size. Setting this automatically recalculates pixels_per_unit to maintain the same view_height, providing resolution independence.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2",
+              "description": "The viewport size in pixels"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The value that was set"
+          },
+          "example": "camera.viewport_size = Vec2.new(1920, 1080) # HD (same view, higher quality)"
+        },
+        "visible_bounds": {
+          "description": "Get the world-space bounds currently visible on screen. This is the rectangle of world coordinates that the camera can see.",
+          "returns": {
+            "type": "Rect",
+            "description": "The visible bounds in world coordinates"
+          },
+          "example": "end"
+        },
+        "visible_width": {
+          "description": "Get the width of the visible world area (in world units).",
+          "returns": {
+            "type": "Float",
+            "description": "The visible width"
+          },
+          "example": "width = camera.visible_width"
+        },
+        "visible_height": {
+          "description": "Get the height of the visible world area (in world units).",
+          "returns": {
+            "type": "Float",
+            "description": "The visible height"
+          },
+          "example": "height = camera.visible_height"
+        },
+        "effective_scale": {
+          "description": "Get the effective scale factor (pixels_per_unit * zoom). This is how many screen pixels one world unit currently occupies.",
+          "returns": {
+            "type": "Float",
+            "description": "The effective scale"
+          },
+          "example": "scale = camera.effective_scale"
+        },
+        "view_height": {
+          "description": "Get the view height in world units (how many world units are visible vertically). This is the primary control for resolution-independent rendering.",
+          "returns": {
+            "type": "Float",
+            "description": "The view height in world units"
+          },
+          "example": "height = camera.view_height"
+        },
+        "view_height=": {
+          "description": "Set the view height in world units (how many world units are visible vertically). Setting this automatically recalculates pixels_per_unit. Use this for Unity-style resolution independence where width is derived from aspect ratio.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The view height in world units (must be > 0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "camera.view_height = 10.0  # 10 world units tall"
+        },
+        "view_size": {
+          "description": "Get the fixed view size in world units (for retro-style rendering). Returns nil if using Unity-style (height-only) mode.",
+          "returns": {
+            "type": "Vec2, nil",
+            "description": "The view size in world units, or nil if not in retro mode"
+          },
+          "example": "size = camera.view_size"
+        },
+        "view_size=": {
+          "description": "Set a fixed view size in world units (for retro-style rendering). This locks both width and height, using letterboxing if the aspect ratio doesn't match. Set to nil to switch back to Unity-style (height-only) mode.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Vec2, nil",
+              "description": "The view size in world units, or nil for Unity-style mode"
+            }
+          ],
+          "returns": {
+            "type": "Vec2, nil",
+            "description": "The value that was set"
+          },
+          "example": "camera.view_size = nil  # Switch to Unity-style"
         },
         "follow": {
           "description": "Configure the camera to follow a target object with optional smoothing and deadzone. The target must respond to `position` (returning Vec2) or have `x`/`y` methods. Call with nil to stop following.",
@@ -3242,6 +3473,14 @@
             "description": "Eased value (usually 0.0 to 1.0, but may overshoot for elastic/back)"
           },
           "example": "# Custom interpolation\n  t = elapsed / duration\r\n  eased_t = GMR::Ease.apply(:out_back, t)\r\n  current_x = start_x + (end_x - start_x) * eased_t\r"
+        },
+        "list": {
+          "description": "Returns an array of all available easing function symbols. Useful for debugging, UI selection, or discovering available options.",
+          "returns": {
+            "type": "Array<Symbol>",
+            "description": "All easing function names"
+          },
+          "example": "# Cycle through easings for comparison\n  class EasingTester\r\n    def initialize\r"
         }
       }
     },
@@ -3255,7 +3494,7 @@
             {
               "name": "path",
               "type": "String",
-              "description": "Path to the image file (relative to game root)"
+              "description": "Path to the image file (relative to assets folder)"
             }
           ],
           "returns": {
@@ -3265,7 +3504,7 @@
           "raises": [
             "RuntimeError if the file cannot be loaded"
           ],
-          "example": "sprite = GMR::Graphics::Texture.load(\"assets/player.png\")"
+          "example": "sprite = GMR::Graphics::Texture.load(\"player.png\")"
         }
       },
       "instanceMethods": {
@@ -3359,7 +3598,7 @@
           "example": "sprite.draw_ex(160, 120, 45.0, 2.0)"
         },
         "draw_pro": {
-          "description": "A tile-based map for efficient rendering of large worlds using a tileset texture",
+          "description": "A loaded font for custom text rendering",
           "params": [
             {
               "name": "sx",
@@ -3419,6 +3658,68 @@
         }
       }
     },
+    "GMR::Graphics::Font": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "classMethods": {
+        "load": {
+          "description": "Load a font from a TTF/OTF file",
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Path to the font file (relative to assets folder)"
+            },
+            {
+              "name": "options",
+              "type": "Hash",
+              "description": "(optional) Options hash. Supports :size (default 32)"
+            }
+          ],
+          "returns": {
+            "type": "Font",
+            "description": "The loaded font object"
+          },
+          "raises": [
+            "RuntimeError if the file cannot be loaded"
+          ],
+          "example": "@font = Graphics::Font.load(\"fonts/pixel.ttf\", size: 16)"
+        }
+      },
+      "instanceMethods": {
+        "base_size": {
+          "description": "Get the base size this font was loaded at",
+          "returns": {
+            "type": "Integer",
+            "description": "Base font size in pixels"
+          },
+          "example": "puts @font.base_size  # => 32"
+        },
+        "glyph_count": {
+          "description": "Get the number of glyphs (characters) in this font",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of glyphs"
+          },
+          "example": "puts @font.glyph_count  # => 95"
+        },
+        "release": {
+          "description": "Manually release a reference to the font. When the reference count reaches 0, the font is unloaded from memory.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "@font.release"
+        },
+        "ref_count": {
+          "description": "A tile-based map for efficient rendering of large worlds using a tileset texture",
+          "returns": {
+            "type": "Integer",
+            "description": "Current reference count"
+          },
+          "example": "puts @font.ref_count"
+        }
+      }
+    },
     "GMR::Graphics::Tilemap": {
       "kind": "class",
       "description": "TODO: Add description",
@@ -3460,7 +3761,7 @@
           "raises": [
             "ArgumentError if dimensions are not positive"
           ],
-          "example": "tileset = GMR::Graphics::Texture.load(\"assets/tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)\r"
+          "example": "tileset = GMR::Graphics::Texture.load(\"tiles.png\")\nmap = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)\r"
         }
       },
       "instanceMethods": {
@@ -4391,6 +4692,10 @@
             "description": "Random float in range [0.0, 1.0]"
           },
           "example": "# Random value in custom range\n  speed = 50 + Mathf.random_float * 100  # 50-150\r"
+        },
+        "to_h": {
+          "description": "Convert Rect to a hash for JSON serialization. Includes a \"_type\" field for automatic deserialization.",
+          "example": "rect = Rect.new(10, 20, 100, 50)\n  data = rect.to_h  # { \"_type\" => \"Rect\", \"x\" => 10.0, \"y\" => 20.0, \"w\" => 100.0, \"h\" => 50.0 }\r"
         }
       }
     },
@@ -4717,6 +5022,81 @@
             "description": "true if the overlay is active"
           },
           "example": "if GMR::SceneManager.has_overlay?(@minimap)"
+        }
+      }
+    },
+    "GMR::Serializable": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "field": {
+          "description": "Declare a serializable field.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The field name (matches instance variable @name)"
+            },
+            {
+              "name": "default",
+              "type": "Object",
+              "description": "Default value when deserializing if field is nil"
+            },
+            {
+              "name": "type",
+              "type": "Class, Symbol",
+              "description": "Optional type hint for deserialization"
+            }
+          ],
+          "example": "serializable do\n  field :id\r\n  field :name\r\n  field :health, default: 100\r\n  field :position      # Engine objects with to_h work automatically\r\n  field :items, type: :array\r\n  field :stats, type: PlayerStats  # Nested serializable class\r\nend\r"
+        },
+        "serializable": {
+          "description": "Define which fields should be serialized. Called on the class.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "A block containing field declarations"
+            }
+          ],
+          "example": "class Player\n  include GMR::Serializable\r\n  serializable do\r\n    field :name\r\n    field :health, default: 100\r\n  end\r\nend\r"
+        },
+        "serialize": {
+          "description": "Serialize this object to a hash. Only declared fields are included.",
+          "example": "player.serialize  # => { \"name\" => \"Hero\", \"health\" => 100 }"
+        },
+        "to_json": {
+          "description": "Serialize this object to a JSON string.",
+          "params": [
+            {
+              "name": "pretty",
+              "type": "Boolean",
+              "description": "If true, format with indentation (default: false)"
+            }
+          ],
+          "example": "player.to_json        # => '{\"name\":\"Hero\",\"health\":100}'\n  player.to_json(true)   # => Pretty-printed JSON\r"
+        },
+        "deserialize": {
+          "description": "Create an instance from a hash of field values. Class method.",
+          "params": [
+            {
+              "name": "data",
+              "type": "Hash",
+              "description": "The serialized data"
+            }
+          ],
+          "example": "player = Player.deserialize({ \"name\" => \"Hero\", \"health\" => 85 })"
+        },
+        "from_json": {
+          "description": "Create an instance from a JSON string. Class method.",
+          "params": [
+            {
+              "name": "json_string",
+              "type": "String",
+              "description": "The JSON representation"
+            }
+          ],
+          "example": "player = Player.from_json('{\"name\":\"Hero\",\"health\":85}')\nCalled when GMR::Serializable is included in a class\r\nAdds the class methods (serializable, deserialize, from_json)\r"
         }
       }
     },
@@ -5506,6 +5886,29 @@
           },
           "example": "transform.origin_y = 16  # Pivot 16px from top edge"
         },
+        "parallax": {
+          "description": "Get the parallax scrolling factor. Controls how the object moves relative to the camera: - 1.0 = moves with the world (default, normal objects) - 0.0 = fixed to screen (doesn't move with camera) - 0.5 = moves at half camera speed (distant background) - 0.1 = moves at 10% camera speed (very distant mountains)",
+          "returns": {
+            "type": "Float",
+            "description": "The parallax factor (0.0 to 1.0)"
+          },
+          "example": "factor = transform.parallax"
+        },
+        "parallax=": {
+          "description": "Set the parallax scrolling factor for camera-relative movement. When rendered inside a camera, objects with parallax < 1.0 will appear to move slower than the camera, creating depth.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "The parallax factor (0.0 = fixed, 1.0 = normal world)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The value that was set"
+          },
+          "example": "transform.parallax = 0.0   # Fixed to screen (HUD elements)"
+        },
         "center_origin": {
           "description": "Set the origin to the center of the given dimensions, so the transform rotates and scales around its center point. Useful for sprites, images, or any rectangular object.",
           "params": [
@@ -5684,6 +6087,10 @@
             "description": "The interpolated scale"
           },
           "example": "scale = Transform2D.lerp_scale(Vec2.new(1, 1), Vec2.new(2, 2), 0.5)"
+        },
+        "to_h": {
+          "description": "Convert Transform2D to a hash for JSON serialization. Includes a \"_type\" field for automatic deserialization. Only includes local transform values (not world transform).",
+          "example": "transform = Transform2D.new(x: 100, y: 50, rotation: 45)\n  data = transform.to_h\r\n  json = GMR::JSON.stringify(data)\r"
         }
       }
     },

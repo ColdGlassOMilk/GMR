@@ -16,7 +16,7 @@ function(compile_ruby_scripts TARGET_NAME SCRIPT_DIR OUTPUT_HEADER)
         # Look for mrbc in deps/mruby structure (native build is used for both native and web)
         find_program(MRBC_COMPILER mrbc
             PATHS
-                "${CMAKE_SOURCE_DIR}/deps/mruby/source/build/native/bin"
+                "${CMAKE_SOURCE_DIR}/deps/mruby/source/build/host/bin"
                 "${CMAKE_SOURCE_DIR}/deps/mruby/native/bin"
                 "${CMAKE_SOURCE_DIR}/deps/mruby/bin"
                 "C:/msys64/mingw64/bin"

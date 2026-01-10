@@ -52,7 +52,7 @@ Create a new tilemap with the specified dimensions. All tiles are initialized to
 **Example:**
 
 ```ruby
-tileset = GMR::Graphics::Texture.load("assets/tiles.png")
+tileset = GMR::Graphics::Texture.load("tiles.png")
 map = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)
 ```
 

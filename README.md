@@ -1,3 +1,5 @@
+![GitHub Tag](https://img.shields.io/github/v/tag/ColdGlassOMilk/GMR)
+
 # <img src="game/assets/logo.png" height="75" align="middle" /> GMR - Game Middleware for Ruby
 
 **A modern, cross-platform game framework combining the elegance of Ruby with the performance of C++.** Build games with hot-reloading Ruby scripts powered by mruby and raylib, deploy natively to Windows/Linux/macOS or compile to WebAssembly for the browser.
@@ -139,7 +141,7 @@ This example introduces:
 | [Animation](docs/animation.md) | SpriteAnimation, Animator, Tweens |
 | [State Machine](docs/state-machine.md) | State DSL, transitions, animation binding |
 | [Audio](docs/audio.md) | Sound effects, music streaming |
-| [Persistence](docs/persistence.md) | File I/O, Storage, save data |
+| [Persistence](docs/persistence.md) | File I/O, Storage, save data, Serialization |
 | [Console](docs/console.md) | Developer console, custom commands |
 | [Platformer Tutorial](docs/platformer-tutorial.md) | Complete working example |
 | [Getting Started](docs/getting-started.md) | Detailed setup guide |

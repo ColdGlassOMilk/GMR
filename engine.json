@@ -1,0 +1,23 @@
+{
+  "engine": {
+    "name": "GMR",
+    "fullName": "Game Middleware for Ruby",
+    "version": "0.1.0"
+  },
+  "dependencies": {
+    "raylib": {
+      "version": "5.5",
+      "repository": "https://github.com/raysan5/raylib.git",
+      "ref": "master"
+    },
+    "mruby": {
+      "version": "3.4.0",
+      "repository": "https://github.com/mruby/mruby.git",
+      "ref": "3.4.0"
+    },
+    "emscripten": {
+      "version": "4.0.22",
+      "repository": "https://github.com/emscripten-core/emsdk.git"
+    }
+  }
+}

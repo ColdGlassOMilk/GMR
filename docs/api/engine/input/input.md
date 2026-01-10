@@ -25,6 +25,8 @@ Keyboard, mouse, and gamepad input handling.
   - [mouse_pressed?](#mouse_pressed)
   - [mouse_released?](#mouse_released)
   - [mouse_wheel](#mouse_wheel)
+  - [mouse_world_x](#mouse_world_x)
+  - [mouse_world_y](#mouse_world_y)
   - [mouse_x](#mouse_x)
   - [mouse_y](#mouse_y)
   - [off](#off)
@@ -64,6 +66,38 @@ Get the mouse Y position in virtual resolution coordinates. Automatically accoun
 
 ```ruby
 y = GMR::Input.mouse_y
+```
+
+---
+
+<a id="mouse_world_x"></a>
+
+### mouse_world_x
+
+Get the mouse X position in world coordinates using the current camera. Converts screen mouse position to world space using the camera's projection. If no camera is active, returns the screen position divided by 100 (default PPU).
+
+**Returns:** `Float` - Mouse X position in world units
+
+**Example:**
+
+```ruby
+world_x = GMR::Input.mouse_world_x
+```
+
+---
+
+<a id="mouse_world_y"></a>
+
+### mouse_world_y
+
+Get the mouse Y position in world coordinates using the current camera. Converts screen mouse position to world space using the camera's projection. If no camera is active, returns the screen position divided by 100 (default PPU).
+
+**Returns:** `Float` - Mouse Y position in world units
+
+**Example:**
+
+```ruby
+world_y = GMR::Input.mouse_world_y
 ```
 
 ---
