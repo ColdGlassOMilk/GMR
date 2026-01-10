@@ -271,6 +271,26 @@ static std::string symbol_to_string(mrb_state* mrb, mrb_value sym) {
 }
 
 // ============================================================================
+// Helper: List available animation names for error messages
+// ============================================================================
+
+static std::string list_animation_names(const animation::AnimatorState* animator) {
+    if (animator->animations.empty()) {
+        return "(none defined)";
+    }
+
+    std::string result;
+    bool first = true;
+    for (const auto& pair : animator->animations) {
+        if (!first) result += ", ";
+        result += ":";
+        result += pair.first;
+        first = false;
+    }
+    return result;
+}
+
+// ============================================================================
 // GMR::Animator.new(sprite, columns:, frame_width:, frame_height:)
 // ============================================================================
 
@@ -615,9 +635,13 @@ static mrb_value mrb_animator_play(mrb_state* mrb, mrb_value self) {
         return self;
     }
 
-    // Check if animation exists
+    // Check if animation exists - fail loudly per CONTRIBUTING.md
     if (!animator->has_animation(name)) {
-        return self;  // Silently ignore unknown animations
+        std::string available = list_animation_names(animator);
+        mrb_raisef(mrb, E_ARGUMENT_ERROR,
+            "Unknown animation: :%s. Available animations: %s",
+            name.c_str(), available.c_str());
+        return self;
     }
 
     // Already playing this animation?

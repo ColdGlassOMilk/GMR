@@ -341,6 +341,87 @@ static mrb_value mrb_ease_apply(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// Discoverability
+// ============================================================================
+
+/// @method list
+/// @description Returns an array of all available easing function symbols.
+///   Useful for debugging, UI selection, or discovering available options.
+/// @returns [Array<Symbol>] All easing function names
+/// @example easings = GMR::Animation::Ease.list
+///   puts easings.inspect  # => [:linear, :in_quad, :out_quad, ...]
+/// @example # Cycle through easings for comparison
+///   class EasingTester
+///     def initialize
+///       @easings = GMR::Animation::Ease.list
+///       @current_index = 0
+///     end
+///
+///     def next_easing
+///       @current_index = (@current_index + 1) % @easings.length
+///       @easings[@current_index]
+///     end
+///   end
+static mrb_value mrb_ease_list(mrb_state* mrb, mrb_value) {
+    mrb_value arr = mrb_ary_new_capa(mrb, 31);
+
+    // Linear
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "linear")));
+
+    // Quadratic
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_quad")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_quad")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_quad")));
+
+    // Cubic
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_cubic")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_cubic")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_cubic")));
+
+    // Quartic
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_quart")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_quart")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_quart")));
+
+    // Quintic
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_quint")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_quint")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_quint")));
+
+    // Sine
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_sine")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_sine")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_sine")));
+
+    // Exponential
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_expo")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_expo")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_expo")));
+
+    // Circular
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_circ")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_circ")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_circ")));
+
+    // Back
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_back")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_back")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_back")));
+
+    // Elastic
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_elastic")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_elastic")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_elastic")));
+
+    // Bounce
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_bounce")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "out_bounce")));
+    mrb_ary_push(mrb, arr, mrb_symbol_value(mrb_intern_lit(mrb, "in_out_bounce")));
+
+    return arr;
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -399,6 +480,9 @@ void register_ease(mrb_state* mrb) {
 
     // Manual application
     mrb_define_module_function(mrb, ease, "apply", mrb_ease_apply, MRB_ARGS_REQ(2));
+
+    // Discoverability
+    mrb_define_module_function(mrb, ease, "list", mrb_ease_list, MRB_ARGS_NONE());
 }
 
 } // namespace bindings

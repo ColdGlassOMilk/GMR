@@ -937,6 +937,9 @@ void register_sprite(mrb_state* mrb) {
     mrb_define_method(mrb, sprite_class, "flip_y", mrb_sprite_flip_y, MRB_ARGS_NONE());
     mrb_define_method(mrb, sprite_class, "flip_x=", mrb_sprite_set_flip_x, MRB_ARGS_REQ(1));
     mrb_define_method(mrb, sprite_class, "flip_y=", mrb_sprite_set_flip_y, MRB_ARGS_REQ(1));
+    // Ruby-idiomatic predicate aliases (boolean methods should have ? suffix)
+    mrb_define_method(mrb, sprite_class, "flipped_x?", mrb_sprite_flip_x, MRB_ARGS_NONE());
+    mrb_define_method(mrb, sprite_class, "flipped_y?", mrb_sprite_flip_y, MRB_ARGS_NONE());
 
     // Texture/Source
     mrb_define_method(mrb, sprite_class, "texture", mrb_sprite_texture, MRB_ARGS_NONE());

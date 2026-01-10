@@ -685,6 +685,8 @@ void register_audio(mrb_state* mrb) {
     mrb_define_method(mrb, music_class, "pitch", mrb_music_get_pitch, MRB_ARGS_NONE());
     mrb_define_method(mrb, music_class, "pan", mrb_music_get_pan, MRB_ARGS_NONE());
     mrb_define_method(mrb, music_class, "loop", mrb_music_get_loop, MRB_ARGS_NONE());
+    // Ruby-idiomatic predicate alias (boolean method should have ? suffix)
+    mrb_define_method(mrb, music_class, "loop?", mrb_music_get_loop, MRB_ARGS_NONE());
 
     // Time control
     mrb_define_method(mrb, music_class, "seek", mrb_music_seek, MRB_ARGS_REQ(1));
