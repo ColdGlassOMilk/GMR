@@ -18,6 +18,10 @@ GRAVITY = 800.0
 MOVE_SPEED = 200.0
 JUMP_FORCE = -400.0
 
+# Audio
+SFX_VOLUME = 0.5
+MUSIC_VOLUME = 0.7
+
 # Tilemap configuration
 # Tileset is 504x264 = 21 columns x 11 rows of 24x24 tiles
 TILE_SIZE = 24
@@ -83,6 +87,11 @@ def init
 
   # Enable the console with Ruby evaluation (Dev mode)
   Console.enable(height: 150).allow_ruby_eval
+
+  # === AUDIO ===
+  @jump_sound = Audio::Sound.load("assets/sfx/jump.mp3", volume: SFX_VOLUME)
+  @music = Audio::Music.load("assets/music/jungle.mp3", volume: MUSIC_VOLUME, loop: true)
+  @music.play
 
   # === INPUT MAPPING (with method chaining) ===
   Input.map(:move_left, [:left, :a])
@@ -225,6 +234,7 @@ def do_jump
   @velocity_y = JUMP_FORCE
   @on_ground = false
   state_machine.trigger(:jump)
+  @jump_sound.play
 end
 
 def update(dt)

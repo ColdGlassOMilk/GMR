@@ -233,42 +233,48 @@ void AnimationManager::invoke_callback_with_args(mrb_state* mrb, mrb_value callb
 // ============================================================================
 
 void AnimationManager::update(mrb_state* mrb, float dt) {
-    tweens_to_complete_.clear();
-    animations_to_complete_.clear();
-
-    // Update all active tweens
+    // Update all active tweens with immediate callback invocation
+    // Build a list of handles first to avoid iterator invalidation
+    std::vector<TweenHandle> tween_handles;
+    tween_handles.reserve(tweens_.size());
     for (auto& [handle, tween] : tweens_) {
         if (tween.should_update()) {
-            update_tween(mrb, tween, dt);
-            if (tween.completed) {
-                tweens_to_complete_.push_back(handle);
+            tween_handles.push_back(handle);
+        }
+    }
+
+    // Now update tweens and invoke callbacks immediately
+    for (TweenHandle handle : tween_handles) {
+        TweenState* tween = get_tween(handle);
+        if (tween && tween->should_update()) {
+            update_tween(mrb, *tween, dt);
+
+            // Fire completion callback IMMEDIATELY if completed
+            if (tween->completed && !mrb_nil_p(tween->on_complete)) {
+                invoke_callback(mrb, tween->on_complete);
             }
         }
     }
 
-    // Invoke tween completion callbacks (after iteration to avoid mutation issues)
-    for (TweenHandle handle : tweens_to_complete_) {
-        TweenState* tween = get_tween(handle);
-        if (tween && !mrb_nil_p(tween->on_complete)) {
-            invoke_callback(mrb, tween->on_complete);
-        }
-    }
-
-    // Update all active sprite animations
+    // Update all active sprite animations with immediate callback invocation
+    std::vector<SpriteAnimationHandle> anim_handles;
+    anim_handles.reserve(animations_.size());
     for (auto& [handle, anim] : animations_) {
         if (anim.should_update()) {
-            update_animation(mrb, anim, dt);
-            if (anim.completed) {
-                animations_to_complete_.push_back(handle);
-            }
+            anim_handles.push_back(handle);
         }
     }
 
-    // Invoke animation completion callbacks
-    for (SpriteAnimationHandle handle : animations_to_complete_) {
+    // Now update animations and invoke callbacks immediately
+    for (SpriteAnimationHandle handle : anim_handles) {
         SpriteAnimationState* anim = get_animation(handle);
-        if (anim && !mrb_nil_p(anim->on_complete)) {
-            invoke_callback(mrb, anim->on_complete);
+        if (anim && anim->should_update()) {
+            update_animation(mrb, *anim, dt);
+
+            // Fire completion callback IMMEDIATELY if completed
+            if (anim->completed && !mrb_nil_p(anim->on_complete)) {
+                invoke_callback(mrb, anim->on_complete);
+            }
         }
     }
 
@@ -329,9 +335,16 @@ void AnimationManager::update_tween(mrb_state* mrb, TweenState& tween, float dt)
 void AnimationManager::update_animation(mrb_state* mrb, SpriteAnimationState& anim, float dt) {
     anim.elapsed += dt;
 
+    // Limit max frames advanced per update to prevent skipping during lag spikes
+    const int MAX_FRAME_ADVANCES = 3;
+    int advances = 0;
+
     // Check if we need to advance frames
-    while (anim.elapsed >= anim.frame_duration && anim.frame_duration > 0.0f) {
+    while (anim.elapsed >= anim.frame_duration &&
+           anim.frame_duration > 0.0f &&
+           advances < MAX_FRAME_ADVANCES) {
         anim.elapsed -= anim.frame_duration;
+        advances++;
 
         int prev_frame = anim.current_frame_index;
         anim.current_frame_index++;
@@ -349,25 +362,33 @@ void AnimationManager::update_animation(mrb_state* mrb, SpriteAnimationState& an
             }
         }
 
-        // Call on_frame_change callback if frame actually changed
-        if (anim.current_frame_index != prev_frame && !mrb_nil_p(anim.on_frame_change)) {
-            mrb_value frame_arg = mrb_fixnum_value(anim.current_frame());
-            invoke_callback_with_args(mrb, anim.on_frame_change, &frame_arg, 1);
+        // Update sprite source rect and call callbacks only when frame actually changed
+        if (anim.current_frame_index != prev_frame) {
+            // Update sprite's source_rect based on current frame
+            SpriteState* sprite = SpriteManager::instance().get(anim.sprite);
+            if (sprite && anim.frame_width > 0 && anim.frame_height > 0) {
+                int frame = anim.current_frame();
+                int col = frame % anim.columns;
+                int row = frame / anim.columns;
+
+                sprite->source_rect.x = static_cast<float>(col * anim.frame_width);
+                sprite->source_rect.y = static_cast<float>(row * anim.frame_height);
+                sprite->source_rect.width = static_cast<float>(anim.frame_width);
+                sprite->source_rect.height = static_cast<float>(anim.frame_height);
+                sprite->use_source_rect = true;
+            }
+
+            // Call on_frame_change callback
+            if (!mrb_nil_p(anim.on_frame_change)) {
+                mrb_value frame_arg = mrb_fixnum_value(anim.current_frame());
+                invoke_callback_with_args(mrb, anim.on_frame_change, &frame_arg, 1);
+            }
         }
     }
 
-    // Update sprite's source_rect based on current frame
-    SpriteState* sprite = SpriteManager::instance().get(anim.sprite);
-    if (sprite && anim.frame_width > 0 && anim.frame_height > 0) {
-        int frame = anim.current_frame();
-        int col = frame % anim.columns;
-        int row = frame / anim.columns;
-
-        sprite->source_rect.x = static_cast<float>(col * anim.frame_width);
-        sprite->source_rect.y = static_cast<float>(row * anim.frame_height);
-        sprite->source_rect.width = static_cast<float>(anim.frame_width);
-        sprite->source_rect.height = static_cast<float>(anim.frame_height);
-        sprite->use_source_rect = true;
+    // If we hit the limit, clamp elapsed to prevent accumulation
+    if (advances >= MAX_FRAME_ADVANCES) {
+        anim.elapsed = 0.0f;
     }
 }
 

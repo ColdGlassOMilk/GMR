@@ -11,6 +11,7 @@
 #include <mruby/variable.h>
 #include <mruby/string.h>
 #include <cstring>
+#include <unordered_map>
 
 // Error handling macros for fail-loud philosophy (per CONTRIBUTING.md)
 #define GMR_REQUIRE_ANIMATOR_DATA(data) \
@@ -244,15 +245,29 @@ static SpriteHandle get_sprite_handle(mrb_state* mrb, mrb_value sprite_val) {
 }
 
 // ============================================================================
-// Helper: Convert Ruby symbol to string
+// Helper: Convert Ruby symbol to string (with caching for performance)
 // ============================================================================
+
+// Cache for symbol-to-string conversions to avoid repeated allocations
+static std::unordered_map<mrb_sym, std::string> g_symbol_cache;
 
 static std::string symbol_to_string(mrb_state* mrb, mrb_value sym) {
     if (!mrb_symbol_p(sym)) return "";
+
     mrb_sym id = mrb_symbol(sym);
+
+    // Check cache first
+    auto it = g_symbol_cache.find(id);
+    if (it != g_symbol_cache.end()) {
+        return it->second;
+    }
+
+    // Cache miss - convert and store
     mrb_int len;
     const char* name = mrb_sym2name_len(mrb, id, &len);
-    return std::string(name, len);
+    std::string result(name, len);
+    g_symbol_cache[id] = result;
+    return result;
 }
 
 // ============================================================================

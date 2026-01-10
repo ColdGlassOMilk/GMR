@@ -9,6 +9,7 @@
 #include "gmr/event/event_queue.hpp"
 #include "gmr/console/console_module.hpp"
 #include "gmr/filesystem/paths.hpp"
+#include "gmr/resources/music_manager.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
@@ -35,7 +36,12 @@ static GameContext g_ctx;
 
 // Global flag for script-initiated shutdown
 // Allows GMR::System.quit to trigger clean shutdown through main loop exit
-static bool g_should_quit = false;
+bool g_should_quit = false;
+
+// Global delta time for consistent timing across C++ and Ruby
+// This ensures Time.delta in Ruby matches the actual frame delta used by C++
+// Note: Not static because it's accessed from window.cpp
+float g_frame_delta = 0.0f;
 
 // Forward declaration
 void game_loop(void* arg);
@@ -51,6 +57,14 @@ void game_loop(void* arg) {
     double current_time = GetTime();
     double dt = current_time - g_ctx.last_time;
     g_ctx.last_time = current_time;
+
+    // Cap delta time to prevent lag spikes (max 20fps minimum frame rate)
+    // This only triggers during severe lag - normal frame variance is fine
+    const double MAX_DELTA = 0.05;  // ~20 fps minimum
+    if (dt > MAX_DELTA) dt = MAX_DELTA;
+
+    // Store for Ruby bindings
+    g_frame_delta = static_cast<float>(dt);
     
     // Update window size tracking - always check on web since browser can resize canvas
     gmr::bindings::update_web_screen_size();
@@ -61,9 +75,6 @@ void game_loop(void* arg) {
         // Reset draw queue for new frame
         gmr::DrawQueue::instance().begin_frame();
 
-        // Update animation system (tweens and sprite animations)
-        gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
-
         // Poll input and enqueue events
         gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
@@ -72,6 +83,9 @@ void game_loop(void* arg) {
 
         // Update state machine system (receives input events via subscription)
         gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
+
+        // Update music streaming (must be called every frame)
+        gmr::MusicManager::instance().update();
 
         // Built-in console update (handles its own input)
         auto& console = gmr::console::ConsoleModule::instance();
@@ -84,6 +98,10 @@ void game_loop(void* arg) {
 
         // Update camera system (after Ruby update to apply bounds immediately)
         gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
+
+        // Update animation system AFTER game logic (tweens and sprite animations)
+        // This ensures animations triggered during update() are advanced immediately
+        gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
@@ -238,6 +256,14 @@ int main(int argc, char* argv[]) {
         double current_time = GetTime();
         double dt = current_time - last_time;
         last_time = current_time;
+
+        // Cap delta time to prevent lag spikes (max 20fps minimum frame rate)
+        // This only triggers during severe lag - normal frame variance is fine
+        const double MAX_DELTA = 0.05;  // ~20 fps minimum
+        if (dt > MAX_DELTA) dt = MAX_DELTA;
+
+        // Store for Ruby bindings
+        g_frame_delta = static_cast<float>(dt);
         
         // Update window size tracking
         if (IsWindowResized() && !state.is_fullscreen) {
@@ -261,9 +287,6 @@ int main(int argc, char* argv[]) {
             // Reset draw queue for new frame
             gmr::DrawQueue::instance().begin_frame();
 
-            // Update animation system (tweens and sprite animations)
-            gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
-
             // Poll input and enqueue events
             gmr::input::InputManager::instance().poll_and_dispatch(mrb);
 
@@ -272,6 +295,9 @@ int main(int argc, char* argv[]) {
 
             // Update state machine system (receives input events via subscription)
             gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
+
+            // Update music streaming (must be called every frame)
+            gmr::MusicManager::instance().update();
 
             // Built-in console update (handles its own input)
             auto& console = gmr::console::ConsoleModule::instance();
@@ -284,6 +310,10 @@ int main(int argc, char* argv[]) {
 
             // Update camera system (after Ruby update to apply bounds immediately)
             gmr::CameraManager::instance().update(mrb, static_cast<float>(dt));
+
+            // Update animation system AFTER game logic (tweens and sprite animations)
+            // This ensures animations triggered during update() are advanced immediately
+            gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
@@ -358,6 +388,7 @@ int main(int argc, char* argv[]) {
     gmr::TransformManager::instance().clear();
     gmr::DrawQueue::instance().clear();
     gmr::SoundManager::instance().clear();
+    gmr::MusicManager::instance().clear();
     gmr::TextureManager::instance().clear();
 
     CloseAudioDevice();

@@ -12,7 +12,17 @@ public:
     
     void play(SoundHandle handle);
     void stop(SoundHandle handle);
+    void pause(SoundHandle handle);
+    void resume(SoundHandle handle);
+    bool is_playing(SoundHandle handle);
+
     void set_volume(SoundHandle handle, float volume);
+    void set_pitch(SoundHandle handle, float pitch);
+    void set_pan(SoundHandle handle, float pan);
+
+    float get_volume(SoundHandle handle);
+    float get_pitch(SoundHandle handle);
+    float get_pan(SoundHandle handle);
     
     SoundManager(const SoundManager&) = delete;
     SoundManager& operator=(const SoundManager&) = delete;

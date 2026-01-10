@@ -3,6 +3,9 @@
 #include "gmr/state.hpp"
 #include <cstdio>
 
+// Global delta time from main loop (defined in main.cpp)
+extern float g_frame_delta;
+
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
@@ -617,7 +620,7 @@ static mrb_value mrb_window_monitor_name(mrb_state* mrb, mrb_value) {
 /// @example # Move at 100 pixels per second regardless of frame rate
 ///   player.x += 100 * GMR::Time.delta
 static mrb_value mrb_time_delta(mrb_state* mrb, mrb_value) {
-    return mrb_float_value(mrb, GetFrameTime());
+    return mrb_float_value(mrb, g_frame_delta);
 }
 
 /// @function elapsed

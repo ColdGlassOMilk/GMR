@@ -1377,11 +1377,295 @@ All classes and modules live under the `GMR` namespace. Use `include GMR` at the
 | `SpriteAnimation` | `.new(sprite, frames:, fps:, loop:, columns:)`, `play`, `pause`, `stop`, `complete?`, `on_complete { }`, `on_frame_change { }` |
 | `Animation::Ease` | `:linear`, `:in_quad`, `:out_quad`, `:in_out_quad`, `:out_back`, `:out_elastic`, `:out_bounce`, etc. |
 
+### Audio
+
+GMR provides a complete audio subsystem for both short sound effects and long-form music streaming.
+
+#### Sound Effects
+
+For short audio like jump sounds, gunshots, UI clicks:
+
+```ruby
+include GMR
+
+def init
+  # Load with optional configuration
+  @jump_sfx = Audio::Sound.load("assets/sfx/jump.wav", volume: 0.7)
+  @coin_sfx = Audio::Sound.load("assets/sfx/coin.ogg", volume: 0.5, pitch: 1.2)
+
+  # Or configure after loading
+  @shoot_sfx = Audio::Sound.load("assets/sfx/shoot.wav")
+  @shoot_sfx.volume = 0.6
+  @shoot_sfx.pitch = 1.0
+  @shoot_sfx.pan = 0.5  # 0.0=left, 0.5=center, 1.0=right
+end
+
+def update(dt)
+  # Play sounds on events
+  @jump_sfx.play if Input.action_pressed?(:jump)
+  @coin_sfx.play if player_collected_coin?
+
+  # Positional audio using pan
+  enemy_screen_x = @camera.world_to_screen(@enemy.position).x
+  @shoot_sfx.pan = Mathf.clamp(enemy_screen_x / Window.width, 0.0, 1.0)
+  @shoot_sfx.play
+
+  # Vary pitch for variety
+  @footstep_sfx.pitch = Mathf.random_float(0.9, 1.1)
+  @footstep_sfx.play
+end
+
+# Control
+@sound.play           # Play from beginning
+@sound.stop           # Stop playback
+@sound.pause          # Pause at current position
+@sound.resume         # Resume from pause
+@sound.playing?       # Check if currently playing
+
+# Properties (getters and setters)
+@sound.volume = 0.8   # 0.0 (silent) to 1.0 (full)
+@sound.pitch = 1.5    # 0.5 (half speed) to 2.0 (double speed)
+@sound.pan = 0.0      # 0.0 (left) to 1.0 (right), 0.5 is center
+vol = @sound.volume   # Read current volume
+```
+
+**Key Features:**
+- **Multiple instances** - Load once, play many times simultaneously
+- **Low latency** - Sounds are fully loaded into memory
+- **Property control** - Volume, pitch, and stereo panning
+- **Supported formats** - WAV (uncompressed, best for SFX), OGG, MP3
+
+#### Music Streaming
+
+For background music and longer audio tracks:
+
+```ruby
+include GMR
+
+def init
+  # Load with optional configuration
+  @music = Audio::Music.load("assets/music/level1.ogg",
+    volume: 0.6,
+    loop: true
+  )
+  @music.play
+
+  # Or configure separately
+  @boss_music = Audio::Music.load("assets/music/boss.ogg")
+  @boss_music.volume = 0.7
+  @boss_music.loop = true
+end
+
+# Playback control
+@music.play           # Start from current position
+@music.stop           # Stop and reset to beginning
+@music.pause          # Pause at current position
+@music.resume         # Resume from pause
+
+# State queries
+@music.playing?       # Is currently playing?
+@music.loaded?        # Is music loaded and valid?
+
+# Properties
+@music.volume = 0.5   # Volume (0.0-1.0)
+@music.pitch = 0.8    # Pitch/speed (0.5-2.0)
+@music.pan = 0.5      # Stereo pan (0.0-1.0)
+@music.loop = true    # Enable/disable looping
+
+# Read properties
+current_vol = @music.volume
+is_looping = @music.loop
+
+# Time control (music-specific)
+@music.seek(30.0)     # Jump to 30 seconds
+length = @music.length       # Total length in seconds
+pos = @music.position        # Current position in seconds
+
+# Progress bar example
+def draw_music_progress
+  progress = @music.position / @music.length
+  bar_width = 200
+  Graphics.draw_rect(10, 10, bar_width * progress, 10, :green)
+  Graphics.draw_text("#{@music.position.to_i} / #{@music.length.to_i}", 10, 25, 16, :white)
+end
+```
+
+#### Dynamic Music System
+
+Switch between different music tracks based on game state:
+
+```ruby
+class MusicController
+  def initialize
+    @tracks = {
+      menu: Audio::Music.load("assets/music/menu.ogg", volume: 0.6, loop: true),
+      explore: Audio::Music.load("assets/music/explore.ogg", volume: 0.5, loop: true),
+      combat: Audio::Music.load("assets/music/combat.ogg", volume: 0.7, loop: true),
+      boss: Audio::Music.load("assets/music/boss.ogg", volume: 0.8, loop: true)
+    }
+    @current = nil
+  end
+
+  def switch_to(track_name)
+    return if @current == @tracks[track_name]
+
+    @current&.stop
+    @current = @tracks[track_name]
+    @current.play
+  end
+
+  def fade_to(track_name, duration: 1.0)
+    new_track = @tracks[track_name]
+    return if @current == new_track
+
+    # Fade out current
+    if @current
+      Tween.to(@current, :volume, 0.0, duration: duration * 0.5)
+        .on_complete do
+          @current.stop
+          @current.volume = 0.6  # Reset for next time
+        end
+    end
+
+    # Fade in new
+    new_track.volume = 0.0
+    new_track.play
+    Tween.to(new_track, :volume, 0.6, duration: duration * 0.5)
+    @current = new_track
+  end
+
+  def update_for_game_state(player)
+    if player.in_boss_fight?
+      switch_to(:boss)
+    elsif player.in_combat?
+      switch_to(:combat)
+    else
+      switch_to(:explore)
+    end
+  end
+end
+
+def init
+  @music_controller = MusicController.new
+  @music_controller.switch_to(:menu)
+end
+```
+
+#### Layered Music System
+
+Create dynamic soundscapes by layering multiple music tracks:
+
+```ruby
+class LayeredMusic
+  def initialize
+    @base = Audio::Music.load("assets/music/base.ogg", volume: 0.6, loop: true)
+    @drums = Audio::Music.load("assets/music/drums.ogg", volume: 0.0, loop: true)
+    @melody = Audio::Music.load("assets/music/melody.ogg", volume: 0.0, loop: true)
+
+    # Start all tracks synchronized
+    @base.play
+    @drums.play
+    @melody.play
+  end
+
+  def set_intensity(level)
+    # level: 0 (calm) to 1.0 (intense)
+    @drums.volume = Mathf.lerp(0.0, 0.7, level)
+    @melody.volume = Mathf.lerp(0.0, 0.8, Mathf.clamp(level - 0.3, 0.0, 1.0))
+  end
+
+  def update(player)
+    # Dynamically adjust based on nearby enemies
+    intensity = Mathf.clamp(player.nearby_enemies.length / 5.0, 0.0, 1.0)
+    set_intensity(intensity)
+  end
+end
+```
+
+#### Audio Settings & Accessibility
+
+Provide user-configurable audio settings:
+
+```ruby
+class AudioSettings
+  def initialize
+    @master_volume = Storage.get(:master_volume, 100) / 100.0
+    @music_volume = Storage.get(:music_volume, 80) / 100.0
+    @sfx_volume = Storage.get(:sfx_volume, 100) / 100.0
+  end
+
+  def set_master_volume(volume)
+    @master_volume = Mathf.clamp(volume, 0.0, 1.0)
+    Storage.set(:master_volume, (@master_volume * 100).to_i)
+    update_all_audio
+  end
+
+  def set_music_volume(volume)
+    @music_volume = Mathf.clamp(volume, 0.0, 1.0)
+    Storage.set(:music_volume, (@music_volume * 100).to_i)
+    @music&.volume = @music_volume * @master_volume
+  end
+
+  def set_sfx_volume(volume)
+    @sfx_volume = Mathf.clamp(volume, 0.0, 1.0)
+    Storage.set(:sfx_volume, (@sfx_volume * 100).to_i)
+    update_all_sfx
+  end
+
+  def effective_sfx_volume
+    @sfx_volume * @master_volume
+  end
+
+  def effective_music_volume
+    @music_volume * @master_volume
+  end
+end
+
+# Usage in game
+def init
+  @audio_settings = AudioSettings.new
+
+  @music = Audio::Music.load("assets/music/level1.ogg", loop: true)
+  @music.volume = @audio_settings.effective_music_volume
+  @music.play
+
+  @jump_sfx = Audio::Sound.load("assets/sfx/jump.wav")
+  @jump_sfx.volume = @audio_settings.effective_sfx_volume
+end
+```
+
+#### Best Practices
+
+**Sound Effects:**
+- Use WAV for short, frequently-played sounds (lowest latency)
+- Use OGG for longer sound effects to save memory
+- Keep individual sound files under 1-2 seconds when possible
+- Vary pitch slightly for repeated sounds to avoid repetition fatigue
+- Use pan for spatial audio cues (directional feedback)
+
+**Music:**
+- Use OGG format for best compression/quality ratio
+- Keep music files under 5MB for fast loading
+- Always enable looping for background music
+- Preload all music tracks during level load, not during gameplay
+- Use seek() to create seamless transitions between song sections
+
+**Performance:**
+- Limit simultaneous sound effects to ~10-15 for best performance
+- Music streams from disk - only one track plays at a time (by design)
+- Unload unused sounds in large games to free memory
+
+**Format Support:**
+- **WAV** - Uncompressed, best for short SFX, larger file size
+- **OGG** - Vorbis compression, best for music, good quality/size ratio
+- **MP3** - Compressed, widely compatible, slight quality loss
+
 ### GMR::Audio
 
 | Class/Module | Key Methods |
 |--------------|-------------|
-| `Audio::Sound` | `.load(path)`, `play`, `stop`, `volume=` |
+| `Audio::Sound` | `.load(path, volume:, pitch:, pan:)`, `play`, `stop`, `pause`, `resume`, `playing?`, `volume`, `volume=`, `pitch`, `pitch=`, `pan`, `pan=` |
+| `Audio::Music` | `.load(path, volume:, pitch:, pan:, loop:)`, `play`, `stop`, `pause`, `resume`, `playing?`, `loaded?`, `volume`, `volume=`, `pitch`, `pitch=`, `pan`, `pan=`, `loop`, `loop=`, `seek(seconds)`, `length`, `position` |
 
 ### GMR::Input
 
