@@ -123,6 +123,11 @@
       "module": "GMR::Audio::Sound",
       "description": "TODO: Add description"
     },
+    "Music": {
+      "kind": "class",
+      "module": "GMR::Audio::Music",
+      "description": "TODO: Add description"
+    },
     "Camera2D": {
       "kind": "class",
       "module": "Camera2D",
@@ -1724,7 +1729,7 @@
       "description": "TODO: Add description",
       "functions": {
         "quit": {
-          "description": "Immediately exit the application. Closes the window and terminates the process.",
+          "description": "Exit the application cleanly. On native platforms, triggers proper shutdown through the main loop. On web, this is a no-op (user must close the browser tab).",
           "returns": {
             "type": "nil"
           },
@@ -2328,6 +2333,11 @@
               "name": "path",
               "type": "String",
               "description": "Path to the audio file"
+            },
+            {
+              "name": "options",
+              "type": "Hash",
+              "description": "Optional configuration"
             }
           ],
           "returns": {
@@ -2337,7 +2347,7 @@
           "raises": [
             "RuntimeError If the file cannot be loaded"
           ],
-          "example": "jump_sound = GMR::Audio::Sound.load(\"assets/sfx/jump.wav\")"
+          "example": "jump_sound = GMR::Audio::Sound.load(\"assets/sfx/jump.wav\", volume: 0.7, pitch: 1.2)"
         }
       },
       "instanceMethods": {
@@ -2369,6 +2379,279 @@
             "description": "The volume that was set"
           },
           "example": "sound.volume = 0.5  # Half volume"
+        },
+        "pause": {
+          "description": "Pause the sound if it's currently playing.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "sound.pause"
+        },
+        "resume": {
+          "description": "Resume the sound if it was paused.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "sound.resume"
+        },
+        "playing?": {
+          "description": "Check if the sound is currently playing.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the sound is playing, false otherwise"
+          },
+          "example": "if sound.playing? then puts \"Playing!\" end"
+        },
+        "pitch=": {
+          "description": "Set the playback pitch for this sound.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Pitch multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The pitch that was set"
+          },
+          "example": "sound.pitch = 1.5  # Play 50% faster"
+        },
+        "pan=": {
+          "description": "Set the stereo pan for this sound.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Pan value from 0.0 (left) to 1.0 (right), 0.5 is center"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The pan value that was set"
+          },
+          "example": "sound.pan = 0.0  # Full left"
+        },
+        "volume": {
+          "description": "Get the current volume level for this sound.",
+          "returns": {
+            "type": "Float",
+            "description": "Current volume (0.0-1.0)"
+          },
+          "example": "vol = sound.volume"
+        },
+        "pitch": {
+          "description": "Get the current pitch for this sound.",
+          "returns": {
+            "type": "Float",
+            "description": "Current pitch multiplier"
+          },
+          "example": "p = sound.pitch"
+        },
+        "pan": {
+          "description": "A streaming music player for longer audio tracks. Music is streamed from disk rather than loaded entirely into memory, making it suitable for background music and longer audio files.",
+          "returns": {
+            "type": "Float",
+            "description": "Current pan value (0.0-1.0)"
+          },
+          "example": "# Dynamic music transitions\n  class GameMusic\r\n    def initialize\r"
+        }
+      }
+    },
+    "GMR::Audio::Music": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "classMethods": {
+        "load": {
+          "description": "Load a music file for streaming. Supports OGG, MP3, WAV, and other formats.",
+          "params": [
+            {
+              "name": "path",
+              "type": "String",
+              "description": "Path to the music file"
+            },
+            {
+              "name": "opts",
+              "type": "Hash",
+              "description": "Optional hash with volume:, pitch:, pan:, and/or loop: keys"
+            }
+          ],
+          "returns": {
+            "type": "Music",
+            "description": "The loaded music object"
+          },
+          "raises": [
+            "RuntimeError If the file cannot be loaded"
+          ],
+          "example": "music = GMR::Audio::Music.load(\"assets/music/level1.ogg\", volume: 0.7, loop: true)"
+        }
+      },
+      "instanceMethods": {
+        "play": {
+          "description": "Start playing the music from the current position.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "music.play"
+        },
+        "stop": {
+          "description": "Stop playing the music and reset position to beginning.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "music.stop"
+        },
+        "pause": {
+          "description": "Pause the music at the current position.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "music.pause"
+        },
+        "resume": {
+          "description": "Resume playing paused music.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "music.resume"
+        },
+        "playing?": {
+          "description": "Check if the music is currently playing.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if playing, false otherwise"
+          },
+          "example": "if music.playing? then puts \"Music is playing!\" end"
+        },
+        "loaded?": {
+          "description": "Check if valid music is loaded.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if music is loaded, false otherwise"
+          },
+          "example": "if music.loaded? then music.play end"
+        },
+        "volume=": {
+          "description": "Set the playback volume for the music.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Volume level from 0.0 (silent) to 1.0 (full volume)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The volume that was set"
+          },
+          "example": "music.volume = 0.7"
+        },
+        "volume": {
+          "description": "Get the current volume level.",
+          "returns": {
+            "type": "Float",
+            "description": "Current volume (0.0-1.0)"
+          },
+          "example": "vol = music.volume"
+        },
+        "pitch=": {
+          "description": "Set the playback pitch for the music.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Pitch multiplier (1.0 = normal, 0.5 = half speed, 2.0 = double speed)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The pitch that was set"
+          },
+          "example": "music.pitch = 0.8  # Slower playback"
+        },
+        "pitch": {
+          "description": "Get the current pitch.",
+          "returns": {
+            "type": "Float",
+            "description": "Current pitch multiplier"
+          },
+          "example": "p = music.pitch"
+        },
+        "pan=": {
+          "description": "Set the stereo pan for the music.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Pan value from 0.0 (left) to 1.0 (right), 0.5 is center"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The pan value that was set"
+          },
+          "example": "music.pan = 0.3  # Slightly left"
+        },
+        "pan": {
+          "description": "Get the current stereo pan.",
+          "returns": {
+            "type": "Float",
+            "description": "Current pan value (0.0-1.0)"
+          },
+          "example": "p = music.pan"
+        },
+        "loop=": {
+          "description": "Enable or disable music looping.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "true to enable looping, false to disable"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The loop value that was set"
+          },
+          "example": "music.loop = true"
+        },
+        "loop": {
+          "description": "Check if looping is enabled.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if looping, false otherwise"
+          },
+          "example": "if music.loop then puts \"Looping!\" end"
+        },
+        "seek": {
+          "description": "Seek to a specific position in the music.",
+          "params": [
+            {
+              "name": "position",
+              "type": "Float",
+              "description": "Position in seconds"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "music.seek(30.0)  # Jump to 30 seconds"
+        },
+        "length": {
+          "description": "Get the total length of the music in seconds.",
+          "returns": {
+            "type": "Float",
+            "description": "Total length in seconds"
+          },
+          "example": "puts \"Music is #{music.length} seconds long\""
+        },
+        "position": {
+          "description": "Get the current playback position in seconds.",
+          "returns": {
+            "type": "Float",
+            "description": "Current position in seconds"
+          },
+          "example": "puts \"At #{music.position} / #{music.length}\""
         }
       }
     },

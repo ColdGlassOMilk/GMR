@@ -201,6 +201,13 @@
     </div>
 
     <script>
+        // Helper to format bytes as human-readable sizes
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
         var Module = {
             canvas: (function() {
                 var canvas = document.getElementById('canvas');
@@ -210,52 +217,104 @@
                 }, false);
                 return canvas;
             })(),
-            
+
+            // Track loading phases
+            loadingPhase: 'download', // 'download', 'prepare', 'init'
+            downloadProgress: 0,
+            downloadTotal: 0,
+
             setStatus: function(text) {
                 var status = document.getElementById('status');
                 var loading = document.getElementById('loading');
                 var progressBar = document.getElementById('progress-bar');
-                
+
                 if (text) {
-                    // Parse progress from status text
-                    var match = text.match(/(\d+)\/(\d+)/);
-                    if (match) {
-                        var progress = (parseInt(match[1]) / parseInt(match[2])) * 100;
-                        progressBar.style.width = progress + '%';
+                    var displayText = text;
+                    var progress = 0;
+
+                    // Parse download progress: "Downloading data... (X/Y)"
+                    var downloadMatch = text.match(/Downloading[^(]*\((\d+)\/(\d+)\)/);
+                    if (downloadMatch) {
+                        var loaded = parseInt(downloadMatch[1]);
+                        var total = parseInt(downloadMatch[2]);
+                        this.downloadProgress = loaded;
+                        this.downloadTotal = total;
+                        this.loadingPhase = 'download';
+
+                        // Download phase is 0-80% of total progress
+                        progress = (loaded / total) * 80;
+                        displayText = 'Downloading: ' + formatBytes(loaded) + ' / ' + formatBytes(total) + ' (' + Math.round((loaded / total) * 100) + '%)';
                     }
-                    
-                    // Clean up status text for display
-                    var displayText = text.replace(/Downloading[^(]*\(/, 'Loading (');
+                    // Parse preparation progress: "Preparing... (X/Y)"
+                    else if (text.indexOf('Preparing') !== -1) {
+                        var prepMatch = text.match(/\((\d+)\/(\d+)\)/);
+                        if (prepMatch) {
+                            var completed = parseInt(prepMatch[1]);
+                            var total = parseInt(prepMatch[2]);
+                            this.loadingPhase = 'prepare';
+
+                            // Preparation phase is 80-95% of total progress
+                            progress = 80 + (completed / total) * 15;
+                            displayText = 'Preparing assets: ' + completed + ' / ' + total;
+                        } else {
+                            progress = 80;
+                            displayText = 'Preparing assets...';
+                        }
+                    }
+                    // Handle "Running..." or initialization
+                    else if (text.indexOf('Running') !== -1 || text.indexOf('Initializing') !== -1) {
+                        this.loadingPhase = 'init';
+                        progress = 95;
+                        displayText = 'Initializing engine...';
+                    }
+                    // Fallback: try to parse any X/Y pattern
+                    else {
+                        var genericMatch = text.match(/(\d+)\/(\d+)/);
+                        if (genericMatch) {
+                            var current = parseInt(genericMatch[1]);
+                            var total = parseInt(genericMatch[2]);
+                            progress = (current / total) * 100;
+                            displayText = text;
+                        }
+                    }
+
+                    progressBar.style.width = Math.min(progress, 100) + '%';
                     status.textContent = displayText;
                 }
-                
+
                 // Hide loading when done
                 if (!text || text === '') {
-                    loading.style.display = 'none';
-                    document.getElementById('fullscreen-btn').disabled = false;
-                    document.getElementById('mute-btn').disabled = false;
+                    progressBar.style.width = '100%';
+                    status.textContent = 'Complete!';
+                    setTimeout(function() {
+                        loading.style.display = 'none';
+                        document.getElementById('fullscreen-btn').disabled = false;
+                        document.getElementById('mute-btn').disabled = false;
+                    }, 200);
                 }
             },
-            
+
             onRuntimeInitialized: function() {
                 console.log('GMR runtime initialized');
                 Module.setStatus('');
             },
-            
+
             totalDependencies: 0,
             monitorRunDependencies: function(left) {
                 this.totalDependencies = Math.max(this.totalDependencies, left);
                 if (left) {
-                    Module.setStatus('Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')');
+                    var completed = this.totalDependencies - left;
+                    Module.setStatus('Preparing... (' + completed + '/' + this.totalDependencies + ')');
                 } else {
-                    Module.setStatus('');
+                    // All dependencies loaded, but don't clear status yet - wait for onRuntimeInitialized
+                    Module.setStatus('Initializing...');
                 }
             },
-            
+
             print: function(text) {
                 console.log(text);
             },
-            
+
             printErr: function(text) {
                 console.error(text);
             }

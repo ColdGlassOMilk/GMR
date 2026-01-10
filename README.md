@@ -80,7 +80,7 @@ def init
   @transform = Transform2D.new(x: 400, y: 300)
 
   # Load texture and create sprite with transform
-  @texture = Texture.load("assets/player.png")
+  @texture = Texture.load("player.png")
   @sprite = Sprite.new(@texture, @transform)
   @sprite.center_origin  # Sets origin on the transform
 
@@ -318,7 +318,7 @@ end
 
 ```ruby
 # Load texture once
-@texture = Texture.load("assets/player.png")
+@texture = Texture.load("player.png")
 
 # Create transform for spatial properties
 @transform = Transform2D.new(
@@ -359,7 +359,7 @@ puts "Position: #{transform.x}, #{transform.y}"
 ```ruby
 # Create tilemap from tileset texture
 @tilemap = Tilemap.new(
-  Texture.load("assets/tiles.png"),
+  Texture.load("tiles.png"),
   16, 16,    # Tile width, height
   100, 50    # Map width, height in tiles
 )
@@ -506,7 +506,7 @@ include GMR
 class Player
   def initialize(x, y)
     @x, @y = x, y
-    @sprite = Sprite.new(Texture.load("assets/player.png"))
+    @sprite = Sprite.new(Texture.load("player.png"))
     @on_ground = true
     @stamina = 100
 
@@ -664,7 +664,7 @@ end
 For direct control over frame-based animations:
 
 ```ruby
-@sprite = Sprite.new(Texture.load("assets/player.png"))
+@sprite = Sprite.new(Texture.load("player.png"))
 
 # Create animation
 @walk_anim = SpriteAnimation.new(@sprite,
@@ -855,17 +855,15 @@ File.write_json("profiles/player.json", player_data, root: :data)
 
 *Native builds:*
 - `:assets` → `game/assets/` (read-only game content)
-- `:data` → `game/assets/data/` (writable save files, inside assets folder)
+- `:data` → `game/data/` (writable save files)
 - Files persist to disk immediately
 - Hot-reload friendly (assets can be edited while game runs)
-- Data inside assets folder ensures it's packaged for web builds
 
 *Web builds:*
 - `:assets` → `/assets/` (preloaded from WASM package, read-only)
-- `:data` → `/assets/data/` (IDBFS mount, persisted to IndexedDB)
+- `:data` → `/data/` (IDBFS mount, persisted to IndexedDB)
 - Writes automatically sync to browser's IndexedDB storage
 - Data survives page refreshes and browser restarts
-- Directory structure matches native builds
 
 **Security:**
 - Paths are validated to prevent directory traversal (`..` rejected)
@@ -967,7 +965,7 @@ def init
 
   # Transform and sprite setup
   @transform = Transform2D.new(x: 100, y: 300)
-  @sprite = Sprite.new(Texture.load("assets/player.png"), @transform)
+  @sprite = Sprite.new(Texture.load("player.png"), @transform)
   @sprite.center_origin
 
   # Animation lookup for state machine
@@ -1087,7 +1085,7 @@ class Player
     @on_ground = false
     @facing = 1
 
-    @sprite = Sprite.new(Texture.load("assets/player.png"), @transform)
+    @sprite = Sprite.new(Texture.load("player.png"), @transform)
     @sprite.center_origin
 
     @animations = {
@@ -1390,11 +1388,11 @@ include GMR
 
 def init
   # Load with optional configuration
-  @jump_sfx = Audio::Sound.load("assets/sfx/jump.wav", volume: 0.7)
-  @coin_sfx = Audio::Sound.load("assets/sfx/coin.ogg", volume: 0.5, pitch: 1.2)
+  @jump_sfx = Audio::Sound.load("sfx/jump.wav", volume: 0.7)
+  @coin_sfx = Audio::Sound.load("sfx/coin.ogg", volume: 0.5, pitch: 1.2)
 
   # Or configure after loading
-  @shoot_sfx = Audio::Sound.load("assets/sfx/shoot.wav")
+  @shoot_sfx = Audio::Sound.load("sfx/shoot.wav")
   @shoot_sfx.volume = 0.6
   @shoot_sfx.pitch = 1.0
   @shoot_sfx.pan = 0.5  # 0.0=left, 0.5=center, 1.0=right
@@ -1444,14 +1442,14 @@ include GMR
 
 def init
   # Load with optional configuration
-  @music = Audio::Music.load("assets/music/level1.ogg",
+  @music = Audio::Music.load("music/level1.ogg",
     volume: 0.6,
     loop: true
   )
   @music.play
 
   # Or configure separately
-  @boss_music = Audio::Music.load("assets/music/boss.ogg")
+  @boss_music = Audio::Music.load("music/boss.ogg")
   @boss_music.volume = 0.7
   @boss_music.loop = true
 end
@@ -1498,10 +1496,10 @@ Switch between different music tracks based on game state:
 class MusicController
   def initialize
     @tracks = {
-      menu: Audio::Music.load("assets/music/menu.ogg", volume: 0.6, loop: true),
-      explore: Audio::Music.load("assets/music/explore.ogg", volume: 0.5, loop: true),
-      combat: Audio::Music.load("assets/music/combat.ogg", volume: 0.7, loop: true),
-      boss: Audio::Music.load("assets/music/boss.ogg", volume: 0.8, loop: true)
+      menu: Audio::Music.load("music/menu.ogg", volume: 0.6, loop: true),
+      explore: Audio::Music.load("music/explore.ogg", volume: 0.5, loop: true),
+      combat: Audio::Music.load("music/combat.ogg", volume: 0.7, loop: true),
+      boss: Audio::Music.load("music/boss.ogg", volume: 0.8, loop: true)
     }
     @current = nil
   end
@@ -1558,9 +1556,9 @@ Create dynamic soundscapes by layering multiple music tracks:
 ```ruby
 class LayeredMusic
   def initialize
-    @base = Audio::Music.load("assets/music/base.ogg", volume: 0.6, loop: true)
-    @drums = Audio::Music.load("assets/music/drums.ogg", volume: 0.0, loop: true)
-    @melody = Audio::Music.load("assets/music/melody.ogg", volume: 0.0, loop: true)
+    @base = Audio::Music.load("music/base.ogg", volume: 0.6, loop: true)
+    @drums = Audio::Music.load("music/drums.ogg", volume: 0.0, loop: true)
+    @melody = Audio::Music.load("music/melody.ogg", volume: 0.0, loop: true)
 
     # Start all tracks synchronized
     @base.play
@@ -1625,11 +1623,11 @@ end
 def init
   @audio_settings = AudioSettings.new
 
-  @music = Audio::Music.load("assets/music/level1.ogg", loop: true)
+  @music = Audio::Music.load("music/level1.ogg", loop: true)
   @music.volume = @audio_settings.effective_music_volume
   @music.play
 
-  @jump_sfx = Audio::Sound.load("assets/sfx/jump.wav")
+  @jump_sfx = Audio::Sound.load("sfx/jump.wav")
   @jump_sfx.volume = @audio_settings.effective_sfx_volume
 end
 ```

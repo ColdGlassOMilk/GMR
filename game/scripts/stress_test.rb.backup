@@ -250,7 +250,7 @@ def init
   @time = 0.0
 
   # === LOAD SPRITE TEXTURE ===
-  @tex = Texture.load("assets/logo.png")
+  @tex = Texture.load("logo.png")
 
   # === CREATE INITIAL DEPTH OBJECTS ===
   @objects = spawn_objects(500, @tex)

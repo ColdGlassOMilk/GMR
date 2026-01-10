@@ -10,6 +10,9 @@ include(cmake/CompileScripts.cmake)
 
 # API documentation generation option (disabled by default - use 'gmrcli setup' instead)
 option(GMR_GENERATE_API_DOCS "Generate API documentation during build (normally handled by gmrcli setup)" OFF)
+
+# Link-Time Optimization for smaller Release builds (slower compile times)
+option(GMR_ENABLE_LTO "Enable Link-Time Optimization for Release builds" OFF)
 if(GMR_GENERATE_API_DOCS)
     include(cmake/GenerateAPIDocs.cmake)
 endif()
@@ -268,6 +271,28 @@ elseif(WIN32)
         -static-libstdc++
         $<$<CONFIG:Release>:-mwindows>
     )
+
+    # Size optimization for Release builds
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            -Os                      # Optimize for size over speed
+            -ffunction-sections      # Place each function in own section
+            -fdata-sections          # Place each data item in own section
+            -fno-rtti                # Disable runtime type info (verified safe)
+        )
+
+        target_link_options(${PROJECT_NAME} PRIVATE
+            -Wl,--gc-sections        # Remove unused sections (dead code elimination)
+            -Wl,--strip-all          # Strip all symbols from Release binary
+        )
+
+        # Optional Link-Time Optimization (significant size reduction, slower builds)
+        if(GMR_ENABLE_LTO)
+            target_compile_options(${PROJECT_NAME} PRIVATE -flto=auto)
+            target_link_options(${PROJECT_NAME} PRIVATE -flto=auto)
+            message(STATUS "LTO enabled for Release build")
+        endif()
+    endif()
 
 elseif(APPLE)
     # ===========================================

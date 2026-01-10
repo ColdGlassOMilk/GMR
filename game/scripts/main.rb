@@ -98,9 +98,9 @@ def init
   Console.enable(height: 150).allow_ruby_eval
 
   # === AUDIO ===
-  @jump_sound = Audio::Sound.load("assets/sfx/jump.mp3", volume: SFX_VOLUME)
-  @attack_sound = Audio::Sound.load("assets/sfx/sword_swing.mp3", volume: SFX_VOLUME + 1)
-  @music = Audio::Music.load("assets/music/jungle.mp3", volume: MUSIC_VOLUME, loop: true)
+  @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME)
+  @attack_sound = Audio::Sound.load("sfx/sword_swing.mp3", volume: SFX_VOLUME + 1)
+  @music = Audio::Music.load("music/jungle.mp3", volume: MUSIC_VOLUME, loop: true)
   @music.play
 
   # === INPUT MAPPING (with method chaining) ===
@@ -122,9 +122,9 @@ def init
   deadzone = Graphics::Rect.new(deadzone_x, deadzone_y, CAMERA_DEADZONE_WIDTH, CAMERA_DEADZONE_HEIGHT)
 
   # === PARALLAX BACKGROUNDS ===
-  @bg1_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_1.png")
-  @bg2_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_2.png")
-  @bg3_tex = Graphics::Texture.load("assets/oak_woods/background/background_layer_3.png")
+  @bg1_tex = Graphics::Texture.load("oak_woods/background/background_layer_1.png")
+  @bg2_tex = Graphics::Texture.load("oak_woods/background/background_layer_2.png")
+  @bg3_tex = Graphics::Texture.load("oak_woods/background/background_layer_3.png")
 
   # Scale backgrounds for retro resolution
   bg_scale = 1.5
@@ -159,7 +159,7 @@ def init
   @bg3_speed = 0.5
 
   # === TILEMAP ===
-  @tileset_tex = Graphics::Texture.load("assets/oak_woods/oak_woods_tileset.png")
+  @tileset_tex = Graphics::Texture.load("oak_woods/oak_woods_tileset.png")
   @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT)
 
   # Define tile properties - all ground tiles are solid
@@ -198,7 +198,7 @@ def init
 
   # === CHARACTER ===
   begin
-    @char_tex = Graphics::Texture.load("assets/oak_woods/character/char_blue.png")
+    @char_tex = Graphics::Texture.load("oak_woods/character/char_blue.png")
   rescue
     @char_tex = @tileset_tex
   end

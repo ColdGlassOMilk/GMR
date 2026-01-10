@@ -172,42 +172,35 @@ int main(int argc, char* argv[]) {
     InitWindow(state.screen_width, state.screen_height, "GMR");
     InitAudioDevice();
 
-    // Initialize Emscripten FS for writable /assets/data directory backed by IndexedDB
-    // Note: /assets is preloaded as read-only, but we create a writable /assets/data subdirectory
+    // Initialize Emscripten FS for writable /data directory backed by IndexedDB
+    // Note: /assets is preloaded as read-only, so we use a separate /data directory
     EM_ASM({
         try {
-            // Try to create /assets/data directory
-            // This may fail if /assets doesn't exist or isn't a directory yet
+            // Create writable /data directory (separate from preloaded /assets)
             try {
-                FS.mkdir('/assets/data');
+                FS.mkdir('/data');
             } catch (e) {
-                // If EEXIST, directory already exists - that's fine
-                // If ENOTDIR, /assets might not be mounted yet - try creating /assets first
-                if (e.errno === 20) { // ENOTDIR
-                    console.log('Creating /assets directory first...');
-                    try {
-                        FS.mkdir('/assets');
-                    } catch (e2) {
-                        if (e2.code !== 'EEXIST') {
-                            console.error('Failed to create /assets:', e2);
-                        }
-                    }
-                    FS.mkdir('/assets/data');
-                } else if (e.code !== 'EEXIST') {
-                    throw e;
+                if (e.code !== 'EEXIST') {
+                    console.error('Failed to create /data:', e);
+                    return;
                 }
             }
 
             // Mount IDBFS for persistence
-            FS.mount(IDBFS, {}, '/assets/data');
+            FS.mount(IDBFS, {}, '/data');
 
-            // Synchronously load existing data from IndexedDB
+            // Load existing data from IndexedDB
             FS.syncfs(true, function(err) {
-                if (err) console.error('IDBFS sync failed (load):', err);
-                else console.log('IDBFS initialized and synced from IndexedDB');
+                if (err) {
+                    console.error('IDBFS sync failed:', err);
+                    console.warn('Save data will not persist between sessions');
+                } else {
+                    console.log('IDBFS initialized');
+                }
             });
         } catch (e) {
-            console.error('Failed to initialize IDBFS:', e);
+            console.error('IDBFS init failed:', e);
+            console.warn('Storage persistence disabled');
         }
     });
 
@@ -234,6 +227,7 @@ int main(int argc, char* argv[]) {
     SetExitKey(0);
 
     // Ensure game/data directory exists for writable storage
+    // This matches the path resolution in filesystem/paths.cpp
     try {
         std::filesystem::create_directories("game/data");
     } catch (...) {

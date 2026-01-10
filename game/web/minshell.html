@@ -5,18 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GMR</title>
     <style>
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column; }
         canvas { display: block; }
-        #loading { color: #fff; font-family: sans-serif; position: absolute; }
+        #loading { color: #fff; font-family: sans-serif; position: absolute; text-align: center; }
+        #progress { width: 200px; height: 4px; background: #333; margin-top: 8px; border-radius: 2px; overflow: hidden; }
+        #progress-bar { height: 100%; background: #e94560; width: 0%; transition: width 0.2s; }
+        #status { font-size: 12px; color: #888; margin-top: 4px; }
     </style>
 </head>
 <body>
-    <div id="loading">Loading...</div>
+    <div id="loading">
+        Loading...
+        <div id="progress"><div id="progress-bar"></div></div>
+        <div id="status"></div>
+    </div>
     <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
     <script>
+        function formatBytes(b) {
+            if (b < 1024) return b + ' B';
+            if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+            return (b / 1048576).toFixed(1) + ' MB';
+        }
         var Module = {
             canvas: document.getElementById('canvas'),
-            setStatus: function(t) { document.getElementById('loading').style.display = t ? 'block' : 'none'; },
+            totalDependencies: 0,
+            setStatus: function(t) {
+                var loading = document.getElementById('loading');
+                var bar = document.getElementById('progress-bar');
+                var status = document.getElementById('status');
+                if (!t) {
+                    bar.style.width = '100%';
+                    setTimeout(function() { loading.style.display = 'none'; }, 200);
+                    return;
+                }
+                var dl = t.match(/Downloading[^(]*\((\d+)\/(\d+)\)/);
+                if (dl) {
+                    var loaded = parseInt(dl[1]), total = parseInt(dl[2]);
+                    bar.style.width = (loaded / total * 80) + '%';
+                    status.textContent = formatBytes(loaded) + ' / ' + formatBytes(total) + ' (' + Math.round(loaded / total * 100) + '%)';
+                } else if (t.indexOf('Preparing') !== -1) {
+                    var m = t.match(/\((\d+)\/(\d+)\)/);
+                    if (m) bar.style.width = (80 + parseInt(m[1]) / parseInt(m[2]) * 15) + '%';
+                    status.textContent = 'Preparing assets...';
+                } else if (t.indexOf('Initializing') !== -1) {
+                    bar.style.width = '95%';
+                    status.textContent = 'Initializing...';
+                }
+            },
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                if (left) {
+                    Module.setStatus('Preparing... (' + (this.totalDependencies - left) + '/' + this.totalDependencies + ')');
+                } else {
+                    Module.setStatus('Initializing...');
+                }
+            },
             onRuntimeInitialized: function() { Module.setStatus(''); }
         };
     </script>

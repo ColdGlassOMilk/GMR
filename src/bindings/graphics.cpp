@@ -52,8 +52,8 @@ static bool is_transform2d(mrb_state* mrb, mrb_value val) {
 ///   class HUD
 ///     def initialize(player)
 ///       @player = player
-///       @font = GMR::Graphics::Font.load("assets/fonts/pixel.ttf", 16)
-///       @heart_icon = GMR::Graphics::Texture.load("assets/ui/heart.png")
+///       @font = GMR::Graphics::Font.load("fonts/pixel.ttf", 16)
+///       @heart_icon = GMR::Graphics::Texture.load("ui/heart.png")
 ///     end
 ///
 ///     def draw
@@ -864,10 +864,10 @@ static TextureData* get_texture_data(mrb_state* mrb, mrb_value self) {
 
 /// @classmethod load
 /// @description Load a texture from a file. Supports PNG, JPG, BMP, and other common formats.
-/// @param path [String] Path to the image file (relative to game root)
+/// @param path [String] Path to the image file (relative to assets folder)
 /// @returns [Texture] The loaded texture object
 /// @raises [RuntimeError] if the file cannot be loaded
-/// @example sprite = GMR::Graphics::Texture.load("assets/player.png")
+/// @example sprite = GMR::Graphics::Texture.load("player.png")
 // GMR::Graphics::Texture.load(path) - class method
 static mrb_value mrb_texture_load(mrb_state* mrb, mrb_value klass) {
     const char* path;
@@ -1079,7 +1079,7 @@ TilemapData* get_tilemap_from_value(mrb_state* mrb, mrb_value tilemap_obj) {
 /// @param height [Integer] Map height in tiles
 /// @returns [Tilemap] The new tilemap object
 /// @raises [ArgumentError] if dimensions are not positive
-/// @example tileset = GMR::Graphics::Texture.load("assets/tiles.png")
+/// @example tileset = GMR::Graphics::Texture.load("tiles.png")
 /// map = GMR::Graphics::Tilemap.new(tileset, 16, 16, 100, 50)
 // GMR::Graphics::Tilemap.new(tileset:, tile_width:, tile_height:, width:, height:)
 // Using positional args: Tilemap.new(tileset, tile_width, tile_height, width, height)

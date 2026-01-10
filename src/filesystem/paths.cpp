@@ -14,23 +14,22 @@ namespace filesystem {
 
 std::string resolve_path(const std::string& path, Root root) {
 #ifdef PLATFORM_WEB
-    // Web: /assets/ or /assets/data/
+    // Web: /assets/ (preloaded read-only) or /data/ (IDBFS writable)
     switch (root) {
         case Root::Assets:
             return "/assets/" + path;
         case Root::Data:
-            return "/assets/data/" + path;
+            return "/data/" + path;
         default:
             return "/" + path;
     }
 #else
-    // Native: game/assets/ or game/assets/data/
-    // (data inside assets so web packager includes it automatically)
+    // Native: game/assets/ (read-only content) or game/data/ (writable saves)
     switch (root) {
         case Root::Assets:
             return "game/assets/" + path;
         case Root::Data:
-            return "game/assets/data/" + path;
+            return "game/data/" + path;
         default:
             return "game/" + path;
     }

@@ -25,7 +25,7 @@ System utilities and debugging.
 
 ### quit
 
-Immediately exit the application. Closes the window and terminates the process.
+Exit the application cleanly. On native platforms, triggers proper shutdown through the main loop. On web, this is a no-op (user must close the browser tab).
 
 **Returns:** `nil`
 

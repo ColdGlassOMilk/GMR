@@ -491,18 +491,25 @@ module Gmrcli
       end
 
       def create_mruby_native_config(src_dir)
+        # Optimized build: -Os for size, dead code elimination
+        # MRB_USE_DEBUG_HOOK only needed for Ruby debugger in Debug builds
+        # mrbc binary still needed for compiling scripts during build
         config_content = <<~RUBY
           MRuby::Build.new('native') do |conf|
             toolchain :gcc
 
             conf.cc do |cc|
-              cc.flags = %w(-O2)
-              cc.defines = %w(MRB_USE_DEBUG_HOOK)
+              cc.flags = %w(-Os -ffunction-sections -fdata-sections)
+              # MRB_USE_DEBUG_HOOK removed for smaller Release builds
+              # Debug builds compile GMR with MRB_USE_DEBUG_HOOK defined
             end
 
             conf.cxx do |cxx|
-              cxx.flags = %w(-O2)
-              cxx.defines = %w(MRB_USE_DEBUG_HOOK)
+              cxx.flags = %w(-Os -ffunction-sections -fdata-sections)
+            end
+
+            conf.linker do |linker|
+              linker.flags = %w(-Wl,--gc-sections)
             end
 
             # mrbc compiler - required for compiling Ruby source to bytecode
@@ -571,13 +578,16 @@ module Gmrcli
         FileUtils.mkdir_p(build_dir)
 
         # Configure
+        # Use MinSizeRel for -Os optimization and disable unused 3D module
         cmake_args = [
           "..",
           "-G Ninja",
-          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_BUILD_TYPE=MinSizeRel",
           "-DBUILD_SHARED_LIBS=OFF",
           "-DUSE_EXTERNAL_GLFW=OFF",
           "-DBUILD_EXAMPLES=OFF",
+          "-DCUSTOMIZE_BUILD=ON",
+          "-DSUPPORT_MODULE_RMODELS=OFF",  # GMR is 2D-only, disable 3D models
           "-DCMAKE_INSTALL_PREFIX=\"#{install_dir}\""
         ]
 
