@@ -144,7 +144,6 @@ This example introduces:
 | [Persistence](docs/persistence.md) | File I/O, Storage, save data, Serialization |
 | [Console](docs/console.md) | Developer console, custom commands |
 | [Platformer Tutorial](docs/platformer-tutorial.md) | Complete working example |
-| [Getting Started](docs/getting-started.md) | Detailed setup guide |
 
 ### Reference (Auto-Generated)
 

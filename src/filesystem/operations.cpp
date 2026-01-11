@@ -56,7 +56,8 @@ bool write_text(const std::string& path, const std::string& content, Root root) 
     }
 
     // Use raylib's cross-platform SaveFileText
-    bool success = SaveFileText(resolved.c_str(), content.c_str());
+    // Note: raylib takes char* instead of const char* for text parameter
+    bool success = SaveFileText(resolved.c_str(), const_cast<char*>(content.c_str()));
 
 #ifdef PLATFORM_WEB
     if (success) {

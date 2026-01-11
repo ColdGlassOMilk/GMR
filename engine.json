@@ -6,9 +6,9 @@
   },
   "dependencies": {
     "raylib": {
-      "version": "5.5",
+      "version": "5.6-dev",
       "repository": "https://github.com/raysan5/raylib.git",
-      "ref": "master"
+      "ref": "c256f14"
     },
     "mruby": {
       "version": "3.4.0",

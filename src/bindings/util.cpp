@@ -18,12 +18,44 @@ extern bool g_should_quit;
     #define GL_VERSION                    0x1F02
     #define GL_SHADING_LANGUAGE_VERSION   0x8B8C
 
+    // Platform-specific OpenGL function loading
+    #if defined(_WIN32)
+        extern "C" {
+            __declspec(dllimport) void* __stdcall wglGetProcAddress(const char*);
+            __declspec(dllimport) void* __stdcall GetProcAddress(void*, const char*);
+            __declspec(dllimport) void* __stdcall LoadLibraryA(const char*);
+        }
+        static void* glGetProcAddress(const char* name) {
+            static void* opengl32 = nullptr;
+            if (!opengl32) opengl32 = LoadLibraryA("opengl32.dll");
+            void* p = wglGetProcAddress(name);
+            if (!p || p == (void*)0x1 || p == (void*)0x2 || p == (void*)0x3 || p == (void*)-1) {
+                p = opengl32 ? GetProcAddress(opengl32, name) : nullptr;
+            }
+            return p;
+        }
+    #elif defined(__APPLE__)
+        #include <dlfcn.h>
+        static void* glGetProcAddress(const char* name) {
+            static void* lib = nullptr;
+            if (!lib) lib = dlopen("/System/Library/Frameworks/OpenGL.framework/OpenGL", RTLD_LAZY);
+            return lib ? dlsym(lib, name) : nullptr;
+        }
+    #else // Linux
+        #include <dlfcn.h>
+        static void* glGetProcAddress(const char* name) {
+            static void* lib = nullptr;
+            if (!lib) lib = dlopen("libGL.so.1", RTLD_LAZY);
+            return lib ? dlsym(lib, name) : nullptr;
+        }
+    #endif
+
     typedef const unsigned char* (*GlGetStringFunc)(unsigned int name);
     static GlGetStringFunc glGetStringPtr = nullptr;
 
     static const char* getGLString(unsigned int name) {
         if (!glGetStringPtr) {
-            glGetStringPtr = (GlGetStringFunc)rlGetProcAddress("glGetString");
+            glGetStringPtr = (GlGetStringFunc)glGetProcAddress("glGetString");
         }
         if (glGetStringPtr) {
             return reinterpret_cast<const char*>(glGetStringPtr(name));

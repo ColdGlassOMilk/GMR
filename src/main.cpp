@@ -22,6 +22,9 @@
 
 #ifdef PLATFORM_WEB
 #include <emscripten/emscripten.h>
+// Note: Audio is initialized eagerly on web. The AudioContext starts suspended
+// (browser policy) but audio assets can still be loaded. miniaudio's built-in
+// unlock mechanism resumes playback on first user interaction automatically.
 #endif
 
 // Global state for the main loop (needed for Emscripten callback).
@@ -186,6 +189,10 @@ int main(int argc, char* argv[]) {
     // Web-specific initialization
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(state.screen_width, state.screen_height, "GMR");
+
+    // Initialize audio device eagerly. The AudioContext starts suspended (browser
+    // policy) but assets can still be loaded. miniaudio's unlock mechanism will
+    // automatically resume playback on first user interaction.
     InitAudioDevice();
 
     // Initialize canvas dimensions to match window

@@ -808,7 +808,8 @@ module Gmrcli
         env_vars = emscripten_env
 
         cmake_args = "-DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web " \
-                     "-DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX=\"#{install_dir}\" -G Ninja"
+                     "-DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX=\"#{install_dir}\" " \
+                     "-G Ninja"
         # Use ninja from PATH (works with both MSYS2 and custom toolchains)
         if Platform.mingw64? && Platform.command_exists?("ninja")
           ninja_path = Platform.command_path("ninja")
