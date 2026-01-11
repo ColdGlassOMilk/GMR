@@ -478,6 +478,145 @@ end
 
 See [Camera](camera.md) for full documentation on resolution modes.
 
+## Shaders
+
+GMR supports fragment shaders for post-processing effects. Load GLSL shaders and apply them to rendering blocks.
+
+### Loading Shaders
+
+```ruby
+# Load a fragment shader
+@grayscale = Graphics::Shader.load(fragment: "shaders/grayscale.fs")
+@wave = Graphics::Shader.load(fragment: "shaders/wave.fs")
+
+# Load with surface mode (see below)
+@crt = Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true)
+```
+
+### Using Shaders
+
+Wrap drawing code in `shader.use` to apply the effect:
+
+```ruby
+def draw
+  @shader.use do
+    @camera.use do
+      @tilemap.draw(0, 0)
+      @player.draw
+    end
+  end
+end
+```
+
+### Setting Uniforms
+
+Pass data to shaders via uniforms:
+
+```ruby
+def draw
+  @wave_shader.set(:time, Time.elapsed)
+  @wave_shader.set(:resolution, Window.width.to_f, Window.height.to_f)
+  @wave_shader.set(:amplitude, 0.02)
+
+  @wave_shader.use do
+    @camera.use do
+      @tilemap.draw(0, 0)
+    end
+  end
+end
+```
+
+### Surface Mode
+
+Some shaders (like wave distortion, CRT effects, chromatic aberration) need **unified UV coordinates** across the entire rendered area. Without surface mode, each sprite/tile gets its own 0-1 UV space, causing effects to operate per-object instead of across the whole screen.
+
+Enable `surface_mode: true` for spatial/distortion shaders:
+
+```ruby
+# Shaders that DON'T need surface mode (color effects)
+@grayscale = Graphics::Shader.load(fragment: "shaders/grayscale.fs")
+@sepia = Graphics::Shader.load(fragment: "shaders/sepia.fs")
+@vignette = Graphics::Shader.load(fragment: "shaders/vignette.fs")
+
+# Shaders that NEED surface mode (spatial/distortion effects)
+@wave = Graphics::Shader.load(fragment: "shaders/wave.fs", surface_mode: true)
+@crt = Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true)
+@chromatic = Graphics::Shader.load(fragment: "shaders/chromatic.fs", surface_mode: true)
+@glitch = Graphics::Shader.load(fragment: "shaders/glitch.fs", surface_mode: true)
+```
+
+**When to use surface mode:**
+- Wave/ripple distortion effects
+- CRT curvature and scanlines
+- Chromatic aberration
+- Glitch/displacement effects
+- Any shader that samples neighboring pixels or uses screen-space coordinates
+
+**When NOT to use surface mode:**
+- Color adjustments (grayscale, sepia, invert)
+- Simple tinting or brightness
+- Effects that only modify the current pixel's color
+
+### Writing Shaders
+
+Shaders receive standard raylib uniforms. Example fragment shader:
+
+```glsl
+#version 330
+
+in vec2 fragTexCoord;
+in vec4 fragColor;
+
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+
+// Custom uniforms
+uniform float time;
+uniform vec2 resolution;
+
+out vec4 finalColor;
+
+void main() {
+    vec2 uv = fragTexCoord;
+
+    // Wave distortion
+    uv.x += sin(uv.y * 10.0 + time * 2.0) * 0.02;
+
+    vec4 texColor = texture(texture0, uv);
+    finalColor = texColor * colDiffuse * fragColor;
+}
+```
+
+### Complete Shader Example
+
+```ruby
+include GMR
+
+def init
+  @camera = Camera2D.new
+  @camera.view_height = 7.5
+  @camera.viewport_size = Vec2.new(Window.width, Window.height)
+  @camera.offset = Vec2.new(Window.width / 2, Window.height * 0.7)
+
+  @tilemap = Tilemap.new(Texture.load("tiles.png"), 24, 24, 100, 50)
+
+  # CRT shader with surface mode for proper curvature
+  @crt = Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true)
+end
+
+def draw
+  @crt.set(:time, Time.elapsed)
+  @crt.set(:resolution, Window.width.to_f, Window.height.to_f)
+
+  @crt.use do
+    @camera.use do
+      Graphics.clear(:black)
+      @tilemap.draw(0, 0)
+    end
+  end
+end
+```
+
 ## Complete Example
 
 ```ruby
@@ -541,3 +680,4 @@ end
 - [Transforms](transforms.md) - Transform2D, parallax, and z-ordering
 - [Animation](animation.md) - Sprite animation
 - [API Reference](api/engine/graphics/README.md) - Complete Graphics API
+- Shaders - Post-processing effects (documented above)

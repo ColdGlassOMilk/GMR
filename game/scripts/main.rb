@@ -118,18 +118,18 @@ def setup_shaders
   ]
   @shaders = [
     nil,  # "none" - no shader
-    Graphics::Shader.load(fragment: "shaders/grayscale.fs"),
-    Graphics::Shader.load(fragment: "shaders/sepia.fs"),
-    Graphics::Shader.load(fragment: "shaders/invert.fs"),
-    Graphics::Shader.load(fragment: "shaders/wave.fs"),
+    Graphics::Shader.load(fragment: "shaders/grayscale.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/sepia.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/invert.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/wave.fs", surface_mode: true),       # Spatial distortion needs unified UV
     Graphics::Shader.load(fragment: "shaders/pixelate.fs"),
-    Graphics::Shader.load(fragment: "shaders/crt.fs"),
-    Graphics::Shader.load(fragment: "shaders/chromatic.fs"),
-    Graphics::Shader.load(fragment: "shaders/vignette.fs"),
-    Graphics::Shader.load(fragment: "shaders/blur.fs"),
-    Graphics::Shader.load(fragment: "shaders/posterize.fs"),
-    Graphics::Shader.load(fragment: "shaders/glitch.fs"),
-    Graphics::Shader.load(fragment: "shaders/bloom.fs")
+    Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true),        # Curvature/scanlines need unified UV
+    Graphics::Shader.load(fragment: "shaders/chromatic.fs"),  # Chromatic aberration needs unified UV
+    Graphics::Shader.load(fragment: "shaders/vignette.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/blur.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/posterize.fs", surface_mode: true),
+    Graphics::Shader.load(fragment: "shaders/glitch.fs", surface_mode: true),     # Glitch displacement needs unified UV
+    Graphics::Shader.load(fragment: "shaders/bloom.fs", surface_mode: true)
   ]
   @shader_index = 0
 end

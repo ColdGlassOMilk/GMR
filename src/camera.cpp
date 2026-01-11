@@ -115,16 +115,31 @@ Vec2 Camera2DState::screen_to_world(const Vec2& screen) const {
 }
 
 Rect Camera2DState::get_visible_bounds() const {
-    float half_width = get_visible_width() / 2.0f;
-    float half_height = get_visible_height() / 2.0f;
+    // Calculate the visible world region based on camera offset
+    // The offset determines where on screen the target appears
+    // Screen (0,0) is top-left, so we need to find what world position maps there
+
+    float scale = get_effective_scale();
+    float visible_width = viewport_size.x / scale;
+    float visible_height = viewport_size.y / scale;
+
+    // The offset is in screen pixels - convert to world units
+    // offset.x pixels from left edge = offset.x / scale world units from left of view
+    float offset_world_x = offset.x / scale;
+    float offset_world_y = offset.y / scale;
+
+    // The target appears at (offset.x, offset.y) on screen
+    // So screen (0,0) corresponds to world position:
+    //   world_x = target.x - offset_world_x
+    //   world_y = target.y - offset_world_y
 
     // Note: This doesn't account for rotation. For rotated cameras,
     // you'd need to compute the axis-aligned bounding box of the rotated viewport.
     return Rect{
-        target.x - half_width,
-        target.y - half_height,
-        half_width * 2.0f,
-        half_height * 2.0f
+        target.x - offset_world_x,
+        target.y - offset_world_y,
+        visible_width,
+        visible_height
     };
 }
 

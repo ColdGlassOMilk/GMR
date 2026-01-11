@@ -137,6 +137,11 @@ bool ShaderManager::valid(ShaderHandle handle) const {
     return shaders_[handle].valid && ref_counts_[handle] > 0;
 }
 
+bool ShaderManager::requires_surface_continuity(ShaderHandle handle) const {
+    const ShaderState* shader = get(handle);
+    return shader && has_flag(shader->flags, ShaderFlags::SURFACE_CONTINUITY);
+}
+
 void ShaderManager::release(ShaderHandle handle) {
     if (handle < 0 || handle >= static_cast<ShaderHandle>(ref_counts_.size())) {
         return;

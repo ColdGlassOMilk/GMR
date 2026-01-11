@@ -3,7 +3,10 @@
 
 #include "gmr/types.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/rendering/surface_pool.hpp"
 #include <vector>
+#include <stack>
+#include <unordered_map>
 #include <cstdint>
 #include <limits>
 #include <optional>
@@ -211,13 +214,61 @@ private:
     void apply_shader_begin(ShaderHandle handle);
     void apply_shader_end();
 
+    // Surface mode helpers for shader surface continuity
+    struct SurfaceBounds {
+        float x{0}, y{0};       // Top-left in world units
+        float width{0}, height{0};  // Size in world units
+    };
+
+    struct SurfaceState {
+        SurfaceHandle handle{INVALID_SURFACE_HANDLE};
+        SurfaceBounds bounds;
+        ShaderHandle shader{INVALID_HANDLE};
+        int pixel_width{0};   // Actual rendered pixel width (not power-of-two pool size)
+        int pixel_height{0};  // Actual rendered pixel height (not power-of-two pool size)
+        float effective_scale{24.0f};  // Scale used for this surface (camera PPU * zoom)
+        CameraHandle camera_hint{INVALID_CAMERA_HANDLE};  // Camera to use for blit-back
+    };
+
+    // Find the matching SHADER_END for a SHADER_BEGIN at start_idx
+    size_t find_shader_end(size_t start_idx) const;
+
+    // Calculate union of bounds for all drawables in command range [start, end]
+    SurfaceBounds calculate_group_bounds(size_t start, size_t end) const;
+
+    // Get world-space bounds of a single drawable command
+    SurfaceBounds get_drawable_bounds(const DrawCommand& cmd) const;
+
+    // Get current effective scale (camera or default)
+    float get_effective_scale() const;
+
+    // Pre-scan shader group to find camera and get its effective scale
+    float get_shader_group_effective_scale(size_t start_idx, size_t end_idx) const;
+
+    // Pre-scan shader group to find the camera handle
+    CameraHandle get_shader_group_camera(size_t start_idx, size_t end_idx) const;
+
+    // Surface mode begin/end
+    void begin_surface_mode(ShaderHandle shader, const SurfaceBounds& bounds, float effective_scale, CameraHandle camera_hint);
+    void end_surface_mode();
+
+    // Get current surface offset for coordinate transformation
+    SurfaceBounds get_surface_offset() const;
+    bool in_surface_mode() const { return !surface_stack_.empty(); }
+
     std::vector<DrawCommand> commands_;
     std::vector<CameraHandle> camera_stack_;  // Track camera nesting during queuing
     CameraHandle active_camera_{INVALID_CAMERA_HANDLE};  // Current camera during flush
     uint32_t next_draw_order_{0};
 
+    // Surface mode state stack (for shader surface continuity)
+    std::stack<SurfaceState> surface_stack_;
+
     // Large base z for draw-order-based sprites to ensure they sort after explicit z
     static constexpr float DRAW_ORDER_Z_BASE = 1000000.0f;
+
+    // Asset pixels-per-unit constant (must match draw_sprite/draw_tilemap)
+    static constexpr float ASSET_PPU = 24.0f;
 };
 
 } // namespace gmr

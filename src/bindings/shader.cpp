@@ -102,16 +102,19 @@ struct TextureBindingData {
 ///   vertex shader is optional (uses raylib default if not provided).
 /// @param fragment [String] Path to fragment shader file (required)
 /// @param vertex [String] Path to vertex shader file (optional)
+/// @param surface_mode [Boolean] Enable surface continuity mode for spatial shaders (optional, default: false)
 /// @returns [Shader] The loaded shader
 /// @raises [RuntimeError] if shader compilation fails
 /// @example shader = GMR::Shader.load(fragment: "shaders/blur.fs")
 /// @example shader = GMR::Shader.load(vertex: "shaders/custom.vs", fragment: "shaders/custom.fs")
+/// @example shader = GMR::Shader.load(fragment: "shaders/wave.fs", surface_mode: true)
 static mrb_value mrb_shader_load(mrb_state* mrb, mrb_value klass) {
     mrb_value kwargs;
     mrb_get_args(mrb, "H", &kwargs);
 
     const char* vertex_path = nullptr;
     const char* fragment_path = nullptr;
+    bool surface_mode = false;
 
     // Parse keyword arguments
     mrb_value keys = mrb_hash_keys(mrb, kwargs);
@@ -133,6 +136,8 @@ static mrb_value mrb_shader_load(mrb_state* mrb, mrb_value klass) {
                 vertex_path = mrb_string_cstr(mrb, val);
             } else if (strcmp(key_name, "fragment") == 0 && !mrb_nil_p(val)) {
                 fragment_path = mrb_string_cstr(mrb, val);
+            } else if (strcmp(key_name, "surface_mode") == 0 && !mrb_nil_p(val)) {
+                surface_mode = mrb_bool(val);
             }
         }
     }
@@ -154,6 +159,14 @@ static mrb_value mrb_shader_load(mrb_state* mrb, mrb_value klass) {
         return mrb_nil_value();
     }
 
+    // Apply surface_mode flag if requested
+    if (surface_mode) {
+        ShaderState* shader = ShaderManager::instance().get(handle);
+        if (shader) {
+            shader->flags |= ShaderFlags::SURFACE_CONTINUITY;
+        }
+    }
+
     // Create Ruby object
     RClass* shader_class = mrb_class_ptr(klass);
     mrb_value obj = mrb_obj_new(mrb, shader_class, 0, nullptr);
@@ -170,15 +183,18 @@ static mrb_value mrb_shader_load(mrb_state* mrb, mrb_value klass) {
 ///   The fragment shader is required; vertex shader is optional.
 /// @param fragment [String] Fragment shader source code (required)
 /// @param vertex [String] Vertex shader source code (optional)
+/// @param surface_mode [Boolean] Enable surface continuity mode for spatial shaders (optional, default: false)
 /// @returns [Shader] The compiled shader
 /// @raises [RuntimeError] if shader compilation fails
 /// @example shader = GMR::Shader.from_source(fragment: glsl_code)
+/// @example shader = GMR::Shader.from_source(fragment: wave_code, surface_mode: true)
 static mrb_value mrb_shader_from_source(mrb_state* mrb, mrb_value klass) {
     mrb_value kwargs;
     mrb_get_args(mrb, "H", &kwargs);
 
     const char* vertex_code = nullptr;
     const char* fragment_code = nullptr;
+    bool surface_mode = false;
 
     // Parse keyword arguments
     mrb_value keys = mrb_hash_keys(mrb, kwargs);
@@ -200,6 +216,8 @@ static mrb_value mrb_shader_from_source(mrb_state* mrb, mrb_value klass) {
                 vertex_code = mrb_string_cstr(mrb, val);
             } else if (strcmp(key_name, "fragment") == 0 && !mrb_nil_p(val)) {
                 fragment_code = mrb_string_cstr(mrb, val);
+            } else if (strcmp(key_name, "surface_mode") == 0 && !mrb_nil_p(val)) {
+                surface_mode = mrb_bool(val);
             }
         }
     }
@@ -218,6 +236,14 @@ static mrb_value mrb_shader_from_source(mrb_state* mrb, mrb_value klass) {
         mrb_raise(mrb, E_RUNTIME_ERROR,
             "Failed to compile shader from source. Check GLSL errors above.");
         return mrb_nil_value();
+    }
+
+    // Apply surface_mode flag if requested
+    if (surface_mode) {
+        ShaderState* shader = ShaderManager::instance().get(handle);
+        if (shader) {
+            shader->flags |= ShaderFlags::SURFACE_CONTINUITY;
+        }
     }
 
     // Create Ruby object
@@ -465,6 +491,56 @@ static mrb_value mrb_shader_release(mrb_state* mrb, mrb_value self) {
     return mrb_nil_value();
 }
 
+/// @method surface_mode?
+/// @description Check if surface continuity mode is enabled for this shader.
+///   Surface mode causes spatial shaders (wave, CRT, distortion) to operate
+///   on a unified surface rather than per-draw-call.
+/// @returns [Boolean] true if surface mode is enabled
+/// @example shader.surface_mode?  # => true or false
+static mrb_value mrb_shader_surface_mode_get(mrb_state* mrb, mrb_value self) {
+    ShaderData* data = get_shader_data(mrb, self);
+    if (!data) return mrb_false_value();
+
+    ShaderState* shader = ShaderManager::instance().get(data->handle);
+    if (!shader) return mrb_false_value();
+
+    return mrb_bool_value(has_flag(shader->flags, ShaderFlags::SURFACE_CONTINUITY));
+}
+
+/// @method surface_mode=
+/// @description Enable or disable surface continuity mode. When enabled,
+///   spatial shaders (wave, CRT, distortion) operate on a unified surface,
+///   preventing per-tile or per-frame artifacts.
+/// @param enabled [Boolean] true to enable surface mode
+/// @returns [Boolean] the new surface_mode value
+/// @example shader.surface_mode = true
+static mrb_value mrb_shader_surface_mode_set(mrb_state* mrb, mrb_value self) {
+    mrb_bool enabled;
+    mrb_get_args(mrb, "b", &enabled);
+
+    ShaderData* data = get_shader_data(mrb, self);
+    if (!data) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Invalid Shader object");
+        return mrb_nil_value();
+    }
+
+    ShaderState* shader = ShaderManager::instance().get(data->handle);
+    if (!shader) {
+        mrb_raise(mrb, E_RUNTIME_ERROR, "Shader has been released");
+        return mrb_nil_value();
+    }
+
+    if (enabled) {
+        shader->flags |= ShaderFlags::SURFACE_CONTINUITY;
+    } else {
+        shader->flags = static_cast<ShaderFlags>(
+            static_cast<uint32_t>(shader->flags) &
+            ~static_cast<uint32_t>(ShaderFlags::SURFACE_CONTINUITY));
+    }
+
+    return mrb_bool_value(enabled);
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -487,6 +563,8 @@ void register_shader(mrb_state* mrb) {
     mrb_define_method(mrb, shader_class, "end", mrb_shader_end, MRB_ARGS_NONE());
     mrb_define_method(mrb, shader_class, "valid?", mrb_shader_valid, MRB_ARGS_NONE());
     mrb_define_method(mrb, shader_class, "release", mrb_shader_release, MRB_ARGS_NONE());
+    mrb_define_method(mrb, shader_class, "surface_mode?", mrb_shader_surface_mode_get, MRB_ARGS_NONE());
+    mrb_define_method(mrb, shader_class, "surface_mode=", mrb_shader_surface_mode_set, MRB_ARGS_REQ(1));
 
     // Top-level alias: GMR::Shader
     mrb_define_const(mrb, gmr, "Shader", mrb_obj_value(shader_class));

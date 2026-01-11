@@ -7,8 +7,36 @@
 #include <unordered_map>
 #include <vector>
 #include <optional>
+#include <cstdint>
 
 namespace gmr {
+
+// Shader capability flags for classification
+enum class ShaderFlags : uint32_t {
+    NONE = 0,
+    SURFACE_CONTINUITY = 1 << 0,  // Shader requires unified UV space (wave, CRT, distortion)
+};
+
+// Bitwise operators for ShaderFlags
+inline ShaderFlags operator|(ShaderFlags a, ShaderFlags b) {
+    return static_cast<ShaderFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+}
+
+inline ShaderFlags operator&(ShaderFlags a, ShaderFlags b) {
+    return static_cast<ShaderFlags>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+}
+
+inline ShaderFlags& operator|=(ShaderFlags& a, ShaderFlags b) {
+    return a = a | b;
+}
+
+inline ShaderFlags& operator&=(ShaderFlags& a, ShaderFlags b) {
+    return a = a & b;
+}
+
+inline bool has_flag(ShaderFlags flags, ShaderFlags flag) {
+    return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
+}
 
 // Internal shader state with uniform location caching
 struct ShaderState {
@@ -18,6 +46,7 @@ struct ShaderState {
     std::string fragment_path;
     bool from_memory = false;
     bool valid = false;
+    ShaderFlags flags = ShaderFlags::NONE;  // Shader capability flags
 
     // Get or cache uniform location. Returns -1 for unknown uniforms.
     int get_location(const std::string& name);
@@ -41,6 +70,9 @@ public:
 
     // Check if handle is valid
     bool valid(ShaderHandle handle) const;
+
+    // Check if shader requires surface continuity (unified UV space)
+    bool requires_surface_continuity(ShaderHandle handle) const;
 
     // Release a reference (decrements refcount, unloads at 0)
     void release(ShaderHandle handle);
