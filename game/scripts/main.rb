@@ -16,6 +16,7 @@ def init
   @music.play
 
   setup_camera
+  setup_shaders
 
   @level = Level.new
   spawn = @level.spawn_point
@@ -28,6 +29,8 @@ def init
   @hud = HUD.new(@custom_font)
   @input_handler = InputHandler.new(@player, @camera)
   @input_handler.on_resolution_toggle { toggle_resolution }
+  @input_handler.on_next_shader { next_shader }
+  @input_handler.on_prev_shader { prev_shader }
   @input_handler.setup
 end
 
@@ -39,12 +42,25 @@ end
 def draw
   Graphics.clear([80, 120, 160])
 
-  @camera.use do
-    @level.draw
-    @player.draw
+  current_shader = @shaders[@shader_index]
+  if current_shader
+    # Set shader uniforms based on which shader is active
+    set_shader_uniforms(current_shader, @shader_names[@shader_index])
+
+    current_shader.use do
+      @camera.use do
+        @level.draw
+        @player.draw
+      end
+    end
+  else
+    @camera.use do
+      @level.draw
+      @player.draw
+    end
   end
 
-  @hud.draw(GMR::Time.fps, @virtual_width, @virtual_height, @retro_mode)
+  @hud.draw(GMR::Time.fps, @virtual_width, @virtual_height, @retro_mode, @shader_names[@shader_index])
 end
 
 def on_resize(width, height)
@@ -93,4 +109,77 @@ def configure_console
     padding: 8,
     font: @custom_font
   ).allow_ruby_eval
+end
+
+def setup_shaders
+  @shader_names = [
+    "none", "grayscale", "sepia", "invert", "wave", "pixelate",
+    "crt", "chromatic", "vignette", "blur", "posterize", "glitch", "bloom"
+  ]
+  @shaders = [
+    nil,  # "none" - no shader
+    Graphics::Shader.load(fragment: "shaders/grayscale.fs"),
+    Graphics::Shader.load(fragment: "shaders/sepia.fs"),
+    Graphics::Shader.load(fragment: "shaders/invert.fs"),
+    Graphics::Shader.load(fragment: "shaders/wave.fs"),
+    Graphics::Shader.load(fragment: "shaders/pixelate.fs"),
+    Graphics::Shader.load(fragment: "shaders/crt.fs"),
+    Graphics::Shader.load(fragment: "shaders/chromatic.fs"),
+    Graphics::Shader.load(fragment: "shaders/vignette.fs"),
+    Graphics::Shader.load(fragment: "shaders/blur.fs"),
+    Graphics::Shader.load(fragment: "shaders/posterize.fs"),
+    Graphics::Shader.load(fragment: "shaders/glitch.fs"),
+    Graphics::Shader.load(fragment: "shaders/bloom.fs")
+  ]
+  @shader_index = 0
+end
+
+def set_shader_uniforms(shader, name)
+  res_x = @virtual_width.to_f
+  res_y = @virtual_height.to_f
+  time = GMR::Time.elapsed
+
+  case name
+  when "grayscale", "sepia", "invert"
+    shader.set(:intensity, 1.0)
+  when "wave"
+    shader.set(:time, time)
+    shader.set(:amplitude, 0.02)
+    shader.set(:frequency, 15.0)
+  when "pixelate"
+    shader.set(:pixelSize, 6.0)
+    shader.set(:resolution, res_x, res_y)
+  when "crt"
+    shader.set(:resolution, res_x, res_y)
+    shader.set(:curvature, 6.0)
+    shader.set(:scanlineIntensity, 0.3)
+  when "chromatic"
+    shader.set(:offset, 0.005)
+  when "vignette"
+    shader.set(:radius, 0.4)
+    shader.set(:softness, 0.5)
+  when "blur"
+    shader.set(:resolution, res_x, res_y)
+    shader.set(:radius, 2.0)
+  when "posterize"
+    shader.set(:levels, 6.0)
+  when "glitch"
+    shader.set(:time, time)
+    shader.set(:intensity, 0.5)
+  when "bloom"
+    shader.set(:resolution, res_x, res_y)
+    shader.set(:threshold, 0.6)
+    shader.set(:intensity, 1.2)
+    shader.set(:radius, 2.0)
+  end
+end
+
+def next_shader
+  @shader_index = (@shader_index + 1) % @shaders.length
+  Console.puts("Shader: #{@shader_names[@shader_index]}")
+end
+
+def prev_shader
+  @shader_index = (@shader_index - 1) % @shaders.length
+  Console.puts("Shader: #{@shader_names[@shader_index]}")
 end

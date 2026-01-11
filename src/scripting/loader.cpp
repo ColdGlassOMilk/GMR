@@ -24,6 +24,7 @@
 #include "gmr/bindings/storage.hpp"
 #include "gmr/bindings/json.hpp"
 #include "gmr/bindings/serializable.hpp"
+#include "gmr/bindings/shader.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
@@ -74,6 +75,7 @@ void Loader::register_all_bindings() {
 
     // Register all bindings (they add to the modules created above)
     bindings::register_graphics(mrb_);
+    bindings::register_shader(mrb_);
     bindings::register_input(mrb_);
     bindings::register_audio(mrb_);
     bindings::register_window(mrb_);

@@ -174,6 +174,8 @@ void game_loop(void* arg) {
 #endif
 
 int main(int argc, char* argv[]) {
+    printf("INFO: GMR Engine v%s\n", GMR_VERSION);
+
     auto& state = gmr::State::instance();
 
     // Parse command-line arguments

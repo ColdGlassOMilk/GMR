@@ -99,7 +99,9 @@ struct DrawCommand {
         TRIANGLE,
         TEXT,
         CAMERA_BEGIN,
-        CAMERA_END
+        CAMERA_END,
+        SHADER_BEGIN,
+        SHADER_END
     };
 
     Type type{Type::SPRITE};
@@ -110,6 +112,7 @@ struct DrawCommand {
     // Type-specific data
     SpriteHandle sprite_handle{INVALID_HANDLE};
     CameraHandle camera_handle{INVALID_CAMERA_HANDLE};
+    ShaderHandle shader_handle{INVALID_HANDLE};
     TilemapDrawParams tilemap;
     RectDrawParams rect;
     CircleDrawParams circle;
@@ -177,6 +180,10 @@ public:
     void queue_camera_begin(CameraHandle handle);
     void queue_camera_end();
 
+    // Queue shader begin/end commands for deferred shader application
+    void queue_shader_begin(ShaderHandle handle);
+    void queue_shader_end();
+
     // Sort by z and execute all queued draws, then clear
     void flush();
 
@@ -201,6 +208,8 @@ private:
     void draw_text(const DrawCommand& cmd);
     void apply_camera_begin(CameraHandle handle);
     void apply_camera_end();
+    void apply_shader_begin(ShaderHandle handle);
+    void apply_shader_end();
 
     std::vector<DrawCommand> commands_;
     std::vector<CameraHandle> camera_stack_;  // Track camera nesting during queuing

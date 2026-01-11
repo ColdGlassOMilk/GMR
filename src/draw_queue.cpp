@@ -6,6 +6,7 @@
 #include "gmr/resources/texture_manager.hpp"
 #include "gmr/resources/tilemap_manager.hpp"
 #include "gmr/resources/font_manager.hpp"
+#include "gmr/resources/shader_manager.hpp"
 #include "raylib.h"
 #include <algorithm>
 #include <cmath>
@@ -90,6 +91,33 @@ void DrawQueue::queue_camera_end() {
     commands_.push_back(cmd);
 
     camera_stack_.pop_back();
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_shader_begin(ShaderHandle handle) {
+    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::SHADER_BEGIN;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    cmd.shader_handle = handle;
+    commands_.push_back(cmd);
+
+    next_draw_order_++;
+}
+
+void DrawQueue::queue_shader_end() {
+    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
+
+    DrawCommand cmd;
+    cmd.type = DrawCommand::Type::SHADER_END;
+    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_;
+    commands_.push_back(cmd);
+
     next_draw_order_++;
 }
 
@@ -459,6 +487,23 @@ void DrawQueue::apply_camera_end() {
     }
 }
 
+void DrawQueue::apply_shader_begin(ShaderHandle handle) {
+    auto* shader = ShaderManager::instance().get(handle);
+    if (shader) {
+        if (IsShaderValid(shader->raylib_shader)) {
+            BeginShaderMode(shader->raylib_shader);
+        } else {
+            TraceLog(LOG_WARNING, "SHADER: Attempted to use invalid raylib shader [ID %d]", handle);
+        }
+    } else {
+        TraceLog(LOG_WARNING, "SHADER: Attempted to use null shader [ID %d]", handle);
+    }
+}
+
+void DrawQueue::apply_shader_end() {
+    EndShaderMode();
+}
+
 void DrawQueue::flush() {
     if (commands_.empty()) return;
 
@@ -503,8 +548,17 @@ void DrawQueue::flush() {
             case DrawCommand::Type::TEXT:
                 draw_text(cmd);
                 break;
+            case DrawCommand::Type::SHADER_BEGIN:
+                apply_shader_begin(cmd.shader_handle);
+                break;
+            case DrawCommand::Type::SHADER_END:
+                apply_shader_end();
+                break;
         }
     }
+
+    // Safety: close any unclosed shaders
+    apply_shader_end();
 
     // Safety: close any unclosed cameras
     while (active_camera_ != INVALID_CAMERA_HANDLE) {

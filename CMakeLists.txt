@@ -59,6 +59,7 @@ set(SOURCES
     src/resources/music_manager.cpp
     src/resources/tilemap_manager.cpp
     src/resources/font_manager.cpp
+    src/resources/shader_manager.cpp
     src/bindings/binding_helpers.cpp
     src/bindings/graphics.cpp
     src/bindings/input.cpp
@@ -82,6 +83,7 @@ set(SOURCES
     src/bindings/storage.cpp
     src/bindings/json.cpp
     src/bindings/serializable.cpp
+    src/bindings/shader.cpp
     src/filesystem/paths.cpp
     src/filesystem/operations.cpp
     src/animation/easing.cpp

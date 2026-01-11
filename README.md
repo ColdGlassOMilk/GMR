@@ -36,7 +36,7 @@ Edit `game/scripts/main.rb` - changes reload automatically.
 
 ## Minimal Example
 
-A moving circle in 15 lines:
+A simple moving circle with input action binding:
 
 ```ruby
 include GMR
@@ -138,6 +138,7 @@ This example introduces:
 | [Graphics](docs/graphics.md) | Drawing, textures, sprites, tilemaps |
 | [Transforms](docs/transforms.md) | Transform2D, hierarchy, world coordinates |
 | [Camera](docs/camera.md) | World-space rendering, resolution independence, following |
+| [Shaders](docs/shaders.md) | Post-processing effects, GLSL shaders |
 | [Animation](docs/animation.md) | SpriteAnimation, Animator, Tweens |
 | [State Machine](docs/state-machine.md) | State DSL, transitions, animation binding |
 | [Audio](docs/audio.md) | Sound effects, music streaming |
