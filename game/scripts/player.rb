@@ -12,7 +12,7 @@ class Player
     @on_ground = false
     @moving = false
 
-    @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME)
+    @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME - 0.2)
     @attack_sound = Audio::Sound.load("sfx/sword_swing.mp3", volume: SFX_VOLUME)
 
     setup_animator
