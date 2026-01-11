@@ -1,8 +1,10 @@
-#version 330
+#version 100
+
+precision mediump float;
 
 // Input from vertex shader
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 
 // Input uniform values (raylib defaults)
 uniform sampler2D texture0;
@@ -12,12 +14,9 @@ uniform vec4 colDiffuse;
 uniform float radius;     // Inner radius before darkening starts (0.0 to 1.0)
 uniform float softness;   // How soft the edge is (0.0 to 1.0)
 
-// Output fragment color
-out vec4 finalColor;
-
 void main()
 {
-    vec4 texelColor = texture(texture0, fragTexCoord);
+    vec4 texelColor = texture2D(texture0, fragTexCoord);
 
     // Distance from center
     vec2 center = fragTexCoord - vec2(0.5);
@@ -29,5 +28,5 @@ void main()
 
     texelColor.rgb *= vignette;
 
-    finalColor = texelColor * colDiffuse * fragColor;
+    gl_FragColor = texelColor * colDiffuse * fragColor;
 }

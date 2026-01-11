@@ -35,17 +35,17 @@ Paths are relative to your `game/assets/` directory.
 
 ```ruby
 glsl_code = <<~GLSL
-  #version 330
-  in vec2 fragTexCoord;
-  in vec4 fragColor;
+  #version 100
+  precision mediump float;
+  varying vec2 fragTexCoord;
+  varying vec4 fragColor;
   uniform sampler2D texture0;
   uniform vec4 colDiffuse;
-  out vec4 finalColor;
 
   void main() {
-    vec4 texel = texture(texture0, fragTexCoord);
+    vec4 texel = texture2D(texture0, fragTexCoord);
     float gray = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
-    finalColor = vec4(vec3(gray), texel.a) * colDiffuse * fragColor;
+    gl_FragColor = vec4(vec3(gray), texel.a) * colDiffuse * fragColor;
   }
 GLSL
 
@@ -148,7 +148,48 @@ For cases where block syntax isn't convenient:
 
 ## Writing GLSL Shaders
 
-GMR uses OpenGL 3.3 core profile. Fragment shaders follow this structure:
+GMR supports two GLSL versions depending on the build target:
+
+| Target | GLSL Version | Notes |
+|--------|--------------|-------|
+| **Native** (Windows/Linux/macOS) | GLSL 330 | OpenGL 3.3 core profile |
+| **Web** (WebAssembly) | GLSL ES 100 | WebGL 1.0 compatible |
+
+**Recommendation:** Write shaders in GLSL ES 100 for maximum compatibility across all platforms.
+
+### GLSL ES 100 (Recommended - Works Everywhere)
+
+```glsl
+#version 100
+
+precision mediump float;
+
+// Inputs from vertex shader (provided by raylib)
+varying vec2 fragTexCoord;   // Texture coordinate (0-1)
+varying vec4 fragColor;      // Vertex color
+
+// Raylib's default uniforms
+uniform sampler2D texture0;   // Primary texture
+uniform vec4 colDiffuse;      // Diffuse color multiplier
+
+// Your custom uniforms
+uniform float intensity;
+uniform vec2 resolution;
+uniform float time;
+
+void main() {
+    // Sample the texture
+    vec4 texel = texture2D(texture0, fragTexCoord);
+
+    // Apply your effect
+    // ...
+
+    // Output final color (multiply by colDiffuse and fragColor for correct blending)
+    gl_FragColor = texel * colDiffuse * fragColor;
+}
+```
+
+### GLSL 330 (Native Only)
 
 ```glsl
 #version 330
@@ -181,6 +222,17 @@ void main() {
 }
 ```
 
+### GLSL Version Differences
+
+| Feature | GLSL ES 100 (Web) | GLSL 330 (Native) |
+|---------|-------------------|-------------------|
+| Version directive | `#version 100` | `#version 330` |
+| Precision | `precision mediump float;` required | Not needed |
+| Vertex inputs | `varying vec2` | `in vec2` |
+| Fragment output | `gl_FragColor` | `out vec4 finalColor` |
+| Texture sampling | `texture2D()` | `texture()` |
+| For loops | Must use constant bounds | Variable bounds allowed |
+
 ### Built-in Inputs
 
 | Name | Type | Description |
@@ -196,26 +248,27 @@ void main() {
 
 ## Common Effects
 
+All examples use GLSL ES 100 for cross-platform compatibility.
+
 ### Grayscale
 
 Convert to black and white:
 
 ```glsl
-#version 330
+#version 100
+precision mediump float;
 
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float intensity;  // 0.0 = color, 1.0 = full grayscale
 
-out vec4 finalColor;
-
 void main() {
-    vec4 texel = texture(texture0, fragTexCoord);
+    vec4 texel = texture2D(texture0, fragTexCoord);
     float gray = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
     vec3 result = mix(texel.rgb, vec3(gray), intensity);
-    finalColor = vec4(result, texel.a) * colDiffuse * fragColor;
+    gl_FragColor = vec4(result, texel.a) * colDiffuse * fragColor;
 }
 ```
 
@@ -229,25 +282,23 @@ void main() {
 Animated wavy effect:
 
 ```glsl
-#version 330
+#version 100
+precision mediump float;
 
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float time;
 uniform float amplitude;  // 0.01 to 0.05
 uniform float frequency;  // 5.0 to 20.0
 
-out vec4 finalColor;
-
 void main() {
     vec2 uv = fragTexCoord;
     uv.x += sin(uv.y * frequency + time * 3.0) * amplitude;
-    uv.y += cos(uv.x * frequency + time * 2.0) * amplitude * 0.5;
 
-    vec4 texel = texture(texture0, uv);
-    finalColor = texel * colDiffuse * fragColor;
+    vec4 texel = texture2D(texture0, uv);
+    gl_FragColor = texel * colDiffuse * fragColor;
 }
 ```
 
@@ -270,17 +321,16 @@ end
 Retro scanlines and curvature:
 
 ```glsl
-#version 330
+#version 100
+precision mediump float;
 
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform vec2 resolution;
 uniform float curvature;         // 4.0 to 10.0
 uniform float scanlineIntensity; // 0.1 to 0.5
-
-out vec4 finalColor;
 
 void main() {
     // Apply barrel distortion
@@ -291,17 +341,17 @@ void main() {
 
     // Clamp to texture bounds
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
-    vec4 texel = texture(texture0, uv);
+    vec4 texel = texture2D(texture0, uv);
 
     // Scanlines
     float scanline = sin(uv.y * resolution.y * 3.14159) * 0.5 + 0.5;
     texel.rgb *= 1.0 - scanlineIntensity * (1.0 - scanline);
 
-    finalColor = texel * colDiffuse * fragColor;
+    gl_FragColor = texel * colDiffuse * fragColor;
 }
 ```
 
@@ -327,23 +377,22 @@ end
 Chunky retro pixels:
 
 ```glsl
-#version 330
+#version 100
+precision mediump float;
 
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float pixelSize;   // 2.0 to 16.0
 uniform vec2 resolution;
 
-out vec4 finalColor;
-
 void main() {
     vec2 pixelCount = resolution / pixelSize;
     vec2 uv = floor(fragTexCoord * pixelCount) / pixelCount;
 
-    vec4 texel = texture(texture0, uv);
-    finalColor = texel * colDiffuse * fragColor;
+    vec4 texel = texture2D(texture0, uv);
+    gl_FragColor = texel * colDiffuse * fragColor;
 }
 ```
 

@@ -1,8 +1,10 @@
-#version 330
+#version 100
+
+precision mediump float;
 
 // Input from vertex shader
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 
 // Input uniform values (raylib defaults)
 uniform sampler2D texture0;
@@ -12,9 +14,6 @@ uniform vec4 colDiffuse;
 uniform float pixelSize;  // Size of each "pixel" in texels (8.0 recommended)
 uniform vec2 resolution;  // Texture resolution in pixels
 
-// Output fragment color
-out vec4 finalColor;
-
 void main()
 {
     // Calculate pixelated UV coordinates
@@ -23,8 +22,8 @@ void main()
     uv = floor(uv * pixelCount) / pixelCount;
 
     // Sample the texture at pixelated position
-    vec4 texelColor = texture(texture0, uv);
+    vec4 texelColor = texture2D(texture0, uv);
 
     // Apply vertex color and diffuse color
-    finalColor = texelColor * colDiffuse * fragColor;
+    gl_FragColor = texelColor * colDiffuse * fragColor;
 }

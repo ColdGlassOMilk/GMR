@@ -1,8 +1,10 @@
-#version 330
+#version 100
+
+precision mediump float;
 
 // Input from vertex shader
-in vec2 fragTexCoord;
-in vec4 fragColor;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
 
 // Input uniform values (raylib defaults)
 uniform sampler2D texture0;
@@ -12,9 +14,6 @@ uniform vec4 colDiffuse;
 uniform vec2 resolution;    // Screen resolution
 uniform float curvature;    // Screen curvature amount (0.0 to 0.5)
 uniform float scanlineIntensity;  // Scanline darkness (0.0 to 1.0)
-
-// Output fragment color
-out vec4 finalColor;
 
 vec2 curve(vec2 uv) {
     uv = uv * 2.0 - 1.0;
@@ -30,12 +29,12 @@ void main()
 
     // Check bounds - black outside curved screen
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
     // Sample texture
-    vec4 texelColor = texture(texture0, uv);
+    vec4 texelColor = texture2D(texture0, uv);
 
     // Scanlines
     float scanline = sin(uv.y * resolution.y * 3.14159) * 0.5 + 0.5;
@@ -49,5 +48,5 @@ void main()
     vignette = clamp(pow(16.0 * vignette, 0.3), 0.0, 1.0);
     texelColor.rgb *= vignette;
 
-    finalColor = texelColor * colDiffuse * fragColor;
+    gl_FragColor = texelColor * colDiffuse * fragColor;
 }
