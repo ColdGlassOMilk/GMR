@@ -20,10 +20,14 @@ void main()
     // Direction from center
     vec2 dir = uv - vec2(0.5);
 
+    // Calculate offset UVs and clamp to valid range
+    vec2 uvR = clamp(uv + dir * offset, 0.0, 1.0);
+    vec2 uvB = clamp(uv - dir * offset, 0.0, 1.0);
+
     // Sample RGB channels with offset
-    float r = texture2D(texture0, uv + dir * offset).r;
+    float r = texture2D(texture0, uvR).r;
     float g = texture2D(texture0, uv).g;
-    float b = texture2D(texture0, uv - dir * offset).b;
+    float b = texture2D(texture0, uvB).b;
     float a = texture2D(texture0, uv).a;
 
     gl_FragColor = vec4(r, g, b, a) * colDiffuse * fragColor;

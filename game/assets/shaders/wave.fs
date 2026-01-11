@@ -22,6 +22,10 @@ void main()
     float wave = sin(uv.y * frequency + time * 3.0) * amplitude;
     uv.x += wave;
 
+    // Clamp UV to valid range to avoid sampling outside texture bounds
+    // This prevents edge artifacts from distortion shaders
+    uv = clamp(uv, 0.0, 1.0);
+
     // Sample the texture with distorted coordinates
     vec4 texelColor = texture2D(texture0, uv);
 

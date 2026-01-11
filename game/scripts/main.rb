@@ -176,10 +176,8 @@ end
 
 def next_shader
   @shader_index = (@shader_index + 1) % @shaders.length
-  Console.puts("Shader: #{@shader_names[@shader_index]}")
 end
 
 def prev_shader
   @shader_index = (@shader_index - 1) % @shaders.length
-  Console.puts("Shader: #{@shader_names[@shader_index]}")
 end
