@@ -2,7 +2,7 @@
   "engine": {
     "name": "GMR",
     "fullName": "Game Middleware for Ruby",
-    "version": "0.3.0"
+    "version": "0.3.1"
   },
   "dependencies": {
     "raylib": {
