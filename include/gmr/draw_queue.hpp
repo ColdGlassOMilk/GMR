@@ -256,6 +256,11 @@ private:
     SurfaceBounds get_surface_offset() const;
     bool in_surface_mode() const { return !surface_stack_.empty(); }
 
+    // Surface mode camera helpers for screen-space rendering
+    // Screen-space primitives (no transform) need to bypass the surface camera
+    void suspend_surface_camera();
+    void restore_surface_camera();
+
     std::vector<DrawCommand> commands_;
     std::vector<CameraHandle> camera_stack_;  // Track camera nesting during queuing
     CameraHandle active_camera_{INVALID_CAMERA_HANDLE};  // Current camera during flush

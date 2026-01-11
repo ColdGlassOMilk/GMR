@@ -146,6 +146,78 @@ For cases where block syntax isn't convenient:
 
 ---
 
+## Surface Mode
+
+Spatial shaders that distort UV coordinates (wave, CRT curvature, glitch) can produce visual artifacts when applied to tilemaps or animated sprites. This happens because shaders normally operate per-draw-call, so each tile or animation frame gets independent UV coordinates.
+
+**Surface mode** solves this by rendering the entire shader block to an intermediate surface first, then applying the shader to that unified surface.
+
+### The Problem
+
+Without surface mode, a wave shader applied to a tilemap causes each tile to wave independently:
+
+```ruby
+# BAD: Each tile waves separately
+@wave.use do
+  @tilemap.draw  # Each tile has its own 0-1 UV range
+end
+```
+
+Similarly, CRT curvature on an animated sprite shifts with each animation frame because the UV coordinates change as the sprite sheet region changes.
+
+### The Solution
+
+Enable `surface_mode` when loading spatial/distortion shaders:
+
+```ruby
+# Load with surface_mode enabled
+@wave = Graphics::Shader.load(fragment: "shaders/wave.fs", surface_mode: true)
+@crt = Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true)
+@glitch = Graphics::Shader.load(fragment: "shaders/glitch.fs", surface_mode: true)
+
+# Now the entire tilemap waves as one unified surface
+@wave.use do
+  @tilemap.draw
+end
+```
+
+### When to Use Surface Mode
+
+| Shader Type | Surface Mode? | Reason |
+|-------------|---------------|--------|
+| Wave/distortion | **Yes** | UV displacement must be continuous |
+| CRT/curvature | **Yes** | Barrel distortion needs unified coordinates |
+| Glitch | **Yes** | Block displacement should span content |
+| Vignette | **Yes** | Darkening should be relative to full surface |
+| Grayscale | Optional | Works either way (no UV distortion) |
+| Color effects | Optional | Works either way (no UV distortion) |
+| Blur | Optional | May want surface mode for edge handling |
+
+### API
+
+```ruby
+# Enable at load time
+@shader = Graphics::Shader.load(fragment: "effect.fs", surface_mode: true)
+
+# Or from source
+@shader = Graphics::Shader.from_source(fragment: code, surface_mode: true)
+
+# Toggle after loading
+@shader.surface_mode = true
+@shader.surface_mode = false
+
+# Query current state
+if @shader.surface_mode?
+  puts "Surface mode enabled"
+end
+```
+
+### Performance Note
+
+Surface mode incurs a small performance cost due to the intermediate render target. Only enable it for shaders that actually need unified UV space. Color manipulation shaders (grayscale, sepia, posterize) work fine without it.
+
+---
+
 ## Writing GLSL Shaders
 
 GMR supports two GLSL versions depending on the build target:
@@ -536,8 +608,8 @@ end
 
 | Method | Description |
 |--------|-------------|
-| `Graphics::Shader.load(fragment:, vertex:)` | Load shader from files |
-| `Graphics::Shader.from_source(fragment:, vertex:)` | Load shader from GLSL strings |
+| `Graphics::Shader.load(fragment:, vertex:, surface_mode:)` | Load shader from files |
+| `Graphics::Shader.from_source(fragment:, vertex:, surface_mode:)` | Load shader from GLSL strings |
 
 ### Uniforms
 
@@ -555,6 +627,13 @@ end
 |--------|-------------|
 | `shader.use { }` | Apply shader within block |
 | `shader.begin` / `shader.end` | Manual shader control |
+
+### Surface Mode
+
+| Method | Description |
+|--------|-------------|
+| `shader.surface_mode = bool` | Enable/disable surface mode |
+| `shader.surface_mode?` | Check if surface mode is enabled |
 
 ### Resource Management
 

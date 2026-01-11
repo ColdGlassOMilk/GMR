@@ -52,15 +52,15 @@ def draw
         @level.draw
         @player.draw
       end
+      @hud.draw(GMR::Time.fps, @virtual_width, @virtual_height, @retro_mode, @shader_names[@shader_index])
     end
   else
     @camera.use do
       @level.draw
       @player.draw
     end
+    @hud.draw(GMR::Time.fps, @virtual_width, @virtual_height, @retro_mode, @shader_names[@shader_index])
   end
-
-  @hud.draw(GMR::Time.fps, @virtual_width, @virtual_height, @retro_mode, @shader_names[@shader_index])
 end
 
 def on_resize(width, height)
@@ -131,7 +131,7 @@ def setup_shaders
     Graphics::Shader.load(fragment: "shaders/glitch.fs", surface_mode: true),     # Glitch displacement needs unified UV
     Graphics::Shader.load(fragment: "shaders/bloom.fs", surface_mode: true)
   ]
-  @shader_index = 0
+  @shader_index = 6  # Default to CRT shader
 end
 
 def set_shader_uniforms(shader, name)

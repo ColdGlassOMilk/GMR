@@ -809,6 +809,32 @@ void DrawQueue::end_surface_mode() {
              state.handle, dest.x, dest.y, dest.width, dest.height);
 }
 
+void DrawQueue::suspend_surface_camera() {
+    if (!in_surface_mode()) return;
+    EndMode2D();
+}
+
+void DrawQueue::restore_surface_camera() {
+    if (!in_surface_mode()) return;
+
+    const SurfaceState& state = surface_stack_.top();
+    if (state.camera_hint != INVALID_CAMERA_HANDLE) {
+        auto* cam = CameraManager::instance().get(state.camera_hint);
+        if (cam) {
+            ::Camera2D surface_cam = {};
+            surface_cam.target = {cam->target.x, cam->target.y};
+            surface_cam.offset = {cam->offset.x, cam->offset.y};
+            surface_cam.rotation = cam->rotation;
+            surface_cam.zoom = state.effective_scale;
+            float shake_screen_x = cam->shake_offset.x * state.effective_scale;
+            float shake_screen_y = cam->shake_offset.y * state.effective_scale;
+            surface_cam.offset.x += shake_screen_x;
+            surface_cam.offset.y += shake_screen_y;
+            BeginMode2D(surface_cam);
+        }
+    }
+}
+
 void DrawQueue::flush() {
     if (commands_.empty()) return;
 
@@ -1145,7 +1171,10 @@ void DrawQueue::draw_rect(const DrawCommand& cmd) {
             }
         }
     } else {
-        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        // SCREEN-SPACE RENDERING (backward compat)
+        // In surface mode, screen-space primitives need to bypass the surface camera transform
+        suspend_surface_camera();
+
         if (cmd.rect.rotation != 0) {
             // Rotated rectangle
             Rectangle rect = {cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h};
@@ -1168,6 +1197,8 @@ void DrawQueue::draw_rect(const DrawCommand& cmd) {
                 color
             );
         }
+
+        restore_surface_camera();
     }
 }
 
@@ -1211,7 +1242,10 @@ void DrawQueue::draw_circle(const DrawCommand& cmd) {
             );
         }
     } else {
-        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        // SCREEN-SPACE RENDERING (backward compat)
+        // In surface mode, screen-space primitives need to bypass the surface camera transform
+        suspend_surface_camera();
+
         if (cmd.circle.gradient) {
             DrawCircleGradient(
                 static_cast<int>(cmd.circle.x),
@@ -1235,6 +1269,8 @@ void DrawQueue::draw_circle(const DrawCommand& cmd) {
                 to_raylib(cmd.circle.color)
             );
         }
+
+        restore_surface_camera();
     }
 }
 
@@ -1285,7 +1321,10 @@ void DrawQueue::draw_line(const DrawCommand& cmd) {
             );
         }
     } else {
-        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        // SCREEN-SPACE RENDERING (backward compat)
+        // In surface mode, screen-space primitives need to bypass the surface camera transform
+        suspend_surface_camera();
+
         if (cmd.line.thickness > 1.0f) {
             DrawLineEx(
                 Vector2{cmd.line.x1, cmd.line.y1},
@@ -1302,6 +1341,8 @@ void DrawQueue::draw_line(const DrawCommand& cmd) {
                 color
             );
         }
+
+        restore_surface_camera();
     }
 }
 
@@ -1350,7 +1391,10 @@ void DrawQueue::draw_triangle(const DrawCommand& cmd) {
             DrawTriangleLines(v1, v2, v3, color);
         }
     } else {
-        // LEGACY COORDINATE-BASED RENDERING (backward compat)
+        // SCREEN-SPACE RENDERING (backward compat)
+        // In surface mode, screen-space primitives need to bypass the surface camera transform
+        suspend_surface_camera();
+
         Vector2 v1 = {cmd.triangle.x1, cmd.triangle.y1};
         Vector2 v2 = {cmd.triangle.x2, cmd.triangle.y2};
         Vector2 v3 = {cmd.triangle.x3, cmd.triangle.y3};
@@ -1360,6 +1404,8 @@ void DrawQueue::draw_triangle(const DrawCommand& cmd) {
         } else {
             DrawTriangleLines(v1, v2, v3, color);
         }
+
+        restore_surface_camera();
     }
 }
 
@@ -1433,7 +1479,10 @@ void DrawQueue::draw_text(const DrawCommand& cmd) {
         float spacing = font_size_scaled / 10.0f;
         Vector2 position = {cmd.text.x * ui_scale, cmd.text.y * ui_scale};
 
+        // In surface mode, screen-space primitives need to bypass the surface camera transform
+        suspend_surface_camera();
         DrawTextEx(font, cmd.text.content.c_str(), position, font_size_scaled, spacing, color);
+        restore_surface_camera();
     }
 }
 

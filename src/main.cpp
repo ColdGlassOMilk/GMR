@@ -257,9 +257,16 @@ int main(int argc, char* argv[]) {
     SetTargetFPS(60);
     SetExitKey(0);
 
-    // Initialize canvas dimensions to match window
-    state.canvas_width = state.screen_width;
-    state.canvas_height = state.screen_height;
+    // Synchronize state with actual window dimensions
+    // This ensures proper resize handling even when script doesn't call Window.set_size()
+    state.windowed_width = GetScreenWidth();
+    state.windowed_height = GetScreenHeight();
+    state.canvas_width = GetScreenWidth();
+    state.canvas_height = GetScreenHeight();
+    if (!state.use_virtual_resolution) {
+        state.screen_width = GetScreenWidth();
+        state.screen_height = GetScreenHeight();
+    }
 
     // Ensure game/data directory exists for writable storage
     // This matches the path resolution in filesystem/paths.cpp
@@ -293,7 +300,7 @@ int main(int argc, char* argv[]) {
 
         // Store for Ruby bindings
         g_frame_delta = static_cast<float>(dt);
-        
+
         // Update window size tracking and notify Ruby of resize
         if (IsWindowResized() && !state.is_fullscreen) {
             state.windowed_width = GetScreenWidth();
@@ -307,14 +314,17 @@ int main(int argc, char* argv[]) {
 
             // Notify Ruby script of resize (if on_resize is defined)
             if (auto* mrb = loader.mrb()) {
-                std::vector<mrb_value> args = {
-                    mrb_fixnum_value(state.windowed_width),
-                    mrb_fixnum_value(state.windowed_height)
-                };
-                gmr::scripting::safe_call(mrb, "on_resize", args);
+                mrb_sym on_resize_sym = mrb_intern_lit(mrb, "on_resize");
+                if (mrb_respond_to(mrb, mrb_top_self(mrb), on_resize_sym)) {
+                    std::vector<mrb_value> args = {
+                        mrb_fixnum_value(state.windowed_width),
+                        mrb_fixnum_value(state.windowed_height)
+                    };
+                    gmr::scripting::safe_call(mrb, "on_resize", args);
+                }
             }
         }
-        
+
         // Hot reload
         loader.reload_if_changed();
 
