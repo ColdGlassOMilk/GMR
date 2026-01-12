@@ -2,6 +2,8 @@
 #include "gmr/bindings/binding_helpers.hpp"
 #include "gmr/state.hpp"
 #include <cstdio>
+#include <cmath>   // For std::abs
+#include "rlgl.h"  // For rlViewport to update WebGL viewport on resize
 
 // Global delta time from main loop (defined in main.cpp)
 extern float g_frame_delta;
@@ -41,59 +43,44 @@ EM_JS(void, js_resize_canvas, (int width, int height), {
     }
 });
 
-static bool was_fullscreen = false;
-
-// Update screen dimensions from actual canvas size on web
-// Only resize canvas when entering/exiting fullscreen to avoid taking over the page
-// Note: This is a backup for the JS fullscreenchange event handler
+// Safety net polling for edge cases during fullscreen (orientation changes, etc.)
+// Primary resize handling is done through on_resize() called from JavaScript
 void update_web_screen_size() {
     auto& state = State::instance();
 
-    bool is_fs = js_is_fullscreen();
+    // Only poll during fullscreen as safety net for cases ResizeObserver might miss
+    if (!state.is_fullscreen) {
+        return;
+    }
 
-    // Detect fullscreen state change
-    if (is_fs != was_fullscreen) {
-        was_fullscreen = is_fs;
+    // Check if window size changed (orientation, browser resize)
+    int w = js_get_window_width();
+    int h = js_get_window_height();
 
-        if (is_fs) {
-            // Entered fullscreen - resize canvas to window size
-            int w = js_get_window_width();
-            int h = js_get_window_height();
-            js_resize_canvas(w, h);
-            SetWindowSize(w, h);
-            state.canvas_width = w;
-            state.canvas_height = h;
-            state.is_fullscreen = true;
-        } else {
-            // Exited fullscreen - restore original size
-            js_resize_canvas(state.windowed_width, state.windowed_height);
-            SetWindowSize(state.windowed_width, state.windowed_height);
-            state.canvas_width = state.windowed_width;
-            state.canvas_height = state.windowed_height;
-            state.is_fullscreen = false;
-        }
+    // Determine render size based on DPR setting
+    int render_w = state.use_native_dpr ?
+        static_cast<int>(w * state.device_pixel_ratio) : w;
+    int render_h = state.use_native_dpr ?
+        static_cast<int>(h * state.device_pixel_ratio) : h;
 
-        // Update logical screen size if not using virtual resolution
+    if (render_w != state.render_width || render_h != state.render_height) {
+        // Update state
+        state.css_width = w;
+        state.css_height = h;
+        state.render_width = render_w;
+        state.render_height = render_h;
+
+        // Apply changes
+        js_resize_canvas(render_w, render_h);
+        SetWindowSize(render_w, render_h);
+        rlViewport(0, 0, render_w, render_h);
+
         if (!state.use_virtual_resolution) {
-            state.screen_width = state.canvas_width;
-            state.screen_height = state.canvas_height;
+            state.screen_width = w;
+            state.screen_height = h;
         }
-    } else if (is_fs) {
-        // While in fullscreen, check if window was resized (browser resize, orientation change)
-        int w = js_get_window_width();
-        int h = js_get_window_height();
 
-        if (w != state.canvas_width || h != state.canvas_height) {
-            js_resize_canvas(w, h);
-            SetWindowSize(w, h);
-            state.canvas_width = w;
-            state.canvas_height = h;
-
-            if (!state.use_virtual_resolution) {
-                state.screen_width = w;
-                state.screen_height = h;
-            }
-        }
+        state.canvas_resize_pending = true;
     }
 }
 
@@ -104,37 +91,81 @@ extern "C" {
         SetMasterVolume(volume);
     }
 
-    // Called from JavaScript when fullscreen state changes
+    // Unified resize handler - single entry point for all resize events from JavaScript
+    // Called by ResizeObserver, fullscreen changes, and DPR changes
     EMSCRIPTEN_KEEPALIVE
-    void on_fullscreen_change(int is_fullscreen, int width, int height) {
+    void on_resize(int css_w, int css_h, int phys_w, int phys_h, int dpr_x100, int is_fullscreen) {
         auto& state = State::instance();
 
-        if (is_fullscreen) {
-            // Entered fullscreen - resize canvas to provided size
-            js_resize_canvas(width, height);
-            SetWindowSize(width, height);
-            state.canvas_width = width;
-            state.canvas_height = height;
-            state.is_fullscreen = true;
-            was_fullscreen = true;
-        } else {
-            // Exited fullscreen - restore original size
-            js_resize_canvas(state.windowed_width, state.windowed_height);
-            SetWindowSize(state.windowed_width, state.windowed_height);
-            state.canvas_width = state.windowed_width;
-            state.canvas_height = state.windowed_height;
-            state.is_fullscreen = false;
-            was_fullscreen = false;
+        // Extract DPR (passed as int * 100 for precision without floats in JS interop)
+        float dpr = static_cast<float>(dpr_x100) / 100.0f;
+
+        // Determine actual render dimensions based on DPR setting
+        int render_w = state.use_native_dpr ? phys_w : css_w;
+        int render_h = state.use_native_dpr ? phys_h : css_h;
+
+        // Track state changes
+        bool dimensions_changed = (render_w != state.render_width ||
+                                   render_h != state.render_height);
+        bool fullscreen_changed = ((is_fullscreen != 0) != state.is_fullscreen);
+        bool dpr_changed = (std::abs(dpr - state.device_pixel_ratio) > 0.001f);
+
+        // Early exit if nothing changed
+        if (!dimensions_changed && !fullscreen_changed && !dpr_changed) {
+            return;
+        }
+
+        // Update CSS dimensions and DPR
+        state.css_width = css_w;
+        state.css_height = css_h;
+        state.device_pixel_ratio = dpr;
+
+        // Handle fullscreen state change
+        bool was_fullscreen = state.is_fullscreen;
+        state.is_fullscreen = (is_fullscreen != 0);
+
+        if (fullscreen_changed) {
+            if (state.is_fullscreen) {
+                // Entering fullscreen - windowed dimensions should already be saved
+            } else {
+                // Exiting fullscreen - restore windowed dimensions
+                render_w = state.windowed_width;
+                render_h = state.windowed_height;
+                if (state.use_native_dpr) {
+                    render_w = static_cast<int>(render_w * dpr);
+                    render_h = static_cast<int>(render_h * dpr);
+                }
+            }
+        }
+
+        // Apply render dimensions if changed
+        if (render_w != state.render_width || render_h != state.render_height) {
+            state.render_width = render_w;
+            state.render_height = render_h;
+
+            // Update canvas backing buffer
+            js_resize_canvas(render_w, render_h);
+
+            // Update raylib's window size
+            SetWindowSize(render_w, render_h);
+
+            // CRITICAL: Update WebGL viewport to match new canvas size
+            // SetWindowSize() on Emscripten doesn't automatically update the viewport
+            rlViewport(0, 0, render_w, render_h);
         }
 
         // Update logical screen size if not using virtual resolution
+        // Logical size uses CSS dimensions (what Ruby code expects for positioning)
         if (!state.use_virtual_resolution) {
-            state.screen_width = state.canvas_width;
-            state.screen_height = state.canvas_height;
+            state.screen_width = css_w;
+            state.screen_height = css_h;
         }
 
-        // Signal main loop to notify Ruby of resize
-        state.fullscreen_changed = true;
+        // Signal main loop to notify Ruby
+        state.canvas_resize_pending = true;
+        if (fullscreen_changed) {
+            state.fullscreen_changed = true;
+        }
     }
 }
 #endif
@@ -283,9 +314,23 @@ static mrb_value mrb_window_set_size(mrb_state* mrb, mrb_value self) {
     if (!state.is_fullscreen) {
         state.windowed_width = w;
         state.windowed_height = h;
-        state.canvas_width = w;
-        state.canvas_height = h;
-        SetWindowSize(w, h);
+        state.css_width = w;
+        state.css_height = h;
+
+        // Calculate render dimensions based on DPR setting
+        int render_w = state.use_native_dpr ?
+            static_cast<int>(w * state.device_pixel_ratio) : w;
+        int render_h = state.use_native_dpr ?
+            static_cast<int>(h * state.device_pixel_ratio) : h;
+
+        state.render_width = render_w;
+        state.render_height = render_h;
+        SetWindowSize(render_w, render_h);
+
+#if defined(PLATFORM_WEB)
+        js_resize_canvas(render_w, render_h);
+        rlViewport(0, 0, render_w, render_h);
+#endif
     }
 
     if (!state.use_virtual_resolution) {
@@ -319,6 +364,7 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
     if (state.is_fullscreen) {
         emscripten_exit_soft_fullscreen();
         emscripten_exit_fullscreen();
+        // Note: Actual state updates happen in on_resize() callback from JS
         state.is_fullscreen = false;
     } else {
         EmscriptenFullscreenStrategy strategy = {};
@@ -330,6 +376,7 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
         if (result != EMSCRIPTEN_RESULT_SUCCESS) {
             emscripten_request_fullscreen("#canvas", true);
         }
+        // Note: Actual state updates happen in on_resize() callback from JS
         state.is_fullscreen = true;
     }
 #else
@@ -342,8 +389,10 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
         int my = GetMonitorHeight(monitor);
         SetWindowPosition((mx - state.windowed_width) / 2, (my - state.windowed_height) / 2);
 
-        state.canvas_width = state.windowed_width;
-        state.canvas_height = state.windowed_height;
+        state.css_width = state.windowed_width;
+        state.css_height = state.windowed_height;
+        state.render_width = state.windowed_width;
+        state.render_height = state.windowed_height;
         if (!state.use_virtual_resolution) {
             state.screen_width = state.windowed_width;
             state.screen_height = state.windowed_height;
@@ -360,8 +409,10 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
         SetWindowSize(mw, mh);
         SetWindowState(FLAG_FULLSCREEN_MODE);
 
-        state.canvas_width = mw;
-        state.canvas_height = mh;
+        state.css_width = mw;
+        state.css_height = mh;
+        state.render_width = mw;
+        state.render_height = mh;
         if (!state.use_virtual_resolution) {
             state.screen_width = mw;
             state.screen_height = mh;
@@ -395,10 +446,12 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
         if (result != EMSCRIPTEN_RESULT_SUCCESS) {
             emscripten_request_fullscreen("#canvas", true);
         }
+        // Note: Actual state updates happen in on_resize() callback from JS
         state.is_fullscreen = true;
     } else if (!fullscreen && state.is_fullscreen) {
         emscripten_exit_fullscreen();
         emscripten_exit_soft_fullscreen();
+        // Note: Actual state updates happen in on_resize() callback from JS
         state.is_fullscreen = false;
     }
 #else
@@ -413,8 +466,10 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
         SetWindowSize(mw, mh);
         SetWindowState(FLAG_FULLSCREEN_MODE);
 
-        state.canvas_width = mw;
-        state.canvas_height = mh;
+        state.css_width = mw;
+        state.css_height = mh;
+        state.render_width = mw;
+        state.render_height = mh;
         if (!state.use_virtual_resolution) {
             state.screen_width = mw;
             state.screen_height = mh;
@@ -429,8 +484,10 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
         int my = GetMonitorHeight(monitor);
         SetWindowPosition((mx - state.windowed_width) / 2, (my - state.windowed_height) / 2);
 
-        state.canvas_width = state.windowed_width;
-        state.canvas_height = state.windowed_height;
+        state.css_width = state.windowed_width;
+        state.css_height = state.windowed_height;
+        state.render_width = state.windowed_width;
+        state.render_height = state.windowed_height;
         if (!state.use_virtual_resolution) {
             state.screen_width = state.windowed_width;
             state.screen_height = state.windowed_height;
@@ -535,6 +592,84 @@ static mrb_value mrb_window_set_filter_bilinear(mrb_state* mrb, mrb_value self) 
         SetTextureFilter(render_target.texture, TEXTURE_FILTER_BILINEAR);
     }
     return self;
+}
+
+/// @function use_native_dpr
+/// @description Enable high-DPI rendering at native device pixel ratio.
+///   Results in sharper rendering on retina displays but may impact performance.
+///   Only affects web builds. On native platforms this has no effect.
+/// @returns [Module] self for chaining
+/// @example GMR::Window.use_native_dpr  # Enable sharp retina rendering
+static mrb_value mrb_window_use_native_dpr(mrb_state* mrb, mrb_value self) {
+#if defined(PLATFORM_WEB)
+    auto& state = State::instance();
+    if (!state.use_native_dpr) {
+        state.use_native_dpr = true;
+
+        // Calculate new render dimensions
+        int phys_w = static_cast<int>(state.css_width * state.device_pixel_ratio);
+        int phys_h = static_cast<int>(state.css_height * state.device_pixel_ratio);
+
+        state.render_width = phys_w;
+        state.render_height = phys_h;
+
+        js_resize_canvas(phys_w, phys_h);
+        SetWindowSize(phys_w, phys_h);
+        rlViewport(0, 0, phys_w, phys_h);
+
+        state.canvas_resize_pending = true;
+    }
+#endif
+    return self;
+}
+
+/// @function use_css_dpr
+/// @description Render at CSS pixel resolution (1:1 with layout pixels).
+///   Better performance on high-DPI displays but may appear less sharp.
+///   This is the default behavior. Only affects web builds.
+/// @returns [Module] self for chaining
+/// @example GMR::Window.use_css_dpr  # Default, better performance
+static mrb_value mrb_window_use_css_dpr(mrb_state* mrb, mrb_value self) {
+#if defined(PLATFORM_WEB)
+    auto& state = State::instance();
+    if (state.use_native_dpr) {
+        state.use_native_dpr = false;
+
+        state.render_width = state.css_width;
+        state.render_height = state.css_height;
+
+        js_resize_canvas(state.css_width, state.css_height);
+        SetWindowSize(state.css_width, state.css_height);
+        rlViewport(0, 0, state.css_width, state.css_height);
+
+        state.canvas_resize_pending = true;
+    }
+#endif
+    return self;
+}
+
+/// @function device_pixel_ratio
+/// @description Get the current device pixel ratio.
+///   Returns 1.0 on standard displays, 2.0 on retina displays, etc.
+///   On native platforms, always returns 1.0.
+/// @returns [Float] Device pixel ratio
+/// @example dpr = GMR::Window.device_pixel_ratio  # 2.0 on retina
+static mrb_value mrb_window_device_pixel_ratio(mrb_state* mrb, mrb_value) {
+#if defined(PLATFORM_WEB)
+    return mrb_float_value(mrb, State::instance().device_pixel_ratio);
+#else
+    return mrb_float_value(mrb, 1.0f);
+#endif
+}
+
+/// @function native_dpr?
+/// @description Check if native DPR rendering is enabled.
+/// @returns [Boolean] true if rendering at native device pixel ratio
+/// @example if GMR::Window.native_dpr?
+///   puts "Rendering at #{GMR::Window.device_pixel_ratio}x resolution"
+/// end
+static mrb_value mrb_window_is_native_dpr(mrb_state* mrb, mrb_value) {
+    return to_mrb_bool(mrb, State::instance().use_native_dpr);
 }
 
 /// @function monitor_count
@@ -735,6 +870,12 @@ void register_window(mrb_state* mrb) {
     mrb_define_module_function(mrb, window, "virtual_resolution?", mrb_window_is_virtual_resolution, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "set_filter_point", mrb_window_set_filter_point, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "set_filter_bilinear", mrb_window_set_filter_bilinear, MRB_ARGS_NONE());
+
+    // DPR (Device Pixel Ratio) control for web builds
+    mrb_define_module_function(mrb, window, "use_native_dpr", mrb_window_use_native_dpr, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "use_css_dpr", mrb_window_use_css_dpr, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "device_pixel_ratio", mrb_window_device_pixel_ratio, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "native_dpr?", mrb_window_is_native_dpr, MRB_ARGS_NONE());
 
     mrb_define_module_function(mrb, window, "monitor_count", mrb_window_monitor_count, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "monitor_width", mrb_window_monitor_width, MRB_ARGS_REQ(1));

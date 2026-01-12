@@ -23,11 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Documentation
 - `docs/graphics.md` - Graphics system documentation
 
+#### Web Platform
+- **High-DPI Support**: Device pixel ratio detection and optional native-resolution rendering
+  - API: `Window.use_native_dpr` - Enable crisp rendering on retina/high-DPI displays
+  - API: `Window.use_css_dpr` - Render at CSS resolution (default, better performance)
+  - API: `Window.device_pixel_ratio` - Query current device pixel ratio
+  - API: `Window.native_dpr?` - Check if native DPR rendering is enabled
+
 ### Fixed
 - **Window Resize Crash**: Fixed crash when resizing window with minimal scripts that don't define `on_resize`
   - Now checks if method exists with `mrb_respond_to` before calling
 - **State Synchronization**: Window state now properly synchronized after `InitWindow()`
   - Ensures correct resize handling even when script doesn't call `Window.set_size()`
+- **Web Canvas Resize Detection**: Centralized resize handling now properly detects all canvas size changes
+  - Canvas resizes independent of window (e.g., opening dev tools in fullscreen) now detected via ResizeObserver
+  - Browser zoom changes detected via matchMedia API
+  - Unified handler eliminates race conditions between fragmented resize paths
+  - Proper separation of CSS dimensions (for mouse input) from render dimensions (for WebGL)
 
 ### Changed
 - Sample GLSL Shader files updated for GLSL ES compatibility

@@ -26,14 +26,29 @@ public:
     int windowed_width = 800;
     int windowed_height = 600;
 
-    // Actual canvas/render dimensions (for scaling virtual resolution to screen)
-    // On Emscripten, GetScreenWidth() doesn't update after SetWindowSize(),
-    // so we track this ourselves for reliable fullscreen handling.
-    int canvas_width = 800;
-    int canvas_height = 600;
+    // CSS/layout dimensions (what the browser uses for layout, mouse events)
+    // These are the dimensions in CSS pixels, independent of devicePixelRatio
+    int css_width = 800;
+    int css_height = 600;
+
+    // Physical render dimensions (actual backing buffer size)
+    // When use_native_dpr is true, this is css_* * device_pixel_ratio
+    // When use_native_dpr is false, this equals css_* (default)
+    int render_width = 800;
+    int render_height = 600;
+
+    // Device pixel ratio (1.0 on standard displays, 2.0 on retina, etc.)
+    float device_pixel_ratio = 1.0f;
+
+    // Whether to render at native device pixel ratio (sharp on retina)
+    // When false (default), renders at CSS resolution for better performance
+    bool use_native_dpr = false;
 
     // Flag set when fullscreen changes on web (so main loop can notify Ruby)
     bool fullscreen_changed = false;
+
+    // Flag set when canvas size changes on web (independent of fullscreen)
+    bool canvas_resize_pending = false;
 
     // Virtual resolution
     int virtual_width = 800;

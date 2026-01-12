@@ -149,12 +149,13 @@ static mrb_value mrb_input_mouse_x(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
     if (state.use_virtual_resolution) {
-        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        // Use CSS dimensions for mouse calculations since browser reports mouse in CSS pixels
+        float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+        float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
         float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
         int scaled_width = static_cast<int>(state.virtual_width * scale);
-        int offset_x = (GetScreenWidth() - scaled_width) / 2;
+        int offset_x = (state.css_width - scaled_width) / 2;
 
         return mrb_fixnum_value(static_cast<int>((GetMouseX() - offset_x) / scale));
     }
@@ -170,12 +171,13 @@ static mrb_value mrb_input_mouse_y(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
     if (state.use_virtual_resolution) {
-        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        // Use CSS dimensions for mouse calculations since browser reports mouse in CSS pixels
+        float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+        float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
         float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
         int scaled_height = static_cast<int>(state.virtual_height * scale);
-        int offset_y = (GetScreenHeight() - scaled_height) / 2;
+        int offset_y = (state.css_height - scaled_height) / 2;
 
         return mrb_fixnum_value(static_cast<int>((GetMouseY() - offset_y) / scale));
     }
@@ -197,14 +199,15 @@ static mrb_value mrb_input_mouse_world_x(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
     // Get screen-space mouse position (accounting for virtual resolution)
+    // Use CSS dimensions since browser reports mouse in CSS pixels
     float screen_x;
     if (state.use_virtual_resolution) {
-        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+        float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
         float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
         int scaled_width = static_cast<int>(state.virtual_width * scale);
-        int offset_x = (GetScreenWidth() - scaled_width) / 2;
+        int offset_x = (state.css_width - scaled_width) / 2;
 
         screen_x = static_cast<float>(GetMouseX() - offset_x) / scale;
     } else {
@@ -219,12 +222,12 @@ static mrb_value mrb_input_mouse_world_x(mrb_state* mrb, mrb_value) {
             // Get screen-space Y as well for proper conversion
             float screen_y;
             if (state.use_virtual_resolution) {
-                float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-                float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+                float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+                float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
                 float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                 int scaled_height = static_cast<int>(state.virtual_height * scale);
-                int offset_y = (GetScreenHeight() - scaled_height) / 2;
+                int offset_y = (state.css_height - scaled_height) / 2;
 
                 screen_y = static_cast<float>(GetMouseY() - offset_y) / scale;
             } else {
@@ -251,14 +254,15 @@ static mrb_value mrb_input_mouse_world_y(mrb_state* mrb, mrb_value) {
     auto& state = State::instance();
 
     // Get screen-space mouse position (accounting for virtual resolution)
+    // Use CSS dimensions since browser reports mouse in CSS pixels
     float screen_y;
     if (state.use_virtual_resolution) {
-        float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-        float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+        float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+        float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
         float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
         int scaled_height = static_cast<int>(state.virtual_height * scale);
-        int offset_y = (GetScreenHeight() - scaled_height) / 2;
+        int offset_y = (state.css_height - scaled_height) / 2;
 
         screen_y = static_cast<float>(GetMouseY() - offset_y) / scale;
     } else {
@@ -273,12 +277,12 @@ static mrb_value mrb_input_mouse_world_y(mrb_state* mrb, mrb_value) {
             // Get screen-space X as well for proper conversion
             float screen_x;
             if (state.use_virtual_resolution) {
-                float scale_x = static_cast<float>(GetScreenWidth()) / state.virtual_width;
-                float scale_y = static_cast<float>(GetScreenHeight()) / state.virtual_height;
+                float scale_x = static_cast<float>(state.css_width) / state.virtual_width;
+                float scale_y = static_cast<float>(state.css_height) / state.virtual_height;
                 float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                 int scaled_width = static_cast<int>(state.virtual_width * scale);
-                int offset_x = (GetScreenWidth() - scaled_width) / 2;
+                int offset_x = (state.css_width - scaled_width) / 2;
 
                 screen_x = static_cast<float>(GetMouseX() - offset_x) / scale;
             } else {

@@ -80,14 +80,26 @@ void game_loop(void* arg) {
     // Check if fullscreen changed and notify Ruby
     if (state.fullscreen_changed) {
         state.fullscreen_changed = false;
-        if (!state.use_virtual_resolution) {
-            if (auto* mrb = loader.mrb()) {
-                std::vector<mrb_value> args = {
-                    mrb_fixnum_value(state.screen_width),
-                    mrb_fixnum_value(state.screen_height)
-                };
-                gmr::scripting::safe_call(mrb, "on_resize", args);
-            }
+        // Always notify Ruby - pass CSS dimensions (logical size for game code)
+        if (auto* mrb = loader.mrb()) {
+            std::vector<mrb_value> args = {
+                mrb_fixnum_value(state.css_width),
+                mrb_fixnum_value(state.css_height)
+            };
+            gmr::scripting::safe_call(mrb, "on_resize", args);
+        }
+    }
+
+    // Check if canvas was resized (independent of fullscreen, e.g., dev tools opened)
+    if (state.canvas_resize_pending) {
+        state.canvas_resize_pending = false;
+        // Always notify Ruby - pass CSS dimensions (logical size for game code)
+        if (auto* mrb = loader.mrb()) {
+            std::vector<mrb_value> args = {
+                mrb_fixnum_value(state.css_width),
+                mrb_fixnum_value(state.css_height)
+            };
+            gmr::scripting::safe_call(mrb, "on_resize", args);
         }
     }
 
@@ -137,15 +149,15 @@ void game_loop(void* arg) {
             BeginDrawing();
             ClearBackground(::Color{0, 0, 0, 255});
 
-            // Use tracked canvas dimensions for scaling (GetScreenWidth doesn't update reliably on Emscripten)
-            float scale_x = static_cast<float>(state.canvas_width) / state.virtual_width;
-            float scale_y = static_cast<float>(state.canvas_height) / state.virtual_height;
+            // Use render dimensions for scaling (physical backing buffer size)
+            float scale_x = static_cast<float>(state.render_width) / state.virtual_width;
+            float scale_y = static_cast<float>(state.render_height) / state.virtual_height;
             float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
             int scaled_width = static_cast<int>(state.virtual_width * scale);
             int scaled_height = static_cast<int>(state.virtual_height * scale);
-            int offset_x = (state.canvas_width - scaled_width) / 2;
-            int offset_y = (state.canvas_height - scaled_height) / 2;
+            int offset_x = (state.render_width - scaled_width) / 2;
+            int offset_y = (state.render_height - scaled_height) / 2;
 
             Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                -static_cast<float>(state.virtual_height)};
@@ -199,9 +211,11 @@ int main(int argc, char* argv[]) {
     // automatically resume playback on first user interaction.
     InitAudioDevice();
 
-    // Initialize canvas dimensions to match window
-    state.canvas_width = state.screen_width;
-    state.canvas_height = state.screen_height;
+    // Initialize dimensions to match window
+    state.css_width = state.screen_width;
+    state.css_height = state.screen_height;
+    state.render_width = state.screen_width;
+    state.render_height = state.screen_height;
 
     // Initialize Emscripten FS for writable /data directory backed by IndexedDB
     // Note: /assets is preloaded as read-only, so we use a separate /data directory
@@ -261,8 +275,10 @@ int main(int argc, char* argv[]) {
     // This ensures proper resize handling even when script doesn't call Window.set_size()
     state.windowed_width = GetScreenWidth();
     state.windowed_height = GetScreenHeight();
-    state.canvas_width = GetScreenWidth();
-    state.canvas_height = GetScreenHeight();
+    state.css_width = GetScreenWidth();
+    state.css_height = GetScreenHeight();
+    state.render_width = GetScreenWidth();
+    state.render_height = GetScreenHeight();
     if (!state.use_virtual_resolution) {
         state.screen_width = GetScreenWidth();
         state.screen_height = GetScreenHeight();
@@ -305,23 +321,22 @@ int main(int argc, char* argv[]) {
         if (IsWindowResized() && !state.is_fullscreen) {
             state.windowed_width = GetScreenWidth();
             state.windowed_height = GetScreenHeight();
-            state.canvas_width = state.windowed_width;
-            state.canvas_height = state.windowed_height;
+            state.css_width = state.windowed_width;
+            state.css_height = state.windowed_height;
+            state.render_width = state.windowed_width;
+            state.render_height = state.windowed_height;
             if (!state.use_virtual_resolution) {
                 state.screen_width = state.windowed_width;
                 state.screen_height = state.windowed_height;
             }
 
-            // Notify Ruby script of resize (if on_resize is defined)
+            // Always notify Ruby script of resize (pass CSS/logical dimensions)
             if (auto* mrb = loader.mrb()) {
-                mrb_sym on_resize_sym = mrb_intern_lit(mrb, "on_resize");
-                if (mrb_respond_to(mrb, mrb_top_self(mrb), on_resize_sym)) {
-                    std::vector<mrb_value> args = {
-                        mrb_fixnum_value(state.windowed_width),
-                        mrb_fixnum_value(state.windowed_height)
-                    };
-                    gmr::scripting::safe_call(mrb, "on_resize", args);
-                }
+                std::vector<mrb_value> args = {
+                    mrb_fixnum_value(state.css_width),
+                    mrb_fixnum_value(state.css_height)
+                };
+                gmr::scripting::safe_call(mrb, "on_resize", args);
             }
         }
 
@@ -379,15 +394,15 @@ int main(int argc, char* argv[]) {
                 BeginDrawing();
                 ClearBackground(::Color{0, 0, 0, 255});
 
-                // Use tracked canvas dimensions for scaling (consistent with web build)
-                float scale_x = static_cast<float>(state.canvas_width) / state.virtual_width;
-                float scale_y = static_cast<float>(state.canvas_height) / state.virtual_height;
+                // Use render dimensions for scaling (physical backing buffer size)
+                float scale_x = static_cast<float>(state.render_width) / state.virtual_width;
+                float scale_y = static_cast<float>(state.render_height) / state.virtual_height;
                 float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                 int scaled_width = static_cast<int>(state.virtual_width * scale);
                 int scaled_height = static_cast<int>(state.virtual_height * scale);
-                int offset_x = (state.canvas_width - scaled_width) / 2;
-                int offset_y = (state.canvas_height - scaled_height) / 2;
+                int offset_x = (state.render_width - scaled_width) / 2;
+                int offset_y = (state.render_height - scaled_height) / 2;
 
                 Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                    -static_cast<float>(state.virtual_height)};

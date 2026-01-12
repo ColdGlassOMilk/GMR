@@ -297,6 +297,73 @@
             onRuntimeInitialized: function() {
                 console.log('GMR runtime initialized');
                 Module.setStatus('');
+
+                // Centralized resize handling - single source of truth for all resize events
+                var canvas = document.getElementById('canvas');
+                var resizeDebounceTimer = null;
+
+                // Main resize handler - called by all resize event sources
+                function handleResize() {
+                    if (!Module._on_resize || !canvas) return;
+
+                    // Get CSS dimensions (layout pixels)
+                    var cssWidth = canvas.clientWidth;
+                    var cssHeight = canvas.clientHeight;
+
+                    // Skip if no valid size
+                    if (cssWidth <= 0 || cssHeight <= 0) return;
+
+                    // Get device pixel ratio
+                    var dpr = window.devicePixelRatio || 1;
+
+                    // Calculate physical dimensions (for high-DPI rendering)
+                    var physWidth = Math.floor(cssWidth * dpr);
+                    var physHeight = Math.floor(cssHeight * dpr);
+
+                    // Check fullscreen state
+                    var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+                    // Call C++ with all dimension info
+                    // Parameters: cssW, cssH, physW, physH, dpr*100 (as int), isFullscreen
+                    Module._on_resize(cssWidth, cssHeight, physWidth, physHeight,
+                                      Math.floor(dpr * 100), isFullscreen ? 1 : 0);
+                }
+
+                // Debounced version to avoid rapid-fire updates during resize drag
+                function scheduleResize() {
+                    if (resizeDebounceTimer) {
+                        clearTimeout(resizeDebounceTimer);
+                    }
+                    resizeDebounceTimer = setTimeout(handleResize, 16); // ~1 frame at 60fps
+                }
+
+                // Set up all resize event sources
+                if (canvas) {
+                    // ResizeObserver for CSS size changes (dev tools, window resize)
+                    if (typeof ResizeObserver !== 'undefined') {
+                        var resizeObserver = new ResizeObserver(scheduleResize);
+                        resizeObserver.observe(canvas);
+                    }
+
+                    // DPR change detection (browser zoom, display change)
+                    if (window.matchMedia) {
+                        var updateDprListener = function() {
+                            // Create a new media query for current DPR
+                            var dprQuery = window.matchMedia('(resolution: ' + window.devicePixelRatio + 'dppx)');
+                            dprQuery.addEventListener('change', function onChange() {
+                                handleResize();
+                                // Re-register listener for new DPR value
+                                dprQuery.removeEventListener('change', onChange);
+                                updateDprListener();
+                            }, { once: true });
+                        };
+                        updateDprListener();
+                    }
+
+                    // Note: Don't call handleResize() here - the WebGL context isn't ready yet.
+                    // The first resize will happen naturally when ResizeObserver fires after
+                    // the first frame, or the C++ code will initialize dimensions from state.
+                }
             },
 
             totalDependencies: 0,
@@ -349,16 +416,12 @@
         });
         
         // Handle fullscreen changes (including webkit prefix)
+        // Note: The actual resize handling is done in onRuntimeInitialized's handleResize()
+        // This handler only updates the CSS class for styling
         function handleFullscreenChange() {
             var isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
             document.body.classList.toggle('fullscreen', isFullscreen);
-
-            // Notify C++ of fullscreen change with new dimensions
-            if (Module._on_fullscreen_change) {
-                var w = isFullscreen ? window.innerWidth : 0;
-                var h = isFullscreen ? window.innerHeight : 0;
-                Module._on_fullscreen_change(isFullscreen ? 1 : 0, w, h);
-            }
+            // The ResizeObserver will detect the canvas size change and call handleResize()
         }
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
