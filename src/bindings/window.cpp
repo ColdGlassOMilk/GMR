@@ -264,20 +264,44 @@ RenderTexture2D& get_render_target() {
 ///   end
 
 /// @function width
-/// @description Get the logical width of the game screen. Returns virtual resolution
-///   width if set, otherwise the actual window width.
-/// @returns [Integer] Screen width in pixels
+/// @description Get the logical width of the game screen in UI coordinate space.
+///   This is the width you should use for positioning UI elements.
+///   The engine uses a 360p baseline, so at 540p this returns 640 (960/1.5).
+/// @returns [Integer] Logical screen width
 /// @example screen_w = GMR::Window.width
 static mrb_value mrb_window_width(mrb_state* mrb, mrb_value) {
-    return mrb_fixnum_value(State::instance().screen_width);
+    auto& state = State::instance();
+    float ui_scale = state.ui_scale();
+    return mrb_fixnum_value(static_cast<int>(state.screen_width / ui_scale));
 }
 
 /// @function height
-/// @description Get the logical height of the game screen. Returns virtual resolution
-///   height if set, otherwise the actual window height.
-/// @returns [Integer] Screen height in pixels
+/// @description Get the logical height of the game screen in UI coordinate space.
+///   This is the height you should use for positioning UI elements.
+///   The engine uses a 360p baseline, so this always returns 360.
+/// @returns [Integer] Logical screen height (always 360 due to baseline)
 /// @example screen_h = GMR::Window.height
 static mrb_value mrb_window_height(mrb_state* mrb, mrb_value) {
+    auto& state = State::instance();
+    float ui_scale = state.ui_scale();
+    return mrb_fixnum_value(static_cast<int>(state.screen_height / ui_scale));
+}
+
+/// @function screen_width
+/// @description Get the actual screen width in pixels.
+///   Use this when you need real pixel dimensions (e.g., for shaders).
+/// @returns [Integer] Screen width in pixels
+/// @example pixels_w = GMR::Window.screen_width
+static mrb_value mrb_window_screen_width(mrb_state* mrb, mrb_value) {
+    return mrb_fixnum_value(State::instance().screen_width);
+}
+
+/// @function screen_height
+/// @description Get the actual screen height in pixels.
+///   Use this when you need real pixel dimensions (e.g., for shaders).
+/// @returns [Integer] Screen height in pixels
+/// @example pixels_h = GMR::Window.screen_height
+static mrb_value mrb_window_screen_height(mrb_state* mrb, mrb_value) {
     return mrb_fixnum_value(State::instance().screen_height);
 }
 
@@ -855,6 +879,8 @@ void register_window(mrb_state* mrb) {
 
     mrb_define_module_function(mrb, window, "width", mrb_window_width, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "height", mrb_window_height, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "screen_width", mrb_window_screen_width, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "screen_height", mrb_window_screen_height, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "actual_width", mrb_window_actual_width, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "actual_height", mrb_window_actual_height, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, window, "set_size", mrb_window_set_size, MRB_ARGS_REQ(2));

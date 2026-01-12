@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Scene Management
+- **Scene Transitions**: Animated transitions between scenes with configurable effects
+  - API: `SceneManager.load(scene, transition: :fade)` - Simple fade transition
+  - API: `SceneManager.load(scene, transition: :fade, duration: 1.0, easing: :out_cubic)` - Full options
+  - Supports `push` and `pop` operations with same transition options
+  - Leverages existing SurfacePool for render target capture
+  - Uses engine's 30+ easing functions for smooth animations
+- **Scene `on_resize` Lifecycle Method**: Base `GMR::Scene` class now includes default `on_resize(width, height)` method
+  - Scenes can override to handle window resize events
+  - Eliminates need for `respond_to?` checks in main script
+
 ### Changed
 
 #### Code Organization

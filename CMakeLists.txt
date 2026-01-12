@@ -100,6 +100,7 @@ set(SOURCES
     src/draw_queue.cpp
     src/draw_primitives.cpp
     src/draw_surface_mode.cpp
+    src/transition/transition_manager.cpp
     src/scripting/loader.cpp
     src/scripting/helpers.cpp
     src/scripting/script_error.cpp

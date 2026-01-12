@@ -1,6 +1,8 @@
 #include "gmr/scene.hpp"
+#include "gmr/transition/transition_manager.hpp"
 #include "gmr/scripting/helpers.hpp"
 #include <mruby/gc.h>
+#include <cstdio>
 
 namespace gmr {
 
@@ -116,7 +118,83 @@ void SceneManager::draw(mrb_state* mrb) {
     }
 }
 
+void SceneManager::load_with_transition(mrb_state* mrb, mrb_value scene_obj, const transition::TransitionConfig& config) {
+    auto& tm = transition::TransitionManager::instance();
+
+    // If transition starts successfully, defer the scene switch
+    if (tm.start(mrb, config)) {
+        // Protect pending scene from GC
+        mrb_gc_register(mrb, scene_obj);
+        pending_scene_ = scene_obj;
+        pending_op_ = PendingOperation::LOAD;
+    } else {
+        // Transition failed to start (e.g., already transitioning), do immediate load
+        load(mrb, scene_obj);
+    }
+}
+
+void SceneManager::push_with_transition(mrb_state* mrb, mrb_value scene_obj, const transition::TransitionConfig& config) {
+    auto& tm = transition::TransitionManager::instance();
+
+    if (tm.start(mrb, config)) {
+        mrb_gc_register(mrb, scene_obj);
+        pending_scene_ = scene_obj;
+        pending_op_ = PendingOperation::PUSH;
+    } else {
+        push(mrb, scene_obj);
+    }
+}
+
+void SceneManager::pop_with_transition(mrb_state* mrb, const transition::TransitionConfig& config) {
+    auto& tm = transition::TransitionManager::instance();
+
+    if (tm.start(mrb, config)) {
+        pending_op_ = PendingOperation::POP;
+        // No pending_scene_ needed for pop
+    } else {
+        pop(mrb);
+    }
+}
+
+void SceneManager::execute_pending(mrb_state* mrb) {
+    if (pending_op_ == PendingOperation::NONE) {
+        return;
+    }
+
+    switch (pending_op_) {
+        case PendingOperation::LOAD:
+            // Unregister from our temporary hold (load will re-register)
+            mrb_gc_unregister(mrb, pending_scene_);
+            load(mrb, pending_scene_);
+            break;
+        case PendingOperation::PUSH:
+            mrb_gc_unregister(mrb, pending_scene_);
+            push(mrb, pending_scene_);
+            break;
+        case PendingOperation::POP:
+            pop(mrb);
+            break;
+        default:
+            break;
+    }
+
+    pending_op_ = PendingOperation::NONE;
+    pending_scene_ = mrb_nil_value();
+
+    // Signal transition manager that the scene switch is complete
+    transition::TransitionManager::instance().scene_switched();
+}
+
 void SceneManager::clear(mrb_state* mrb) {
+    // Cancel any pending transition
+    if (pending_op_ != PendingOperation::NONE) {
+        if (!mrb_nil_p(pending_scene_)) {
+            mrb_gc_unregister(mrb, pending_scene_);
+        }
+        pending_op_ = PendingOperation::NONE;
+        pending_scene_ = mrb_nil_value();
+    }
+
     // Unload all overlays first
     while (!overlays_.empty()) {
         call_unload(mrb, overlays_.back());

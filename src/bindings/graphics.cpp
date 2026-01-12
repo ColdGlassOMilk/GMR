@@ -866,17 +866,67 @@ static mrb_value mrb_graphics_draw_text(mrb_state* mrb, mrb_value) {
 }
 
 /// @function measure_text
-/// @description Measure the width of text in pixels
+/// @description Measure the size of text in logical coordinates, returning width and height.
+///   The measurement accounts for UI scaling so the returned values can be used directly
+///   with Window.width/height for positioning calculations.
 /// @param text [String] The text to measure
-/// @param size [Integer] Font size in pixels
-/// @returns [Integer] Width in pixels
-/// @example width = GMR::Graphics.measure_text("Hello", 20)
-// GMR::Graphics.measure_text(text, size)
+/// @param size [Integer] Font size (in logical units, same as draw_text)
+/// @param opts [Hash] Optional hash with :font key for custom font
+/// @returns [Vec2] Width and height as a Vec2 in logical coordinates
+/// @example size = GMR::Graphics.measure_text("Hello", 20)
+/// @example size = GMR::Graphics.measure_text("Hello", 20, font: @my_font)
+// GMR::Graphics.measure_text(text, size, opts?)
 static mrb_value mrb_graphics_measure_text(mrb_state* mrb, mrb_value) {
     const char* text;
     mrb_int size;
-    mrb_get_args(mrb, "zi", &text, &size);
-    return mrb_fixnum_value(MeasureText(text, size));
+    mrb_value opts = mrb_nil_value();
+    mrb_get_args(mrb, "zi|H", &text, &size, &opts);
+
+    float width, height;
+
+    // Check for custom font in options
+    FontHandle font_handle = INVALID_HANDLE;
+    if (!mrb_nil_p(opts) && mrb_hash_p(opts)) {
+        mrb_value font_val = mrb_hash_get(mrb, opts,
+            mrb_symbol_value(mrb_intern_cstr(mrb, "font")));
+        if (!mrb_nil_p(font_val)) {
+            FontData* font_data = get_font_data(mrb, font_val);
+            if (font_data) font_handle = font_data->handle;
+        }
+    }
+
+    // Apply UI scaling like draw_text does (positions and sizes are scaled by ui_scale)
+    auto& state = State::instance();
+    float ui_scale = state.ui_scale();
+    float font_size_scaled = static_cast<float>(size) * ui_scale;
+    float spacing = font_size_scaled / 10.0f;
+
+    if (font_handle != INVALID_HANDLE) {
+        // Use custom font - measure at scaled size
+        Font* font = FontManager::instance().get(font_handle);
+        if (font) {
+            Vector2 measured = MeasureTextEx(*font, text, font_size_scaled, spacing);
+            // Convert back to logical coordinates
+            width = measured.x / ui_scale;
+            height = measured.y / ui_scale;
+        } else {
+            width = static_cast<float>(size);
+            height = static_cast<float>(size);
+        }
+    } else {
+        // Use default font - also measure at scaled size and convert back
+        int measured_width = MeasureText(text, static_cast<int>(font_size_scaled));
+        width = static_cast<float>(measured_width) / ui_scale;
+        height = static_cast<float>(size);  // Logical font height = requested size
+    }
+
+    // Create Vec2 result
+    RClass* gmr = get_gmr_module(mrb);
+    RClass* mathf = mrb_module_get_under(mrb, gmr, "Mathf");
+    RClass* vec2_class = mrb_class_get_under(mrb, mathf, "Vec2");
+
+    mrb_value args[2] = { mrb_float_value(mrb, width), mrb_float_value(mrb, height) };
+    return mrb_obj_new(mrb, vec2_class, 2, args);
 }
 
 // ============================================================================
@@ -1659,7 +1709,7 @@ void register_graphics(mrb_state* mrb) {
     mrb_define_module_function(mrb, graphics, "draw_triangle_outline", mrb_graphics_draw_triangle_outline, MRB_ARGS_REQ(7));
 
     mrb_define_module_function(mrb, graphics, "draw_text", mrb_graphics_draw_text, MRB_ARGS_ARG(4, 2));
-    mrb_define_module_function(mrb, graphics, "measure_text", mrb_graphics_measure_text, MRB_ARGS_REQ(2));
+    mrb_define_module_function(mrb, graphics, "measure_text", mrb_graphics_measure_text, MRB_ARGS_ARG(2, 1));
 
     // Texture class
     RClass* texture_class = mrb_define_class_under(mrb, graphics, "Texture", mrb->object_class);

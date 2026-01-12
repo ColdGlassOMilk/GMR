@@ -27,6 +27,7 @@
 #include "gmr/bindings/shader.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/state.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/input/input_manager.hpp"
@@ -468,6 +469,7 @@ void Loader::load(const std::string& script_dir) {
 #endif
 
     safe_call(mrb_, "init");
+    State::instance().init_called = true;
 
     last_mod_time_    = get_newest_mod_time(script_dir_);
     pending_mod_time_ = last_mod_time_;
@@ -542,7 +544,9 @@ void Loader::reload_if_changed() {
         state_machine::StateMachineManager::instance().clear(mrb_);
         input::InputManager::instance().clear(mrb_);
         CameraManager::instance().clear(mrb_);
+        State::instance().init_called = false;
         safe_call(mrb_, "init");
+        State::instance().init_called = true;
         last_init_content_ = new_init;
     }
 

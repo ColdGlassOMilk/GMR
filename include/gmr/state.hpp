@@ -74,6 +74,10 @@ public:
     // Quit flag - set by GMR.quit() or window close
     bool should_quit = false;
 
+    // Init flag - set after Ruby init() is called
+    // Used to prevent on_resize from being called before init
+    bool init_called = false;
+
 private:
     State() = default;
 };

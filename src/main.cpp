@@ -13,6 +13,8 @@
 #include "gmr/resources/font_manager.hpp"
 #include "gmr/resources/shader_manager.hpp"
 #include "gmr/rendering/surface_pool.hpp"
+#include "gmr/transition/transition_manager.hpp"
+#include "gmr/scene.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
@@ -126,11 +128,25 @@ void game_loop(void* arg) {
         // This ensures animations triggered during update() are advanced immediately
         gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
+        // Update scene transitions
+        auto& transition_mgr = gmr::transition::TransitionManager::instance();
+        transition_mgr.update(static_cast<float>(dt));
+
+        // Execute pending scene operation when transition OUT completes
+        if (transition_mgr.state() == gmr::transition::TransitionState::OUT &&
+            transition_mgr.progress() >= 1.0f &&
+            gmr::SceneManager::instance().has_pending()) {
+            gmr::SceneManager::instance().execute_pending(mrb);
+        }
+
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
             gmr::scripting::safe_call(mrb, "draw");
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
+
+            // Draw transition overlay
+            transition_mgr.draw();
 
             // Draw built-in console on render target
             console.draw();
@@ -163,6 +179,9 @@ void game_loop(void* arg) {
             gmr::scripting::safe_call(mrb, "draw");
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
+
+            // Draw transition overlay
+            transition_mgr.draw();
 
             // Draw built-in console on top
             console.draw();
@@ -321,13 +340,15 @@ int main(int argc, char* argv[]) {
                 state.screen_height = state.windowed_height;
             }
 
-            // Always notify Ruby script of resize (pass CSS/logical dimensions)
-            if (auto* mrb = loader.mrb()) {
-                std::vector<mrb_value> args = {
-                    mrb_fixnum_value(state.css_width),
-                    mrb_fixnum_value(state.css_height)
-                };
-                gmr::scripting::safe_call(mrb, "on_resize", args);
+            // Notify Ruby script of resize (only after init has been called)
+            if (state.init_called) {
+                if (auto* mrb = loader.mrb()) {
+                    std::vector<mrb_value> args = {
+                        mrb_fixnum_value(state.css_width),
+                        mrb_fixnum_value(state.css_height)
+                    };
+                    gmr::scripting::safe_call(mrb, "on_resize", args);
+                }
             }
         }
 
@@ -371,11 +392,25 @@ int main(int argc, char* argv[]) {
             // This ensures animations triggered during update() are advanced immediately
             gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
+            // Update scene transitions
+            auto& transition_mgr = gmr::transition::TransitionManager::instance();
+            transition_mgr.update(static_cast<float>(dt));
+
+            // Execute pending scene operation when transition OUT completes
+            if (transition_mgr.state() == gmr::transition::TransitionState::OUT &&
+                transition_mgr.progress() >= 1.0f &&
+                gmr::SceneManager::instance().has_pending()) {
+                gmr::SceneManager::instance().execute_pending(mrb);
+            }
+
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
                 gmr::scripting::safe_call(mrb, "draw");
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
+
+                // Draw transition overlay
+                transition_mgr.draw();
 
                 // Draw built-in console on render target
                 console.draw();
@@ -409,6 +444,9 @@ int main(int argc, char* argv[]) {
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
+                // Draw transition overlay
+                transition_mgr.draw();
+
                 // Draw built-in console on top
                 console.draw();
 
@@ -439,7 +477,9 @@ int main(int argc, char* argv[]) {
         gmr::state_machine::StateMachineManager::instance().clear(mrb);
         gmr::input::InputManager::instance().clear(mrb);
         gmr::event::EventQueue::instance().clear(mrb);
+        gmr::SceneManager::instance().clear(mrb);
     }
+    gmr::transition::TransitionManager::instance().clear();
     gmr::bindings::cleanup_window();
     gmr::SpriteManager::instance().clear();
     gmr::TransformManager::instance().clear();
