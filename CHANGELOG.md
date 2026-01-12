@@ -5,6 +5,28 @@ All notable changes to GMR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+#### Code Organization
+- **DrawQueue Split**: Split `draw_queue.cpp` (1,489 lines) into three focused files:
+  - `draw_queue.cpp` - Command queuing, sorting, and flush logic
+  - `draw_primitives.cpp` - Sprite, tilemap, and primitive rendering
+  - `draw_surface_mode.cpp` - Surface mode and camera/shader application
+- **DrawQueue Helper**: Extracted `create_command()` helper to centralize z-value calculation and draw_order management, removing ~100 lines of duplication
+- **Global State Consolidation**: Moved `g_frame_delta` and `g_should_quit` globals into `State` singleton
+  - Access via `State::instance().frame_delta` and `State::instance().should_quit`
+  - Eliminates undocumented extern dependencies across bindings
+
+#### CLI
+- **Stageable Mixin**: Extracted shared `run_stage` pattern into `Gmrcli::Stageable` module
+  - Reduces duplication between `build.rb` and `setup.rb`
+  - Centralizes JSON event emission for stage tracking
+- **Emscripten Helper**: Consolidated Emscripten environment configuration into `Gmrcli::Emscripten` module
+  - Single implementation of `env()` method for web builds
+  - Supports optional `include_lib_paths` parameter
+
 ## [0.3.1]
 
 ### Added

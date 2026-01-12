@@ -68,6 +68,12 @@ public:
     // Input action mappings (action_name -> list of key codes)
     std::unordered_map<std::string, std::vector<int>> input_actions;
 
+    // Frame timing - set by main loop at start of each frame
+    float frame_delta = 0.0f;
+
+    // Quit flag - set by GMR.quit() or window close
+    bool should_quit = false;
+
 private:
     State() = default;
 };

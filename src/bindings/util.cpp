@@ -4,12 +4,10 @@
 #include <mruby/hash.h>
 #include <mruby/array.h>
 #include <mruby/string.h>
+#include "gmr/state.hpp"
 #include "raylib.h"
 #include "rlgl.h"
 #include <cstdlib>
-
-// Defined in main.cpp - flag for script-initiated shutdown
-extern bool g_should_quit;
 
 // OpenGL constants for glGetString (avoid including gl.h due to raylib conflicts)
 #if !defined(PLATFORM_WEB)
@@ -161,7 +159,7 @@ namespace bindings {
 static mrb_value mrb_system_quit(mrb_state*, mrb_value) {
     #if !defined(PLATFORM_WEB)
         // Native: Signal main loop to exit - triggers normal cleanup
-        g_should_quit = true;
+        gmr::State::instance().should_quit = true;
     #else
         // Web: Can't programmatically exit - browser controls page lifecycle
         // This is a no-op to prevent exceptions

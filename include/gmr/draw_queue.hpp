@@ -202,6 +202,10 @@ public:
 private:
     DrawQueue() = default;
 
+    // Helper to create and initialize a draw command with common fields
+    // Centralizes z-value calculation and draw_order management
+    DrawCommand& create_command(DrawCommand::Type type, uint8_t layer, float z);
+
     void draw_sprite(const DrawCommand& cmd);
     void draw_tilemap(const DrawCommand& cmd);
     void draw_rect(const DrawCommand& cmd);

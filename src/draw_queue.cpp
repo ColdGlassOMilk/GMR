@@ -2,32 +2,27 @@
 #include "gmr/sprite.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/camera.hpp"
-#include "gmr/state.hpp"
-#include "gmr/resources/texture_manager.hpp"
-#include "gmr/resources/tilemap_manager.hpp"
-#include "gmr/resources/font_manager.hpp"
 #include "gmr/resources/shader_manager.hpp"
 #include "gmr/rendering/surface_pool.hpp"
 #include "raylib.h"
 #include <algorithm>
-#include <cmath>
-#include <limits>
 
 namespace gmr {
-
-// Convert our Color to raylib Color
-static ::Color to_raylib(const Color& c) {
-    return ::Color{c.r, c.g, c.b, c.a};
-}
-
-// Convert DrawColor to raylib Color
-static ::Color to_raylib(const DrawColor& c) {
-    return ::Color{c.r, c.g, c.b, c.a};
-}
 
 DrawQueue& DrawQueue::instance() {
     static DrawQueue instance;
     return instance;
+}
+
+DrawCommand& DrawQueue::create_command(DrawCommand::Type type, uint8_t layer, float z) {
+    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
+    commands_.emplace_back();
+    auto& cmd = commands_.back();
+    cmd.type = type;
+    cmd.layer = layer;
+    cmd.z = z_value;
+    cmd.draw_order = next_draw_order_++;
+    return cmd;
 }
 
 void DrawQueue::begin_frame() {
@@ -65,92 +60,47 @@ void DrawQueue::queue_sprite(SpriteHandle handle) {
 }
 
 void DrawQueue::queue_camera_begin(CameraHandle handle) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::CAMERA_BEGIN;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);  // Default layer (doesn't affect camera behavior)
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::CAMERA_BEGIN,
+                               static_cast<uint8_t>(RenderLayer::ENTITIES), 0.0f);
     cmd.camera_handle = handle;
-    commands_.push_back(cmd);
-
     camera_stack_.push_back(handle);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_camera_end() {
     if (camera_stack_.empty()) return;  // Safety check
 
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::CAMERA_END;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);  // Default layer (doesn't affect camera behavior)
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::CAMERA_END,
+                               static_cast<uint8_t>(RenderLayer::ENTITIES), 0.0f);
     cmd.camera_handle = camera_stack_.back();
-    commands_.push_back(cmd);
-
     camera_stack_.pop_back();
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_shader_begin(ShaderHandle handle) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::SHADER_BEGIN;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::SHADER_BEGIN,
+                               static_cast<uint8_t>(RenderLayer::ENTITIES), 0.0f);
     cmd.shader_handle = handle;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_shader_end() {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::SHADER_END;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::ENTITIES);
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
+    create_command(DrawCommand::Type::SHADER_END,
+                   static_cast<uint8_t>(RenderLayer::ENTITIES), 0.0f);
 }
 
 void DrawQueue::queue_tilemap(TilemapHandle handle, float offset_x, float offset_y, const DrawColor& tint) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TILEMAP;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::WORLD);  // Tilemaps default to WORLD layer
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TILEMAP,
+                               static_cast<uint8_t>(RenderLayer::WORLD), 0.0f);
     cmd.tilemap.handle = handle;
     cmd.tilemap.offset_x = offset_x;
     cmd.tilemap.offset_y = offset_y;
     cmd.tilemap.tint = tint;
     cmd.tilemap.use_region = false;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_tilemap_region(TilemapHandle handle, float offset_x, float offset_y,
                                       int32_t region_x, int32_t region_y, int32_t region_w, int32_t region_h,
                                       const DrawColor& tint) {
-    float z_value = DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_);
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TILEMAP;
-    cmd.layer = static_cast<uint8_t>(RenderLayer::WORLD);  // Tilemaps default to WORLD layer
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TILEMAP,
+                               static_cast<uint8_t>(RenderLayer::WORLD), 0.0f);
     cmd.tilemap.handle = handle;
     cmd.tilemap.offset_x = offset_x;
     cmd.tilemap.offset_y = offset_y;
@@ -160,21 +110,11 @@ void DrawQueue::queue_tilemap_region(TilemapHandle handle, float offset_x, float
     cmd.tilemap.region_y = region_y;
     cmd.tilemap.region_w = region_w;
     cmd.tilemap.region_h = region_h;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& color, bool filled,
                             uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::RECT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::RECT, layer, z);
     cmd.rect.x = x;
     cmd.rect.y = y;
     cmd.rect.w = w;
@@ -182,20 +122,11 @@ void DrawQueue::queue_rect(float x, float y, float w, float h, const DrawColor& 
     cmd.rect.color = color;
     cmd.rect.filled = filled;
     cmd.rect.rotation = 0;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_rect_rotated(float x, float y, float w, float h, float rotation, const DrawColor& color,
                                     uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::RECT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::RECT, layer, z);
     cmd.rect.x = x;
     cmd.rect.y = y;
     cmd.rect.w = w;
@@ -203,42 +134,22 @@ void DrawQueue::queue_rect_rotated(float x, float y, float w, float h, float rot
     cmd.rect.color = color;
     cmd.rect.filled = true;
     cmd.rect.rotation = rotation;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_circle(float x, float y, float radius, const DrawColor& color, bool filled,
                               uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::CIRCLE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::CIRCLE, layer, z);
     cmd.circle.x = x;
     cmd.circle.y = y;
     cmd.circle.radius = radius;
     cmd.circle.color = color;
     cmd.circle.filled = filled;
     cmd.circle.gradient = false;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_circle_gradient(float x, float y, float radius, const DrawColor& inner, const DrawColor& outer,
                                        uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::CIRCLE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::CIRCLE, layer, z);
     cmd.circle.x = x;
     cmd.circle.y = y;
     cmd.circle.radius = radius;
@@ -246,43 +157,23 @@ void DrawQueue::queue_circle_gradient(float x, float y, float radius, const Draw
     cmd.circle.color2 = outer;
     cmd.circle.filled = true;
     cmd.circle.gradient = true;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_line(float x1, float y1, float x2, float y2, const DrawColor& color, float thickness,
                             uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::LINE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::LINE, layer, z);
     cmd.line.x1 = x1;
     cmd.line.y1 = y1;
     cmd.line.x2 = x2;
     cmd.line.y2 = y2;
     cmd.line.color = color;
     cmd.line.thickness = thickness;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_triangle(float x1, float y1, float x2, float y2, float x3, float y3,
                                 const DrawColor& color, bool filled,
                                 uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TRIANGLE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TRIANGLE, layer, z);
     cmd.triangle.x1 = x1;
     cmd.triangle.y1 = y1;
     cmd.triangle.x2 = x2;
@@ -291,97 +182,55 @@ void DrawQueue::queue_triangle(float x1, float y1, float x2, float y2, float x3,
     cmd.triangle.y3 = y3;
     cmd.triangle.color = color;
     cmd.triangle.filled = filled;
-    commands_.push_back(cmd);
-
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
                             uint8_t layer, float z) {
-    // Use provided z if non-zero, otherwise use draw_order base
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TEXT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TEXT, layer, z);
     cmd.text.x = x;
     cmd.text.y = y;
     cmd.text.font_size = font_size;
     cmd.text.color = color;
     cmd.text.content = content;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_text(float x, float y, const std::string& content, int font_size, const DrawColor& color,
                             FontHandle font, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TEXT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TEXT, layer, z);
     cmd.text.x = x;
     cmd.text.y = y;
     cmd.text.font_size = font_size;
     cmd.text.color = color;
     cmd.text.font = font;
     cmd.text.content = content;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 // ==================== Transform-based queue functions ====================
 
 void DrawQueue::queue_rect(TransformHandle transform, float width, float height, const DrawColor& color,
                             bool filled, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::RECT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::RECT, layer, z);
     cmd.rect.transform = transform;
     cmd.rect.width = width;
     cmd.rect.height = height;
     cmd.rect.color = color;
     cmd.rect.filled = filled;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_circle(TransformHandle transform, float radius, const DrawColor& color,
                               bool filled, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::CIRCLE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::CIRCLE, layer, z);
     cmd.circle.transform = transform;
     cmd.circle.radius = radius;
     cmd.circle.color = color;
     cmd.circle.filled = filled;
     cmd.circle.gradient = false;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_triangle(TransformHandle transform, float x1, float y1, float x2, float y2,
                                 float x3, float y3, const DrawColor& color, bool filled,
                                 uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TRIANGLE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TRIANGLE, layer, z);
     cmd.triangle.transform = transform;
     cmd.triangle.x1 = x1;
     cmd.triangle.y1 = y1;
@@ -391,19 +240,11 @@ void DrawQueue::queue_triangle(TransformHandle transform, float x1, float y1, fl
     cmd.triangle.y3 = y3;
     cmd.triangle.color = color;
     cmd.triangle.filled = filled;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_line(TransformHandle transform, float x1, float y1, float x2, float y2,
                             const DrawColor& color, float thickness, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::LINE;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::LINE, layer, z);
     cmd.line.transform = transform;
     cmd.line.x1 = x1;
     cmd.line.y1 = y1;
@@ -411,429 +252,28 @@ void DrawQueue::queue_line(TransformHandle transform, float x1, float y1, float 
     cmd.line.y2 = y2;
     cmd.line.color = color;
     cmd.line.thickness = thickness;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_text(TransformHandle transform, const std::string& content, int font_size,
                             const DrawColor& color, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TEXT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TEXT, layer, z);
     cmd.text.transform = transform;
     cmd.text.font_size = font_size;
     cmd.text.color = color;
     cmd.text.content = content;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
 void DrawQueue::queue_text(TransformHandle transform, const std::string& content, int font_size,
                             const DrawColor& color, FontHandle font, uint8_t layer, float z) {
-    float z_value = (z != 0.0f) ? z : (DRAW_ORDER_Z_BASE + static_cast<float>(next_draw_order_));
-
-    DrawCommand cmd;
-    cmd.type = DrawCommand::Type::TEXT;
-    cmd.layer = layer;
-    cmd.z = z_value;
-    cmd.draw_order = next_draw_order_;
+    auto& cmd = create_command(DrawCommand::Type::TEXT, layer, z);
     cmd.text.transform = transform;
     cmd.text.font_size = font_size;
     cmd.text.color = color;
     cmd.text.font = font;
     cmd.text.content = content;
-    commands_.push_back(cmd);
-    next_draw_order_++;
 }
 
-void DrawQueue::apply_camera_begin(CameraHandle handle) {
-    // Track that this camera would be active (even in surface mode)
-    active_camera_ = handle;
-
-    // In surface mode, the surface camera handles all transforms
-    // We just record the camera handle but don't start a new Mode2D
-    if (in_surface_mode()) {
-        return;
-    }
-
-    auto* cam = CameraManager::instance().get(handle);
-    if (cam) {
-        ::Camera2D raylib_cam = {};
-
-        // World-space projection:
-        // The effective scale (pixels_per_unit * zoom) becomes the raylib zoom factor.
-        // This means all world coordinates are automatically multiplied by effective_scale
-        // when rendered, converting world units to screen pixels.
-        float effective_scale = cam->get_effective_scale();
-
-        // Keep smooth camera movement - pixel snapping happens in tile rendering
-        raylib_cam.target = {cam->target.x, cam->target.y};
-
-        // Shake offset is in world units, convert to screen offset contribution
-        float shake_screen_x = cam->shake_offset.x * effective_scale;
-        float shake_screen_y = cam->shake_offset.y * effective_scale;
-        raylib_cam.offset = {cam->offset.x + shake_screen_x,
-                             cam->offset.y + shake_screen_y};
-        raylib_cam.rotation = cam->rotation;
-        raylib_cam.zoom = effective_scale;  // Uses effective scale as raylib zoom
-
-        BeginMode2D(raylib_cam);
-    }
-}
-
-void DrawQueue::apply_camera_end() {
-    // In surface mode, we didn't start a Mode2D, so don't end one
-    if (in_surface_mode()) {
-        active_camera_ = INVALID_CAMERA_HANDLE;
-        return;
-    }
-
-    if (active_camera_ != INVALID_CAMERA_HANDLE) {
-        EndMode2D();
-        active_camera_ = INVALID_CAMERA_HANDLE;
-    }
-}
-
-void DrawQueue::apply_shader_begin(ShaderHandle handle) {
-    auto* shader = ShaderManager::instance().get(handle);
-    if (shader) {
-        if (IsShaderValid(shader->raylib_shader)) {
-            BeginShaderMode(shader->raylib_shader);
-        } else {
-            TraceLog(LOG_WARNING, "SHADER: Attempted to use invalid raylib shader [ID %d]", handle);
-        }
-    } else {
-        TraceLog(LOG_WARNING, "SHADER: Attempted to use null shader [ID %d]", handle);
-    }
-}
-
-void DrawQueue::apply_shader_end() {
-    EndShaderMode();
-}
-
-// ==================== Surface Mode Helpers ====================
-
-size_t DrawQueue::find_shader_end(size_t start_idx) const {
-    int depth = 1;
-    for (size_t i = start_idx + 1; i < commands_.size(); ++i) {
-        if (commands_[i].type == DrawCommand::Type::SHADER_BEGIN) {
-            depth++;
-        }
-        if (commands_[i].type == DrawCommand::Type::SHADER_END) {
-            depth--;
-            if (depth == 0) return i;
-        }
-    }
-    return commands_.size() - 1;  // Fallback to end if no matching end found
-}
-
-DrawQueue::SurfaceBounds DrawQueue::get_drawable_bounds(const DrawCommand& cmd) const {
-    switch (cmd.type) {
-        case DrawCommand::Type::SPRITE: {
-            auto* sprite = SpriteManager::instance().get(cmd.sprite_handle);
-            if (!sprite) return {};
-
-            auto* texture = TextureManager::instance().get(sprite->texture);
-            if (!texture) return {};
-
-            Vec2 pos = TransformManager::instance().get_world_position(sprite->transform);
-            Vec2 scale = TransformManager::instance().get_world_scale(sprite->transform);
-
-            float tex_w = sprite->use_source_rect ? sprite->source_rect.width :
-                          static_cast<float>(texture->width);
-            float tex_h = sprite->use_source_rect ? sprite->source_rect.height :
-                          static_cast<float>(texture->height);
-
-            float w = std::abs(tex_w * scale.x / ASSET_PPU);
-            float h = std::abs(tex_h * scale.y / ASSET_PPU);
-
-            return {pos.x, pos.y, w, h};
-        }
-        case DrawCommand::Type::TILEMAP: {
-            auto* tm = TilemapManager::instance().get(cmd.tilemap.handle);
-            if (!tm) return {};
-
-            float tile_size = static_cast<float>(tm->tile_width) / ASSET_PPU;
-            float w, h;
-            if (cmd.tilemap.use_region) {
-                w = cmd.tilemap.region_w * tile_size;
-                h = cmd.tilemap.region_h * tile_size;
-            } else {
-                w = tm->width * tile_size;
-                h = tm->height * tile_size;
-            }
-
-            return {cmd.tilemap.offset_x, cmd.tilemap.offset_y, w, h};
-        }
-        case DrawCommand::Type::RECT: {
-            if (cmd.rect.transform != INVALID_HANDLE) {
-                Vec2 pos = TransformManager::instance().get_world_position(cmd.rect.transform);
-                Vec2 scale = TransformManager::instance().get_world_scale(cmd.rect.transform);
-                return {pos.x, pos.y, cmd.rect.width * std::abs(scale.x), cmd.rect.height * std::abs(scale.y)};
-            }
-            return {cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h};
-        }
-        case DrawCommand::Type::CIRCLE: {
-            if (cmd.circle.transform != INVALID_HANDLE) {
-                Vec2 pos = TransformManager::instance().get_world_position(cmd.circle.transform);
-                Vec2 scale = TransformManager::instance().get_world_scale(cmd.circle.transform);
-                float avg_scale = (std::abs(scale.x) + std::abs(scale.y)) * 0.5f;
-                float r = cmd.circle.radius * avg_scale;
-                return {pos.x - r, pos.y - r, r * 2, r * 2};
-            }
-            return {cmd.circle.x - cmd.circle.radius, cmd.circle.y - cmd.circle.radius,
-                    cmd.circle.radius * 2, cmd.circle.radius * 2};
-        }
-        default:
-            return {};
-    }
-}
-
-DrawQueue::SurfaceBounds DrawQueue::calculate_group_bounds(size_t start, size_t end) const {
-    float min_x = std::numeric_limits<float>::max();
-    float min_y = std::numeric_limits<float>::max();
-    float max_x = std::numeric_limits<float>::lowest();
-    float max_y = std::numeric_limits<float>::lowest();
-
-    bool found_any = false;
-
-    for (size_t i = start; i <= end; ++i) {
-        SurfaceBounds drawable = get_drawable_bounds(commands_[i]);
-        if (drawable.width > 0 && drawable.height > 0) {
-            min_x = std::min(min_x, drawable.x);
-            min_y = std::min(min_y, drawable.y);
-            max_x = std::max(max_x, drawable.x + drawable.width);
-            max_y = std::max(max_y, drawable.y + drawable.height);
-            found_any = true;
-        }
-    }
-
-    if (!found_any) {
-        return {0, 0, 0, 0};
-    }
-
-    return {min_x, min_y, max_x - min_x, max_y - min_y};
-}
-
-float DrawQueue::get_effective_scale() const {
-    if (active_camera_ != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(active_camera_);
-        if (cam) {
-            return cam->get_effective_scale();
-        }
-    }
-    // Default scale when no camera active
-    return ASSET_PPU;
-}
-
-float DrawQueue::get_shader_group_effective_scale(size_t start_idx, size_t end_idx) const {
-    // Pre-scan the command range to find any CAMERA_BEGIN and use its effective scale
-    // This solves the timing problem where SHADER_BEGIN is processed before CAMERA_BEGIN
-    CameraHandle cam_handle = get_shader_group_camera(start_idx, end_idx);
-    if (cam_handle != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(cam_handle);
-        if (cam) {
-            return cam->get_effective_scale();
-        }
-    }
-    // No camera found in this shader group - use default
-    return ASSET_PPU;
-}
-
-CameraHandle DrawQueue::get_shader_group_camera(size_t start_idx, size_t end_idx) const {
-    // Pre-scan the command range to find any CAMERA_BEGIN
-    for (size_t i = start_idx; i <= end_idx; ++i) {
-        if (commands_[i].type == DrawCommand::Type::CAMERA_BEGIN) {
-            return commands_[i].camera_handle;
-        }
-    }
-    return INVALID_CAMERA_HANDLE;
-}
-
-DrawQueue::SurfaceBounds DrawQueue::get_surface_offset() const {
-    if (surface_stack_.empty()) {
-        return {0, 0, 0, 0};
-    }
-    return surface_stack_.top().bounds;
-}
-
-void DrawQueue::begin_surface_mode(ShaderHandle shader, const SurfaceBounds& bounds, float effective_scale, CameraHandle camera_hint) {
-    // Create a surface that matches the viewport size.
-    // We use the same camera transform as normal rendering, so the surface
-    // just needs to be big enough to hold what the camera sees.
-
-    int pixel_width = 0;
-    int pixel_height = 0;
-
-    if (camera_hint != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(camera_hint);
-        if (cam) {
-            // Use viewport size directly - that's exactly what we need
-            pixel_width = static_cast<int>(cam->viewport_size.x);
-            pixel_height = static_cast<int>(cam->viewport_size.y);
-        }
-    }
-
-    // Fallback if no camera
-    if (pixel_width == 0 || pixel_height == 0) {
-        pixel_width = static_cast<int>(std::ceil(bounds.width * effective_scale));
-        pixel_height = static_cast<int>(std::ceil(bounds.height * effective_scale));
-    }
-
-    // Clamp to reasonable size (should rarely hit this now since we use visible bounds)
-    pixel_width = std::max(1, std::min(pixel_width, 4096));
-    pixel_height = std::max(1, std::min(pixel_height, 4096));
-
-    // Acquire surface with EXACT dimensions (no power-of-two rounding)
-    // This is critical for correct UV coordinates in shaders
-    SurfaceHandle surface = SurfacePool::instance().acquire_exact(pixel_width, pixel_height);
-    if (surface == INVALID_SURFACE_HANDLE) {
-        TraceLog(LOG_ERROR, "DRAW_QUEUE: Failed to acquire surface for shader surface mode");
-        // Fall back to direct shader mode
-        apply_shader_begin(shader);
-        return;
-    }
-
-    RenderTexture2D* rt = SurfacePool::instance().get(surface);
-
-    // Begin rendering to surface
-    BeginTextureMode(*rt);
-    ClearBackground({0, 0, 0, 0});  // Transparent clear
-
-    // Set up surface camera to EXACTLY match the original camera
-    ::Camera2D surface_cam = {};
-
-    if (camera_hint != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(camera_hint);
-        if (cam) {
-            // Use the EXACT same camera settings - no modifications needed
-            // since texture dimensions now match viewport exactly
-            surface_cam.target = {cam->target.x, cam->target.y};
-            surface_cam.offset = {cam->offset.x, cam->offset.y};
-            surface_cam.rotation = cam->rotation;
-            surface_cam.zoom = effective_scale;
-
-            // Apply shake
-            float shake_screen_x = cam->shake_offset.x * effective_scale;
-            float shake_screen_y = cam->shake_offset.y * effective_scale;
-            surface_cam.offset.x += shake_screen_x;
-            surface_cam.offset.y += shake_screen_y;
-        }
-    }
-
-    if (surface_cam.zoom == 0.0f) {
-        // Fallback if no camera - center on bounds
-        surface_cam.target = {
-            bounds.x + bounds.width * 0.5f,
-            bounds.y + bounds.height * 0.5f
-        };
-        surface_cam.offset = {
-            static_cast<float>(pixel_width) * 0.5f,
-            static_cast<float>(pixel_height) * 0.5f
-        };
-        surface_cam.rotation = 0.0f;
-        surface_cam.zoom = effective_scale;
-    }
-
-    BeginMode2D(surface_cam);
-
-    // Push surface state
-    SurfaceState state;
-    state.handle = surface;
-    state.bounds = bounds;  // Store original bounds (not used for blitting anymore)
-    state.shader = shader;
-    state.pixel_width = pixel_width;
-    state.pixel_height = pixel_height;
-    state.effective_scale = effective_scale;
-    state.camera_hint = camera_hint;
-    surface_stack_.push(state);
-
-    TraceLog(LOG_DEBUG, "DRAW_QUEUE: Begin surface mode [%d] pixels=%dx%d scale=%.1f",
-             surface, pixel_width, pixel_height, effective_scale);
-}
-
-void DrawQueue::end_surface_mode() {
-    if (surface_stack_.empty()) {
-        TraceLog(LOG_WARNING, "DRAW_QUEUE: end_surface_mode called with empty stack");
-        return;
-    }
-
-    SurfaceState state = surface_stack_.top();
-    surface_stack_.pop();
-
-    // End the surface-local camera
-    EndMode2D();
-
-    // End rendering to surface
-    EndTextureMode();
-
-    // Get the rendered surface
-    RenderTexture2D* rt = SurfacePool::instance().get(state.handle);
-    if (!rt) {
-        TraceLog(LOG_ERROR, "DRAW_QUEUE: Invalid surface handle in end_surface_mode");
-        return;
-    }
-
-    // Simple blit - texture dimensions match viewport exactly now
-    // Negative height flips Y for OpenGL render texture
-    Rectangle source = {
-        0,
-        0,
-        static_cast<float>(state.pixel_width),
-        -static_cast<float>(state.pixel_height)  // Negative height flips Y
-    };
-
-    // Destination: screen (0,0), same size as viewport
-    Rectangle dest = {
-        0,
-        0,
-        static_cast<float>(state.pixel_width),
-        static_cast<float>(state.pixel_height)
-    };
-
-    // Apply shader when blitting surface to main target
-    apply_shader_begin(state.shader);
-
-    DrawTexturePro(rt->texture, source, dest, {0, 0}, 0, ::Color{255, 255, 255, 255});
-
-    apply_shader_end();
-
-    // Release surface back to pool
-    SurfacePool::instance().release(state.handle);
-
-    TraceLog(LOG_DEBUG, "DRAW_QUEUE: End surface mode [%d] dest=(%.0f,%.0f,%.0f,%.0f)",
-             state.handle, dest.x, dest.y, dest.width, dest.height);
-}
-
-void DrawQueue::suspend_surface_camera() {
-    if (!in_surface_mode()) return;
-    EndMode2D();
-}
-
-void DrawQueue::restore_surface_camera() {
-    if (!in_surface_mode()) return;
-
-    const SurfaceState& state = surface_stack_.top();
-    if (state.camera_hint != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(state.camera_hint);
-        if (cam) {
-            ::Camera2D surface_cam = {};
-            surface_cam.target = {cam->target.x, cam->target.y};
-            surface_cam.offset = {cam->offset.x, cam->offset.y};
-            surface_cam.rotation = cam->rotation;
-            surface_cam.zoom = state.effective_scale;
-            float shake_screen_x = cam->shake_offset.x * state.effective_scale;
-            float shake_screen_y = cam->shake_offset.y * state.effective_scale;
-            surface_cam.offset.x += shake_screen_x;
-            surface_cam.offset.y += shake_screen_y;
-            BeginMode2D(surface_cam);
-        }
-    }
-}
+// ==================== Flush and Clear ====================
 
 void DrawQueue::flush() {
     if (commands_.empty()) return;
@@ -957,532 +397,6 @@ void DrawQueue::clear() {
     while (!surface_stack_.empty()) {
         SurfacePool::instance().release(surface_stack_.top().handle);
         surface_stack_.pop();
-    }
-}
-
-void DrawQueue::draw_sprite(const DrawCommand& cmd) {
-    auto* sprite = SpriteManager::instance().get(cmd.sprite_handle);
-    if (!sprite) return;
-
-    auto* texture = TextureManager::instance().get(sprite->texture);
-    if (!texture) return;
-
-    // Get transform (required)
-    auto* transform = TransformManager::instance().get(sprite->transform);
-    if (!transform) return;
-
-    // Determine source rectangle
-    Rectangle source;
-    if (sprite->use_source_rect) {
-        // Apply subpixel inset to prevent texture bleeding from adjacent frames.
-        // When sprites are rendered at non-integer screen positions (due to world-space
-        // coordinates and camera scaling), GPU texture sampling can bleed pixels from
-        // adjacent frames in the spritesheet. A half-texel inset prevents this.
-        constexpr float TEXEL_INSET = 0.5f;
-        source = {
-            sprite->source_rect.x + TEXEL_INSET,
-            sprite->source_rect.y + TEXEL_INSET,
-            sprite->source_rect.width - TEXEL_INSET * 2.0f,
-            sprite->source_rect.height - TEXEL_INSET * 2.0f
-        };
-    } else {
-        source = {
-            0, 0,
-            static_cast<float>(texture->width),
-            static_cast<float>(texture->height)
-        };
-    }
-
-    // Apply flip by negating source dimensions
-    if (sprite->flip_x) source.width = -source.width;
-    if (sprite->flip_y) source.height = -source.height;
-
-    // Get world transform from Transform2D (uses cached values - fast!)
-    Vec2 world_pos = TransformManager::instance().get_world_position(sprite->transform);
-    float world_rot = TransformManager::instance().get_world_rotation(sprite->transform);
-    Vec2 world_scale = TransformManager::instance().get_world_scale(sprite->transform);
-
-    // ASSET_PPU: The pixels-per-unit at which all assets were designed.
-    // This decouples sprite world size from camera settings.
-    // A 24px sprite = 1 world unit, matching tilemap (1 tile = 1 world unit).
-    // Camera.pixels_per_unit only affects view scale, NOT sprite intrinsic size.
-    constexpr float ASSET_PPU = 24.0f;
-
-    // Calculate destination rectangle in world units using ORIGINAL sprite dimensions
-    // (source.width/height have texel inset applied, so use original rect values)
-    float original_width = sprite->use_source_rect ? sprite->source_rect.width : static_cast<float>(texture->width);
-    float original_height = sprite->use_source_rect ? sprite->source_rect.height : static_cast<float>(texture->height);
-    float dest_w = std::abs(original_width) * world_scale.x / ASSET_PPU;
-    float dest_h = std::abs(original_height) * world_scale.y / ASSET_PPU;
-
-    // Apply parallax scrolling if rendering within a camera
-    if (active_camera_ != INVALID_CAMERA_HANDLE) {
-        auto* cam = CameraManager::instance().get(active_camera_);
-        if (cam) {
-            // parallax=1.0: moves with world (default)
-            // parallax=0.0: fixed to screen (stationary relative to camera)
-            // parallax=0.5: moves at half camera speed (distant background)
-            float parallax = transform->parallax;
-            if (parallax != 1.0f) {
-                // Add offset to counteract camera movement proportionally
-                // When camera moves by X, parallax object appears to move by X*parallax
-                // We achieve this by offsetting position: pos += target * (1 - parallax)
-                float offset_factor = 1.0f - parallax;
-                world_pos.x += cam->target.x * offset_factor;
-                world_pos.y += cam->target.y * offset_factor;
-            }
-        }
-    }
-
-    Rectangle dest = {world_pos.x, world_pos.y, dest_w, dest_h};
-
-    // CRITICAL FIX: Transform matrix already bakes origin offset into world_pos
-    // (see transform.cpp:26-27: tx = x - (origin_x * m.a + origin_y * m.b))
-    // This means world_pos is the top-left corner AFTER accounting for the rotated origin.
-    // DrawTexturePro should rotate the texture around the top-left (origin={0,0}),
-    // but we still need to pass the rotation angle to visually rotate the texture.
-    Vector2 origin = {0, 0};
-    float rotation_degrees = world_rot * (180.0f / 3.14159265358979323846f);
-
-    // Draw with tint
-    DrawTexturePro(*texture, source, dest, origin, rotation_degrees, to_raylib(sprite->color));
-}
-
-void DrawQueue::draw_tilemap(const DrawCommand& cmd) {
-    auto* tilemap = TilemapManager::instance().get(cmd.tilemap.handle);
-    if (!tilemap) return;
-
-    auto* texture = TextureManager::instance().get(tilemap->tileset);
-    if (!texture) return;
-
-    ::Color tint = to_raylib(cmd.tilemap.tint);
-
-    // Calculate tileset dimensions (tiles per row in tileset)
-    int tileset_cols = texture->width / tilemap->tile_width;
-
-    // Determine iteration bounds
-    int32_t start_x = 0, start_y = 0;
-    int32_t end_x = tilemap->width, end_y = tilemap->height;
-
-    if (cmd.tilemap.use_region) {
-        start_x = std::max(0, cmd.tilemap.region_x);
-        start_y = std::max(0, cmd.tilemap.region_y);
-        end_x = std::min(tilemap->width, cmd.tilemap.region_x + cmd.tilemap.region_w);
-        end_y = std::min(tilemap->height, cmd.tilemap.region_y + cmd.tilemap.region_h);
-    }
-
-    // ASSET_PPU: Must match the constant in draw_sprite() for consistency.
-    // All assets designed at 24 PPU: a 24px tile = 1 world unit.
-    constexpr float ASSET_PPU = 24.0f;
-
-    // World-space tile rendering:
-    // - tile_width/tile_height are in PIXELS (for texture sampling)
-    // - Tile world size = tile_pixel_size / ASSET_PPU
-    // - The camera's effective_scale converts world units to screen pixels
-    float tile_world_size = static_cast<float>(tilemap->tile_width) / ASSET_PPU;
-
-    // Draw each tile
-    for (int32_t ty = start_y; ty < end_y; ++ty) {
-        for (int32_t tx = start_x; tx < end_x; ++tx) {
-            int32_t tile_index = tilemap->get(tx, ty);
-            if (tile_index < 0) continue;  // Skip empty tiles
-
-            // Calculate source rect from tileset (in pixels for texture sampling)
-            int tileset_x = (tile_index % tileset_cols) * tilemap->tile_width;
-            int tileset_y = (tile_index / tileset_cols) * tilemap->tile_height;
-
-            Rectangle source = {
-                static_cast<float>(tileset_x),
-                static_cast<float>(tileset_y),
-                static_cast<float>(tilemap->tile_width),
-                static_cast<float>(tilemap->tile_height)
-            };
-
-            // Calculate dest position in world units
-            // offset_x/y are in world units, tile positions are grid indices (0, 1, 2...)
-            float dest_x, dest_y;
-            if (cmd.tilemap.use_region) {
-                dest_x = cmd.tilemap.offset_x + (tx - start_x) * tile_world_size;
-                dest_y = cmd.tilemap.offset_y + (ty - start_y) * tile_world_size;
-            } else {
-                dest_x = cmd.tilemap.offset_x + tx * tile_world_size;
-                dest_y = cmd.tilemap.offset_y + ty * tile_world_size;
-            }
-
-            // Destination size in world units (1 tile = 1 world unit)
-            // Add a tiny overlap to prevent gaps from floating-point rounding errors
-            // The overlap is 1 pixel in world units (1/effective_scale), ensuring
-            // adjacent tiles touch without visible gaps
-            float overlap = 0.01f;  // Small world-unit overlap to cover rounding errors
-
-            Rectangle dest = {
-                dest_x,
-                dest_y,
-                tile_world_size + overlap,
-                tile_world_size + overlap
-            };
-
-            DrawTexturePro(*texture, source, dest, Vector2{0, 0}, 0, tint);
-        }
-    }
-}
-
-void DrawQueue::draw_rect(const DrawCommand& cmd) {
-    ::Color color = to_raylib(cmd.rect.color);
-
-    if (cmd.rect.transform != INVALID_HANDLE) {
-        // TRANSFORM-BASED RENDERING
-        auto* transform = TransformManager::instance().get(cmd.rect.transform);
-        if (!transform) return;
-
-        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.rect.transform);
-        float world_rot = TransformManager::instance().get_world_rotation(cmd.rect.transform);
-        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.rect.transform);
-
-        float w = cmd.rect.width * std::abs(world_scale.x);
-        float h = cmd.rect.height * std::abs(world_scale.y);
-
-        if (world_rot != 0.0f) {
-            // Rotated rect - use DrawRectanglePro
-            // Transform matrix already bakes origin offset into world_pos
-            // (same as sprites - see draw_sprite comments)
-            Rectangle rect = {world_pos.x, world_pos.y, w, h};
-            Vector2 origin = {0, 0};
-            float rotation_degrees = world_rot * (180.0f / 3.14159265358979323846f);
-            DrawRectanglePro(rect, origin, rotation_degrees, color);
-        } else {
-            // Fast path: no rotation/origin
-            if (cmd.rect.filled) {
-                DrawRectangle(
-                    static_cast<int>(world_pos.x),
-                    static_cast<int>(world_pos.y),
-                    static_cast<int>(w),
-                    static_cast<int>(h),
-                    color
-                );
-            } else {
-                DrawRectangleLines(
-                    static_cast<int>(world_pos.x),
-                    static_cast<int>(world_pos.y),
-                    static_cast<int>(w),
-                    static_cast<int>(h),
-                    color
-                );
-            }
-        }
-    } else {
-        // SCREEN-SPACE RENDERING (backward compat)
-        // In surface mode, screen-space primitives need to bypass the surface camera transform
-        suspend_surface_camera();
-
-        if (cmd.rect.rotation != 0) {
-            // Rotated rectangle
-            Rectangle rect = {cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h};
-            Vector2 origin = {cmd.rect.w / 2, cmd.rect.h / 2};
-            DrawRectanglePro(rect, origin, cmd.rect.rotation, color);
-        } else if (cmd.rect.filled) {
-            DrawRectangle(
-                static_cast<int>(cmd.rect.x),
-                static_cast<int>(cmd.rect.y),
-                static_cast<int>(cmd.rect.w),
-                static_cast<int>(cmd.rect.h),
-                color
-            );
-        } else {
-            DrawRectangleLines(
-                static_cast<int>(cmd.rect.x),
-                static_cast<int>(cmd.rect.y),
-                static_cast<int>(cmd.rect.w),
-                static_cast<int>(cmd.rect.h),
-                color
-            );
-        }
-
-        restore_surface_camera();
-    }
-}
-
-void DrawQueue::draw_circle(const DrawCommand& cmd) {
-    if (cmd.circle.transform != INVALID_HANDLE) {
-        // TRANSFORM-BASED RENDERING
-        auto* transform = TransformManager::instance().get(cmd.circle.transform);
-        if (!transform) return;
-
-        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.circle.transform);
-        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.circle.transform);
-
-        // Use average scale for radius (circles don't support non-uniform scaling)
-        float scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
-        float scaled_radius = cmd.circle.radius * scale;
-
-        ::Color color = to_raylib(cmd.circle.color);
-
-        if (cmd.circle.gradient) {
-            ::Color color2 = to_raylib(cmd.circle.color2);
-            DrawCircleGradient(
-                static_cast<int>(world_pos.x),
-                static_cast<int>(world_pos.y),
-                scaled_radius,
-                color,
-                color2
-            );
-        } else if (cmd.circle.filled) {
-            DrawCircle(
-                static_cast<int>(world_pos.x),
-                static_cast<int>(world_pos.y),
-                scaled_radius,
-                color
-            );
-        } else {
-            DrawCircleLines(
-                static_cast<int>(world_pos.x),
-                static_cast<int>(world_pos.y),
-                scaled_radius,
-                color
-            );
-        }
-    } else {
-        // SCREEN-SPACE RENDERING (backward compat)
-        // In surface mode, screen-space primitives need to bypass the surface camera transform
-        suspend_surface_camera();
-
-        if (cmd.circle.gradient) {
-            DrawCircleGradient(
-                static_cast<int>(cmd.circle.x),
-                static_cast<int>(cmd.circle.y),
-                cmd.circle.radius,
-                to_raylib(cmd.circle.color),
-                to_raylib(cmd.circle.color2)
-            );
-        } else if (cmd.circle.filled) {
-            DrawCircle(
-                static_cast<int>(cmd.circle.x),
-                static_cast<int>(cmd.circle.y),
-                cmd.circle.radius,
-                to_raylib(cmd.circle.color)
-            );
-        } else {
-            DrawCircleLines(
-                static_cast<int>(cmd.circle.x),
-                static_cast<int>(cmd.circle.y),
-                cmd.circle.radius,
-                to_raylib(cmd.circle.color)
-            );
-        }
-
-        restore_surface_camera();
-    }
-}
-
-void DrawQueue::draw_line(const DrawCommand& cmd) {
-    ::Color color = to_raylib(cmd.line.color);
-
-    if (cmd.line.transform != INVALID_HANDLE) {
-        // TRANSFORM-BASED RENDERING
-        auto* transform = TransformManager::instance().get(cmd.line.transform);
-        if (!transform) return;
-
-        // Get world matrix to transform local-space endpoints
-        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.line.transform);
-        float world_rot = TransformManager::instance().get_world_rotation(cmd.line.transform);
-        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.line.transform);
-
-        // Transform local-space endpoints to world space
-        // Apply rotation and scale, then translate
-        float cos_r = std::cos(world_rot);
-        float sin_r = std::sin(world_rot);
-
-        // Transform point 1
-        float local_x1 = cmd.line.x1 - transform->origin.x;
-        float local_y1 = cmd.line.y1 - transform->origin.y;
-        float world_x1 = world_pos.x + (local_x1 * cos_r - local_y1 * sin_r) * world_scale.x;
-        float world_y1 = world_pos.y + (local_x1 * sin_r + local_y1 * cos_r) * world_scale.y;
-
-        // Transform point 2
-        float local_x2 = cmd.line.x2 - transform->origin.x;
-        float local_y2 = cmd.line.y2 - transform->origin.y;
-        float world_x2 = world_pos.x + (local_x2 * cos_r - local_y2 * sin_r) * world_scale.x;
-        float world_y2 = world_pos.y + (local_x2 * sin_r + local_y2 * cos_r) * world_scale.y;
-
-        if (cmd.line.thickness > 1.0f) {
-            DrawLineEx(
-                Vector2{world_x1, world_y1},
-                Vector2{world_x2, world_y2},
-                cmd.line.thickness,
-                color
-            );
-        } else {
-            DrawLine(
-                static_cast<int>(world_x1),
-                static_cast<int>(world_y1),
-                static_cast<int>(world_x2),
-                static_cast<int>(world_y2),
-                color
-            );
-        }
-    } else {
-        // SCREEN-SPACE RENDERING (backward compat)
-        // In surface mode, screen-space primitives need to bypass the surface camera transform
-        suspend_surface_camera();
-
-        if (cmd.line.thickness > 1.0f) {
-            DrawLineEx(
-                Vector2{cmd.line.x1, cmd.line.y1},
-                Vector2{cmd.line.x2, cmd.line.y2},
-                cmd.line.thickness,
-                color
-            );
-        } else {
-            DrawLine(
-                static_cast<int>(cmd.line.x1),
-                static_cast<int>(cmd.line.y1),
-                static_cast<int>(cmd.line.x2),
-                static_cast<int>(cmd.line.y2),
-                color
-            );
-        }
-
-        restore_surface_camera();
-    }
-}
-
-void DrawQueue::draw_triangle(const DrawCommand& cmd) {
-    ::Color color = to_raylib(cmd.triangle.color);
-
-    if (cmd.triangle.transform != INVALID_HANDLE) {
-        // TRANSFORM-BASED RENDERING
-        auto* transform = TransformManager::instance().get(cmd.triangle.transform);
-        if (!transform) return;
-
-        // Get world matrix to transform local-space vertices
-        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.triangle.transform);
-        float world_rot = TransformManager::instance().get_world_rotation(cmd.triangle.transform);
-        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.triangle.transform);
-
-        // Transform local-space vertices to world space
-        float cos_r = std::cos(world_rot);
-        float sin_r = std::sin(world_rot);
-
-        // Transform vertex 1
-        float local_x1 = cmd.triangle.x1 - transform->origin.x;
-        float local_y1 = cmd.triangle.y1 - transform->origin.y;
-        float world_x1 = world_pos.x + (local_x1 * cos_r - local_y1 * sin_r) * world_scale.x;
-        float world_y1 = world_pos.y + (local_x1 * sin_r + local_y1 * cos_r) * world_scale.y;
-
-        // Transform vertex 2
-        float local_x2 = cmd.triangle.x2 - transform->origin.x;
-        float local_y2 = cmd.triangle.y2 - transform->origin.y;
-        float world_x2 = world_pos.x + (local_x2 * cos_r - local_y2 * sin_r) * world_scale.x;
-        float world_y2 = world_pos.y + (local_x2 * sin_r + local_y2 * cos_r) * world_scale.y;
-
-        // Transform vertex 3
-        float local_x3 = cmd.triangle.x3 - transform->origin.x;
-        float local_y3 = cmd.triangle.y3 - transform->origin.y;
-        float world_x3 = world_pos.x + (local_x3 * cos_r - local_y3 * sin_r) * world_scale.x;
-        float world_y3 = world_pos.y + (local_x3 * sin_r + local_y3 * cos_r) * world_scale.y;
-
-        Vector2 v1 = {world_x1, world_y1};
-        Vector2 v2 = {world_x2, world_y2};
-        Vector2 v3 = {world_x3, world_y3};
-
-        if (cmd.triangle.filled) {
-            DrawTriangle(v1, v2, v3, color);
-        } else {
-            DrawTriangleLines(v1, v2, v3, color);
-        }
-    } else {
-        // SCREEN-SPACE RENDERING (backward compat)
-        // In surface mode, screen-space primitives need to bypass the surface camera transform
-        suspend_surface_camera();
-
-        Vector2 v1 = {cmd.triangle.x1, cmd.triangle.y1};
-        Vector2 v2 = {cmd.triangle.x2, cmd.triangle.y2};
-        Vector2 v3 = {cmd.triangle.x3, cmd.triangle.y3};
-
-        if (cmd.triangle.filled) {
-            DrawTriangle(v1, v2, v3, color);
-        } else {
-            DrawTriangleLines(v1, v2, v3, color);
-        }
-
-        restore_surface_camera();
-    }
-}
-
-void DrawQueue::draw_text(const DrawCommand& cmd) {
-    ::Color color = to_raylib(cmd.text.color);
-
-    // Get font (custom or default)
-    Font font;
-    if (cmd.text.font != INVALID_HANDLE) {
-        auto* custom_font = FontManager::instance().get(cmd.text.font);
-        if (custom_font) {
-            font = *custom_font;
-        } else {
-            font = GetFontDefault();
-        }
-    } else {
-        font = GetFontDefault();
-    }
-
-    if (cmd.text.transform != INVALID_HANDLE) {
-        // WORLD-SPACE RENDERING (with Transform2D)
-        // Font size is in WORLD UNITS (like sprites and tilemaps)
-        // The camera's effective_scale converts world units to screen pixels
-        auto* transform = TransformManager::instance().get(cmd.text.transform);
-        if (!transform) return;
-
-        Vec2 world_pos = TransformManager::instance().get_world_position(cmd.text.transform);
-        Vec2 world_scale = TransformManager::instance().get_world_scale(cmd.text.transform);
-
-        // Apply parallax scrolling (same as sprites)
-        if (active_camera_ != INVALID_CAMERA_HANDLE) {
-            auto* cam = CameraManager::instance().get(active_camera_);
-            if (cam) {
-                float parallax = transform->parallax;
-                if (parallax != 1.0f) {
-                    float offset_factor = 1.0f - parallax;
-                    world_pos.x += cam->target.x * offset_factor;
-                    world_pos.y += cam->target.y * offset_factor;
-                }
-            }
-        }
-
-        // Convert font size from world units to pixels, applying transform scale
-        float avg_scale = (std::abs(world_scale.x) + std::abs(world_scale.y)) * 0.5f;
-        float font_size_world = static_cast<float>(cmd.text.font_size) * avg_scale;
-
-        // Get camera effective scale to convert world units to screen pixels
-        float effective_scale = 1.0f;
-        if (active_camera_ != INVALID_CAMERA_HANDLE) {
-            auto* cam = CameraManager::instance().get(active_camera_);
-            if (cam) {
-                effective_scale = cam->get_effective_scale();
-            }
-        }
-
-        // Final pixel size = world_size * effective_scale
-        float font_size_pixels = font_size_world * effective_scale;
-        float spacing = font_size_pixels / 10.0f;
-
-        Vector2 position = {world_pos.x, world_pos.y};
-
-        DrawTextEx(font, cmd.text.content.c_str(), position, font_size_pixels, spacing, color);
-    } else {
-        // SCREEN-SPACE RENDERING with auto-scaling
-        // Developer specifies size at 360p baseline, engine auto-scales to virtual resolution
-        // This means: at 360p, size 14 = 14px. At 1080p, size 14 = 42px. At 128p, size 14 = 5px.
-        auto& state = State::instance();
-        float ui_scale = state.ui_scale();
-
-        float font_size_scaled = static_cast<float>(cmd.text.font_size) * ui_scale;
-        float spacing = font_size_scaled / 10.0f;
-        Vector2 position = {cmd.text.x * ui_scale, cmd.text.y * ui_scale};
-
-        // In surface mode, screen-space primitives need to bypass the surface camera transform
-        suspend_surface_camera();
-        DrawTextEx(font, cmd.text.content.c_str(), position, font_size_scaled, spacing, color);
-        restore_surface_camera();
     }
 }
 

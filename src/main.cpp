@@ -40,15 +40,6 @@ struct GameContext {
 
 static GameContext g_ctx;
 
-// Global flag for script-initiated shutdown
-// Allows GMR::System.quit to trigger clean shutdown through main loop exit
-bool g_should_quit = false;
-
-// Global delta time for consistent timing across C++ and Ruby
-// This ensures Time.delta in Ruby matches the actual frame delta used by C++
-// Note: Not static because it's accessed from window.cpp
-float g_frame_delta = 0.0f;
-
 // Forward declaration
 void game_loop(void* arg);
 
@@ -70,8 +61,8 @@ void game_loop(void* arg) {
     if (dt > MAX_DELTA) dt = MAX_DELTA;
 
     // Store for Ruby bindings
-    g_frame_delta = static_cast<float>(dt);
-    
+    state.frame_delta = static_cast<float>(dt);
+
     // Update window size tracking - always check on web since browser can resize canvas
     gmr::bindings::update_web_screen_size();
 
@@ -304,7 +295,7 @@ int main(int argc, char* argv[]) {
 
     double last_time = GetTime();
 
-    while (!WindowShouldClose() && !g_should_quit) {
+    while (!WindowShouldClose() && !state.should_quit) {
         double current_time = GetTime();
         double dt = current_time - last_time;
         last_time = current_time;
@@ -315,7 +306,7 @@ int main(int argc, char* argv[]) {
         if (dt > MAX_DELTA) dt = MAX_DELTA;
 
         // Store for Ruby bindings
-        g_frame_delta = static_cast<float>(dt);
+        state.frame_delta = static_cast<float>(dt);
 
         // Update window size tracking and notify Ruby of resize
         if (IsWindowResized() && !state.is_fullscreen) {

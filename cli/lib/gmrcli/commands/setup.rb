@@ -6,6 +6,8 @@ module Gmrcli
   module Commands
     # Setup command - installs all dependencies for GMR development
     class Setup
+      include Stageable
+
       attr_reader :options
 
       def initialize(options = {})
@@ -111,20 +113,6 @@ module Gmrcli
         paths[:html_docs] = html_docs if Dir.exist?(html_docs)
 
         paths
-      end
-
-      # Run a stage with JSON event tracking
-      def run_stage(stage_id, stage_name)
-        JsonEmitter.stage_start(stage_id, stage_name)
-        yield
-        @stages_completed << stage_id.to_s
-        JsonEmitter.stage_complete(stage_id)
-      rescue StandardError => e
-        error_details = e.respond_to?(:details) ? e.details : nil
-        error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
-        error_code = e.respond_to?(:code) ? e.code : nil
-        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions, code: error_code)
-        raise
       end
 
       # Determine the target type based on options
@@ -1129,31 +1117,7 @@ module Gmrcli
       end
 
       def emscripten_env
-        emsdk_dir = File.join(Platform.deps_dir, "emsdk")
-        emscripten_path = File.join(emsdk_dir, "upstream", "emscripten")
-
-        # Find node
-        node_dir = Dir.glob(File.join(emsdk_dir, "node", "*", "bin")).first
-
-        path_additions = [
-          Platform.bin_dir,
-          emscripten_path,
-          node_dir
-        ].compact.join(File::PATH_SEPARATOR)
-
-        # Use a cache path with NO SPACES to avoid Windows short path issues
-        # The project path has spaces, so we must use an external location
-        cache_dir = if Platform.windows?
-                      "C:/tmp/emcache"
-                    else
-                      File.join(ENV['HOME'], ".emcache")
-                    end
-
-        {
-          "PATH" => "#{path_additions}#{File::PATH_SEPARATOR}#{ENV['PATH']}",
-          "EMSDK" => emsdk_dir,
-          "EM_CACHE" => cache_dir
-        }
+        Emscripten.env(include_lib_paths: false)
       end
     end
   end

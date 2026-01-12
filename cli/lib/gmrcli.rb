@@ -17,6 +17,8 @@ require_relative "gmrcli/output/human"
 require_relative "gmrcli/helpers/platform"
 require_relative "gmrcli/helpers/ui"
 require_relative "gmrcli/helpers/shell"
+require_relative "gmrcli/helpers/stageable"
+require_relative "gmrcli/helpers/emscripten"
 
 # Commands
 require_relative "gmrcli/commands/setup"

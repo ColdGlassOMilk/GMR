@@ -1,4 +1,5 @@
 ![GitHub Tag](https://img.shields.io/github/v/tag/ColdGlassOMilk/GMR)
+[![](https://dcbadge.limes.pink/api/server/https://discord.gg/bbSB8e9D?style=flat&compact=true)](https://discord.gg/bbSB8e9D)
 
 # <img src="game/assets/logo.png" height="75" align="middle" /> GMR - Game Middleware for Ruby
 

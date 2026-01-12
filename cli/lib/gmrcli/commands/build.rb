@@ -33,6 +33,8 @@ module Gmrcli
     # Size information is included in both terminal output and JSON result.
     #
     class Build
+      include Stageable
+
       TARGETS = %w[debug release web clean all].freeze
 
       attr_reader :options, :project_dir
@@ -314,20 +316,6 @@ module Gmrcli
         options[:verbose]
       end
 
-      # Run a stage with JSON event tracking
-      def run_stage(stage_id, stage_name)
-        JsonEmitter.stage_start(stage_id, stage_name)
-        yield
-        @stages_completed << stage_id.to_s if @stages_completed
-        JsonEmitter.stage_complete(stage_id)
-      rescue StandardError => e
-        error_details = e.respond_to?(:details) ? e.details : nil
-        error_suggestions = e.respond_to?(:suggestions) ? e.suggestions : []
-        error_code = e.respond_to?(:code) ? e.code : nil
-        JsonEmitter.stage_error(stage_id, e.message, details: error_details, suggestions: error_suggestions, code: error_code)
-        raise
-      end
-
       # === Native Build ===
 
       def build_native(build_type)
@@ -592,55 +580,7 @@ module Gmrcli
       end
 
       def emscripten_env
-        # Helper to normalize paths to forward slashes (CMake/Emscripten prefer this)
-        normalize = ->(path) { path&.gsub("\\", "/") }
-
-        emsdk_dir = normalize.call(File.join(Platform.deps_dir, "emsdk"))
-        emscripten_path = normalize.call(File.join(emsdk_dir, "upstream", "emscripten"))
-
-        # Find node and python directories (versioned subdirectories)
-        node_version_dir = Dir.glob(File.join(emsdk_dir, "node", "*")).first
-        python_version_dir = Dir.glob(File.join(emsdk_dir, "python", "*")).first
-
-        # Node bin directory and executable
-        node_bin_dir = node_version_dir ? normalize.call(File.join(node_version_dir, "bin")) : nil
-        node_exe = node_bin_dir ? normalize.call(File.join(node_bin_dir, "node.exe")) : nil
-
-        # Python executable
-        python_exe = python_version_dir ? normalize.call(File.join(python_version_dir, "python.exe")) : nil
-
-        # Emscripten config file
-        em_config = normalize.call(File.join(emsdk_dir, ".emscripten"))
-
-        path_additions = [
-          normalize.call(Platform.bin_dir),
-          emscripten_path,
-          node_bin_dir,
-          python_version_dir ? normalize.call(python_version_dir) : nil,
-          normalize.call(File.join(emsdk_dir, "upstream", "bin")),
-          normalize.call(File.join(Platform.mingw_root, "bin")),
-        ].compact.join(File::PATH_SEPARATOR)
-
-        # Use user's home directory for cache (no spaces in path)
-        # USERPROFILE is Windows-style (C:\Users\...), HOME may be Unix-style (/c/Users/...)
-        # Convert HOME to Windows-style if needed
-        home = ENV["USERPROFILE"] || Platform.to_windows_path(ENV["HOME"]) || "C:/tmp"
-        cache_dir = normalize.call(File.join(home, ".emcache"))
-
-        env = {
-          "PATH" => "#{path_additions}#{File::PATH_SEPARATOR}#{ENV['PATH']}",
-          "EMSDK" => emsdk_dir,
-          "EM_CONFIG" => em_config,
-          "EM_CACHE" => cache_dir,
-          "RAYLIB_WEB_PATH" => normalize.call(File.join(Platform.deps_dir, "raylib", "web")),
-          "MRUBY_WEB_PATH" => normalize.call(File.join(Platform.deps_dir, "mruby", "web"))
-        }
-
-        # Add python and node paths if found
-        env["EMSDK_PYTHON"] = python_exe if python_exe && File.exist?(python_exe)
-        env["EMSDK_NODE"] = node_exe if node_exe && File.exist?(node_exe)
-
-        env
+        Emscripten.env(include_lib_paths: true)
       end
 
       # === Helpers ===
