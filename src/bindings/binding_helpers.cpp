@@ -163,13 +163,15 @@ void init_gmr_modules(mrb_state* mrb) {
     mrb_define_module_under(mrb, gmr, "Graphics");
     mrb_define_module_under(mrb, gmr, "Animation");
     mrb_define_module_under(mrb, gmr, "Audio");
-    mrb_define_module_under(mrb, gmr, "Input");
+    RClass* input = mrb_define_module_under(mrb, gmr, "Input");
+    mrb_define_module_under(mrb, input, "Gamepad");  // GMR::Input::Gamepad
     mrb_define_module_under(mrb, gmr, "Core");
     mrb_define_module_under(mrb, gmr, "Mathf");
     mrb_define_module_under(mrb, gmr, "Window");
     mrb_define_module_under(mrb, gmr, "Time");
     mrb_define_module_under(mrb, gmr, "System");
     mrb_define_module_under(mrb, gmr, "Collision");
+    mrb_define_module_under(mrb, gmr, "Debug");
 }
 
 // ============================================================================
@@ -300,6 +302,125 @@ int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg) {
 }
 
 // ============================================================================
+// Gamepad Symbol/Button/Axis Mapping
+// ============================================================================
+
+int symbol_to_gamepad_button(mrb_state* mrb, mrb_sym sym) {
+    const char* name = mrb_sym_name(mrb, sym);
+
+    // Face buttons (Xbox names as primary, others as aliases)
+    if (strcmp(name, "a") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_DOWN;       // Xbox A / PS Cross
+    if (strcmp(name, "b") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_RIGHT;      // Xbox B / PS Circle
+    if (strcmp(name, "x") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_LEFT;       // Xbox X / PS Square
+    if (strcmp(name, "y") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_UP;         // Xbox Y / PS Triangle
+    if (strcmp(name, "cross") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_DOWN;   // PS alias
+    if (strcmp(name, "circle") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_RIGHT; // PS alias
+    if (strcmp(name, "square") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_LEFT;  // PS alias
+    if (strcmp(name, "triangle") == 0) return GAMEPAD_BUTTON_RIGHT_FACE_UP;  // PS alias
+
+    // D-pad
+    if (strcmp(name, "dpad_up") == 0) return GAMEPAD_BUTTON_LEFT_FACE_UP;
+    if (strcmp(name, "dpad_down") == 0) return GAMEPAD_BUTTON_LEFT_FACE_DOWN;
+    if (strcmp(name, "dpad_left") == 0) return GAMEPAD_BUTTON_LEFT_FACE_LEFT;
+    if (strcmp(name, "dpad_right") == 0) return GAMEPAD_BUTTON_LEFT_FACE_RIGHT;
+
+    // Shoulder buttons
+    if (strcmp(name, "lb") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_1;       // Left bumper
+    if (strcmp(name, "rb") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_1;      // Right bumper
+    if (strcmp(name, "l1") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_1;       // PS alias
+    if (strcmp(name, "r1") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_1;      // PS alias
+    if (strcmp(name, "left_shoulder") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_1;
+    if (strcmp(name, "right_shoulder") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_1;
+
+    // Trigger buttons (digital click)
+    if (strcmp(name, "lt") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_2;       // Left trigger click
+    if (strcmp(name, "rt") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_2;      // Right trigger click
+    if (strcmp(name, "l2") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_2;       // PS alias
+    if (strcmp(name, "r2") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_2;      // PS alias
+    if (strcmp(name, "left_trigger") == 0) return GAMEPAD_BUTTON_LEFT_TRIGGER_2;
+    if (strcmp(name, "right_trigger") == 0) return GAMEPAD_BUTTON_RIGHT_TRIGGER_2;
+
+    // Thumbstick clicks
+    if (strcmp(name, "l3") == 0) return GAMEPAD_BUTTON_LEFT_THUMB;
+    if (strcmp(name, "r3") == 0) return GAMEPAD_BUTTON_RIGHT_THUMB;
+    if (strcmp(name, "left_stick") == 0) return GAMEPAD_BUTTON_LEFT_THUMB;
+    if (strcmp(name, "right_stick") == 0) return GAMEPAD_BUTTON_RIGHT_THUMB;
+    if (strcmp(name, "left_thumb") == 0) return GAMEPAD_BUTTON_LEFT_THUMB;
+    if (strcmp(name, "right_thumb") == 0) return GAMEPAD_BUTTON_RIGHT_THUMB;
+
+    // Center buttons
+    if (strcmp(name, "start") == 0) return GAMEPAD_BUTTON_MIDDLE_RIGHT;
+    if (strcmp(name, "select") == 0) return GAMEPAD_BUTTON_MIDDLE_LEFT;
+    if (strcmp(name, "back") == 0) return GAMEPAD_BUTTON_MIDDLE_LEFT;        // Xbox alias
+    if (strcmp(name, "guide") == 0) return GAMEPAD_BUTTON_MIDDLE;            // Xbox/PS button
+    if (strcmp(name, "home") == 0) return GAMEPAD_BUTTON_MIDDLE;             // Alias
+    if (strcmp(name, "options") == 0) return GAMEPAD_BUTTON_MIDDLE_RIGHT;    // PS alias
+    if (strcmp(name, "share") == 0) return GAMEPAD_BUTTON_MIDDLE_LEFT;       // PS alias
+
+    return -1; // Unknown symbol
+}
+
+int symbol_to_gamepad_axis(mrb_state* mrb, mrb_sym sym) {
+    const char* name = mrb_sym_name(mrb, sym);
+
+    // Left stick
+    if (strcmp(name, "left_x") == 0) return GAMEPAD_AXIS_LEFT_X;
+    if (strcmp(name, "left_y") == 0) return GAMEPAD_AXIS_LEFT_Y;
+    if (strcmp(name, "lx") == 0) return GAMEPAD_AXIS_LEFT_X;
+    if (strcmp(name, "ly") == 0) return GAMEPAD_AXIS_LEFT_Y;
+
+    // Right stick
+    if (strcmp(name, "right_x") == 0) return GAMEPAD_AXIS_RIGHT_X;
+    if (strcmp(name, "right_y") == 0) return GAMEPAD_AXIS_RIGHT_Y;
+    if (strcmp(name, "rx") == 0) return GAMEPAD_AXIS_RIGHT_X;
+    if (strcmp(name, "ry") == 0) return GAMEPAD_AXIS_RIGHT_Y;
+
+    // Triggers (analog)
+    if (strcmp(name, "left_trigger") == 0) return GAMEPAD_AXIS_LEFT_TRIGGER;
+    if (strcmp(name, "right_trigger") == 0) return GAMEPAD_AXIS_RIGHT_TRIGGER;
+    if (strcmp(name, "lt_axis") == 0) return GAMEPAD_AXIS_LEFT_TRIGGER;
+    if (strcmp(name, "rt_axis") == 0) return GAMEPAD_AXIS_RIGHT_TRIGGER;
+
+    return -1; // Unknown symbol
+}
+
+int parse_gamepad_button_arg(mrb_state* mrb, mrb_value arg) {
+    if (mrb_fixnum_p(arg)) {
+        return static_cast<int>(mrb_fixnum(arg));
+    }
+
+    if (mrb_symbol_p(arg)) {
+        int button = symbol_to_gamepad_button(mrb, mrb_symbol(arg));
+        if (button < 0) {
+            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Unknown gamepad button symbol: %s",
+                       mrb_sym_name(mrb, mrb_symbol(arg)));
+        }
+        return button;
+    }
+
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected gamepad button (integer) or symbol");
+    return -1;
+}
+
+int parse_gamepad_axis_arg(mrb_state* mrb, mrb_value arg) {
+    if (mrb_fixnum_p(arg)) {
+        return static_cast<int>(mrb_fixnum(arg));
+    }
+
+    if (mrb_symbol_p(arg)) {
+        int axis = symbol_to_gamepad_axis(mrb, mrb_symbol(arg));
+        if (axis < 0) {
+            mrb_raisef(mrb, E_ARGUMENT_ERROR, "Unknown gamepad axis symbol: %s",
+                       mrb_sym_name(mrb, mrb_symbol(arg)));
+        }
+        return axis;
+    }
+
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "Expected gamepad axis (integer) or symbol");
+    return -1;
+}
+
+// ============================================================================
 // Input Phase Parsing
 // ============================================================================
 
@@ -366,6 +487,14 @@ void register_top_level_aliases(mrb_state* mrb) {
         mrb_obj_value(mrb_module_get_under(mrb, gmr, "JSON")));
     mrb_define_const(mrb, gmr, "Serializable",
         mrb_obj_value(mrb_module_get_under(mrb, gmr, "Serializable")));
+
+    // Input submodules -> GMR top-level for convenience
+    RClass* input = mrb_module_get_under(mrb, gmr, "Input");
+    mrb_define_const(mrb, gmr, "Gamepad",
+        mrb_obj_value(mrb_module_get_under(mrb, input, "Gamepad")));
+
+    mrb_define_const(mrb, gmr, "Debug",
+        mrb_obj_value(mrb_module_get_under(mrb, gmr, "Debug")));
 
     // Graphics classes -> GMR top-level
     // Sprite, Texture, Tilemap, Camera, Rect, Transform2D become accessible after "include GMR"

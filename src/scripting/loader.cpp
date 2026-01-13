@@ -25,11 +25,22 @@
 #include "gmr/bindings/json.hpp"
 #include "gmr/bindings/serializable.hpp"
 #include "gmr/bindings/shader.hpp"
+#include "gmr/bindings/timer.hpp"
+#include "gmr/bindings/random.hpp"
+#include "gmr/bindings/destroyable.hpp"
+#include "gmr/bindings/spatial.hpp"
+#include "gmr/bindings/signal.hpp"
+#include "gmr/bindings/sequence.hpp"
+#include "gmr/bindings/gamepad.hpp"
+#include "gmr/bindings/debug_draw.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/state.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
+#include "gmr/timer/timer_manager.hpp"
+#include "gmr/spatial/spatial_hash.hpp"
+#include "gmr/sequence/sequence_manager.hpp"
 #include "gmr/input/input_manager.hpp"
 #include "gmr/console/console_module.hpp"
 #include "gmr/repl/output_capture.hpp"
@@ -117,6 +128,30 @@ void Loader::register_all_bindings() {
 
     // Register Serializable module (GMR::Serializable)
     bindings::register_serializable(mrb_);
+
+    // Register Timer module (GMR::Timer)
+    bindings::register_timer(mrb_);
+
+    // Register Random module (GMR::Random)
+    bindings::register_random(mrb_);
+
+    // Register Destroyable module and GameArray (GMR::Destroyable, GMR::GameArray)
+    bindings::register_destroyable(mrb_);
+
+    // Register SpatialHash module (GMR::SpatialHash)
+    bindings::register_spatial(mrb_);
+
+    // Register Signal module (GMR::Signal)
+    bindings::register_signal(mrb_);
+
+    // Register Sequence module (GMR::Sequence)
+    bindings::register_sequence(mrb_);
+
+    // Register Gamepad module (GMR::Gamepad)
+    bindings::register_gamepad(mrb_);
+
+    // Register Debug module (GMR::Debug)
+    bindings::register_debug_draw(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);
@@ -389,6 +424,9 @@ void Loader::load(const std::string& script_dir) {
         SceneManager::instance().clear(mrb_);
         CameraManager::instance().clear(mrb_);           // Has follow_target Ruby refs
         animation::AnimationManager::instance().clear(mrb_);  // Has callbacks
+        timer::TimerManager::instance().clear(mrb_);     // Has callbacks
+        sequence::SequenceManager::instance().clear(mrb_);  // Has callbacks
+        spatial::SpatialHash::instance().clear(mrb_);    // Has entity refs
         state_machine::StateMachineManager::instance().clear(mrb_);  // Has owner refs
         input::InputManager::instance().clear(mrb_);     // Has callbacks
         mrb_close(mrb_);
@@ -541,6 +579,8 @@ void Loader::reload_if_changed() {
     if (init_changed) {
         printf("[HOT_RELOAD] Clearing managers (init changed)\n");
         animation::AnimationManager::instance().clear(mrb_);
+        timer::TimerManager::instance().clear(mrb_);
+        spatial::SpatialHash::instance().clear(mrb_);
         state_machine::StateMachineManager::instance().clear(mrb_);
         input::InputManager::instance().clear(mrb_);
         CameraManager::instance().clear(mrb_);

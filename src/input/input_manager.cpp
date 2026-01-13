@@ -162,8 +162,43 @@ bool InputManager::check_action_phase(const ActionDefinition& action, InputPhase
                 case InputPhase::Released: match = IsMouseButtonReleased(binding.code); break;
                 case InputPhase::Held:     match = IsMouseButtonDown(binding.code); break;
             }
+        } else if (binding.source == InputSource::Gamepad) {
+            // Check specific gamepad or any gamepad
+            if (binding.gamepad_index >= 0) {
+                // Specific gamepad
+                if (IsGamepadAvailable(binding.gamepad_index)) {
+                    switch (phase) {
+                        case InputPhase::Pressed:
+                            match = IsGamepadButtonPressed(binding.gamepad_index, binding.code);
+                            break;
+                        case InputPhase::Released:
+                            match = IsGamepadButtonReleased(binding.gamepad_index, binding.code);
+                            break;
+                        case InputPhase::Held:
+                            match = IsGamepadButtonDown(binding.gamepad_index, binding.code);
+                            break;
+                    }
+                }
+            } else {
+                // Any gamepad (-1)
+                for (int gp = 0; gp < 4; gp++) {
+                    if (IsGamepadAvailable(gp)) {
+                        switch (phase) {
+                            case InputPhase::Pressed:
+                                if (IsGamepadButtonPressed(gp, binding.code)) match = true;
+                                break;
+                            case InputPhase::Released:
+                                if (IsGamepadButtonReleased(gp, binding.code)) match = true;
+                                break;
+                            case InputPhase::Held:
+                                if (IsGamepadButtonDown(gp, binding.code)) match = true;
+                                break;
+                        }
+                        if (match) break;
+                    }
+                }
+            }
         }
-        // Gamepad support would go here in the future
 
         if (match) return true;
     }

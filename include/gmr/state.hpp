@@ -71,6 +71,9 @@ public:
     // Frame timing - set by main loop at start of each frame
     float frame_delta = 0.0f;
 
+    // Time scale - multiplier for game time (1.0 = normal, 0.5 = half speed, 0 = paused)
+    float time_scale = 1.0f;
+
     // Quit flag - set by GMR.quit() or window close
     bool should_quit = false;
 

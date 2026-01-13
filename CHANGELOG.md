@@ -9,6 +9,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Core Utilities
+- **Timer System**: One-shot and repeating timers with automatic update
+  - API: `Timer.after(delay) { callback }` - One-shot timer
+  - API: `Timer.every(interval) { callback }` - Repeating timer
+  - API: `Timer.cancel(:name)` - Cancel by name
+  - Options: `name:` for named timers, `scaled:` to ignore `Time.scale`, `delay:` for initial delay
+  - Instance methods: `pause`, `resume`, `cancel`, `active?`, `cancelled?`, `elapsed`, `remaining`
+
+- **Random Number Generation**: Deterministic, seedable RNG with multiple streams
+  - API: `Random.int(min, max)` - Integer in range (inclusive)
+  - API: `Random.float(min, max)` - Float in range
+  - API: `Random.bool` - Random boolean
+  - API: `Random.chance(probability)` - True with given probability
+  - API: `Random.choose(array)` - Random element from array
+  - API: `Random.shuffle(array)` - Fisher-Yates shuffle in place
+  - API: `Random.weighted(hash)` - Weighted random selection
+  - API: `Random.seed(value)` - Seed for determinism
+  - API: `Random.stream(:name)` - Named isolated RNG streams
+
+- **Sequence System**: Multi-step behavior sequences for boss patterns, cutscenes
+  - API: `Sequence.run { |s| s.call { }; s.wait(1.0); s.wait_until { } }` - Define sequence
+  - API: `Sequence.run(:name) { }` - Named sequence for cancellation
+  - API: `Sequence.cancel(:name)` - Cancel by name
+  - Builder methods: `call`, `wait`, `wait_until`
+  - Instance methods: `cancel`, `active?`, `completed?`, `then { }`
+
+- **Signal/Observer System**: Decoupled object communication
+  - Mixin: `include Signal` - Add signal capability to any class
+  - API: `emit(:signal, *args)` - Emit a signal with arguments
+  - API: `on(:signal) { |args| }` - Connect handler (returns connection ID)
+  - API: `once(:signal) { }` - One-shot handler (auto-disconnects)
+  - API: `off(:signal, id)` - Disconnect by ID
+  - API: `off(:signal)` - Disconnect all handlers for signal
+  - API: `has_signal?(:name)` - Check if handlers exist
+  - API: `clear_signals` - Remove all handlers
+
+- **Destroyable Pattern**: Standard object lifecycle with cleanup hooks
+  - Mixin: `include Destroyable` - Add destroy capability
+  - API: `destroy` - Mark for destruction (calls `on_destroy` hook)
+  - API: `destroyed?` / `alive?` - Query state
+  - `GameArray` class: Array subclass that auto-removes destroyed objects
+    - `each_alive { }` - Iterate only alive objects
+    - `compact_destroyed!` - Manual cleanup
+    - `alive_count` - Count alive objects
+    - `all_destroyed?` - Check if all destroyed
+
+#### Spatial Queries
+- **SpatialHash System**: Efficient entity lookup by position
+  - API: `SpatialHash.add(entity, bounds: rect)` - Register entity
+  - API: `SpatialHash.update(entity, bounds: rect)` - Update position
+  - API: `SpatialHash.remove(entity)` - Remove entity
+  - API: `SpatialHash.query_rect(x, y, w, h)` - Find entities in rectangle
+  - API: `SpatialHash.query_circle(x, y, radius)` - Find entities in circle
+  - API: `SpatialHash.query_point(x, y)` - Find entities at point
+  - API: `SpatialHash.nearest(x, y, max_distance: n)` - Find nearest entity
+  - API: `SpatialHash.cell_size=` / `SpatialHash.cell_size` - Configure grid size
+  - API: `SpatialHash.clear` / `SpatialHash.count` - Management
+
+#### Input
+- **Gamepad Support**: First-class controller input with action binding
+  - Action binding: `i.jump :space, gamepad: :a` - Bind gamepad buttons to actions
+  - Multi-gamepad: `gamepad_index: 0` - Bind to specific gamepad
+  - Raw API: `Gamepad.connected?(index)` / `Gamepad.count` / `Gamepad.name(index)`
+  - Button state: `Gamepad.down?`, `pressed?`, `released?` - Per-gamepad or any
+  - Analog sticks: `Gamepad.axis(index, :left_x)` - With dead zone applied
+  - Raw axis: `Gamepad.axis_raw(index, :left_x)` - Without dead zone
+  - Dead zones: `Gamepad.dead_zone=` / `Gamepad.outer_dead_zone=`
+  - Vibration: `Gamepad.vibrate(index, left: 0.5, right: 0.3, duration: 0.2)`
+  - Helpers: `Gamepad.any_pressed?(:button)` / `Gamepad.any_down?(:button)`
+
+#### Debug Tools
+- **Debug Draw Overlay**: Visualization utilities for development
+  - API: `Debug.enabled?` / `Debug.enabled=` - Toggle debug drawing
+  - API: `Debug.when_enabled { }` - Conditional debug block
+  - API: `Debug.draw_rect`, `draw_rect_filled` - Rectangle outlines/fills
+  - API: `Debug.draw_circle`, `draw_circle_filled` - Circle outlines/fills
+  - API: `Debug.draw_line` - Line segments
+  - API: `Debug.draw_arrow` - Directional arrows (for velocities)
+  - API: `Debug.draw_point`, `draw_cross` - Position markers
+  - API: `Debug.draw_text` - Text labels
+  - All draws render on `DEBUG_OVERLAY` layer (z=250)
+
 #### Scene Management
 - **Scene Transitions**: Animated transitions between scenes with configurable effects
   - API: `SceneManager.load(scene, transition: :fade)` - Simple fade transition
@@ -19,6 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scene `on_resize` Lifecycle Method**: Base `GMR::Scene` class now includes default `on_resize(width, height)` method
   - Scenes can override to handle window resize events
   - Eliminates need for `respond_to?` checks in main script
+
+#### Documentation
+- `docs/utilities.md` - Timer, Random, Sequence, Signal, Destroyable documentation
+- `docs/spatial.md` - SpatialHash spatial query documentation
+- `docs/debug.md` - Debug drawing overlay documentation
+- Updated `docs/input.md` - Added gamepad section
 
 ### Changed
 

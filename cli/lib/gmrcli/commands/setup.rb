@@ -569,20 +569,19 @@ module Gmrcli
 
       def create_mruby_native_config(src_dir)
         # Optimized build: -Os for size, dead code elimination
-        # MRB_USE_DEBUG_HOOK only needed for Ruby debugger in Debug builds
+        # MRB_USE_DEBUG_HOOK enables the code_fetch_hook field in mrb_state
+        # Required for the Ruby debugger to function in Debug builds
         # mrbc binary still needed for compiling scripts during build
         config_content = <<~RUBY
           MRuby::Build.new('host') do |conf|
             toolchain :gcc
 
             conf.cc do |cc|
-              cc.flags = %w(-Os -ffunction-sections -fdata-sections)
-              # MRB_USE_DEBUG_HOOK removed for smaller Release builds
-              # Debug builds compile GMR with MRB_USE_DEBUG_HOOK defined
+              cc.flags = %w(-Os -ffunction-sections -fdata-sections -DMRB_USE_DEBUG_HOOK)
             end
 
             conf.cxx do |cxx|
-              cxx.flags = %w(-Os -ffunction-sections -fdata-sections)
+              cxx.flags = %w(-Os -ffunction-sections -fdata-sections -DMRB_USE_DEBUG_HOOK)
             end
 
             conf.linker do |linker|

@@ -138,6 +138,16 @@
       "module": "GMR::CollisionResult",
       "description": "TODO: Add description"
     },
+    "Destroyable": {
+      "kind": "class",
+      "module": "GMR::Destroyable",
+      "description": "TODO: Add description"
+    },
+    "GameArray": {
+      "kind": "class",
+      "module": "GMR::GameArray",
+      "description": "TODO: Add description"
+    },
     "Ease": {
       "kind": "class",
       "module": "GMR::Ease",
@@ -193,9 +203,24 @@
       "module": "GMR::SceneManager",
       "description": "TODO: Add description"
     },
+    "Sequence": {
+      "kind": "class",
+      "module": "GMR::Sequence",
+      "description": "TODO: Add description"
+    },
     "Serializable": {
       "kind": "class",
       "module": "GMR::Serializable",
+      "description": "TODO: Add description"
+    },
+    "Shader": {
+      "kind": "class",
+      "module": "Shader",
+      "description": "TODO: Add description"
+    },
+    "Signal": {
+      "kind": "class",
+      "module": "GMR::Signal",
       "description": "TODO: Add description"
     },
     "Sprite": {
@@ -211,6 +236,11 @@
     "StateMachine": {
       "kind": "class",
       "module": "GMR::StateMachine",
+      "description": "TODO: Add description"
+    },
+    "Timer": {
+      "kind": "class",
+      "module": "GMR::Timer",
       "description": "TODO: Add description"
     },
     "Transform2D": {
@@ -1284,7 +1314,7 @@
           "example": "GMR::Graphics.draw_text(\"Hello!\", 10, 10, 20, :white, font: @my_font)  # With custom font"
         },
         "measure_text": {
-          "signature": "measure_text(text, size)",
+          "signature": "measure_text(text, size, opts?)",
           "description": "A loaded image texture for drawing sprites and images",
           "params": [
             {
@@ -1295,14 +1325,19 @@
             {
               "name": "size",
               "type": "Integer",
-              "description": "Font size in pixels"
+              "description": "Font size (in logical units, same as draw_text)"
+            },
+            {
+              "name": "opts",
+              "type": "Hash",
+              "description": "Optional hash with :font key for custom font"
             }
           ],
           "returns": {
-            "type": "Integer",
-            "description": "Width in pixels"
+            "type": "Vec2",
+            "description": "Width and height as a Vec2 in logical coordinates"
           },
-          "example": "width = GMR::Graphics.measure_text(\"Hello\", 20)"
+          "example": "size = GMR::Graphics.measure_text(\"Hello\", 20, font: @my_font)"
         }
       }
     },
@@ -1703,6 +1738,453 @@
         }
       }
     },
+    "GMR::Random": {
+      "description": "TODO: Add description",
+      "functions": {
+        "seed": {
+          "description": "Seed the default random number generator. Call with a specific seed for deterministic sequences (replays, testing). Call without arguments to reseed from system entropy.",
+          "params": [
+            {
+              "name": "seed",
+              "type": "Integer",
+              "description": "(optional) The seed value. If omitted, uses system entropy."
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "The seed that was set"
+          },
+          "example": "Random.seed         # Re-randomize"
+        },
+        "seed_stream": {
+          "description": "Seed a named random stream.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The stream name"
+            },
+            {
+              "name": "seed",
+              "type": "Integer",
+              "description": "The seed value"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "The seed that was set"
+          },
+          "example": "Random.seed_stream(:loot, 42)"
+        },
+        "int": {
+          "description": "Generate a random integer in the given range (inclusive).",
+          "params": [
+            {
+              "name": "min",
+              "type": "Integer",
+              "description": "Minimum value (inclusive)"
+            },
+            {
+              "name": "max",
+              "type": "Integer",
+              "description": "Maximum value (inclusive)"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "Random integer in [min, max]"
+          },
+          "example": "index = Random.int(0, array.length - 1)"
+        },
+        "float": {
+          "description": "Generate a random float in the given range.",
+          "params": [
+            {
+              "name": "min",
+              "type": "Float",
+              "description": "Minimum value (inclusive), default 0.0"
+            },
+            {
+              "name": "max",
+              "type": "Float",
+              "description": "Maximum value (exclusive), default 1.0"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Random float in [min, max)"
+          },
+          "example": "percent = Random.float  # 0.0 to 1.0"
+        },
+        "bool": {
+          "description": "Generate a random boolean (true or false with equal probability).",
+          "returns": {
+            "type": "Boolean",
+            "description": "Random true or false"
+          },
+          "example": "if Random.bool then attack_left else attack_right end"
+        },
+        "chance": {
+          "description": "Return true with the given probability (0.0 to 1.0).",
+          "params": [
+            {
+              "name": "probability",
+              "type": "Float",
+              "description": "Probability of returning true (0.0 = never, 1.0 = always)"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true with the given probability"
+          },
+          "example": "if Random.chance(0.1) then spawn_rare_enemy end"
+        },
+        "choose": {
+          "description": "Choose a random element from an array.",
+          "params": [
+            {
+              "name": "array",
+              "type": "Array",
+              "description": "The array to choose from"
+            }
+          ],
+          "returns": {
+            "type": "Object",
+            "description": "A random element from the array, or nil if empty"
+          },
+          "example": "spawn_point = Random.choose(spawn_points)"
+        },
+        "shuffle": {
+          "description": "Shuffle an array in place using Fisher-Yates algorithm.",
+          "params": [
+            {
+              "name": "array",
+              "type": "Array",
+              "description": "The array to shuffle (modified in place)"
+            }
+          ],
+          "returns": {
+            "type": "Array",
+            "description": "The same array, now shuffled"
+          },
+          "example": "deck = Random.shuffle([1, 2, 3, 4, 5])"
+        },
+        "weighted": {
+          "description": "A named random number stream for isolated RNG. Use Random.stream(:name) to get a stream instance.",
+          "params": [
+            {
+              "name": "weights",
+              "type": "Hash",
+              "description": "A hash mapping keys to their weights (Integer or Float)"
+            }
+          ],
+          "returns": {
+            "type": "Object",
+            "description": "One of the keys, chosen by weight"
+          },
+          "example": "loot_rng = Random.stream(:loot)\n  loot_rng.seed(42)\r\n  roll = loot_rng.int(1, 100)\r"
+        }
+      }
+    },
+    "GMR::Random::Stream": {
+      "description": "TODO: Add description",
+      "functions": {
+        "stream": {
+          "description": "Get a named random stream. Creates it if it doesn't exist.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol",
+              "description": "The stream name"
+            }
+          ],
+          "returns": {
+            "type": "Random::Stream",
+            "description": "The stream object"
+          },
+          "example": "loot_rng = Random.stream(:loot)"
+        }
+      }
+    },
+    "GMR::Sequence": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "call": {
+          "description": "Add a step that executes a block immediately.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "The code to execute"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "s.call { @boss.telegraph(:attack) }"
+        },
+        "wait": {
+          "description": "Add a step that waits for a duration.",
+          "params": [
+            {
+              "name": "duration",
+              "type": "Float",
+              "description": "Time to wait in seconds"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "s.wait(0.5)"
+        },
+        "wait_until": {
+          "description": "Add a step that waits until a condition becomes true.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "Condition block that returns true when ready to proceed"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "s.wait_until { @boss.attack_complete? }"
+        },
+        "then": {
+          "description": "Add a completion callback. Alias for on_complete.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "Block to call when sequence completes"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "Sequence.run { |s| s.wait(1.0) }.then { puts \"done!\" }"
+        },
+        "cancel": {
+          "description": "Cancel this sequence.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@my_sequence.cancel"
+        },
+        "active?": {
+          "description": "Check if this sequence is still running.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if sequence is active"
+          }
+        },
+        "completed?": {
+          "description": "Check if this sequence has completed all steps.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if sequence completed"
+          }
+        }
+      }
+    },
+    "GMR::SpatialHash": {
+      "description": "TODO: Add description",
+      "functions": {
+        "cell_size=": {
+          "description": "Set the cell size for the spatial hash grid. Larger cells mean fewer cells but more entities per cell. Default is 64. Set based on typical entity size.",
+          "params": [
+            {
+              "name": "size",
+              "type": "Float",
+              "description": "The cell size in world units"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The new cell size"
+          },
+          "example": "SpatialHash.cell_size = 32  # Smaller cells for dense areas"
+        },
+        "cell_size": {
+          "description": "Get the current cell size.",
+          "returns": {
+            "type": "Float",
+            "description": "The cell size in world units"
+          }
+        },
+        "add": {
+          "description": "Add an entity to the spatial hash with its bounds.",
+          "params": [
+            {
+              "name": "entity",
+              "type": "Object",
+              "description": "The entity to add"
+            },
+            {
+              "name": "bounds",
+              "type": "Rect, Array, Hash",
+              "description": "The bounding box (x, y, w, h)"
+            }
+          ],
+          "returns": {
+            "type": "Object",
+            "description": "The entity"
+          },
+          "example": "SpatialHash.add(@item, x: 100, y: 200, w: 8, h: 8)"
+        },
+        "update": {
+          "description": "Update an entity's position in the spatial hash. Call this when the entity moves.",
+          "params": [
+            {
+              "name": "entity",
+              "type": "Object",
+              "description": "The entity to update"
+            },
+            {
+              "name": "bounds",
+              "type": "Rect, Array, Hash",
+              "description": "The new bounding box"
+            }
+          ],
+          "returns": {
+            "type": "Object",
+            "description": "The entity"
+          },
+          "example": "SpatialHash.update(@enemy, bounds: @enemy.hitbox)"
+        },
+        "remove": {
+          "description": "Remove an entity from the spatial hash.",
+          "params": [
+            {
+              "name": "entity",
+              "type": "Object",
+              "description": "The entity to remove"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "SpatialHash.remove(@enemy)"
+        },
+        "query_rect": {
+          "description": "Find all entities overlapping a rectangle.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Rectangle left edge"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Rectangle top edge"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "Rectangle width"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "Rectangle height"
+            }
+          ],
+          "returns": {
+            "type": "Array",
+            "description": "Array of entities in the rectangle"
+          },
+          "example": "entities = SpatialHash.query_rect(100, 100, 50, 50)"
+        },
+        "query_circle": {
+          "description": "Find all entities overlapping a circle.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Circle center X"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Circle center Y"
+            },
+            {
+              "name": "radius",
+              "type": "Float",
+              "description": "Circle radius"
+            }
+          ],
+          "returns": {
+            "type": "Array",
+            "description": "Array of entities in the circle"
+          },
+          "example": "nearby = SpatialHash.query_circle(@player.x, @player.y, 100)"
+        },
+        "query_point": {
+          "description": "Find all entities containing a point.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Point X"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Point Y"
+            }
+          ],
+          "returns": {
+            "type": "Array",
+            "description": "Array of entities at the point"
+          },
+          "example": "clicked = SpatialHash.query_point(mouse_x, mouse_y)"
+        },
+        "nearest": {
+          "description": "Find the nearest entity to a point.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Point X"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Point Y"
+            },
+            {
+              "name": "max_distance",
+              "type": "Float",
+              "description": "Maximum search distance (default: 1000)"
+            }
+          ],
+          "returns": {
+            "type": "Object, nil",
+            "description": "The nearest entity, or nil if none in range"
+          },
+          "example": "target = SpatialHash.nearest(@turret.x, @turret.y, max_distance: 200)"
+        },
+        "clear": {
+          "description": "Remove all entities from the spatial hash.",
+          "returns": {
+            "type": "nil"
+          },
+          "example": "SpatialHash.clear  # On scene change"
+        },
+        "count": {
+          "description": "Get the number of entities in the spatial hash.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of entities"
+          },
+          "example": "puts \"Entities: #{SpatialHash.count}\""
+        }
+      }
+    },
     "GMR::Storage": {
       "description": "TODO: Add description",
       "functions": {
@@ -1785,6 +2267,65 @@
             }
           ],
           "example": "# Subtract from currency\n  GMR::Storage.decrement(\"gold\", 50)\r"
+        }
+      }
+    },
+    "GMR::Timer": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "cancel": {
+          "description": "Cancel this timer. It will not fire again.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@my_timer.cancel"
+        },
+        "pause": {
+          "description": "Pause this timer. Elapsed time is preserved.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@my_timer.pause"
+        },
+        "resume": {
+          "description": "Resume a paused timer.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@my_timer.resume"
+        },
+        "active?": {
+          "description": "Check if this timer is currently running (not paused or cancelled).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the timer is active"
+          },
+          "example": "if @my_timer.active?"
+        },
+        "cancelled?": {
+          "description": "Check if this timer has been cancelled.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the timer was cancelled"
+          },
+          "example": "if @my_timer.cancelled?"
+        },
+        "elapsed": {
+          "description": "Get the elapsed time since the timer started or last fired.",
+          "returns": {
+            "type": "Float",
+            "description": "Elapsed time in seconds"
+          },
+          "example": "progress = @my_timer.elapsed / @my_timer.delay"
+        },
+        "remaining": {
+          "description": "Get the time remaining until the timer fires.",
+          "returns": {
+            "type": "Float",
+            "description": "Remaining time in seconds (negative if overdue)"
+          },
+          "example": "if @my_timer.remaining < 1.0 then show_warning end"
         }
       }
     },
@@ -1884,20 +2425,36 @@
       "description": "TODO: Add description",
       "functions": {
         "width": {
-          "description": "Get the logical width of the game screen. Returns virtual resolution width if set, otherwise the actual window width.",
+          "description": "Get the logical width of the game screen in UI coordinate space. This is the width you should use for positioning UI elements. The engine uses a 360p baseline, so at 540p this returns 640 (960/1.5).",
           "returns": {
             "type": "Integer",
-            "description": "Screen width in pixels"
+            "description": "Logical screen width"
           },
           "example": "screen_w = GMR::Window.width"
         },
         "height": {
-          "description": "Get the logical height of the game screen. Returns virtual resolution height if set, otherwise the actual window height.",
+          "description": "Get the logical height of the game screen in UI coordinate space. This is the height you should use for positioning UI elements. The engine uses a 360p baseline, so this always returns 360.",
+          "returns": {
+            "type": "Integer",
+            "description": "Logical screen height (always 360 due to baseline)"
+          },
+          "example": "screen_h = GMR::Window.height"
+        },
+        "screen_width": {
+          "description": "Get the actual screen width in pixels. Use this when you need real pixel dimensions (e.g., for shaders).",
+          "returns": {
+            "type": "Integer",
+            "description": "Screen width in pixels"
+          },
+          "example": "pixels_w = GMR::Window.screen_width"
+        },
+        "screen_height": {
+          "description": "Get the actual screen height in pixels. Use this when you need real pixel dimensions (e.g., for shaders).",
           "returns": {
             "type": "Integer",
             "description": "Screen height in pixels"
           },
-          "example": "screen_h = GMR::Window.height"
+          "example": "pixels_h = GMR::Window.screen_height"
         },
         "actual_width": {
           "description": "Get the actual window width in pixels, ignoring virtual resolution.",
@@ -2033,6 +2590,38 @@
           },
           "example": "GMR::Window.set_virtual_resolution(320, 240).set_filter_bilinear"
         },
+        "use_native_dpr": {
+          "description": "Enable high-DPI rendering at native device pixel ratio. Results in sharper rendering on retina displays but may impact performance. Only affects web builds. On native platforms this has no effect.",
+          "returns": {
+            "type": "Module",
+            "description": "self for chaining"
+          },
+          "example": "GMR::Window.use_native_dpr  # Enable sharp retina rendering"
+        },
+        "use_css_dpr": {
+          "description": "Render at CSS pixel resolution (1:1 with layout pixels). Better performance on high-DPI displays but may appear less sharp. This is the default behavior. Only affects web builds.",
+          "returns": {
+            "type": "Module",
+            "description": "self for chaining"
+          },
+          "example": "GMR::Window.use_css_dpr  # Default, better performance"
+        },
+        "device_pixel_ratio": {
+          "description": "Get the current device pixel ratio. Returns 1.0 on standard displays, 2.0 on retina displays, etc. On native platforms, always returns 1.0.",
+          "returns": {
+            "type": "Float",
+            "description": "Device pixel ratio"
+          },
+          "example": "dpr = GMR::Window.device_pixel_ratio  # 2.0 on retina"
+        },
+        "native_dpr?": {
+          "description": "Check if native DPR rendering is enabled.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if rendering at native device pixel ratio"
+          },
+          "example": "if GMR::Window.native_dpr?\n  puts \"Rendering at #{GMR::Window.device_pixel_ratio}x resolution\"\r\nend\r"
+        },
         "monitor_count": {
           "description": "Get the number of connected monitors.",
           "returns": {
@@ -2144,6 +2733,29 @@
             "description": "self for chaining"
           },
           "example": "GMR::Time.set_target_fps(60)  # Lock to 60 FPS"
+        },
+        "scale": {
+          "description": "Get the current time scale. Affects how fast game time passes. 1.0 = normal speed, 0.5 = half speed (slow motion), 0.0 = paused.",
+          "returns": {
+            "type": "Float",
+            "description": "Current time scale"
+          },
+          "example": "current_scale = GMR::Time.scale"
+        },
+        "scale=": {
+          "description": "Set the time scale. Affects how fast game time passes. Timers created with `scaled: true` (default) will respect this. Set to 0.0 to pause, 0.5 for slow motion, 2.0 for fast forward.",
+          "params": [
+            {
+              "name": "scale",
+              "type": "Float",
+              "description": "The new time scale (must be >= 0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The new time scale"
+          },
+          "example": "GMR::Time.scale = 1.0  # Normal speed"
         }
       }
     },
@@ -3251,6 +3863,78 @@
             "description": "true if any collision happened"
           },
           "example": "# Mouse hover detection for UI buttons\n  class Button\r\n    def update(dt)\r\n      mx = GMR::Input.mouse_x\r\n      my = GMR::Input.mouse_y\r"
+        }
+      }
+    },
+    "GMR::Destroyable": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "destroy": {
+          "description": "Mark this object for destruction. Calls on_destroy hook if defined. Safe to call multiple times (only destroys once).",
+          "returns": {
+            "type": "self"
+          },
+          "example": "enemy.destroy"
+        },
+        "destroyed?": {
+          "description": "Check if this object has been destroyed.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if destroy has been called"
+          },
+          "example": "if enemy.destroyed? then skip end"
+        },
+        "alive?": {
+          "description": "An Array subclass that automatically removes destroyed objects. Destroyed objects are removed during iteration (each, select, etc.) or when calling compact_destroyed!.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if destroy has NOT been called"
+          },
+          "example": "@enemies = GameArray.new"
+        }
+      }
+    },
+    "GMR::GameArray": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "each_alive": {
+          "description": "Iterate over all alive (non-destroyed) objects. Automatically removes destroyed objects from the array.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "Block to call with each alive object"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "@enemies.each_alive { |e| e.update(dt) }"
+        },
+        "compact_destroyed!": {
+          "description": "Remove all destroyed objects from the array. Called automatically by each_alive, but can be called manually.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@enemies.compact_destroyed!"
+        },
+        "alive_count": {
+          "description": "Count the number of alive (non-destroyed) objects.",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of alive objects"
+          },
+          "example": "puts \"Enemies remaining: #{@enemies.alive_count}\""
+        },
+        "all_destroyed?": {
+          "description": "Check if all objects in the array are destroyed.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if array is empty or all objects are destroyed"
+          },
+          "example": "if @wave_enemies.all_destroyed? then next_wave end"
         }
       }
     },
@@ -4926,7 +5610,22 @@
           "description": "Called every frame while this scene is on top of the stack. Override to draw scene content."
         },
         "unload": {
-          "description": "Stack-based scene lifecycle manager. Use load to switch scenes (clears stack), push to add a scene on top, and pop to return to the previous scene."
+          "description": "Called once when the scene is removed from the stack. Override to clean up scene resources."
+        },
+        "on_resize": {
+          "description": "Stack-based scene lifecycle manager. Use load to switch scenes (clears stack), push to add a scene on top, and pop to return to the previous scene.",
+          "params": [
+            {
+              "name": "width",
+              "type": "Integer",
+              "description": "New window width"
+            },
+            {
+              "name": "height",
+              "type": "Integer",
+              "description": "New window height"
+            }
+          ]
         }
       }
     },
@@ -4935,15 +5634,20 @@
       "description": "TODO: Add description",
       "instanceMethods": {
         "load": {
-          "description": "Clear the scene stack and load a new scene. Calls unload on all existing scenes (top to bottom), then init on the new scene.",
+          "description": "Clear the scene stack and load a new scene. Calls unload on all existing scenes (top to bottom), then init on the new scene. Optionally accepts a transition effect.",
           "params": [
             {
               "name": "scene",
               "type": "GMR::Scene",
               "description": "The scene to load"
+            },
+            {
+              "name": "options",
+              "type": "Symbol, Hash",
+              "description": "Optional transition: :fade, :wipe_left, :wipe_right, :wipe_up, :wipe_down"
             }
           ],
-          "example": "GMR::SceneManager.load(TitleScene.new)"
+          "example": "GMR::SceneManager.load(GameScene.new, :fade) { puts \"Transition complete!\" }"
         },
         "register": {
           "description": "Alias for load. Clear the scene stack and load a new scene.",
@@ -4957,19 +5661,31 @@
           "example": "GMR::SceneManager.register(TitleScene.new)"
         },
         "push": {
-          "description": "Push a new scene onto the stack. The current scene is paused (no longer receives update/draw). Calls init on the new scene.",
+          "description": "Push a new scene onto the stack. The current scene is paused (no longer receives update/draw). Calls init on the new scene. Optionally accepts a transition effect.",
           "params": [
             {
               "name": "scene",
               "type": "GMR::Scene",
               "description": "The scene to push"
+            },
+            {
+              "name": "options",
+              "type": "Symbol, Hash",
+              "description": "Optional transition options (same as load)"
             }
           ],
-          "example": "GMR::SceneManager.push(PauseScene.new)"
+          "example": "GMR::SceneManager.push(PauseScene.new, :fade)"
         },
         "pop": {
-          "description": "Remove the top scene from the stack. Calls unload on the removed scene. The previous scene resumes receiving update/draw calls.",
-          "example": "GMR::SceneManager.pop"
+          "description": "Remove the top scene from the stack. Calls unload on the removed scene. The previous scene resumes receiving update/draw calls. Optionally accepts a transition effect.",
+          "params": [
+            {
+              "name": "options",
+              "type": "Symbol, Hash",
+              "description": "Optional transition options (same as load)"
+            }
+          ],
+          "example": "GMR::SceneManager.pop(:fade)"
         },
         "update": {
           "description": "Call update on the top scene. Call this from your game's update function.",
@@ -5022,6 +5738,14 @@
             "description": "true if the overlay is active"
           },
           "example": "if GMR::SceneManager.has_overlay?(@minimap)"
+        },
+        "current": {
+          "description": "Get the current top scene on the stack.",
+          "returns": {
+            "type": "GMR::Scene, nil",
+            "description": "The current scene or nil if no scene is loaded"
+          },
+          "example": "scene = GMR::SceneManager.current"
         }
       }
     },
@@ -5097,6 +5821,254 @@
             }
           ],
           "example": "player = Player.from_json('{\"name\":\"Hero\",\"health\":85}')\nCalled when GMR::Serializable is included in a class\r\nAdds the class methods (serializable, deserialize, from_json)\r"
+        }
+      }
+    },
+    "Shader": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "classMethods": {
+        "load": {
+          "description": "Load a shader from file paths. The fragment shader is required; vertex shader is optional (uses raylib default if not provided).",
+          "params": [
+            {
+              "name": "fragment",
+              "type": "String",
+              "description": "Path to fragment shader file (required)"
+            },
+            {
+              "name": "vertex",
+              "type": "String",
+              "description": "Path to vertex shader file (optional)"
+            },
+            {
+              "name": "surface_mode",
+              "type": "Boolean",
+              "description": "Enable surface continuity mode for spatial shaders (optional, default: false)"
+            }
+          ],
+          "returns": {
+            "type": "Shader",
+            "description": "The loaded shader"
+          },
+          "raises": [
+            "RuntimeError if shader compilation fails"
+          ],
+          "example": "shader = GMR::Shader.load(fragment: \"shaders/wave.fs\", surface_mode: true)"
+        },
+        "from_source": {
+          "description": "Load a shader from GLSL source code strings. The fragment shader is required; vertex shader is optional.",
+          "params": [
+            {
+              "name": "fragment",
+              "type": "String",
+              "description": "Fragment shader source code (required)"
+            },
+            {
+              "name": "vertex",
+              "type": "String",
+              "description": "Vertex shader source code (optional)"
+            },
+            {
+              "name": "surface_mode",
+              "type": "Boolean",
+              "description": "Enable surface continuity mode for spatial shaders (optional, default: false)"
+            }
+          ],
+          "returns": {
+            "type": "Shader",
+            "description": "The compiled shader"
+          },
+          "raises": [
+            "RuntimeError if shader compilation fails"
+          ],
+          "example": "shader = GMR::Shader.from_source(fragment: wave_code, surface_mode: true)"
+        }
+      },
+      "instanceMethods": {
+        "set": {
+          "description": "Set a uniform value. Type is automatically inferred from arguments.",
+          "params": [
+            {
+              "name": "name",
+              "type": "Symbol, String",
+              "description": "The uniform name in the shader"
+            },
+            {
+              "name": "values",
+              "type": "Float, Integer, Texture, ...",
+              "description": "Value(s) to set"
+            }
+          ],
+          "returns": {
+            "type": "Shader",
+            "description": "self for chaining"
+          },
+          "raises": [
+            "ArgumentError if uniform name doesn't exist in shader"
+          ],
+          "example": "shader.set(:noise_tex, noise_texture)       # sampler2D"
+        },
+        "use": {
+          "description": "Execute a block with this shader active. All draws within the block will use this shader. Shader is automatically disabled when the block exits.",
+          "example": "shader.use do\n  sprite.draw\r\n  Graphics.draw_rect(10, 10, 100, 100, :red)\r\nend\r"
+        },
+        "begin": {
+          "description": "Begin shader mode. All subsequent draws will use this shader until `end` is called. Prefer `use { }` block syntax when possible.",
+          "returns": {
+            "type": "Shader",
+            "description": "self for chaining"
+          },
+          "example": "shader.begin"
+        },
+        "end": {
+          "description": "End shader mode. Should be called after `begin`.",
+          "returns": {
+            "type": "Shader",
+            "description": "self for chaining"
+          }
+        },
+        "valid?": {
+          "description": "Check if shader is still valid (not released).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if shader can be used"
+          }
+        },
+        "release": {
+          "description": "Explicitly release shader resources. After calling this, the shader is invalid and cannot be used.",
+          "returns": {
+            "type": "nil"
+          }
+        },
+        "surface_mode?": {
+          "description": "Check if surface continuity mode is enabled for this shader. Surface mode causes spatial shaders (wave, CRT, distortion) to operate on a unified surface rather than per-draw-call.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if surface mode is enabled"
+          },
+          "example": "shader.surface_mode?  # => true or false"
+        },
+        "surface_mode=": {
+          "description": "Enable or disable surface continuity mode. When enabled, spatial shaders (wave, CRT, distortion) operate on a unified surface, preventing per-tile or per-frame artifacts.",
+          "params": [
+            {
+              "name": "enabled",
+              "type": "Boolean",
+              "description": "true to enable surface mode"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "the new surface_mode value"
+          },
+          "example": "shader.surface_mode = true"
+        }
+      }
+    },
+    "GMR::Signal": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "on": {
+          "description": "Connect a handler to a signal. Handler is called each time signal is emitted.",
+          "params": [
+            {
+              "name": "signal",
+              "type": "Symbol",
+              "description": "The signal name to listen for"
+            },
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "The handler to call when signal is emitted"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "A connection ID that can be used with off()"
+          },
+          "example": "id = @player.on(:died) { game_over }"
+        },
+        "once": {
+          "description": "Connect a handler that only fires once, then auto-disconnects.",
+          "params": [
+            {
+              "name": "signal",
+              "type": "Symbol",
+              "description": "The signal name to listen for"
+            },
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "The handler to call (once) when signal is emitted"
+            }
+          ],
+          "returns": {
+            "type": "Integer",
+            "description": "A connection ID that can be used with off()"
+          },
+          "example": "@player.once(:died) { show_death_cutscene }"
+        },
+        "off": {
+          "description": "Disconnect a handler by its connection ID or signal name.",
+          "params": [
+            {
+              "name": "signal",
+              "type": "Symbol",
+              "description": "The signal name"
+            },
+            {
+              "name": "id",
+              "type": "Integer",
+              "description": "(optional) The connection ID. If omitted, all handlers for the signal are removed."
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "@player.off(:died)                  # Remove all handlers for :died"
+        },
+        "emit": {
+          "description": "Emit a signal, calling all connected handlers with optional arguments.",
+          "params": [
+            {
+              "name": "signal",
+              "type": "Symbol",
+              "description": "The signal name to emit"
+            },
+            {
+              "name": "args",
+              "type": "Object...",
+              "description": "Optional arguments to pass to handlers"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "emit(:damage_taken, amount, source)"
+        },
+        "has_signal?": {
+          "description": "Check if any handlers are connected to a signal.",
+          "params": [
+            {
+              "name": "signal",
+              "type": "Symbol",
+              "description": "The signal name"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if at least one handler is connected"
+          },
+          "example": "if @player.has_signal?(:died) then puts \"death handlers exist\" end"
+        },
+        "clear_signals": {
+          "description": "Remove all signal handlers from this object.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@player.clear_signals  # On cleanup"
         }
       }
     },

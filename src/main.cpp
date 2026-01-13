@@ -4,6 +4,9 @@
 #include "gmr/sprite.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/animation/animation_manager.hpp"
+#include "gmr/timer/timer_manager.hpp"
+#include "gmr/sequence/sequence_manager.hpp"
+#include "gmr/spatial/spatial_hash.hpp"
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/input/input_manager.hpp"
 #include "gmr/event/event_queue.hpp"
@@ -127,6 +130,14 @@ void game_loop(void* arg) {
         // Update animation system AFTER game logic (tweens and sprite animations)
         // This ensures animations triggered during update() are advanced immediately
         gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
+
+        // Update timer system with both scaled and unscaled delta time
+        float dt_unscaled = static_cast<float>(dt);
+        float dt_scaled = dt_unscaled * state.time_scale;
+        gmr::timer::TimerManager::instance().update(mrb, dt_scaled, dt_unscaled);
+
+        // Update sequence system (coroutines) with both scaled and unscaled delta time
+        gmr::sequence::SequenceManager::instance().update(mrb, dt_scaled, dt_unscaled);
 
         // Update scene transitions
         auto& transition_mgr = gmr::transition::TransitionManager::instance();
@@ -392,6 +403,16 @@ int main(int argc, char* argv[]) {
             // This ensures animations triggered during update() are advanced immediately
             gmr::animation::AnimationManager::instance().update(mrb, static_cast<float>(dt));
 
+            // Update timer system with both scaled and unscaled delta time
+            {
+                float dt_unscaled = static_cast<float>(dt);
+                float dt_scaled = dt_unscaled * state.time_scale;
+                gmr::timer::TimerManager::instance().update(mrb, dt_scaled, dt_unscaled);
+
+                // Update sequence system (coroutines) with both scaled and unscaled delta time
+                gmr::sequence::SequenceManager::instance().update(mrb, dt_scaled, dt_unscaled);
+            }
+
             // Update scene transitions
             auto& transition_mgr = gmr::transition::TransitionManager::instance();
             transition_mgr.update(static_cast<float>(dt));
@@ -474,6 +495,9 @@ int main(int argc, char* argv[]) {
     if (auto* mrb = loader.mrb()) {
         gmr::CameraManager::instance().clear(mrb);
         gmr::animation::AnimationManager::instance().clear(mrb);
+        gmr::timer::TimerManager::instance().clear(mrb);
+        gmr::sequence::SequenceManager::instance().clear(mrb);
+        gmr::spatial::SpatialHash::instance().clear(mrb);
         gmr::state_machine::StateMachineManager::instance().clear(mrb);
         gmr::input::InputManager::instance().clear(mrb);
         gmr::event::EventQueue::instance().clear(mrb);

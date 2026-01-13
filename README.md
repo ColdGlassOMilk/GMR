@@ -28,6 +28,7 @@
 git clone https://github.com/ColdGlassOMilk/GMR
 cd GMR
 ./bootstrap.sh
+source ~/.bashrc
 gmrcli dev
 ```
 
@@ -134,8 +135,8 @@ This example introduces:
 |----------|-------------|
 | [Engine Model](docs/engine-model.md) | Execution model, lifecycle guarantees, invariants |
 | [Game Loop](docs/game-loop.md) | Global hooks, frame timing, hot-reload |
-| [Scenes](docs/scenes.md) | Scene classes, SceneManager, overlays |
-| [Input](docs/input.md) | Action mapping, raw input, contexts |
+| [Scenes](docs/scenes.md) | Scene classes, SceneManager, overlays, transitions |
+| [Input](docs/input.md) | Action mapping, raw input, contexts, gamepad support |
 | [Graphics](docs/graphics.md) | Drawing, textures, sprites, tilemaps |
 | [Transforms](docs/transforms.md) | Transform2D, hierarchy, world coordinates |
 | [Camera](docs/camera.md) | World-space rendering, resolution independence, following |
@@ -144,6 +145,9 @@ This example introduces:
 | [State Machine](docs/state-machine.md) | State DSL, transitions, animation binding |
 | [Audio](docs/audio.md) | Sound effects, music streaming |
 | [Persistence](docs/persistence.md) | File I/O, Storage, save data, Serialization |
+| [Utilities](docs/utilities.md) | Timers, random numbers, sequences, signals |
+| [Spatial Queries](docs/spatial.md) | Spatial hash for efficient entity lookups |
+| [Debug](docs/debug.md) | Debug drawing overlay for development |
 | [Console](docs/console.md) | Developer console, custom commands |
 | [Platformer Tutorial](docs/platformer-tutorial.md) | Complete working example |
 

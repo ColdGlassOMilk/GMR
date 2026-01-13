@@ -85,10 +85,21 @@ set(SOURCES
     src/bindings/json.cpp
     src/bindings/serializable.cpp
     src/bindings/shader.cpp
+    src/bindings/timer.cpp
+    src/bindings/random.cpp
+    src/bindings/destroyable.cpp
+    src/bindings/spatial.cpp
+    src/bindings/signal.cpp
+    src/bindings/sequence.cpp
+    src/bindings/gamepad.cpp
+    src/bindings/debug_draw.cpp
+    src/spatial/spatial_hash.cpp
+    src/sequence/sequence_manager.cpp
     src/filesystem/paths.cpp
     src/filesystem/operations.cpp
     src/animation/easing.cpp
     src/animation/animation_manager.cpp
+    src/timer/timer_manager.cpp
     src/state_machine/state_machine_manager.cpp
     src/input/input_manager.cpp
     src/input/input_context.cpp

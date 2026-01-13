@@ -10,6 +10,8 @@ Frame timing and delta time access.
   - [delta](#delta)
   - [elapsed](#elapsed)
   - [fps](#fps)
+  - [scale](#scale)
+  - [scale=](#scale)
   - [set_target_fps](#set_target_fps)
 
 ## Functions
@@ -82,6 +84,44 @@ Set the target frame rate. The game will try to maintain this FPS. Set to 0 for 
 
 ```ruby
 GMR::Time.set_target_fps(60)  # Lock to 60 FPS
+```
+
+---
+
+<a id="scale"></a>
+
+### scale
+
+Get the current time scale. Affects how fast game time passes. 1.0 = normal speed, 0.5 = half speed (slow motion), 0.0 = paused.
+
+**Returns:** `Float` - Current time scale
+
+**Example:**
+
+```ruby
+current_scale = GMR::Time.scale
+```
+
+---
+
+<a id="scale"></a>
+
+### scale=
+
+Set the time scale. Affects how fast game time passes. Timers created with `scaled: true` (default) will respect this. Set to 0.0 to pause, 0.5 for slow motion, 2.0 for fast forward.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `scale` | `Float` | The new time scale (must be >= 0) |
+
+**Returns:** `Float` - The new time scale
+
+**Example:**
+
+```ruby
+GMR::Time.scale = 1.0  # Normal speed
 ```
 
 ---

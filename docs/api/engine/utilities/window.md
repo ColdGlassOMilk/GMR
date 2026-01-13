@@ -10,6 +10,7 @@ Window management and display settings.
   - [actual_height](#actual_height)
   - [actual_width](#actual_width)
   - [clear_virtual_resolution](#clear_virtual_resolution)
+  - [device_pixel_ratio](#device_pixel_ratio)
   - [fullscreen=](#fullscreen)
   - [fullscreen?](#fullscreen)
   - [height](#height)
@@ -18,12 +19,17 @@ Window management and display settings.
   - [monitor_name](#monitor_name)
   - [monitor_refresh_rate](#monitor_refresh_rate)
   - [monitor_width](#monitor_width)
+  - [native_dpr?](#native_dpr)
+  - [screen_height](#screen_height)
+  - [screen_width](#screen_width)
   - [set_filter_bilinear](#set_filter_bilinear)
   - [set_filter_point](#set_filter_point)
   - [set_size](#set_size)
   - [set_title](#set_title)
   - [set_virtual_resolution](#set_virtual_resolution)
   - [toggle_fullscreen](#toggle_fullscreen)
+  - [use_css_dpr](#use_css_dpr)
+  - [use_native_dpr](#use_native_dpr)
   - [virtual_resolution?](#virtual_resolution)
   - [width](#width)
 
@@ -33,9 +39,9 @@ Window management and display settings.
 
 ### width
 
-Get the logical width of the game screen. Returns virtual resolution width if set, otherwise the actual window width.
+Get the logical width of the game screen in UI coordinate space. This is the width you should use for positioning UI elements. The engine uses a 360p baseline, so at 540p this returns 640 (960/1.5).
 
-**Returns:** `Integer` - Screen width in pixels
+**Returns:** `Integer` - Logical screen width
 
 **Example:**
 
@@ -49,14 +55,46 @@ screen_w = GMR::Window.width
 
 ### height
 
-Get the logical height of the game screen. Returns virtual resolution height if set, otherwise the actual window height.
+Get the logical height of the game screen in UI coordinate space. This is the height you should use for positioning UI elements. The engine uses a 360p baseline, so this always returns 360.
+
+**Returns:** `Integer` - Logical screen height (always 360 due to baseline)
+
+**Example:**
+
+```ruby
+screen_h = GMR::Window.height
+```
+
+---
+
+<a id="screen_width"></a>
+
+### screen_width
+
+Get the actual screen width in pixels. Use this when you need real pixel dimensions (e.g., for shaders).
+
+**Returns:** `Integer` - Screen width in pixels
+
+**Example:**
+
+```ruby
+pixels_w = GMR::Window.screen_width
+```
+
+---
+
+<a id="screen_height"></a>
+
+### screen_height
+
+Get the actual screen height in pixels. Use this when you need real pixel dimensions (e.g., for shaders).
 
 **Returns:** `Integer` - Screen height in pixels
 
 **Example:**
 
 ```ruby
-screen_h = GMR::Window.height
+pixels_h = GMR::Window.screen_height
 ```
 
 ---
@@ -280,6 +318,72 @@ Set bilinear filtering for virtual resolution scaling. Produces smoother, blende
 
 ```ruby
 GMR::Window.set_virtual_resolution(320, 240).set_filter_bilinear
+```
+
+---
+
+<a id="use_native_dpr"></a>
+
+### use_native_dpr
+
+Enable high-DPI rendering at native device pixel ratio. Results in sharper rendering on retina displays but may impact performance. Only affects web builds. On native platforms this has no effect.
+
+**Returns:** `Module` - self for chaining
+
+**Example:**
+
+```ruby
+GMR::Window.use_native_dpr  # Enable sharp retina rendering
+```
+
+---
+
+<a id="use_css_dpr"></a>
+
+### use_css_dpr
+
+Render at CSS pixel resolution (1:1 with layout pixels). Better performance on high-DPI displays but may appear less sharp. This is the default behavior. Only affects web builds.
+
+**Returns:** `Module` - self for chaining
+
+**Example:**
+
+```ruby
+GMR::Window.use_css_dpr  # Default, better performance
+```
+
+---
+
+<a id="device_pixel_ratio"></a>
+
+### device_pixel_ratio
+
+Get the current device pixel ratio. Returns 1.0 on standard displays, 2.0 on retina displays, etc. On native platforms, always returns 1.0.
+
+**Returns:** `Float` - Device pixel ratio
+
+**Example:**
+
+```ruby
+dpr = GMR::Window.device_pixel_ratio  # 2.0 on retina
+```
+
+---
+
+<a id="native_dpr"></a>
+
+### native_dpr?
+
+Check if native DPR rendering is enabled.
+
+**Returns:** `Boolean` - true if rendering at native device pixel ratio
+
+**Example:**
+
+```ruby
+if GMR::Window.native_dpr?
+  puts "Rendering at #{GMR::Window.device_pixel_ratio}x resolution"
+end
 ```
 
 ---

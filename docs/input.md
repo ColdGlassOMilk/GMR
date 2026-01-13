@@ -191,6 +191,142 @@ input do |i|
 end
 ```
 
+### Keyboard + Gamepad
+
+Use the `gamepad:` parameter to bind controller buttons alongside keyboard:
+
+```ruby
+input do |i|
+  i.jump [:space, :w], gamepad: :a           # Space/W or A button
+  i.attack :z, gamepad: :x                   # Z key or X button
+  i.pause :escape, gamepad: :start           # Escape or Start button
+  i.dash :shift, gamepad: [:lb, :rb]         # Shift or either bumper
+end
+```
+
+By default, gamepad bindings respond to any connected gamepad. To bind to a specific gamepad:
+
+```ruby
+input do |i|
+  # Player 1 controls (gamepad 0 only)
+  i.p1_jump :space, gamepad: :a, gamepad_index: 0
+
+  # Player 2 controls (gamepad 1 only)
+  i.p2_jump :enter, gamepad: :a, gamepad_index: 1
+end
+```
+
+### Available Gamepad Button Symbols
+
+Face buttons: `:a`, `:b`, `:x`, `:y`
+
+D-pad: `:dpad_up`, `:dpad_down`, `:dpad_left`, `:dpad_right`
+
+Shoulders: `:lb`, `:rb` (bumpers), `:lt`, `:rt` (triggers as buttons)
+
+Thumbsticks: `:l3`, `:r3` (stick click)
+
+Center: `:start`, `:select`, `:guide`
+
+## Gamepad (Raw Access)
+
+For direct gamepad access without action mapping, use the `Gamepad` module.
+
+### Connection Status
+
+```ruby
+# Check how many gamepads are connected
+num_gamepads = Gamepad.count
+
+# Check specific gamepad
+if Gamepad.connected?(0)
+  puts "Gamepad 0: #{Gamepad.name(0)}"
+end
+```
+
+### Button State
+
+```ruby
+# Check button state on gamepad 0
+Gamepad.down?(0, :a)        # Currently held
+Gamepad.pressed?(0, :b)     # Just pressed this frame
+Gamepad.released?(0, :x)    # Just released this frame
+
+# Check any connected gamepad
+Gamepad.any_pressed?(:start)  # Start pressed on any gamepad
+Gamepad.any_down?(:a)         # A button held on any gamepad
+```
+
+### Analog Sticks
+
+```ruby
+# Read analog stick with dead zone applied (-1.0 to 1.0)
+move_x = Gamepad.axis(0, :left_x)
+move_y = Gamepad.axis(0, :left_y)
+aim_x = Gamepad.axis(0, :right_x)
+aim_y = Gamepad.axis(0, :right_y)
+
+# Read raw axis value (no dead zone)
+raw_x = Gamepad.axis_raw(0, :left_x)
+```
+
+Available axes: `:left_x`, `:left_y`, `:right_x`, `:right_y`, `:left_trigger`, `:right_trigger`
+
+### Dead Zone Configuration
+
+```ruby
+# Set inner dead zone (default: 0.15)
+# Values below this threshold are treated as zero
+Gamepad.dead_zone = 0.2
+
+# Set outer dead zone (default: 0.95)
+# Values above this threshold are treated as 1.0/-1.0
+Gamepad.outer_dead_zone = 0.98
+```
+
+### Vibration / Rumble
+
+```ruby
+# Trigger rumble (0.0 to 1.0 intensity)
+Gamepad.vibrate(0, left: 0.5, right: 0.3, duration: 0.2)
+
+# Or with positional arguments
+Gamepad.vibrate(0, 0.5, 0.5, 0.1)  # gamepad, left, right, duration
+```
+
+### Complete Gamepad Example
+
+```ruby
+def update(dt)
+  return unless Gamepad.connected?(0)
+
+  # Analog movement
+  move_x = Gamepad.axis(0, :left_x)
+  move_y = Gamepad.axis(0, :left_y)
+  @player.move(move_x * @speed * dt, move_y * @speed * dt)
+
+  # Analog aiming
+  aim_x = Gamepad.axis(0, :right_x)
+  aim_y = Gamepad.axis(0, :right_y)
+  if aim_x.abs > 0.1 || aim_y.abs > 0.1
+    @player.aim_direction = Math.atan2(aim_y, aim_x)
+  end
+
+  # Triggers as analog input
+  shoot_power = Gamepad.axis(0, :right_trigger)
+  @player.charge_shot(shoot_power) if shoot_power > 0.1
+
+  # Button actions
+  @player.jump if Gamepad.pressed?(0, :a)
+  @player.dash if Gamepad.pressed?(0, :lb)
+
+  # Rumble on hit
+  if @player.took_damage?
+    Gamepad.vibrate(0, left: 0.8, right: 0.4, duration: 0.15)
+  end
+end
+```
+
 ## Example: Complete Input Setup
 
 ```ruby

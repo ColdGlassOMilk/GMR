@@ -64,6 +64,22 @@ int parse_key_arg(mrb_state* mrb, mrb_value arg);
 // Parse mouse button argument - accepts integer or symbol
 int parse_mouse_button_arg(mrb_state* mrb, mrb_value arg);
 
+// ============================================================================
+// Gamepad Symbol/Button/Axis Mapping Helpers
+// ============================================================================
+
+// Convert a symbol to a Raylib gamepad button, returns -1 if unknown
+int symbol_to_gamepad_button(mrb_state* mrb, mrb_sym sym);
+
+// Convert a symbol to a Raylib gamepad axis, returns -1 if unknown
+int symbol_to_gamepad_axis(mrb_state* mrb, mrb_sym sym);
+
+// Parse gamepad button argument - accepts integer or symbol
+int parse_gamepad_button_arg(mrb_state* mrb, mrb_value arg);
+
+// Parse gamepad axis argument - accepts integer or symbol
+int parse_gamepad_axis_arg(mrb_state* mrb, mrb_value arg);
+
 } // namespace bindings
 
 // Forward declaration of InputPhase from gmr::input module

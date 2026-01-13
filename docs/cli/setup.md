@@ -36,8 +36,8 @@ Installs all dependencies needed for GMR development:
 2. Directory Setup
 3. Generating API Definitions
 4. Installing Packages
-5. Building mruby #{mruby_version_display} (native)
-6. Building raylib #{raylib_version_display} (native)
+5. Building raylib #{raylib_version_display} (native)
+6. Building mruby #{mruby_version_display} (native)
 7. Setting up Emscripten #{emscripten_version_display}
 8. Building raylib #{raylib_version_display} (web)
 9. Building mruby #{mruby_version_display} (web)

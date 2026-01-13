@@ -368,7 +368,7 @@ GMR::Graphics.draw_text("Hello!", 10, 10, 20, :white, font: @my_font)  # With cu
 
 <a id="measure_text"></a>
 
-### measure_text(text, size)
+### measure_text(text, size, opts?)
 
 A loaded image texture for drawing sprites and images
 
@@ -377,14 +377,15 @@ A loaded image texture for drawing sprites and images
 | Name | Type | Description |
 |------|------|-------------|
 | `text` | `String` | The text to measure |
-| `size` | `Integer` | Font size in pixels |
+| `size` | `Integer` | Font size (in logical units, same as draw_text) |
+| `opts` | `Hash` | Optional hash with :font key for custom font |
 
-**Returns:** `Integer` - Width in pixels
+**Returns:** `Vec2` - Width and height as a Vec2 in logical coordinates
 
 **Example:**
 
 ```ruby
-width = GMR::Graphics.measure_text("Hello", 20)
+size = GMR::Graphics.measure_text("Hello", 20, font: @my_font)
 ```
 
 ---

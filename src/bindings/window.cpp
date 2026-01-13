@@ -869,6 +869,37 @@ static mrb_value mrb_time_set_target_fps(mrb_state* mrb, mrb_value self) {
     return self;
 }
 
+/// @function scale
+/// @description Get the current time scale. Affects how fast game time passes.
+///   1.0 = normal speed, 0.5 = half speed (slow motion), 0.0 = paused.
+/// @returns [Float] Current time scale
+/// @example current_scale = GMR::Time.scale
+static mrb_value mrb_time_scale_get(mrb_state* mrb, mrb_value) {
+    return mrb_float_value(mrb, State::instance().time_scale);
+}
+
+/// @function scale=
+/// @description Set the time scale. Affects how fast game time passes.
+///   Timers created with `scaled: true` (default) will respect this.
+///   Set to 0.0 to pause, 0.5 for slow motion, 2.0 for fast forward.
+/// @param scale [Float] The new time scale (must be >= 0)
+/// @returns [Float] The new time scale
+/// @example GMR::Time.scale = 0.5  # Slow motion
+/// @example GMR::Time.scale = 0.0  # Pause game time
+/// @example GMR::Time.scale = 1.0  # Normal speed
+static mrb_value mrb_time_scale_set(mrb_state* mrb, mrb_value) {
+    mrb_float scale;
+    mrb_get_args(mrb, "f", &scale);
+
+    if (scale < 0.0) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "Time.scale cannot be negative");
+        return mrb_nil_value();
+    }
+
+    State::instance().time_scale = static_cast<float>(scale);
+    return mrb_float_value(mrb, scale);
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -914,6 +945,8 @@ void register_window(mrb_state* mrb) {
     mrb_define_module_function(mrb, time_mod, "elapsed", mrb_time_elapsed, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, time_mod, "fps", mrb_time_fps, MRB_ARGS_NONE());
     mrb_define_module_function(mrb, time_mod, "set_target_fps", mrb_time_set_target_fps, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, time_mod, "scale", mrb_time_scale_get, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, time_mod, "scale=", mrb_time_scale_set, MRB_ARGS_REQ(1));
 }
 
 void cleanup_window() {

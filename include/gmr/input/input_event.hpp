@@ -13,7 +13,7 @@ namespace input {
 enum class InputSource {
     Keyboard,
     Mouse,
-    Gamepad  // Future-proofed, not yet implemented
+    Gamepad
 };
 
 // Input phase (when the callback fires)
@@ -26,7 +26,8 @@ enum class InputPhase {
 // A single input binding (key, mouse button, or gamepad button)
 struct InputBinding {
     InputSource source{InputSource::Keyboard};
-    int code{0};  // KEY_* for keyboard, MOUSE_BUTTON_* for mouse
+    int code{0};  // KEY_* for keyboard, MOUSE_BUTTON_* for mouse, GAMEPAD_BUTTON_* for gamepad
+    int gamepad_index{-1};  // Which gamepad (0-3), -1 means any gamepad
 };
 
 // An action definition with its bindings

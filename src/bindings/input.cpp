@@ -481,6 +481,36 @@ static std::vector<gmr_input::InputBinding> parse_bindings_from_mouse(mrb_state*
     return bindings;
 }
 
+// Parse gamepad button(s) into InputBinding vector
+// Supports: :a, [:a, :b], or array of buttons
+// gamepad_index: -1 means any gamepad, 0-3 means specific gamepad
+static std::vector<gmr_input::InputBinding> parse_bindings_from_gamepad(
+    mrb_state* mrb, mrb_value gamepad, int gamepad_index = -1)
+{
+    std::vector<gmr_input::InputBinding> bindings;
+
+    if (mrb_array_p(gamepad)) {
+        mrb_int len = RARRAY_LEN(gamepad);
+        for (mrb_int i = 0; i < len; i++) {
+            mrb_value item = mrb_ary_ref(mrb, gamepad, i);
+            gmr_input::InputBinding binding;
+            binding.source = gmr_input::InputSource::Gamepad;
+            binding.code = parse_gamepad_button_arg(mrb, item);
+            binding.gamepad_index = gamepad_index;
+            bindings.push_back(binding);
+        }
+    } else if (!mrb_nil_p(gamepad)) {
+        // Single button
+        gmr_input::InputBinding binding;
+        binding.source = gmr_input::InputSource::Gamepad;
+        binding.code = parse_gamepad_button_arg(mrb, gamepad);
+        binding.gamepad_index = gamepad_index;
+        bindings.push_back(binding);
+    }
+
+    return bindings;
+}
+
 // ============================================================================
 // Action Mapping System - Traditional API
 // ============================================================================
@@ -801,7 +831,7 @@ static InputContextBuilderData* get_context_builder_data(mrb_state* mrb, mrb_val
         mrb_data_get_ptr(mrb, self, &context_builder_data_type));
 }
 
-// Helper: Parse bindings from mixed arguments (array of keys, single key, hash with mouse:)
+// Helper: Parse bindings from mixed arguments (array of keys, single key, hash with mouse:/gamepad:)
 static std::vector<gmr_input::InputBinding> parse_bindings_from_args(
     mrb_state* mrb, mrb_value* argv, mrb_int argc)
 {
@@ -813,12 +843,28 @@ static std::vector<gmr_input::InputBinding> parse_bindings_from_args(
             auto key_bindings = parse_bindings_from_keys(mrb, argv[i]);
             bindings.insert(bindings.end(), key_bindings.begin(), key_bindings.end());
         } else if (mrb_hash_p(argv[i])) {
-            // Hash with mouse: or gamepad:
+            // Hash with mouse:, gamepad:, and/or gamepad_index:
             mrb_value mouse_val = mrb_hash_get(mrb, argv[i],
                 mrb_symbol_value(mrb_intern_lit(mrb, "mouse")));
             if (!mrb_nil_p(mouse_val)) {
                 auto mouse_bindings = parse_bindings_from_mouse(mrb, mouse_val);
                 bindings.insert(bindings.end(), mouse_bindings.begin(), mouse_bindings.end());
+            }
+
+            // Parse gamepad bindings
+            mrb_value gamepad_val = mrb_hash_get(mrb, argv[i],
+                mrb_symbol_value(mrb_intern_lit(mrb, "gamepad")));
+            if (!mrb_nil_p(gamepad_val)) {
+                // Check for gamepad_index
+                int gamepad_index = -1;  // -1 means any gamepad
+                mrb_value index_val = mrb_hash_get(mrb, argv[i],
+                    mrb_symbol_value(mrb_intern_lit(mrb, "gamepad_index")));
+                if (mrb_fixnum_p(index_val)) {
+                    gamepad_index = static_cast<int>(mrb_fixnum(index_val));
+                }
+
+                auto gamepad_bindings = parse_bindings_from_gamepad(mrb, gamepad_val, gamepad_index);
+                bindings.insert(bindings.end(), gamepad_bindings.begin(), gamepad_bindings.end());
             }
         } else if (mrb_symbol_p(argv[i]) || mrb_fixnum_p(argv[i])) {
             // Single key

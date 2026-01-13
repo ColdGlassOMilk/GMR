@@ -358,9 +358,14 @@
       "GMR::Graphics",
       "GMR::Input",
       "GMR::JSON",
+      "GMR::Random",
+      "GMR::Random::Stream",
+      "GMR::Sequence",
+      "GMR::SpatialHash",
       "GMR::Storage",
       "GMR::System",
       "GMR::Time",
+      "GMR::Timer",
       "GMR::Window"
     ],
     "classes": [
@@ -370,19 +375,25 @@
       "GMR::Audio::Music",
       "GMR::Audio::Sound",
       "GMR::CollisionResult",
+      "GMR::Destroyable",
       "GMR::Ease",
+      "GMR::GameArray",
       "GMR::Graphics::Font",
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
       "GMR::Mathf",
       "GMR::Scene",
       "GMR::SceneManager",
+      "GMR::Sequence",
       "GMR::Serializable",
+      "GMR::Signal",
       "GMR::SpriteAnimation",
       "GMR::StateMachine",
+      "GMR::Timer",
       "GMR::Tween",
       "Node",
       "Rect",
+      "Shader",
       "Sprite",
       "Transform2D",
       "Vec2",
@@ -462,6 +473,42 @@
         "parse",
         "stringify"
       ],
+      "GMR::Random": [
+        "seed",
+        "seed_stream",
+        "int",
+        "float",
+        "bool",
+        "chance",
+        "choose",
+        "shuffle",
+        "weighted"
+      ],
+      "GMR::Random::Stream": [
+        "stream"
+      ],
+      "GMR::Sequence": [
+        "call",
+        "wait",
+        "wait_until",
+        "then",
+        "cancel",
+        "active?",
+        "completed?"
+      ],
+      "GMR::SpatialHash": [
+        "cell_size=",
+        "cell_size",
+        "add",
+        "update",
+        "remove",
+        "query_rect",
+        "query_circle",
+        "query_point",
+        "nearest",
+        "clear",
+        "count"
+      ],
       "GMR::Storage": [
         "get",
         "set",
@@ -469,6 +516,15 @@
         "delete",
         "increment",
         "decrement"
+      ],
+      "GMR::Timer": [
+        "cancel",
+        "pause",
+        "resume",
+        "active?",
+        "cancelled?",
+        "elapsed",
+        "remaining"
       ],
       "GMR::System": [
         "quit",
@@ -486,6 +542,8 @@
       "GMR::Window": [
         "width",
         "height",
+        "screen_width",
+        "screen_height",
         "actual_width",
         "actual_height",
         "set_size",
@@ -498,6 +556,10 @@
         "virtual_resolution?",
         "set_filter_point",
         "set_filter_bilinear",
+        "use_native_dpr",
+        "use_css_dpr",
+        "device_pixel_ratio",
+        "native_dpr?",
         "monitor_count",
         "monitor_width",
         "monitor_height",
@@ -508,7 +570,9 @@
         "delta",
         "elapsed",
         "fps",
-        "set_target_fps"
+        "set_target_fps",
+        "scale",
+        "scale="
       ],
       "GMR": [
         "included",
@@ -614,6 +678,17 @@
         "hit_horizontal?",
         "hit_vertical?",
         "any?"
+      ],
+      "GMR::Destroyable": [
+        "destroy",
+        "destroyed?",
+        "alive?"
+      ],
+      "GMR::GameArray": [
+        "each_alive",
+        "compact_destroyed!",
+        "alive_count",
+        "all_destroyed?"
       ],
       "GMR::Ease": [
         "linear",
@@ -755,7 +830,8 @@
         "init",
         "update",
         "draw",
-        "unload"
+        "unload",
+        "on_resize"
       ],
       "GMR::SceneManager": [
         "load",
@@ -766,7 +842,8 @@
         "draw",
         "add_overlay",
         "remove_overlay",
-        "has_overlay?"
+        "has_overlay?",
+        "current"
       ],
       "GMR::Serializable": [
         "field",
@@ -775,6 +852,26 @@
         "to_json",
         "deserialize",
         "from_json"
+      ],
+      "Shader": [
+        "load",
+        "from_source",
+        "set",
+        "use",
+        "begin",
+        "end",
+        "valid?",
+        "release",
+        "surface_mode?",
+        "surface_mode="
+      ],
+      "GMR::Signal": [
+        "on",
+        "once",
+        "off",
+        "emit",
+        "has_signal?",
+        "clear_signals"
       ],
       "Sprite": [
         "initialize",
