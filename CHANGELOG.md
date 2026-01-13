@@ -5,6 +5,45 @@ All notable changes to GMR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### UI System
+- **Declarative UI DSL**: Block-based syntax for building menus and interfaces
+  - API: `Graphics.ui { }` - Create UI tree that renders on top of game content
+  - Panels: `panel layout: :vertical, padding: 16, anchor: :center { }` - Container with auto-layout
+  - Labels: `label "Text", font_size: 24, text_color: [255, 255, 255]` - Static text display
+  - Buttons: `button "Click Me" { on_click { } }` - Interactive elements with callbacks
+- **Automatic Layout**: Panels automatically arrange children
+  - `:vertical` - Stack children top to bottom
+  - `:horizontal` - Stack children left to right
+  - `:none` - Manual positioning (default)
+- **Anchoring System**: Position elements relative to parent
+  - 9 anchor points: `:top_left`, `:top_center`, `:top_right`, `:center_left`, `:center`, `:center_right`, `:bottom_left`, `:bottom_center`, `:bottom_right`
+- **Style Registration**: Define reusable style presets
+  - API: `UI::Styles.register(:name, { width: 100, height: 40, ... })`
+  - Usage: `button "Text", style: :name`
+  - Inline options override style defaults
+- **Button Events**: Interactive callbacks for user input
+  - `on_click { }` - Fires when button is clicked
+  - `on_hover_enter { }` - Fires when mouse enters button
+  - `on_hover_exit { }` - Fires when mouse leaves button
+- **Visual States**: Buttons support per-state styling
+  - `background_color` - Normal state
+  - `hover_background` - Mouse over
+  - `pressed_background` - Mouse down
+- **Resolution Independence**: All dimensions in 360p baseline coordinates
+  - Automatically scales to any resolution
+  - Same scaling system as `Graphics.draw_text`
+- **Custom Font Support**: Use loaded fonts in UI elements
+  - `label "Text", font: @custom_font`
+  - `button "Click", font: @custom_font`
+- **Cleanup**: `UI.clear` removes the UI tree (call in `unload` or before scene transitions)
+
+#### Documentation
+- `docs/ui.md` - Declarative UI system documentation
+
 ## [0.3.2]
 
 ### Added
