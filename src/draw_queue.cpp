@@ -29,6 +29,7 @@ void DrawQueue::begin_frame() {
     next_draw_order_ = 0;
     camera_stack_.clear();
     active_camera_ = INVALID_CAMERA_HANDLE;
+    last_camera_ = INVALID_CAMERA_HANDLE;
 }
 
 void DrawQueue::queue_sprite(SpriteHandle handle) {
@@ -64,6 +65,7 @@ void DrawQueue::queue_camera_begin(CameraHandle handle) {
                                static_cast<uint8_t>(RenderLayer::ENTITIES), 0.0f);
     cmd.camera_handle = handle;
     camera_stack_.push_back(handle);
+    last_camera_ = handle;  // Remember for particle system
 }
 
 void DrawQueue::queue_camera_end() {
@@ -273,6 +275,22 @@ void DrawQueue::queue_text(TransformHandle transform, const std::string& content
     cmd.text.content = content;
 }
 
+void DrawQueue::queue_texture_quad(TextureHandle texture, float src_x, float src_y, float src_w, float src_h,
+                                    float world_x, float world_y, float size, float rotation,
+                                    const DrawColor& color, uint8_t layer, float z) {
+    auto& cmd = create_command(DrawCommand::Type::TEXTURE_QUAD, layer, z);
+    cmd.texture_quad.texture = texture;
+    cmd.texture_quad.src_x = src_x;
+    cmd.texture_quad.src_y = src_y;
+    cmd.texture_quad.src_w = src_w;
+    cmd.texture_quad.src_h = src_h;
+    cmd.texture_quad.x = world_x;
+    cmd.texture_quad.y = world_y;
+    cmd.texture_quad.size = size;
+    cmd.texture_quad.rotation = rotation;
+    cmd.texture_quad.color = color;
+}
+
 // ==================== Flush and Clear ====================
 
 void DrawQueue::flush() {
@@ -344,6 +362,9 @@ void DrawQueue::flush() {
                 break;
             case DrawCommand::Type::TEXT:
                 draw_text(cmd);
+                break;
+            case DrawCommand::Type::TEXTURE_QUAD:
+                draw_texture_quad(cmd);
                 break;
             case DrawCommand::Type::SHADER_BEGIN: {
                 // Check if this shader needs surface mode

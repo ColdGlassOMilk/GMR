@@ -1,0 +1,29 @@
+{
+  "name": "explosion",
+
+  "spawn_rate": 0,
+  "burst_count": 30,
+  "max_particles": 50,
+
+  "lifetime": { "min": 0.3, "max": 0.6 },
+
+  "shape": "circle",
+  "shape_radius": 0.2,
+
+  "velocity_mode": "radial",
+  "speed": { "min": 4.0, "max": 8.0 },
+
+  "gravity": { "x": 0, "y": 3.0 },
+  "drag": 0.3,
+
+  "start_size": { "min": 0.2, "max": 0.4 },
+  "end_size": { "min": 0.0, "max": 0.1 },
+  "size_easing": "out_quad",
+
+  "start_color": { "r": 255, "g": 200, "b": 50, "a": 255 },
+  "end_color": { "r": 255, "g": 50, "b": 0, "a": 0 },
+
+  "layer": 150,
+  "world_space": true,
+  "scaled": true
+}

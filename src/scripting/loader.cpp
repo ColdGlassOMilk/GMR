@@ -26,6 +26,7 @@
 #include "gmr/bindings/serializable.hpp"
 #include "gmr/bindings/shader.hpp"
 #include "gmr/bindings/timer.hpp"
+#include "gmr/bindings/particle.hpp"
 #include "gmr/bindings/random.hpp"
 #include "gmr/bindings/destroyable.hpp"
 #include "gmr/bindings/spatial.hpp"
@@ -39,6 +40,7 @@
 #include "gmr/state_machine/state_machine_manager.hpp"
 #include "gmr/animation/animation_manager.hpp"
 #include "gmr/timer/timer_manager.hpp"
+#include "gmr/particle/particle_manager.hpp"
 #include "gmr/spatial/spatial_hash.hpp"
 #include "gmr/sequence/sequence_manager.hpp"
 #include "gmr/input/input_manager.hpp"
@@ -131,6 +133,9 @@ void Loader::register_all_bindings() {
 
     // Register Timer module (GMR::Timer)
     bindings::register_timer(mrb_);
+
+    // Register ParticleEmitter class (GMR::ParticleEmitter)
+    bindings::register_particle(mrb_);
 
     // Register Random module (GMR::Random)
     bindings::register_random(mrb_);
@@ -425,6 +430,7 @@ void Loader::load(const std::string& script_dir) {
         CameraManager::instance().clear(mrb_);           // Has follow_target Ruby refs
         animation::AnimationManager::instance().clear(mrb_);  // Has callbacks
         timer::TimerManager::instance().clear(mrb_);     // Has callbacks
+        particle::ParticleManager::instance().clear(mrb_);  // Has callbacks
         sequence::SequenceManager::instance().clear(mrb_);  // Has callbacks
         spatial::SpatialHash::instance().clear(mrb_);    // Has entity refs
         state_machine::StateMachineManager::instance().clear(mrb_);  // Has owner refs
@@ -580,6 +586,7 @@ void Loader::reload_if_changed() {
         printf("[HOT_RELOAD] Clearing managers (init changed)\n");
         animation::AnimationManager::instance().clear(mrb_);
         timer::TimerManager::instance().clear(mrb_);
+        particle::ParticleManager::instance().clear(mrb_);
         spatial::SpatialHash::instance().clear(mrb_);
         state_machine::StateMachineManager::instance().clear(mrb_);
         input::InputManager::instance().clear(mrb_);

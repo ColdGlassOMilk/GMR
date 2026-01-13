@@ -470,6 +470,78 @@ void DrawQueue::draw_triangle(const DrawCommand& cmd) {
     }
 }
 
+void DrawQueue::draw_texture_quad(const DrawCommand& cmd) {
+    auto* texture = TextureManager::instance().get(cmd.texture_quad.texture);
+    if (!texture) {
+        static int warn_count = 0;
+        if (warn_count++ < 5) {
+            TraceLog(LOG_WARNING, "draw_texture_quad: texture handle %d not found!", cmd.texture_quad.texture);
+        }
+        return;
+    }
+
+    // Apply subpixel inset to prevent texture bleeding from adjacent frames.
+    constexpr float TEXEL_INSET = 0.5f;
+    Rectangle source = {
+        cmd.texture_quad.src_x + TEXEL_INSET,
+        cmd.texture_quad.src_y + TEXEL_INSET,
+        cmd.texture_quad.src_w - TEXEL_INSET * 2.0f,
+        cmd.texture_quad.src_h - TEXEL_INSET * 2.0f
+    };
+
+    // World position and size
+    float world_x = cmd.texture_quad.x;
+    float world_y = cmd.texture_quad.y;
+    float world_size = cmd.texture_quad.size;
+
+    // If camera is active, raylib's BeginMode2D handles transformation.
+    // If no camera active, we need to manually transform world->screen.
+    float screen_x, screen_y, screen_size;
+
+    if (active_camera_ != INVALID_CAMERA_HANDLE) {
+        // Camera is active - use world coordinates directly, raylib transforms
+        screen_x = world_x;
+        screen_y = world_y;
+        screen_size = world_size;
+    } else {
+        // No camera active - manually transform using last_camera_ if available
+        Camera2DState* cam = (last_camera_ != INVALID_CAMERA_HANDLE)
+            ? CameraManager::instance().get(last_camera_) : nullptr;
+
+        if (cam) {
+            Vec2 screen_pos = cam->world_to_screen({world_x, world_y});
+            float scale = cam->get_effective_scale();
+            screen_x = screen_pos.x;
+            screen_y = screen_pos.y;
+            screen_size = world_size * scale;
+        } else {
+            // No camera at all - fallback to world coords as pixels (probably wrong)
+            screen_x = world_x;
+            screen_y = world_y;
+            screen_size = world_size * ASSET_PPU;
+        }
+    }
+
+    float half_size = screen_size * 0.5f;
+    Rectangle dest = {
+        screen_x - half_size,
+        screen_y - half_size,
+        screen_size,
+        screen_size
+    };
+
+    Vector2 origin = {half_size, half_size};
+    float rotation_degrees = cmd.texture_quad.rotation * (180.0f / 3.14159265358979323846f);
+
+    ::Color tint{cmd.texture_quad.color.r, cmd.texture_quad.color.g,
+                 cmd.texture_quad.color.b, cmd.texture_quad.color.a};
+
+    // Use additive blending for particle effects (makes black transparent)
+    BeginBlendMode(BLEND_ADDITIVE);
+    DrawTexturePro(*texture, source, dest, origin, rotation_degrees, tint);
+    EndBlendMode();
+}
+
 void DrawQueue::draw_text(const DrawCommand& cmd) {
     ::Color color = to_raylib(cmd.text.color);
 

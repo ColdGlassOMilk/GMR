@@ -1,0 +1,27 @@
+{
+  "name": "sparkle",
+
+  "spawn_rate": 8,
+  "max_particles": 30,
+
+  "lifetime": { "min": 0.4, "max": 0.8 },
+
+  "shape": "rectangle",
+  "shape_size": { "x": 1.0, "y": 0.5 },
+
+  "velocity_mode": "random",
+  "speed": { "min": 0.0, "max": 0.5 },
+
+  "gravity": { "x": 0, "y": 0 },
+
+  "start_size": { "min": 0.08, "max": 0.15 },
+  "end_size": { "min": 0.0, "max": 0.0 },
+  "size_easing": "in_out_sine",
+
+  "start_color": { "r": 255, "g": 255, "b": 200, "a": 255 },
+  "end_color": { "r": 255, "g": 255, "b": 255, "a": 0 },
+
+  "layer": 150,
+  "world_space": true,
+  "scaled": true
+}

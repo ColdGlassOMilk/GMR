@@ -100,6 +100,9 @@ set(SOURCES
     src/animation/easing.cpp
     src/animation/animation_manager.cpp
     src/timer/timer_manager.cpp
+    src/particle/particle_manager.cpp
+    src/particle/config_loader.cpp
+    src/bindings/particle.cpp
     src/state_machine/state_machine_manager.cpp
     src/input/input_manager.cpp
     src/input/input_context.cpp

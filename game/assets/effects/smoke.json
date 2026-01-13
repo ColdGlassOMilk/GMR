@@ -1,0 +1,31 @@
+{
+  "name": "smoke",
+
+  "spawn_rate": 15,
+  "max_particles": 100,
+
+  "lifetime": { "min": 1.5, "max": 2.5 },
+
+  "shape": "circle",
+  "shape_radius": 0.1,
+
+  "velocity_mode": "directional",
+  "direction": -1.5708,
+  "spread": { "min": -0.4, "max": 0.4 },
+  "speed": { "min": 0.5, "max": 1.0 },
+
+  "gravity": { "x": 0, "y": -0.3 },
+  "drag": 0.1,
+
+  "start_size": { "min": 0.15, "max": 0.25 },
+  "end_size": { "min": 0.5, "max": 0.8 },
+  "size_easing": "out_quad",
+
+  "start_color": { "r": 120, "g": 120, "b": 120, "a": 180 },
+  "end_color": { "r": 80, "g": 80, "b": 80, "a": 0 },
+  "color_easing": "linear",
+
+  "layer": 150,
+  "world_space": true,
+  "scaled": true
+}

@@ -1,5 +1,5 @@
 class Player
-  attr_reader :transform, :sprite
+  attr_reader :transform, :sprite, :dust_emitter
 
   def initialize(x, y)
     @transform = Transform2D.new(x: x, y: y)
@@ -14,6 +14,9 @@ class Player
 
     @jump_sound = Audio::Sound.load("sfx/jump.mp3", volume: SFX_VOLUME - 0.2)
     @attack_sound = Audio::Sound.load("sfx/sword_swing.mp3", volume: SFX_VOLUME)
+
+    # Dust particle emitter for running
+    @dust_emitter = ParticleEmitter.new("effects/run_dust.json")
 
     setup_animator
     setup_state_machine
@@ -32,6 +35,7 @@ class Player
     apply_velocity(dt)
     resolve_collision(tilemap)
     update_state_machine
+    update_dust_particles
   end
 
   def move_left
@@ -193,6 +197,20 @@ class Player
       state_machine.trigger(:move)
     elsif !@moving && state_machine.state != :idle
       state_machine.trigger(:stop)
+    end
+  end
+
+  def update_dust_particles
+    # Position at player's feet (nudged down slightly)
+    foot_x = @transform.x + FRAME_WIDTH / 2.0
+    foot_y = @transform.y + FRAME_HEIGHT + 0.3
+    @dust_emitter.position = Mathf::Vec2.new(foot_x, foot_y)
+
+    # Emit dust only when running on ground
+    if @on_ground && @moving && state_machine.state == :running
+      @dust_emitter.start unless @dust_emitter.emitting?
+    else
+      @dust_emitter.stop if @dust_emitter.emitting?
     end
   end
 end

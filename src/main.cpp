@@ -17,6 +17,7 @@
 #include "gmr/resources/shader_manager.hpp"
 #include "gmr/rendering/surface_pool.hpp"
 #include "gmr/transition/transition_manager.hpp"
+#include "gmr/particle/particle_manager.hpp"
 #include "gmr/scene.hpp"
 #include "raylib.h"
 #include <cstdio>
@@ -139,6 +140,9 @@ void game_loop(void* arg) {
         // Update sequence system (coroutines) with both scaled and unscaled delta time
         gmr::sequence::SequenceManager::instance().update(mrb, dt_scaled, dt_unscaled);
 
+        // Update particle system with both scaled and unscaled delta time
+        gmr::particle::ParticleManager::instance().update(mrb, dt_scaled, dt_unscaled);
+
         // Update scene transitions
         auto& transition_mgr = gmr::transition::TransitionManager::instance();
         transition_mgr.update(static_cast<float>(dt));
@@ -153,6 +157,8 @@ void game_loop(void* arg) {
         if (state.use_virtual_resolution) {
             BeginTextureMode(gmr::bindings::get_render_target());
             gmr::scripting::safe_call(mrb, "draw");
+            // Queue particles for drawing
+            gmr::particle::ParticleManager::instance().queue_draw();
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
@@ -188,6 +194,8 @@ void game_loop(void* arg) {
         } else {
             BeginDrawing();
             gmr::scripting::safe_call(mrb, "draw");
+            // Queue particles for drawing
+            gmr::particle::ParticleManager::instance().queue_draw();
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
@@ -411,6 +419,9 @@ int main(int argc, char* argv[]) {
 
                 // Update sequence system (coroutines) with both scaled and unscaled delta time
                 gmr::sequence::SequenceManager::instance().update(mrb, dt_scaled, dt_unscaled);
+
+                // Update particle system with both scaled and unscaled delta time
+                gmr::particle::ParticleManager::instance().update(mrb, dt_scaled, dt_unscaled);
             }
 
             // Update scene transitions
@@ -427,6 +438,8 @@ int main(int argc, char* argv[]) {
             if (state.use_virtual_resolution) {
                 BeginTextureMode(gmr::bindings::get_render_target());
                 gmr::scripting::safe_call(mrb, "draw");
+                // Queue particles for drawing
+                gmr::particle::ParticleManager::instance().queue_draw();
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
@@ -462,6 +475,8 @@ int main(int argc, char* argv[]) {
             } else {
                 BeginDrawing();
                 gmr::scripting::safe_call(mrb, "draw");
+                // Queue particles for drawing
+                gmr::particle::ParticleManager::instance().queue_draw();
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
@@ -497,6 +512,7 @@ int main(int argc, char* argv[]) {
         gmr::animation::AnimationManager::instance().clear(mrb);
         gmr::timer::TimerManager::instance().clear(mrb);
         gmr::sequence::SequenceManager::instance().clear(mrb);
+        gmr::particle::ParticleManager::instance().clear(mrb);
         gmr::spatial::SpatialHash::instance().clear(mrb);
         gmr::state_machine::StateMachineManager::instance().clear(mrb);
         gmr::input::InputManager::instance().clear(mrb);

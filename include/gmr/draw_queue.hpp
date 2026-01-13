@@ -91,6 +91,17 @@ struct TextDrawParams {
     std::string content;
 };
 
+// Texture quad draw parameters (for particles and other textured quads)
+// Uses world-space coordinates - camera transforms during flush
+struct TextureQuadDrawParams {
+    TextureHandle texture{INVALID_HANDLE};
+    float src_x{0}, src_y{0}, src_w{0}, src_h{0};  // Source rectangle in texture (pixels)
+    float x{0}, y{0};       // World position (center)
+    float size{1.0f};       // Size in world units (square particle)
+    float rotation{0};      // Rotation in radians
+    DrawColor color;        // Tint color
+};
+
 // Draw command for deferred rendering with three-level sorting (layer → z → draw_order)
 struct DrawCommand {
     enum class Type {
@@ -101,6 +112,7 @@ struct DrawCommand {
         LINE,
         TRIANGLE,
         TEXT,
+        TEXTURE_QUAD,
         CAMERA_BEGIN,
         CAMERA_END,
         SHADER_BEGIN,
@@ -122,6 +134,7 @@ struct DrawCommand {
     LineDrawParams line;
     TriangleDrawParams triangle;
     TextDrawParams text;
+    TextureQuadDrawParams texture_quad;
 
     DrawCommand() = default;
     DrawCommand(Type t, uint8_t layer_val, float z_val, uint32_t order, SpriteHandle sprite = INVALID_HANDLE)
@@ -179,6 +192,12 @@ public:
     void queue_text(TransformHandle transform, const std::string& content, int font_size, const DrawColor& color,
                     FontHandle font, uint8_t layer = static_cast<uint8_t>(RenderLayer::UI), float z = 0.0f);
 
+    // Queue textured quad (for particles and other texture-based effects)
+    // World-space coordinates - camera transforms during flush
+    void queue_texture_quad(TextureHandle texture, float src_x, float src_y, float src_w, float src_h,
+                            float world_x, float world_y, float size, float rotation, const DrawColor& color,
+                            uint8_t layer = static_cast<uint8_t>(RenderLayer::EFFECTS), float z = 0.0f);
+
     // Queue camera begin/end commands for deferred camera transforms
     void queue_camera_begin(CameraHandle handle);
     void queue_camera_end();
@@ -199,6 +218,13 @@ public:
     // Debug info
     size_t pending_count() const { return commands_.size(); }
 
+    // Get current camera handle from queuing stack, or the last used camera if stack is empty
+    // Used by particle system to convert world coords to screen coords
+    CameraHandle get_queued_camera() const {
+        if (!camera_stack_.empty()) return camera_stack_.back();
+        return last_camera_;  // Fallback to last used camera
+    }
+
 private:
     DrawQueue() = default;
 
@@ -213,6 +239,7 @@ private:
     void draw_line(const DrawCommand& cmd);
     void draw_triangle(const DrawCommand& cmd);
     void draw_text(const DrawCommand& cmd);
+    void draw_texture_quad(const DrawCommand& cmd);
     void apply_camera_begin(CameraHandle handle);
     void apply_camera_end();
     void apply_shader_begin(ShaderHandle handle);
@@ -268,6 +295,7 @@ private:
     std::vector<DrawCommand> commands_;
     std::vector<CameraHandle> camera_stack_;  // Track camera nesting during queuing
     CameraHandle active_camera_{INVALID_CAMERA_HANDLE};  // Current camera during flush
+    CameraHandle last_camera_{INVALID_CAMERA_HANDLE};    // Last camera used (persists after pop)
     uint32_t next_draw_order_{0};
 
     // Surface mode state stack (for shader surface continuity)

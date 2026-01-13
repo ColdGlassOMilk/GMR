@@ -1,0 +1,30 @@
+{
+  "name": "dust",
+
+  "spawn_rate": 0,
+  "burst_count": 5,
+  "max_particles": 50,
+
+  "lifetime": { "min": 0.3, "max": 10 },
+
+  "shape": "line",
+  "shape_size": { "x": 0.4, "y": 0 },
+
+  "velocity_mode": "directional",
+  "direction": -1.5708,
+  "spread": { "min": -0.8, "max": 0.8 },
+  "speed": { "min": 0.8, "max": 1.5 },
+
+  "gravity": { "x": 0, "y": 1.0 },
+  "drag": 0.5,
+
+  "start_size": { "min": 0.15, "max": 0.25 },
+  "end_size": { "min": 1, "max": 5 },
+
+  "start_color": { "r": 180, "g": 160, "b": 140, "a": 200 },
+  "end_color": { "r": 150, "g": 130, "b": 110, "a": 0 },
+
+  "layer": 150,
+  "world_space": true,
+  "scaled": true
+}

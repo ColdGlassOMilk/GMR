@@ -1,0 +1,35 @@
+{
+  "name": "run_dust",
+  "texture": "particles.jpg",
+  "spritesheet_cols": 6,
+  "spritesheet_rows": 6,
+
+  "spawn_rate": 8,
+  "max_particles": 30,
+
+  "lifetime": { "min": 0.8, "max": 1.4 },
+
+  "shape": "line",
+  "shape_size": { "x": 0.3, "y": 0 },
+
+  "velocity_mode": "directional",
+  "direction": -1.5708,
+  "spread": { "min": -0.6, "max": 0.6 },
+  "speed": { "min": 0.8, "max": 1.5 },
+
+  "gravity": { "x": 0, "y": -0.8 },
+  "drag": 1.5,
+
+  "start_size": { "min": 0.4, "max": 0.6 },
+  "end_size": { "min": 1.2, "max": 1.8 },
+
+  "start_rotation": { "min": 0, "max": 6.28 },
+  "angular_velocity": { "min": -0.8, "max": 0.8 },
+
+  "start_color": { "r": 200, "g": 180, "b": 140, "a": 160 },
+  "end_color": { "r": 180, "g": 160, "b": 120, "a": 0 },
+
+  "layer": 150,
+  "world_space": true,
+  "scaled": true
+}

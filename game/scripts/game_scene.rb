@@ -51,6 +51,7 @@ class GameScene < GMR::Scene
       current_shader.use do
         @camera.use do
           @level.draw
+          @player.dust_emitter.draw  # Dust behind player
           @player.draw
         end
         @hud.draw(GMR::Time.fps, @screen_width, @screen_height, @retro_mode, @shader_names[@shader_index])
@@ -58,6 +59,7 @@ class GameScene < GMR::Scene
     else
       @camera.use do
         @level.draw
+        @player.dust_emitter.draw  # Dust behind player
         @player.draw
       end
       @hud.draw(GMR::Time.fps, @screen_width, @screen_height, @retro_mode, @shader_names[@shader_index])

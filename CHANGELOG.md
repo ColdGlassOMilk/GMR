@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Particle System
+- **Data-Driven Particles**: JSON-configured visual effects with physics simulation
+  - API: `ParticleEmitter.emit(path, position: vec2)` - Fire-and-forget effects
+  - API: `ParticleEmitter.emit(path, transform: t) { on_complete }` - With callback
+  - API: `ParticleEmitter.new(path)` - Create managed emitter
+  - API: `ParticleEmitter.new(path, transform)` - Create attached emitter
+  - API: `ParticleEmitter.new(hash)` - Create from Ruby Hash (declarative)
+  - API: `ParticleEmitter.preload(path)` - Preload configs to avoid hitches
+  - Control: `start`, `stop`, `pause`, `resume`, `reset`, `burst(count)`
+  - Properties: `position=`, `transform=`, `emitting?`, `alive?`, `particle_count`
+  - Draw control: `draw` - Control rendering order relative to other objects
+  - Callback: `on_complete { }` - Called when one-shot effect finishes
+- **Declarative Ruby Initialization**: Define effects directly in code without JSON files
+  ```ruby
+  ParticleEmitter.new({
+    texture: "particles.jpg",
+    columns: 6, rows: 6,
+    spawn_rate: 10,
+    lifetime: { min: 0.5, max: 1.0 },
+    start_size: { min: 0.3, max: 0.5 },
+    velocity_mode: "radial",
+    speed: { min: 2.0, max: 4.0 }
+  })
+  ```
+- **Textured Particles**: Support for spritesheet-based particle textures
+  - Config: `texture`, `spritesheet_cols`, `spritesheet_rows`
+  - Each particle randomly selects a frame from the spritesheet on spawn
+  - Ideal for varied smoke puffs, dust clouds, debris
+- **Effect Configuration**: JSON files define particle behavior
+  - Emission: `spawn_rate`, `burst_count`, `burst_interval`, `max_particles`
+  - Spawn shapes: point, circle, circle_edge, rectangle, rectangle_edge, line
+  - Velocity modes: directional, radial, tangential, random
+  - Physics: gravity, drag, acceleration
+  - Interpolation: size/color easing with 30+ functions
+  - Rendering: layer, z-order, world_space, time scaling
+- **Memory Efficient**: Preallocated particle pools, zero per-frame allocations
+- **Camera Integration**: Automatic world-to-screen coordinate conversion
+
 #### Core Utilities
 - **Timer System**: One-shot and repeating timers with automatic update
   - API: `Timer.after(delay) { callback }` - One-shot timer
@@ -103,6 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates need for `respond_to?` checks in main script
 
 #### Documentation
+- `docs/particles.md` - Particle system documentation with JSON config reference
 - `docs/utilities.md` - Timer, Random, Sequence, Signal, Destroyable documentation
 - `docs/spatial.md` - SpatialHash spatial query documentation
 - `docs/debug.md` - Debug drawing overlay documentation
