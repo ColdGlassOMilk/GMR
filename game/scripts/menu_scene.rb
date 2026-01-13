@@ -59,7 +59,7 @@ class MenuScene < GMR::Scene
         label "Engine Demo", style: :menu_subtitle, font: font
 
         # Spacer panel
-        panel height: 12
+        panel height: 4
 
         button "Start Demo", style: :start_button, font: font do
           on_hover_enter { hover_sfx.play }
