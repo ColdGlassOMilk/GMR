@@ -34,6 +34,7 @@
 #include "gmr/bindings/sequence.hpp"
 #include "gmr/bindings/gamepad.hpp"
 #include "gmr/bindings/debug_draw.hpp"
+#include "gmr/bindings/ui.hpp"
 #include "gmr/scene.hpp"
 #include "gmr/camera.hpp"
 #include "gmr/state.hpp"
@@ -157,6 +158,9 @@ void Loader::register_all_bindings() {
 
     // Register Debug module (GMR::Debug)
     bindings::register_debug_draw(mrb_);
+
+    // Register UI module (GMR::UI)
+    bindings::register_ui(mrb_);
 
     // Register built-in console module (GMR::Console)
     console::register_console_module(mrb_);

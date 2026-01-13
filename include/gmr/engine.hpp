@@ -30,4 +30,10 @@
 #include "gmr/scripting/loader.hpp"
 #include "gmr/scripting/helpers.hpp"
 
+// UI
+#include "gmr/ui/ui_types.hpp"
+#include "gmr/ui/ui_node.hpp"
+#include "gmr/ui/ui_manager.hpp"
+#include "gmr/bindings/ui.hpp"
+
 #endif

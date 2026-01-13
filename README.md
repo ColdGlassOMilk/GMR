@@ -144,6 +144,7 @@ This example introduces:
 | [Animation](docs/animation.md) | SpriteAnimation, Animator, Tweens |
 | [Particles](docs/particles.md) | Particle emitters, effects, JSON configs |
 | [State Machine](docs/state-machine.md) | State DSL, transitions, animation binding |
+| [UI](docs/ui.md) | Declarative UI, menus, buttons, styles |
 | [Audio](docs/audio.md) | Sound effects, music streaming |
 | [Persistence](docs/persistence.md) | File I/O, Storage, save data, Serialization |
 | [Utilities](docs/utilities.md) | Timers, random numbers, sequences, signals |

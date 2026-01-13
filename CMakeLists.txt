@@ -93,6 +93,8 @@ set(SOURCES
     src/bindings/sequence.cpp
     src/bindings/gamepad.cpp
     src/bindings/debug_draw.cpp
+    src/bindings/ui.cpp
+    src/ui/ui_manager.cpp
     src/spatial/spatial_hash.cpp
     src/sequence/sequence_manager.cpp
     src/filesystem/paths.cpp

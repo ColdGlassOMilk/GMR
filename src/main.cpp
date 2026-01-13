@@ -19,6 +19,7 @@
 #include "gmr/transition/transition_manager.hpp"
 #include "gmr/particle/particle_manager.hpp"
 #include "gmr/scene.hpp"
+#include "gmr/ui/ui_manager.hpp"
 #include "raylib.h"
 #include <cstdio>
 #include <cstring>
@@ -113,6 +114,9 @@ void game_loop(void* arg) {
         // Update state machine system (receives input events via subscription)
         gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
 
+        // Process UI input (hover, click detection)
+        gmr::ui::UIManager::instance().process_input(mrb);
+
         // Update music streaming (must be called every frame)
         gmr::MusicManager::instance().update();
 
@@ -159,6 +163,9 @@ void game_loop(void* arg) {
             gmr::scripting::safe_call(mrb, "draw");
             // Queue particles for drawing
             gmr::particle::ParticleManager::instance().queue_draw();
+            // Compute UI layout and queue for drawing
+            gmr::ui::UIManager::instance().compute_layout();
+            gmr::ui::UIManager::instance().render();
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
@@ -196,6 +203,9 @@ void game_loop(void* arg) {
             gmr::scripting::safe_call(mrb, "draw");
             // Queue particles for drawing
             gmr::particle::ParticleManager::instance().queue_draw();
+            // Compute UI layout and queue for drawing
+            gmr::ui::UIManager::instance().compute_layout();
+            gmr::ui::UIManager::instance().render();
             // Flush queued sprite draws (z-sorted)
             gmr::DrawQueue::instance().flush();
 
@@ -392,6 +402,9 @@ int main(int argc, char* argv[]) {
             // Update state machine system (receives input events via subscription)
             gmr::state_machine::StateMachineManager::instance().update(mrb, static_cast<float>(dt));
 
+            // Process UI input (hover, click detection)
+            gmr::ui::UIManager::instance().process_input(mrb);
+
             // Update music streaming (must be called every frame)
             gmr::MusicManager::instance().update();
 
@@ -440,6 +453,9 @@ int main(int argc, char* argv[]) {
                 gmr::scripting::safe_call(mrb, "draw");
                 // Queue particles for drawing
                 gmr::particle::ParticleManager::instance().queue_draw();
+                // Compute UI layout and queue for drawing
+                gmr::ui::UIManager::instance().compute_layout();
+                gmr::ui::UIManager::instance().render();
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
@@ -477,6 +493,9 @@ int main(int argc, char* argv[]) {
                 gmr::scripting::safe_call(mrb, "draw");
                 // Queue particles for drawing
                 gmr::particle::ParticleManager::instance().queue_draw();
+                // Compute UI layout and queue for drawing
+                gmr::ui::UIManager::instance().compute_layout();
+                gmr::ui::UIManager::instance().render();
                 // Flush queued sprite draws (z-sorted)
                 gmr::DrawQueue::instance().flush();
 
@@ -508,6 +527,7 @@ int main(int argc, char* argv[]) {
     // Clear managers with Ruby references while mruby is still available
     // Order matches hot reload in loader.cpp - managers cleared before event queue
     if (auto* mrb = loader.mrb()) {
+        gmr::ui::UIManager::instance().clear(mrb);
         gmr::CameraManager::instance().clear(mrb);
         gmr::animation::AnimationManager::instance().clear(mrb);
         gmr::timer::TimerManager::instance().clear(mrb);

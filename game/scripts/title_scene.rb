@@ -11,10 +11,10 @@ class TitleScene < GMR::Scene
   def update(dt)
     @timer += dt
 
-    # After hold duration, transition to game scene
+    # After hold duration, transition to menu scene
     if @timer >= @hold_duration && !@transitioned
       @transitioned = true
-      SceneManager.load(GameScene.new, transition: :fade, duration: 1.0, easing: :out_cubic)
+      SceneManager.load(MenuScene.new, transition: :fade, duration: 1.0, easing: :out_cubic)
     end
   end
 
