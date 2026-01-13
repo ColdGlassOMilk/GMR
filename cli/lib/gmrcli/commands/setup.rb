@@ -239,10 +239,11 @@ module Gmrcli
         end
 
         UI.info "Checking out #{name} #{ref}..."
-        # Ensure we have full history (shallow clones don't have all commits)
-        Shell.run("git fetch --unshallow 2>/dev/null || git fetch origin", chdir: src_dir, verbose: verbose?)
-        # Fetch all branches and tags to ensure we have the ref
-        Shell.run("git fetch --all --tags", chdir: src_dir, verbose: verbose?)
+        # Convert shallow clone to full clone and fetch master/main branch history
+        Shell.run("git fetch --unshallow origin 2>/dev/null || true", chdir: src_dir, verbose: verbose?)
+        Shell.run("git remote set-branches origin '*'", chdir: src_dir, verbose: verbose?)
+        Shell.run("git fetch origin", chdir: src_dir, verbose: verbose?)
+        Shell.run("git fetch --tags", chdir: src_dir, verbose: verbose?)
         Shell.run!("git checkout #{ref}", chdir: src_dir, verbose: verbose?)
       end
 
