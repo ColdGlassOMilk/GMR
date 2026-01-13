@@ -43,8 +43,8 @@ module Gmrcli
             @stages_skipped << "packages"
             JsonEmitter.stage_skip(:packages, reason: "Skipped via --skip-pacman")
           end
-          run_stage(:mruby_native, "Building mruby #{mruby_version_display} (native)") { build_mruby_native }
           run_stage(:raylib_native, "Building raylib #{raylib_version_display} (native)") { build_raylib_native }
+          run_stage(:mruby_native, "Building mruby #{mruby_version_display} (native)") { build_mruby_native }
         else
           %w[packages mruby_native raylib_native].each do |stage|
             @stages_skipped << stage
@@ -239,10 +239,7 @@ module Gmrcli
         end
 
         UI.info "Checking out #{name} #{ref}..."
-        # Convert shallow clone to full clone and fetch master/main branch history
-        Shell.run("git fetch --unshallow origin 2>/dev/null || true", chdir: src_dir, verbose: verbose?)
-        Shell.run("git remote set-branches origin '*'", chdir: src_dir, verbose: verbose?)
-        Shell.run("git fetch origin", chdir: src_dir, verbose: verbose?)
+        # Fetch tags in case ref is a tag
         Shell.run("git fetch --tags", chdir: src_dir, verbose: verbose?)
         Shell.run!("git checkout #{ref}", chdir: src_dir, verbose: verbose?)
       end
@@ -649,7 +646,7 @@ module Gmrcli
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:raylib_native, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
-            Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
+            Shell.git_clone(raylib_git_repo, src_dir, ref: raylib_git_ref, verbose: verbose?)
           end
         end
         # Always ensure pinned version is checked out (even if directory already existed)
@@ -781,7 +778,7 @@ module Gmrcli
         unless Dir.exist?(src_dir)
           JsonEmitter.stage_progress(:raylib_web, 10, "Cloning repository", substage: "clone")
           UI.spinner("Cloning raylib") do
-            Shell.git_clone(raylib_git_repo, src_dir, verbose: verbose?)
+            Shell.git_clone(raylib_git_repo, src_dir, ref: raylib_git_ref, verbose: verbose?)
           end
         else
           JsonEmitter.stage_progress(:raylib_web, 10, "Source already cloned", substage: "clone")

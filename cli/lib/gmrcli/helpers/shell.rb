@@ -83,11 +83,13 @@ module Gmrcli
       end
 
       # Clone a git repository
-      def git_clone(url, destination, depth: 1, verbose: false)
+      # @param ref [String, nil] If a specific ref (commit hash) is needed, skip shallow clone
+      def git_clone(url, destination, depth: 1, ref: nil, verbose: false)
         return if Dir.exist?(destination)
 
         FileUtils.mkdir_p(File.dirname(destination))
-        depth_arg = depth ? "--depth #{depth}" : ""
+        # Don't use shallow clone if we need a specific commit ref (shallow clones can't checkout arbitrary commits)
+        depth_arg = (depth && ref.nil?) ? "--depth #{depth}" : ""
         git("clone #{depth_arg} #{url} \"#{destination}\"", verbose: verbose)
       end
 
