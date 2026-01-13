@@ -239,10 +239,11 @@ module Gmrcli
         end
 
         UI.info "Checking out #{name} #{ref}..."
-        # Unshallow if needed (shallow clones may not have all tags)
+        # Unshallow if needed (shallow clones may not have all refs)
         Shell.run("git fetch --unshallow 2>/dev/null || true", chdir: src_dir, verbose: verbose?)
-        # Fetch tags to ensure we have the ref
+        # Fetch tags and the specific ref (commit hash, branch, or tag)
         Shell.run("git fetch --tags", chdir: src_dir, verbose: verbose?)
+        Shell.run("git fetch origin #{ref} 2>/dev/null || true", chdir: src_dir, verbose: verbose?)
         Shell.run!("git checkout #{ref}", chdir: src_dir, verbose: verbose?)
       end
 
