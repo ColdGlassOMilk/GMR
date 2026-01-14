@@ -61,6 +61,9 @@ public:
     // Notify that the debugger should pause (thread-safe)
     void request_pause();
 
+    // Set the current mruby state for REPL commands outside pause loop
+    void set_current_mrb(mrb_state* mrb) { current_mrb_ = mrb; }
+
     DebugServer(const DebugServer&) = delete;
     DebugServer& operator=(const DebugServer&) = delete;
 

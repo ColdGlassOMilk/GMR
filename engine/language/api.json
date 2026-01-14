@@ -193,6 +193,11 @@
       "module": "Node",
       "description": "TODO: Add description"
     },
+    "ParticleEmitter": {
+      "kind": "class",
+      "module": "GMR::ParticleEmitter",
+      "description": "TODO: Add description"
+    },
     "Scene": {
       "kind": "class",
       "module": "GMR::Scene",
@@ -690,6 +695,324 @@
         }
       }
     },
+    "GMR::Debug": {
+      "description": "TODO: Add description",
+      "functions": {
+        "enabled?": {
+          "description": "Check if debug drawing is enabled.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if debug drawing is enabled"
+          },
+          "example": "if Debug.enabled? then draw_debug_info end"
+        },
+        "enabled=": {
+          "description": "Enable or disable debug drawing globally.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Boolean",
+              "description": "Whether debug drawing should be enabled"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The new value"
+          },
+          "example": "Debug.enabled = false  # Disable all debug drawing"
+        },
+        "when_enabled": {
+          "description": "Execute a block only when debug drawing is enabled. Useful for conditionally drawing debug visualizations.",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "The block to execute if debug is enabled"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.when_enabled do"
+        },
+        "draw_rect": {
+          "description": "Draw a debug rectangle outline.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Y position (world units)"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "Width (world units)"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "Height (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color (:green, [r,g,b], color: :red)"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_rect(@x, @y, @w, @h, :red)"
+        },
+        "draw_rect_filled": {
+          "description": "Draw a filled debug rectangle.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Y position (world units)"
+            },
+            {
+              "name": "w",
+              "type": "Float",
+              "description": "Width (world units)"
+            },
+            {
+              "name": "h",
+              "type": "Float",
+              "description": "Height (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_rect_filled(0, 0, 2, 1, color: [255, 0, 0, 128])"
+        },
+        "draw_circle": {
+          "description": "Draw a debug circle outline.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Center X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Center Y position (world units)"
+            },
+            {
+              "name": "radius",
+              "type": "Float",
+              "description": "Radius (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_circle(@x, @y, @radius, :red)"
+        },
+        "draw_circle_filled": {
+          "description": "Draw a filled debug circle.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Center X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Center Y position (world units)"
+            },
+            {
+              "name": "radius",
+              "type": "Float",
+              "description": "Radius (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_circle_filled(@x, @y, 0.5, color: [255, 0, 0, 128])"
+        },
+        "draw_line": {
+          "description": "Draw a debug line.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "Start X position (world units)"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "Start Y position (world units)"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "End X position (world units)"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "End Y position (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_line(@x, @y, @target_x, @target_y, :yellow)"
+        },
+        "draw_point": {
+          "description": "Draw a debug point (small cross or dot).",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Y position (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_point(@x, @y, :cyan)"
+        },
+        "draw_text": {
+          "description": "Draw debug text at world position.",
+          "params": [
+            {
+              "name": "text",
+              "type": "String",
+              "description": "Text to display"
+            },
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Y position (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_text(\"HP: #{@health}\", @x, @y - 1)"
+        },
+        "draw_arrow": {
+          "description": "Draw a debug arrow from start to end point.",
+          "params": [
+            {
+              "name": "x1",
+              "type": "Float",
+              "description": "Start X position (world units)"
+            },
+            {
+              "name": "y1",
+              "type": "Float",
+              "description": "Start Y position (world units)"
+            },
+            {
+              "name": "x2",
+              "type": "Float",
+              "description": "End X position (world units)"
+            },
+            {
+              "name": "y2",
+              "type": "Float",
+              "description": "End Y position (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_arrow(@x, @y, @velocity_x, @velocity_y, :magenta)"
+        },
+        "draw_cross": {
+          "description": "Draw a debug cross marker.",
+          "params": [
+            {
+              "name": "x",
+              "type": "Float",
+              "description": "Center X position (world units)"
+            },
+            {
+              "name": "y",
+              "type": "Float",
+              "description": "Center Y position (world units)"
+            },
+            {
+              "name": "size",
+              "type": "Float",
+              "description": "Size of the cross (world units)"
+            },
+            {
+              "name": "color",
+              "type": "Symbol, Array, Hash",
+              "description": "Color"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "Debug.draw_cross(@spawn_x, @spawn_y, 0.5, :cyan)"
+        }
+      }
+    },
     "GMR::File": {
       "description": "TODO: Add description",
       "functions": {
@@ -832,6 +1155,254 @@
             }
           ],
           "example": "# List save files\n  files = GMR::File.list_files(\"saves\", root: :data)\r\n  files.each { |f| puts f }  # \"save1.json\", \"save2.json\", ...\r"
+        }
+      }
+    },
+    "GMR::Gamepad": {
+      "description": "TODO: Add description",
+      "functions": {
+        "count": {
+          "description": "Get the number of connected gamepads (0-4).",
+          "returns": {
+            "type": "Integer",
+            "description": "Number of connected gamepads"
+          },
+          "example": "num_players = GMR::Gamepad.count"
+        },
+        "connected?": {
+          "description": "Check if a specific gamepad is connected.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the gamepad is connected"
+          },
+          "example": "if GMR::Gamepad.connected?(0) then ... end"
+        },
+        "name": {
+          "description": "Get the internal name of a connected gamepad.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            }
+          ],
+          "returns": {
+            "type": "String, nil",
+            "description": "Gamepad name, or nil if not connected"
+          },
+          "example": "puts GMR::Gamepad.name(0)  # => \"Xbox Controller\""
+        },
+        "down?": {
+          "description": "Check if a gamepad button is currently held down.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "Button to check (:a, :b, :x, :y, :lb, :rb, etc.)"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the button is held"
+          },
+          "example": "if GMR::Gamepad.down?(0, :a) then player.accelerate end"
+        },
+        "pressed?": {
+          "description": "Check if a gamepad button was just pressed this frame.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "Button to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the button was just pressed"
+          },
+          "example": "if GMR::Gamepad.pressed?(0, :a) then player.jump end"
+        },
+        "released?": {
+          "description": "Check if a gamepad button was just released this frame.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "Button to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the button was just released"
+          },
+          "example": "if GMR::Gamepad.released?(0, :rt) then player.fire_charged_shot end"
+        },
+        "axis": {
+          "description": "Get the value of a gamepad axis with dead zone applied. Returns a float between -1.0 and 1.0, with dead zone filtering.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "axis",
+              "type": "Symbol, Integer",
+              "description": "Axis to read (:left_x, :left_y, :right_x, :right_y, etc.)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Axis value (-1.0 to 1.0)"
+          },
+          "example": "move_x = GMR::Gamepad.axis(0, :left_x)\n  move_y = GMR::Gamepad.axis(0, :left_y)\r\n  player.move(move_x, move_y)\r"
+        },
+        "axis_raw": {
+          "description": "Get the raw value of a gamepad axis without dead zone filtering.",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "axis",
+              "type": "Symbol, Integer",
+              "description": "Axis to read"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "Raw axis value (-1.0 to 1.0)"
+          },
+          "example": "raw_x = GMR::Gamepad.axis_raw(0, :left_x)"
+        },
+        "dead_zone": {
+          "description": "Get the current inner dead zone threshold.",
+          "returns": {
+            "type": "Float",
+            "description": "Inner dead zone (0.0 to 1.0)"
+          },
+          "example": "puts GMR::Gamepad.dead_zone  # => 0.15"
+        },
+        "dead_zone=": {
+          "description": "Set the inner dead zone threshold. Axis values below this threshold are treated as zero.",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Inner dead zone (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The new dead zone value"
+          },
+          "example": "GMR::Gamepad.dead_zone = 0.2"
+        },
+        "outer_dead_zone": {
+          "description": "Get the current outer dead zone threshold.",
+          "returns": {
+            "type": "Float",
+            "description": "Outer dead zone (0.0 to 1.0)"
+          },
+          "example": "puts GMR::Gamepad.outer_dead_zone  # => 0.95"
+        },
+        "outer_dead_zone=": {
+          "description": "Set the outer dead zone threshold. Axis values above this threshold are treated as maximum (1.0 or -1.0).",
+          "params": [
+            {
+              "name": "value",
+              "type": "Float",
+              "description": "Outer dead zone (0.0 to 1.0)"
+            }
+          ],
+          "returns": {
+            "type": "Float",
+            "description": "The new outer dead zone value"
+          },
+          "example": "GMR::Gamepad.outer_dead_zone = 0.98"
+        },
+        "vibrate": {
+          "description": "Trigger gamepad vibration (rumble).",
+          "params": [
+            {
+              "name": "gamepad",
+              "type": "Integer",
+              "description": "Gamepad index (0-3)"
+            },
+            {
+              "name": "left",
+              "type": "Float",
+              "description": "Left motor intensity (0.0 to 1.0)"
+            },
+            {
+              "name": "right",
+              "type": "Float",
+              "description": "Right motor intensity (0.0 to 1.0)"
+            },
+            {
+              "name": "duration",
+              "type": "Float",
+              "description": "Duration in seconds"
+            }
+          ],
+          "returns": {
+            "type": "nil"
+          },
+          "example": "GMR::Gamepad.vibrate(0, 0.5, 0.5, 0.1)  # Positional args"
+        },
+        "any_pressed?": {
+          "description": "Check if a button was pressed on any connected gamepad.",
+          "params": [
+            {
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "Button to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the button was pressed on any gamepad"
+          },
+          "example": "if GMR::Gamepad.any_pressed?(:start) then toggle_pause end"
+        },
+        "any_down?": {
+          "description": "Check if a button is held down on any connected gamepad.",
+          "params": [
+            {
+              "name": "button",
+              "type": "Symbol, Integer",
+              "description": "Button to check"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "true if the button is held on any gamepad"
+          },
+          "example": "if GMR::Gamepad.any_down?(:a) then player.accelerate end"
         }
       }
     },
@@ -1735,6 +2306,175 @@
             }
           ],
           "example": "json = GMR::JSON.stringify(data, true)  # Pretty print"
+        }
+      }
+    },
+    "GMR::ParticleEmitter": {
+      "kind": "class",
+      "description": "TODO: Add description",
+      "instanceMethods": {
+        "initialize": {
+          "description": "Create a new particle emitter from a JSON config file or a Hash. The emitter starts in a stopped state; call start() or burst() to emit.",
+          "params": [
+            {
+              "name": "config",
+              "type": "String, Hash",
+              "description": "Path to JSON config file, or a Hash with config options"
+            },
+            {
+              "name": "transform",
+              "type": "Transform2D",
+              "description": "(optional) Transform to attach to"
+            }
+          ],
+          "returns": {
+            "type": "ParticleEmitter",
+            "description": "The new emitter"
+          },
+          "example": "# From Hash (declarative)"
+        },
+        "start": {
+          "description": "Start continuous particle emission.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@smoke.start"
+        },
+        "stop": {
+          "description": "Stop emitting new particles. Existing particles continue to live out.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@smoke.stop"
+        },
+        "pause": {
+          "description": "Pause all particle updates (freeze in place).",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@smoke.pause"
+        },
+        "resume": {
+          "description": "Resume paused particle updates.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@smoke.resume"
+        },
+        "reset": {
+          "description": "Clear all particles and reset to initial state.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "@emitter.reset"
+        },
+        "burst": {
+          "description": "Emit a burst of particles immediately.",
+          "params": [
+            {
+              "name": "count",
+              "type": "Integer",
+              "description": "(optional) Number of particles to emit (default: config burst_count)"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "@sparks.burst(50)"
+        },
+        "position": {
+          "description": "Get the emitter's world position.",
+          "returns": {
+            "type": "Vec2",
+            "description": "Current position"
+          },
+          "example": "pos = @emitter.position"
+        },
+        "position=": {
+          "description": "Set the emitter's world position (only works if not attached to transform).",
+          "params": [
+            {
+              "name": "pos",
+              "type": "Vec2",
+              "description": "New position"
+            }
+          ],
+          "returns": {
+            "type": "Vec2",
+            "description": "The position"
+          },
+          "example": "@emitter.position = Vec2.new(100, 200)"
+        },
+        "transform": {
+          "description": "Get the attached transform.",
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The attached transform or nil"
+          }
+        },
+        "draw": {
+          "description": "Draw this emitter's particles. Call this in your draw method to control when particles are rendered relative to other objects. If you don't call draw, particles render after all Ruby drawing.",
+          "returns": {
+            "type": "self"
+          },
+          "example": "def draw"
+        },
+        "transform=": {
+          "description": "Attach the emitter to a transform, or detach (nil).",
+          "params": [
+            {
+              "name": "transform",
+              "type": "Transform2D, nil",
+              "description": "Transform to attach to"
+            }
+          ],
+          "returns": {
+            "type": "Transform2D, nil",
+            "description": "The transform"
+          },
+          "example": "@emitter.transform = nil  # Detach"
+        },
+        "emitting?": {
+          "description": "Check if the emitter is currently spawning particles.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if emitting"
+          }
+        },
+        "alive?": {
+          "description": "Check if the emitter has any alive particles.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if any particles are alive"
+          }
+        },
+        "active?": {
+          "description": "Check if the emitter is active (not paused or destroyed).",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if active"
+          }
+        },
+        "particle_count": {
+          "description": "Get the number of alive particles in this emitter.",
+          "returns": {
+            "type": "Integer",
+            "description": "Particle count"
+          }
+        },
+        "on_complete": {
+          "description": "Set a callback to be called when all particles die (for one-shot emitters).",
+          "params": [
+            {
+              "name": "block",
+              "type": "Block",
+              "description": "The callback"
+            }
+          ],
+          "returns": {
+            "type": "self"
+          },
+          "example": "@emitter.on_complete { spawn_pickup }"
         }
       }
     },
@@ -2689,6 +3429,19 @@
             "description": "Monitor name"
           },
           "example": "# Debug overlay with FPS and timing info\n  class DebugOverlay\r\n    def draw\r\n      y = 10\r\n      color = [0, 255, 0]\r\n\n      # Show current FPS\r\n      fps = GMR::Time.fps\r\n      fps_color = fps < 30 ? [255, 0, 0] : fps < 55 ? [255, 255, 0] : [0, 255, 0]\r\n      GMR::Graphics.draw_text(\"FPS: #{fps}\", 10, y, 16, fps_color)\r\n      y += 20\r\n\n      # Show frame time\r\n      frame_ms = (GMR::Time.delta * 1000).round(2)\r\n      GMR::Graphics.draw_text(\"Frame: #{frame_ms}ms\", 10, y, 16, color)\r\n      y += 20\r\n\n      # Show total elapsed time\r\n      elapsed = GMR::Time.elapsed\r\n      minutes = (elapsed / 60).to_i\r\n      seconds = (elapsed % 60).to_i\r\n      GMR::Graphics.draw_text(\"Time: #{minutes}:#{seconds.to_s.rjust(2, '0')}\", 10, y, 16, color)\r\n    end\r\n  end\r"
+        },
+        "set_vsync": {
+          "signature": "set_vsync(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Boolean"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
         }
       }
     },
@@ -2756,6 +3509,29 @@
             "description": "The new time scale"
           },
           "example": "GMR::Time.scale = 1.0  # Normal speed"
+        },
+        "vsync=": {
+          "description": "Enable or disable vertical synchronization (VSync). When enabled, frame presentation waits for the display's vertical blank interval, eliminating screen tearing. When disabled, frames are presented immediately.",
+          "params": [
+            {
+              "name": "enabled",
+              "type": "Boolean",
+              "description": "true to enable VSync, false to disable"
+            }
+          ],
+          "returns": {
+            "type": "Boolean",
+            "description": "The new VSync state"
+          },
+          "example": "GMR::Window.vsync = false  # Disable VSync for lower latency"
+        },
+        "vsync?": {
+          "description": "Check if vertical synchronization (VSync) is currently enabled.",
+          "returns": {
+            "type": "Boolean",
+            "description": "true if VSync is enabled, false otherwise"
+          },
+          "example": "if GMR::Window.vsync?\n  puts \"VSync is enabled\"\r\nend\r"
         }
       }
     },
@@ -2861,6 +3637,118 @@
           "signature": "flipped_y?",
           "description": "TODO: Add documentation",
           "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "width=": {
+          "signature": "width=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "height=": {
+          "signature": "height=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Float"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "visible": {
+          "signature": "visible",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "visible=": {
+          "signature": "visible=(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Boolean"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "hovered?": {
+          "signature": "hovered?",
+          "description": "TODO: Add documentation",
+          "params": [],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "on_click": {
+          "signature": "on_click(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Block"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "on_hover_enter": {
+          "signature": "on_hover_enter(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Block"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "on_hover_exit": {
+          "signature": "on_hover_exit(arg1)",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "Block"
+            }
+          ],
+          "returns": {
+            "type": "unknown"
+          }
+        },
+        "label": {
+          "signature": "label(arg1, [arg2])",
+          "description": "TODO: Add documentation",
+          "params": [
+            {
+              "name": "arg1",
+              "type": "String"
+            },
+            {
+              "name": "arg2",
+              "type": "Hash",
+              "optional": true
+            }
+          ],
           "returns": {
             "type": "unknown"
           }

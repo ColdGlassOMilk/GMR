@@ -13,6 +13,8 @@ Frame timing and delta time access.
   - [scale](#scale)
   - [scale=](#scale)
   - [set_target_fps](#set_target_fps)
+  - [vsync=](#vsync)
+  - [vsync?](#vsync)
 
 ## Functions
 
@@ -122,6 +124,46 @@ Set the time scale. Affects how fast game time passes. Timers created with `scal
 
 ```ruby
 GMR::Time.scale = 1.0  # Normal speed
+```
+
+---
+
+<a id="vsync"></a>
+
+### vsync=
+
+Enable or disable vertical synchronization (VSync). When enabled, frame presentation waits for the display's vertical blank interval, eliminating screen tearing. When disabled, frames are presented immediately.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `enabled` | `Boolean` | true to enable VSync, false to disable |
+
+**Returns:** `Boolean` - The new VSync state
+
+**Example:**
+
+```ruby
+GMR::Window.vsync = false  # Disable VSync for lower latency
+```
+
+---
+
+<a id="vsync"></a>
+
+### vsync?
+
+Check if vertical synchronization (VSync) is currently enabled.
+
+**Returns:** `Boolean` - true if VSync is enabled, false otherwise
+
+**Example:**
+
+```ruby
+if GMR::Window.vsync?
+  puts "VSync is enabled"
+end
 ```
 
 ---

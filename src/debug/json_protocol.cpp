@@ -79,6 +79,8 @@ DebugCommand parse_command(const std::string& json) {
         cmd.type = CommandType::CLEAR_BREAKPOINT;
         cmd.file = find_string_value(json, "file");
         cmd.line = find_int_value(json, "line");
+    } else if (type == "clear_all_breakpoints") {
+        cmd.type = CommandType::CLEAR_ALL_BREAKPOINTS;
     } else if (type == "continue") {
         cmd.type = CommandType::CONTINUE;
     } else if (type == "step_over") {
@@ -92,6 +94,10 @@ DebugCommand parse_command(const std::string& json) {
     } else if (type == "evaluate") {
         cmd.type = CommandType::EVALUATE;
         cmd.expression = find_string_value(json, "expression");
+        cmd.frame_id = find_int_value(json, "frame_id");
+    } else if (type == "get_variables") {
+        cmd.type = CommandType::GET_VARIABLES;
+        cmd.expression = find_string_value(json, "scope");  // scope: locals, instance, global
         cmd.frame_id = find_int_value(json, "frame_id");
     } else if (type == "repl_eval") {
         cmd.type = CommandType::REPL_EVAL;

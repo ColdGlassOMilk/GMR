@@ -253,15 +253,25 @@ void DebugServer::poll() {
 
     // Process messages outside of pause loop (breakpoints, REPL, etc.)
     for (const auto& msg : pending_messages_) {
+        // Debug logging: show received messages
+        printf("[Debug] Received message: %.200s\n", msg.c_str());
+
         DebugCommand cmd = parse_command(msg);
+        printf("[Debug] Parsed command type: %d\n", static_cast<int>(cmd.type));
+
         if (cmd.type == CommandType::SET_BREAKPOINT) {
             BreakpointManager::instance().add(cmd.file, cmd.line);
             printf("[Debug] Breakpoint set: %s:%d\n", cmd.file.c_str(), cmd.line);
         } else if (cmd.type == CommandType::CLEAR_BREAKPOINT) {
             BreakpointManager::instance().remove(cmd.file, cmd.line);
             printf("[Debug] Breakpoint cleared: %s:%d\n", cmd.file.c_str(), cmd.line);
+        } else if (cmd.type == CommandType::CLEAR_ALL_BREAKPOINTS) {
+            BreakpointManager::instance().clear();
+            printf("[Debug] All breakpoints cleared\n");
         } else if (cmd.type == CommandType::PAUSE) {
+            printf("[Debug] PAUSE command received - requesting pause\n");
             DebugStateManager::instance().request_pause();
+            printf("[Debug] pause_requested is now: %d\n", DebugStateManager::instance().pause_requested());
         } else if (cmd.type == CommandType::REPL_EVAL ||
                    cmd.type == CommandType::REPL_CHECK_COMPLETE ||
                    cmd.type == CommandType::REPL_CLEAR_BUFFER ||

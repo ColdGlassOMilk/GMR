@@ -392,7 +392,10 @@ int main(int argc, char* argv[]) {
         loader.reload_if_changed();
 
 #if defined(GMR_DEBUG_ENABLED)
-        // Poll debug server for commands
+        // Set current mrb_state for REPL commands, then poll for commands
+        if (auto* mrb = loader.mrb()) {
+            gmr::debug::DebugServer::instance().set_current_mrb(mrb);
+        }
         gmr::debug::DebugServer::instance().poll();
 #endif
 

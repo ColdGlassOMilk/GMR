@@ -27,6 +27,7 @@ Window management and display settings.
   - [set_size](#set_size)
   - [set_title](#set_title)
   - [set_virtual_resolution](#set_virtual_resolution)
+  - [set_vsync](#set_vsync)
   - [toggle_fullscreen](#toggle_fullscreen)
   - [use_css_dpr](#use_css_dpr)
   - [use_native_dpr](#use_native_dpr)
@@ -512,6 +513,22 @@ Time and frame rate utilities. Provides delta time for frame-independent movemen
     end
   end
 ```
+
+---
+
+<a id="set_vsync"></a>
+
+### set_vsync(arg1)
+
+TODO: Add documentation
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `arg1` | `Boolean` |  |
+
+**Returns:** `unknown`
 
 ---
 

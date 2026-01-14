@@ -354,10 +354,13 @@
     "modules": [
       "GMR",
       "GMR::Collision",
+      "GMR::Debug",
       "GMR::File",
+      "GMR::Gamepad",
       "GMR::Graphics",
       "GMR::Input",
       "GMR::JSON",
+      "GMR::ParticleEmitter",
       "GMR::Random",
       "GMR::Random::Stream",
       "GMR::Sequence",
@@ -382,6 +385,7 @@
       "GMR::Graphics::Texture",
       "GMR::Graphics::Tilemap",
       "GMR::Mathf",
+      "GMR::ParticleEmitter",
       "GMR::Scene",
       "GMR::SceneManager",
       "GMR::Sequence",
@@ -413,6 +417,20 @@
         "distance",
         "distance_squared"
       ],
+      "GMR::Debug": [
+        "enabled?",
+        "enabled=",
+        "when_enabled",
+        "draw_rect",
+        "draw_rect_filled",
+        "draw_circle",
+        "draw_circle_filled",
+        "draw_line",
+        "draw_point",
+        "draw_text",
+        "draw_arrow",
+        "draw_cross"
+      ],
       "GMR::File": [
         "read_text",
         "read_bytes",
@@ -422,6 +440,23 @@
         "write_json",
         "exists?",
         "list_files"
+      ],
+      "GMR::Gamepad": [
+        "count",
+        "connected?",
+        "name",
+        "down?",
+        "pressed?",
+        "released?",
+        "axis",
+        "axis_raw",
+        "dead_zone",
+        "dead_zone=",
+        "outer_dead_zone",
+        "outer_dead_zone=",
+        "vibrate",
+        "any_pressed?",
+        "any_down?"
       ],
       "GMR::Graphics": [
         "rgb",
@@ -472,6 +507,25 @@
       "GMR::JSON": [
         "parse",
         "stringify"
+      ],
+      "GMR::ParticleEmitter": [
+        "initialize",
+        "start",
+        "stop",
+        "pause",
+        "resume",
+        "reset",
+        "burst",
+        "position",
+        "position=",
+        "transform",
+        "draw",
+        "transform=",
+        "emitting?",
+        "alive?",
+        "active?",
+        "particle_count",
+        "on_complete"
       ],
       "GMR::Random": [
         "seed",
@@ -564,7 +618,8 @@
         "monitor_width",
         "monitor_height",
         "monitor_refresh_rate",
-        "monitor_name"
+        "monitor_name",
+        "set_vsync"
       ],
       "GMR::Time": [
         "delta",
@@ -572,7 +627,9 @@
         "fps",
         "set_target_fps",
         "scale",
-        "scale="
+        "scale=",
+        "vsync=",
+        "vsync?"
       ],
       "GMR": [
         "included",
@@ -581,7 +638,16 @@
         "lerp_scale",
         "inspect",
         "flipped_x?",
-        "flipped_y?"
+        "flipped_y?",
+        "width=",
+        "height=",
+        "visible",
+        "visible=",
+        "hovered?",
+        "on_click",
+        "on_hover_enter",
+        "on_hover_exit",
+        "label"
       ],
       "GMR::Animator": [
         "initialize",

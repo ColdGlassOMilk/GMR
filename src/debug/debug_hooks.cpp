@@ -15,9 +15,27 @@ void code_fetch_hook(mrb_state* mrb, const mrb_irep* irep,
 
     auto& server = DebugServer::instance();
 
+    // Debug logging: verify hook is being called
+    static int hook_call_count = 0;
+    ++hook_call_count;
+    if (hook_call_count == 1) {
+        printf("[Debug] Hook first call - is_connected=%d\n", server.is_connected());
+    }
+
     // Fast path: if not active, return immediately
     if (!server.is_active()) {
+        // Log periodically even when not active to confirm hook is running
+        if (hook_call_count % 100000 == 0) {
+            printf("[Debug] Hook called %d times (not active, connected=%d)\n",
+                   hook_call_count, server.is_connected());
+        }
         return;
+    }
+
+    // Log when hook IS active
+    if (hook_call_count % 10000 == 0 || DebugStateManager::instance().pause_requested()) {
+        printf("[Debug] Hook called %d times - ACTIVE, pause_requested=%d\n",
+               hook_call_count, DebugStateManager::instance().pause_requested());
     }
 
     // Get current position from irep debug info
