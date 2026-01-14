@@ -81,7 +81,7 @@ module Tiles
   COLUMN_MID          = 84
   COLUMN_BOT          = 105
   THIN_LEFT           = 126
-  THIN_CENTER         = 127
+  THIN_CENTER         = 7  #127
   THIN_RIGHT          = 128
   ALT_TOP_LEFT        = 6
   ALT_TOP_CENTER      = 7

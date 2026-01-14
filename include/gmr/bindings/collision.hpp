@@ -71,13 +71,13 @@ inline CollisionResult tilemap_resolve(
             }
         }
     } else if (vy >= 0) {
-        // Moving down or stationary - check ground
+        // Moving down or stationary - check ground (solid tiles AND platforms)
         int tx_start = static_cast<int>(std::floor((x + edge_margin) / tile_w));
         int tx_end = static_cast<int>(std::floor((x + w - edge_margin) / tile_w));
         int ty = static_cast<int>(std::floor((y + h) / tile_h));
 
         for (int tx = tx_start; tx <= tx_end; ++tx) {
-            if (tilemap.is_solid(tx, ty)) {
+            if (tilemap.is_solid(tx, ty) || tilemap.is_platform(tx, ty)) {
                 float tile_top = static_cast<float>(ty) * tile_h;
                 if (y + h >= tile_top) {
                     result.y = tile_top - h;

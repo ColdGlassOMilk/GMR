@@ -38,6 +38,7 @@ class GameScene < GMR::Scene
 
   def update(dt)
     @input_handler.update
+    @level.update(dt)
     @player.update(dt, @level.tilemap)
   end
 
@@ -142,9 +143,9 @@ class GameScene < GMR::Scene
       Graphics::Shader.load(fragment: "shaders/sepia.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/invert.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/wave.fs", surface_mode: true),
-      Graphics::Shader.load(fragment: "shaders/pixelate.fs"),
+      Graphics::Shader.load(fragment: "shaders/pixelate.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/crt.fs", surface_mode: true),
-      Graphics::Shader.load(fragment: "shaders/chromatic.fs"),
+      Graphics::Shader.load(fragment: "shaders/chromatic.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/vignette.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/blur.fs", surface_mode: true),
       Graphics::Shader.load(fragment: "shaders/posterize.fs", surface_mode: true),

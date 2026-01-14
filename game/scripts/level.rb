@@ -1,10 +1,38 @@
 class Level
   attr_reader :tilemap
 
+  # Decoration definitions: type => { texture:, frames:, fps:, width:, height: }
+  DECORATIONS = {
+    shop: {
+      texture: "oak_woods/decorations/shop_anim.png",
+      frames: 6,
+      fps: 8,
+      width: 118,
+      height: 128
+    }
+  }
+
   def initialize
+    @map_data = MapLoader.load("demo.txt")
+    @decorations = []
     setup_tilemap
     build_layout
+    setup_decorations
     setup_parallax
+  end
+
+  def update(dt)
+    @decorations.each do |d|
+      d[:frame_time] += dt
+      if d[:frame_time] >= d[:frame_duration]
+        d[:frame_time] -= d[:frame_duration]
+        d[:frame] = (d[:frame] + 1) % d[:frame_count]
+        d[:sprite].source_rect = Graphics::Rect.new(
+          d[:frame] * d[:frame_width], 0,
+          d[:frame_width], d[:frame_height]
+        )
+      end
+    end
   end
 
   def draw
@@ -12,12 +40,13 @@ class Level
     @bg2_sprites.each { |s| s.draw }
     @bg3_sprites.each { |s| s.draw }
     @tilemap.draw(MAP_OFFSET_X, MAP_OFFSET_Y)
+    @decorations.each { |d| d[:sprite].draw }
   end
 
   def spawn_point
-    spawn_x = WALL_WIDTH + 5
-    pos_x = MAP_OFFSET_X + spawn_x * TILE_SIZE
-    pos_y = MAP_OFFSET_Y + 18 * TILE_SIZE - FRAME_HEIGHT
+    spawn = @map_data[:spawn] || { x: WALL_WIDTH + 5, y: 18 }
+    pos_x = MAP_OFFSET_X + spawn[:x] * TILE_SIZE
+    pos_y = MAP_OFFSET_Y + spawn[:y] * TILE_SIZE - FRAME_HEIGHT
     Mathf::Vec2.new(pos_x, pos_y)
   end
 
@@ -25,21 +54,59 @@ class Level
 
   def setup_tilemap
     @tileset_tex = Graphics::Texture.load("oak_woods/oak_woods_tileset.png")
-    @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE_PX, TILE_SIZE_PX, MAP_WIDTH, MAP_HEIGHT)
+    map_width = @map_data[:width] || MAP_WIDTH
+    map_height = @map_data[:height] || MAP_HEIGHT
+    @tilemap = Graphics::Tilemap.new(@tileset_tex, TILE_SIZE_PX, TILE_SIZE_PX, map_width, map_height)
 
     Tiles::SOLID_TILES.each do |tile_id|
       @tilemap.define_tile(tile_id, { solid: true })
     end
+
+    # Platform tiles - can jump through from below, land on from above
+    @tilemap.define_tile(Tiles::THIN_CENTER, { platform: true })
   end
 
   def build_layout
-    playable_start = WALL_WIDTH
-    playable_end = MAP_WIDTH - WALL_WIDTH - 1
+    tiles = @map_data[:tiles]
+    tiles.each_with_index do |row, y|
+      row.each_with_index do |tile_id, x|
+        @tilemap.set(x, y, tile_id) if tile_id
+      end
+    end
+  end
 
-    @tilemap.fill_rect(playable_start, 19, playable_end - playable_start + 1, 1, Tiles::GROUND_TOP_CENTER)
-    @tilemap.fill_rect(playable_start, 20, playable_end - playable_start + 1, MAP_HEIGHT - 20, Tiles::GROUND_MID_CENTER)
-    @tilemap.fill_rect(0, 0, WALL_WIDTH, MAP_HEIGHT, Tiles::GROUND_MID_CENTER)
-    @tilemap.fill_rect(MAP_WIDTH - WALL_WIDTH, 0, WALL_WIDTH, MAP_HEIGHT, Tiles::GROUND_MID_CENTER)
+  def setup_decorations
+    @map_data[:decorations].each do |dec|
+      config = DECORATIONS[dec[:type]]
+      next unless config
+
+      tex = Graphics::Texture.load(config[:texture])
+
+      # Convert tile coords to world coords (y + 1 to place on ground)
+      world_x = MAP_OFFSET_X + dec[:x] * TILE_SIZE
+      world_y = MAP_OFFSET_Y + (dec[:y] + 1) * TILE_SIZE
+
+      # Anchor at bottom-center of decoration
+      dec_width = config[:width] / ASSET_PPU
+      dec_height = config[:height] / ASSET_PPU
+      world_x -= dec_width / 2.0
+      world_y -= dec_height
+
+      t = Transform2D.new(x: world_x, y: world_y)
+      sprite = Graphics::Sprite.new(tex, t)
+      sprite.source_rect = Graphics::Rect.new(0, 0, config[:width], config[:height])
+
+      # Manual animation state (no Animator)
+      @decorations << {
+        sprite: sprite,
+        frame: 0,
+        frame_time: 0.0,
+        frame_count: config[:frames],
+        frame_duration: 1.0 / config[:fps],
+        frame_width: config[:width],
+        frame_height: config[:height]
+      }
+    end
   end
 
   def setup_parallax
