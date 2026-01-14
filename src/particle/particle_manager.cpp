@@ -57,14 +57,9 @@ std::string ParticleManager::load_config(const std::string& path) {
                 int tex_height = TextureManager::instance().get_height(cfg.texture);
                 cfg.frame_height = static_cast<float>(tex_height) / cfg.spritesheet_rows;
             }
-            TraceLog(LOG_INFO, "PARTICLE: Loaded texture '%s' (%dx%d frames, %.0fx%.0f px each)",
-                     cfg.texture_path.c_str(), cfg.spritesheet_cols, cfg.spritesheet_rows,
-                     cfg.frame_width, cfg.frame_height);
         }
     }
 
-    TraceLog(LOG_INFO, "PARTICLE: Loaded config '%s' from %s (spawn_rate=%.1f, max=%zu)",
-             name.c_str(), path.c_str(), cfg.spawn_rate, cfg.max_particles);
     return name;
 }
 
@@ -180,9 +175,6 @@ void ParticleManager::start(EmitterHandle handle) {
     if (emitter) {
         emitter->emitting = true;
         emitter->active = true;
-        TraceLog(LOG_INFO, "PARTICLE: Started emitter %d at pos (%.2f, %.2f), has_texture=%d",
-                 handle, emitter->position.x, emitter->position.y,
-                 emitter->config ? (emitter->config->texture != INVALID_HANDLE) : -1);
     }
 }
 

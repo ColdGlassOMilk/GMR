@@ -901,6 +901,43 @@ static mrb_value mrb_time_scale_set(mrb_state* mrb, mrb_value) {
 }
 
 // ============================================================================
+// VSync Control
+// ============================================================================
+
+/// @function vsync=
+/// @description Enable or disable vertical synchronization (VSync). When enabled,
+///   frame presentation waits for the display's vertical blank interval, eliminating
+///   screen tearing. When disabled, frames are presented immediately.
+/// @param enabled [Boolean] true to enable VSync, false to disable
+/// @returns [Boolean] The new VSync state
+/// @example GMR::Window.vsync = true   # Enable VSync (default)
+/// @example GMR::Window.vsync = false  # Disable VSync for lower latency
+static mrb_value mrb_window_set_vsync(mrb_state* mrb, mrb_value) {
+    mrb_bool enabled;
+    mrb_get_args(mrb, "b", &enabled);
+
+    if (enabled) {
+        SetWindowState(FLAG_VSYNC_HINT);
+        SetTargetFPS(0);  // Let VSync control frame pacing
+    } else {
+        ClearWindowState(FLAG_VSYNC_HINT);
+        SetTargetFPS(60); // Software limiter as fallback
+    }
+    State::instance().vsync_enabled = enabled;
+    return mrb_bool_value(enabled);
+}
+
+/// @function vsync?
+/// @description Check if vertical synchronization (VSync) is currently enabled.
+/// @returns [Boolean] true if VSync is enabled, false otherwise
+/// @example if GMR::Window.vsync?
+///   puts "VSync is enabled"
+/// end
+static mrb_value mrb_window_is_vsync(mrb_state* mrb, mrb_value) {
+    return mrb_bool_value(IsWindowState(FLAG_VSYNC_HINT));
+}
+
+// ============================================================================
 // Registration
 // ============================================================================
 
@@ -937,6 +974,11 @@ void register_window(mrb_state* mrb) {
     mrb_define_module_function(mrb, window, "monitor_height", mrb_window_monitor_height, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, window, "monitor_refresh_rate", mrb_window_monitor_refresh_rate, MRB_ARGS_REQ(1));
     mrb_define_module_function(mrb, window, "monitor_name", mrb_window_monitor_name, MRB_ARGS_REQ(1));
+
+    // VSync control
+    mrb_define_module_function(mrb, window, "vsync=", mrb_window_set_vsync, MRB_ARGS_REQ(1));
+    mrb_define_module_function(mrb, window, "vsync?", mrb_window_is_vsync, MRB_ARGS_NONE());
+    mrb_define_module_function(mrb, window, "set_vsync", mrb_window_set_vsync, MRB_ARGS_REQ(1));
 
     // GMR::Time module
     RClass* time_mod = get_gmr_submodule(mrb, "Time");

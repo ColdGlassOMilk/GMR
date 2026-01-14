@@ -136,6 +136,7 @@ This example introduces:
 | [Engine Model](docs/engine-model.md) | Execution model, lifecycle guarantees, invariants |
 | [Game Loop](docs/game-loop.md) | Global hooks, frame timing, hot-reload |
 | [Scenes](docs/scenes.md) | Scene classes, SceneManager, overlays, transitions |
+| [Window](docs/window.md) | Window size, fullscreen, VSync, virtual resolution, timing |
 | [Input](docs/input.md) | Action mapping, raw input, contexts, gamepad support |
 | [Graphics](docs/graphics.md) | Drawing, textures, sprites, tilemaps |
 | [Transforms](docs/transforms.md) | Transform2D, hierarchy, world coordinates |

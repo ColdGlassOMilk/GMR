@@ -77,6 +77,10 @@ public:
     // Quit flag - set by GMR.quit() or window close
     bool should_quit = false;
 
+    // VSync state - controls buffer swap synchronization with display refresh
+    // When enabled, frame presentation waits for vertical blank to prevent tearing
+    bool vsync_enabled = true;
+
     // Init flag - set after Ruby init() is called
     // Used to prevent on_resize from being called before init
     bool init_called = false;

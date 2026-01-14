@@ -300,14 +300,21 @@ int main(int argc, char* argv[]) {
     
 #else
     // Native platform initialization
-    unsigned int config_flags = FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT;
+    unsigned int config_flags = FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT;
     if (window_topmost) {
         config_flags |= FLAG_WINDOW_TOPMOST;
     }
     SetConfigFlags(config_flags);
     InitWindow(state.screen_width, state.screen_height, "GMR");
     InitAudioDevice();
-    SetTargetFPS(60);
+    // VSync is enabled by default via FLAG_VSYNC_HINT. When VSync is active,
+    // SetTargetFPS(0) lets the display refresh rate control frame pacing.
+    // This avoids double-throttling that would occur with both VSync and a target FPS.
+    if (state.vsync_enabled) {
+        SetTargetFPS(0);
+    } else {
+        SetTargetFPS(60);
+    }
     SetExitKey(0);
 
     // Synchronize state with actual window dimensions
