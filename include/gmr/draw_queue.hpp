@@ -259,6 +259,7 @@ private:
         int pixel_height{0};  // Actual rendered pixel height (not power-of-two pool size)
         float effective_scale{24.0f};  // Scale used for this surface (camera PPU * zoom)
         CameraHandle camera_hint{INVALID_CAMERA_HANDLE};  // Camera to use for blit-back
+        bool interrupted_virtual_pass{false};  // True if we ended virtual resolution to do surface mode
     };
 
     // Find the matching SHADER_END for a SHADER_BEGIN at start_idx

@@ -159,6 +159,7 @@ void game_loop(void* arg) {
         }
 
         if (state.use_virtual_resolution) {
+            state.in_virtual_render_pass = true;
             BeginTextureMode(gmr::bindings::get_render_target());
             gmr::scripting::safe_call(mrb, "draw");
             // Queue particles for drawing
@@ -176,6 +177,7 @@ void game_loop(void* arg) {
             console.draw();
 
             EndTextureMode();
+            state.in_virtual_render_pass = false;
 
             BeginDrawing();
             ClearBackground(::Color{0, 0, 0, 255});
@@ -459,6 +461,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (state.use_virtual_resolution) {
+                state.in_virtual_render_pass = true;
                 BeginTextureMode(gmr::bindings::get_render_target());
                 gmr::scripting::safe_call(mrb, "draw");
                 // Queue particles for drawing
@@ -476,6 +479,7 @@ int main(int argc, char* argv[]) {
                 console.draw();
 
                 EndTextureMode();
+                state.in_virtual_render_pass = false;
 
                 BeginDrawing();
                 ClearBackground(::Color{0, 0, 0, 255});

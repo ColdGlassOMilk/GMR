@@ -2,14 +2,16 @@ include GMR
 
 class GameScene < GMR::Scene
   def init
+    # Enable virtual resolution by default for this scene
     @retro_mode = false
+    Window.set_virtual_resolution(RETRO_WIDTH, RETRO_HEIGHT)
 
     # Logical dimensions for UI positioning
-    @logical_width = Window.width
-    @logical_height = Window.height
+    @logical_width = RETRO_WIDTH
+    @logical_height = RETRO_HEIGHT
     # Pixel dimensions for shaders
-    @screen_width = Window.screen_width
-    @screen_height = Window.screen_height
+    @screen_width = RETRO_WIDTH
+    @screen_height = RETRO_HEIGHT
 
     @custom_font = Graphics::Font.load("fonts/Ubuntu-Regular.ttf", size: 48)
     configure_console
@@ -69,17 +71,21 @@ class GameScene < GMR::Scene
 
   def unload
     @music.stop if @music
+    # Clear virtual resolution when leaving scene
+    Window.clear_virtual_resolution if @retro_mode
   end
 
   def on_resize(width, height)
+    # In retro mode, virtual resolution handles rendering, so don't update camera/screen
+    # But we still note the resize happened (for when user toggles back to native)
     return if @retro_mode
 
     # Update logical dimensions for UI positioning
     @logical_width = Window.width
     @logical_height = Window.height
     # Update pixel dimensions for shaders and camera viewport
-    @screen_width = Window.screen_width
-    @screen_height = Window.screen_height
+    @screen_width = Window.actual_width
+    @screen_height = Window.actual_height
 
     # Camera viewport needs pixel dimensions
     @camera.viewport_size = Mathf::Vec2.new(@screen_width, @screen_height)
@@ -100,10 +106,11 @@ class GameScene < GMR::Scene
       Window.set_virtual_resolution(@logical_width, @logical_height)
     else
       Window.clear_virtual_resolution
+      # Use actual_width/height to get the real window size (ignores cached state)
+      @screen_width = Window.actual_width
+      @screen_height = Window.actual_height
       @logical_width = Window.width
       @logical_height = Window.height
-      @screen_width = Window.screen_width
-      @screen_height = Window.screen_height
     end
 
     # Camera viewport needs pixel dimensions

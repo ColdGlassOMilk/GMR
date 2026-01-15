@@ -2,6 +2,8 @@
 #include "gmr/sprite.hpp"
 #include "gmr/transform.hpp"
 #include "gmr/camera.hpp"
+#include "gmr/state.hpp"
+#include "gmr/bindings/window.hpp"
 #include "gmr/resources/texture_manager.hpp"
 #include "gmr/resources/tilemap_manager.hpp"
 #include "gmr/resources/shader_manager.hpp"
@@ -226,6 +228,16 @@ DrawQueue::SurfaceBounds DrawQueue::get_surface_offset() const {
 }
 
 void DrawQueue::begin_surface_mode(ShaderHandle shader, const SurfaceBounds& bounds, float effective_scale, CameraHandle camera_hint) {
+    // If we're in virtual resolution render pass, temporarily end it
+    // Raylib's BeginTextureMode cannot be nested, so we must end the virtual resolution
+    // target before starting our surface mode target
+    auto& gmr_state = State::instance();
+    bool interrupted_virtual = gmr_state.in_virtual_render_pass;
+    if (interrupted_virtual) {
+        EndTextureMode();
+        gmr_state.in_virtual_render_pass = false;
+    }
+
     // Create a surface that matches the viewport size.
     // We use the same camera transform as normal rendering, so the surface
     // just needs to be big enough to hold what the camera sees.
@@ -314,6 +326,7 @@ void DrawQueue::begin_surface_mode(ShaderHandle shader, const SurfaceBounds& bou
     state.pixel_height = pixel_height;
     state.effective_scale = effective_scale;
     state.camera_hint = camera_hint;
+    state.interrupted_virtual_pass = interrupted_virtual;
     surface_stack_.push(state);
 
     TraceLog(LOG_DEBUG, "DRAW_QUEUE: Begin surface mode [%d] pixels=%dx%d scale=%.1f",
@@ -334,6 +347,13 @@ void DrawQueue::end_surface_mode() {
 
     // End rendering to surface
     EndTextureMode();
+
+    // If we interrupted a virtual resolution render pass, resume it BEFORE blitting
+    // This ensures the shader output goes to the virtual resolution target
+    if (state.interrupted_virtual_pass) {
+        BeginTextureMode(gmr::bindings::get_render_target());
+        State::instance().in_virtual_render_pass = true;
+    }
 
     // Get the rendered surface
     RenderTexture2D* rt = SurfacePool::instance().get(state.handle);

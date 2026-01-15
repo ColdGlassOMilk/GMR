@@ -5,6 +5,7 @@ def init
         .set_filter_point
 
   # Start with the title scene
+  # Virtual resolution is enabled per-scene (GameScene enables it)
   SceneManager.load(TitleScene.new)
 end
 

@@ -85,6 +85,10 @@ public:
     // Used to prevent on_resize from being called before init
     bool init_called = false;
 
+    // Virtual resolution rendering flag - true when inside BeginTextureMode for virtual resolution
+    // Used by surface mode to detect and handle nested render texture calls
+    bool in_virtual_render_pass = false;
+
 private:
     State() = default;
 };

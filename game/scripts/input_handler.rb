@@ -24,13 +24,13 @@ class InputHandler
          .map(:move_right, [:right, :d])
          .map(:jump, [:space, :up, :w])
          .map(:attack, [:z, :x])
-        #  .map(:toggle_resolution, [:r])
+         .map(:toggle_resolution, [:tab])
          .map(:next_shader, [:e])
          .map(:prev_shader, [:q])
 
     Input.on(:jump) { @player.jump }
     Input.on(:attack) { handle_attack }
-    # Input.on(:toggle_resolution) { @on_resolution_toggle.call if @on_resolution_toggle }
+    Input.on(:toggle_resolution) { @on_resolution_toggle.call if @on_resolution_toggle }
     Input.on(:next_shader) { @on_next_shader.call if @on_next_shader }
     Input.on(:prev_shader) { @on_prev_shader.call if @on_prev_shader }
   end
