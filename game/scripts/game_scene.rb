@@ -2,16 +2,21 @@ include GMR
 
 class GameScene < GMR::Scene
   def init
-    # Enable virtual resolution by default for this scene
+    # Set initial resolution mode (Tab to toggle)
     @retro_mode = false
-    Window.set_virtual_resolution(RETRO_WIDTH, RETRO_HEIGHT)
 
-    # Logical dimensions for UI positioning
-    @logical_width = RETRO_WIDTH
-    @logical_height = RETRO_HEIGHT
-    # Pixel dimensions for shaders
-    @screen_width = RETRO_WIDTH
-    @screen_height = RETRO_HEIGHT
+    if @retro_mode
+      Window.set_virtual_resolution(RETRO_WIDTH, RETRO_HEIGHT)
+      @logical_width = RETRO_WIDTH
+      @logical_height = RETRO_HEIGHT
+      @screen_width = RETRO_WIDTH
+      @screen_height = RETRO_HEIGHT
+    else
+      @logical_width = Window.width
+      @logical_height = Window.height
+      @screen_width = Window.actual_width
+      @screen_height = Window.actual_height
+    end
 
     @custom_font = Graphics::Font.load("fonts/Ubuntu-Regular.ttf", size: 48)
     configure_console
