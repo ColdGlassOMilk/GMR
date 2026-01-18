@@ -444,6 +444,14 @@ void DebugServer::handle_command(const DebugCommand& cmd, mrb_state* mrb) {
             }
             break;
 
+        case CommandType::GET_VARIABLES:
+            {
+                std::string locals_json = get_locals_json(mrb, cmd.frame_id);
+                std::string response = make_variables_response(locals_json);
+                send_message(response);
+            }
+            break;
+
         // REPL commands in pause loop
         case CommandType::REPL_EVAL:
         case CommandType::REPL_CHECK_COMPLETE:
