@@ -30,7 +30,8 @@ BLUE='\033[0;34m'
 DIM='\033[2m'
 NC='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory (works in both bash and zsh)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -98,12 +99,19 @@ else
 fi
 
 # Get the gem bin directory and add to PATH early (suppresses warning)
-GEM_BIN=$(ruby -e 'puts Gem.user_dir')/bin
+# Use Gem.bindir for the actual bin location where executables are installed
+GEM_BIN=$(ruby -e 'puts Gem.bindir')
 export PATH="$GEM_BIN:$PATH"
 
 # Add to shell profile for persistence (only if not already added)
+# Detect appropriate shell profile file
 PROFILE_FILE=""
-if [[ -f ~/.bashrc ]]; then
+if [[ -n "$ZSH_VERSION" ]] || [[ "$SHELL" == */zsh ]]; then
+    # zsh user
+    if [[ -f ~/.zshrc ]]; then
+        PROFILE_FILE=~/.zshrc
+    fi
+elif [[ -f ~/.bashrc ]]; then
     PROFILE_FILE=~/.bashrc
 elif [[ -f ~/.bash_profile ]]; then
     PROFILE_FILE=~/.bash_profile
@@ -112,7 +120,7 @@ fi
 if [[ -n "$PROFILE_FILE" ]] && ! grep -q "Ruby gem binaries" "$PROFILE_FILE" 2>/dev/null; then
     echo "" >> "$PROFILE_FILE"
     echo "# Ruby gem binaries" >> "$PROFILE_FILE"
-    echo 'export PATH="$(ruby -e '\''puts Gem.user_dir'\'')/bin:$PATH"' >> "$PROFILE_FILE"
+    echo 'export PATH="$(ruby -e '\''puts Gem.bindir'\''):$PATH"' >> "$PROFILE_FILE"
     echo -e "${GREEN}> Added gem bin to $PROFILE_FILE${NC}"
 fi
 
@@ -141,8 +149,8 @@ else
     echo -e "${GREEN}> Gem dependencies up to date${NC}"
 fi
 
-# Extract version from lib/gmrcli/version.rb
-GEMSPEC_VERSION=$(grep -oP 'VERSION\s*=\s*["\x27]\K[^"\x27]+' lib/gmrcli/version.rb 2>/dev/null || echo "0.0.0")
+# Extract version from lib/gmrcli/version.rb (portable, works on Mac/Linux)
+GEMSPEC_VERSION=$(grep -E 'VERSION\s*=' lib/gmrcli/version.rb 2>/dev/null | sed -E 's/.*VERSION\s*=\s*["\x27]([^"\x27]+)["\x27].*/\1/' || echo "0.0.0")
 
 # Always reinstall gmrcli to pick up code changes
 echo -e "${GREEN}> Building and installing gmrcli...${NC}"
@@ -171,10 +179,13 @@ echo -e "  ${DIM}(default)${NC}                   # Machine-readable JSON output
 echo -e "  ${BLUE}gmrcli -o text${NC}            # Human-readable text output"
 echo -e "  ${BLUE}gmrcli --protocol-version v1${NC} # Lock to protocol version"
 echo ""
-echo -e "For future sessions, reload your shell:"
-echo ""
-echo -e "  ${GREEN}source ~/.bashrc${NC}"
-echo ""
+# Show appropriate reload command based on detected shell profile
+if [[ -n "$PROFILE_FILE" ]]; then
+    echo -e "For future sessions, reload your shell:"
+    echo ""
+    echo -e "  ${GREEN}source $PROFILE_FILE${NC}"
+    echo ""
+fi
 
 # Ask if user wants to run setup now (skip if --skip-setup was passed)
 if $SKIP_SETUP; then
@@ -193,10 +204,11 @@ else
         echo ""
         # Use -o text for interactive terminal output
         # Note: Command must come before options due to Thor's default_task behavior
+        # Use full path to gmrcli since PATH may not be fully updated in current session
         if [[ "$setup_type" =~ ^[Nn]$ ]]; then
-            exec gmrcli setup --native-only -o text
+            exec "$GEM_BIN/gmrcli" setup --native-only -o text
         else
-            exec gmrcli setup -o text
+            exec "$GEM_BIN/gmrcli" setup -o text
         fi
     fi
 fi

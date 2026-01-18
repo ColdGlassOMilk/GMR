@@ -572,6 +572,15 @@ module Gmrcli
         # MRB_USE_DEBUG_HOOK enables the code_fetch_hook field in mrb_state
         # Required for the Ruby debugger to function in Debug builds
         # mrbc binary still needed for compiling scripts during build
+
+        # Platform-specific linker flags for dead code elimination
+        # macOS uses -dead_strip, Linux/MinGW use --gc-sections
+        linker_flags = if Platform.macos?
+                         "%w(-Wl,-dead_strip)"
+                       else
+                         "%w(-Wl,--gc-sections)"
+                       end
+
         config_content = <<~RUBY
           MRuby::Build.new('host') do |conf|
             toolchain :gcc
@@ -585,7 +594,7 @@ module Gmrcli
             end
 
             conf.linker do |linker|
-              linker.flags = %w(-Wl,--gc-sections)
+              linker.flags = #{linker_flags}
             end
 
             # mrbc compiler - required for compiling Ruby source to bytecode
@@ -922,8 +931,32 @@ module Gmrcli
       end
 
       def create_mruby_web_config(src_dir)
+        # On macOS, we need to specify the SDK path for the host build
+        # so clang can find system headers like stdio.h
+        host_config = if Platform.macos?
+                        sdk_path = `xcrun --show-sdk-path 2>/dev/null`.strip
+                        sdk_flag = sdk_path.empty? ? "" : "-isysroot #{sdk_path}"
+                        <<~HOST
+                          MRuby::Build.new('host') do |conf|
+                            toolchain :clang
+                            conf.cc.flags << "#{sdk_flag}"
+                            conf.cxx.flags << "#{sdk_flag}"
+                            # Linker also needs SDK path to find libSystem
+                            conf.linker.flags = ["#{sdk_flag}", "-Wl,-dead_strip"]
+                            # On macOS, libm is part of libSystem, no need to link separately
+                            conf.linker.libraries = []
+                            conf.gem core: 'mruby-bin-mrbc'
+                            conf.disable_libmruby
+                            conf.disable_presym
+                          end
+
+                        HOST
+                      else
+                        ""
+                      end
+
         config_content = <<~RUBY
-          MRuby::CrossBuild.new('emscripten') do |conf|
+          #{host_config}MRuby::CrossBuild.new('emscripten') do |conf|
             toolchain :clang
 
             conf.cc do |cc|
