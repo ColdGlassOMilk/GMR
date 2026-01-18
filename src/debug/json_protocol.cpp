@@ -183,6 +183,15 @@ std::string make_evaluate_response(bool success, const std::string& result) {
     return oss.str();
 }
 
+std::string make_variables_response(const std::string& variables_json) {
+    std::ostringstream oss;
+    oss << "{";
+    oss << "\"type\":\"variables_response\",";
+    oss << "\"variables\":" << variables_json;
+    oss << "}";
+    return oss.str();
+}
+
 std::string make_continued_event() {
     return "{\"type\":\"continued\"}";
 }

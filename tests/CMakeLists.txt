@@ -42,6 +42,9 @@ set(TEST_SOURCES
 
     # Unit tests - Filesystem
     unit/filesystem/test_path_validation.cpp
+
+    # Unit tests - Debug (only compiled in Debug builds)
+    unit/debug/test_variable_inspector.cpp
 )
 
 # Create test executable
