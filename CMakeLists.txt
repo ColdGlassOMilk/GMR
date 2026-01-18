@@ -19,6 +19,10 @@ option(GMR_GENERATE_API_DOCS "Generate API documentation during build (normally 
 
 # Link-Time Optimization for smaller Release builds (slower compile times)
 option(GMR_ENABLE_LTO "Enable Link-Time Optimization for Release builds" OFF)
+
+# Testing option (disabled by default, not available for web builds)
+option(GMR_BUILD_TESTS "Build unit tests" OFF)
+
 if(GMR_GENERATE_API_DOCS)
     include(cmake/GenerateAPIDocs.cmake)
 endif()
@@ -49,9 +53,8 @@ else()
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_OUTPUT_DIR}/release)
 endif()
 
-# Sources
-set(SOURCES
-    src/main.cpp
+# Engine core sources (everything except main.cpp)
+set(ENGINE_SOURCES
     src/state.cpp
     src/camera.cpp
     src/resources/texture_manager.cpp
@@ -123,22 +126,32 @@ set(SOURCES
     src/output/ndjson.cpp
 )
 
-# Create executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+# Create engine core library (for testability)
+add_library(gmr_core STATIC ${ENGINE_SOURCES})
+
+# Create executable (links against core library)
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE gmr_core)
 
 # Generate API documentation (pre-build step) - only if enabled
 if(GMR_GENERATE_API_DOCS)
     generate_api_docs(${PROJECT_NAME})
 endif()
 
-# Include directories
+# Include directories for library
+target_include_directories(gmr_core PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/generated
+)
+
+# Include directories for executable (inherits from library via PUBLIC)
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_BINARY_DIR}/generated
 )
 
 # Version definition (from engine.json via ReadEngineVersion.cmake)
-target_compile_definitions(${PROJECT_NAME} PRIVATE
+target_compile_definitions(gmr_core PUBLIC
     GMR_VERSION="${GMR_VERSION}"
     GMR_VERSION_MAJOR=${GMR_VERSION_MAJOR}
     GMR_VERSION_MINOR=${GMR_VERSION_MINOR}
@@ -284,12 +297,14 @@ elseif(WIN32)
     set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
     set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
 
-    target_include_directories(${PROJECT_NAME} PRIVATE
+    # Include directories for library (PUBLIC so tests can also access)
+    target_include_directories(gmr_core PUBLIC
         ${RAYLIB_ROOT}/include
         ${MRUBY_ROOT}/include
     )
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE
+    # Link libraries to gmr_core (PUBLIC so dependent targets inherit)
+    target_link_libraries(gmr_core PUBLIC
         ${RAYLIB_ROOT}/lib/libraylib.a
         ${MRUBY_ROOT}/lib/libmruby.a
 
@@ -313,11 +328,14 @@ elseif(WIN32)
 
     # Size optimization for Release builds
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(${PROJECT_NAME} PRIVATE
+        target_compile_options(gmr_core PRIVATE
             -Os                      # Optimize for size over speed
             -ffunction-sections      # Place each function in own section
             -fdata-sections          # Place each data item in own section
             -fno-rtti                # Disable runtime type info (verified safe)
+        )
+        target_compile_options(${PROJECT_NAME} PRIVATE
+            -Os -ffunction-sections -fdata-sections -fno-rtti
         )
 
         target_link_options(${PROJECT_NAME} PRIVATE
@@ -327,6 +345,7 @@ elseif(WIN32)
 
         # Optional Link-Time Optimization (significant size reduction, slower builds)
         if(GMR_ENABLE_LTO)
+            target_compile_options(gmr_core PRIVATE -flto=auto)
             target_compile_options(${PROJECT_NAME} PRIVATE -flto=auto)
             target_link_options(${PROJECT_NAME} PRIVATE -flto=auto)
             message(STATUS "LTO enabled for Release build")
@@ -366,25 +385,21 @@ else()
 endif()
 
 # Compiler warnings
-# if(MSVC)
-#     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-# elseif(NOT PLATFORM_WEB)
-#     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
-# endif()
 if(MSVC)
     # Disable unused local variable warning (C4101)
+    target_compile_options(gmr_core PRIVATE /wd4101)
     target_compile_options(${PROJECT_NAME} PRIVATE /wd4101)
 else()
     # Disable unused variable warning for GCC/Clang
+    target_compile_options(gmr_core PRIVATE -Wno-unused-variable)
     target_compile_options(${PROJECT_NAME} PRIVATE -Wno-unused-variable)
 endif()
 
-
 # Debug/Release flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG)
+    target_compile_definitions(gmr_core PUBLIC DEBUG)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE NDEBUG)
+    target_compile_definitions(gmr_core PUBLIC NDEBUG)
 endif()
 
 # REPL configuration
@@ -402,11 +417,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     list(APPEND REPL_SOURCES src/repl/multiline_detector.cpp)
 endif()
 
-# Add REPL sources
-target_sources(${PROJECT_NAME} PRIVATE ${REPL_SOURCES})
+# Add REPL sources to library
+target_sources(gmr_core PRIVATE ${REPL_SOURCES})
 
-# Add REPL include directory
-target_include_directories(${PROJECT_NAME} PRIVATE
+# Add REPL include directory to library
+target_include_directories(gmr_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include/gmr/repl
 )
 
@@ -414,23 +429,23 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 set(CONSOLE_SOURCES
     src/console/console_module.cpp
 )
-target_sources(${PROJECT_NAME} PRIVATE ${CONSOLE_SOURCES})
+target_sources(gmr_core PRIVATE ${CONSOLE_SOURCES})
 
-# Add console include directory
-target_include_directories(${PROJECT_NAME} PRIVATE
+# Add console include directory to library
+target_include_directories(gmr_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include/gmr/console
 )
 
 # Enable REPL availability flag
 if(GMR_REPL_ENABLED OR CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_REPL_AVAILABLE)
+    target_compile_definitions(gmr_core PUBLIC GMR_REPL_AVAILABLE)
     message(STATUS "REPL enabled")
 endif()
 
 # Ruby debugger - only for native Debug builds (never for Web or Release)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT PLATFORM_WEB)
     message(STATUS "Ruby debugger enabled")
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_DEBUG_ENABLED MRB_USE_DEBUG_HOOK)
+    target_compile_definitions(gmr_core PUBLIC GMR_DEBUG_ENABLED MRB_USE_DEBUG_HOOK)
 
     # Debug server sources
     set(DEBUG_SOURCES
@@ -441,10 +456,10 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT PLATFORM_WEB)
         src/debug/variable_inspector.cpp
         src/debug/json_protocol.cpp
     )
-    target_sources(${PROJECT_NAME} PRIVATE ${DEBUG_SOURCES})
+    target_sources(gmr_core PRIVATE ${DEBUG_SOURCES})
 
     # Debug headers
-    target_include_directories(${PROJECT_NAME} PRIVATE
+    target_include_directories(gmr_core PUBLIC
         ${CMAKE_SOURCE_DIR}/include/gmr/debug
     )
 endif()
@@ -495,3 +510,10 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Platform Web: ${PLATFORM_WEB}")
 message(STATUS "Output directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+
+# Testing (only for native builds, not web)
+if(GMR_BUILD_TESTS AND NOT PLATFORM_WEB)
+    enable_testing()
+    add_subdirectory(tests)
+    message(STATUS "Tests enabled")
+endif()

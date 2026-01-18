@@ -526,6 +526,79 @@ state_machine.state  # => :idle
 Input.map(:test, :invalid_key)  # Should raise ArgumentError
 ```
 
+### Automated Unit Tests
+
+GMR includes a C++ unit test suite using [Catch2](https://github.com/catchorg/Catch2). These tests cover core engine systems that don't require GPU rendering.
+
+**Running Tests**:
+
+```bash
+# Run all tests
+gmrcli test
+
+# Run specific test groups by tag
+gmrcli test math         # Matrix2D, Vec2 tests
+gmrcli test node         # Node hierarchy tests
+gmrcli test transform    # Transform manager tests
+gmrcli test resources    # Resource manager tests
+gmrcli test draw_queue   # Draw queue ordering tests
+gmrcli test particle     # Particle lifecycle tests
+gmrcli test input        # Input context tests
+gmrcli test animation    # Easing function tests
+
+# Run with a custom filter
+gmrcli test --filter=easing
+
+# Clean rebuild before testing
+gmrcli test --rebuild
+
+# Human-readable output
+gmrcli test -o text
+```
+
+**Test Structure**:
+
+```
+tests/
+├── CMakeLists.txt           # Test build configuration
+├── helpers/
+│   ├── test_fixtures.hpp    # EngineTestFixture for singleton reset
+│   └── test_fixtures.cpp
+└── unit/
+    ├── math/                # Matrix2D, Vec2 tests
+    ├── node/                # Node hierarchy tests
+    ├── transform/           # Transform manager tests
+    ├── resources/           # Resource manager tests (with mocks)
+    ├── draw_queue/          # Draw queue ordering tests
+    ├── particle/            # Particle lifecycle tests
+    ├── input/               # Input context tests
+    └── animation/           # Easing function tests
+```
+
+**Writing New Tests**:
+
+1. Place tests in `tests/unit/<subsystem>/test_<feature>.cpp`
+2. Use `EngineTestFixture` for tests that use singleton managers:
+   ```cpp
+   TEST_CASE_METHOD(EngineTestFixture, "My test", "[tag]") {
+       // Singletons are automatically reset before each test
+   }
+   ```
+3. Use appropriate tags: `[math]`, `[node]`, `[transform]`, `[resources]`, `[draw_queue]`, `[particle]`, `[input]`, `[animation]`
+4. Add your source file to `tests/CMakeLists.txt`
+
+**What We Test**:
+- Pure math (transforms, matrices, easing functions)
+- Manager lifecycle (create, destroy, clear)
+- Data structure correctness (sorting, hierarchy, reference counting)
+- State transitions (input contexts, particle lifecycle)
+
+**What We Don't Test** (by design):
+- GPU rendering output
+- Audio playback
+- Platform-specific windowing
+- Ruby script execution (use manual testing with hot-reload)
+
 ---
 
 ## Roadmap
