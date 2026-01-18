@@ -12,6 +12,7 @@
 # Root-level executables (Windows)
 *.exe
 /*.exe
+*.gem
 
 # Static & dynamic libraries
 *.dll

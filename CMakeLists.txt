@@ -337,14 +337,22 @@ elseif(APPLE)
     # ===========================================
     # macOS
     # ===========================================
+    set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
+    set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
+
+    target_include_directories(${PROJECT_NAME} PRIVATE
+        ${RAYLIB_ROOT}/include
+        ${MRUBY_ROOT}/include
+    )
+
     find_library(COCOA_LIBRARY Cocoa REQUIRED)
     find_library(OPENGL_LIBRARY OpenGL REQUIRED)
     find_library(IOKIT_LIBRARY IOKit REQUIRED)
     find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
-    
+
     target_link_libraries(${PROJECT_NAME} PRIVATE
-        raylib
-        mruby
+        ${RAYLIB_ROOT}/lib/libraylib.a
+        ${MRUBY_ROOT}/lib/libmruby.a
         ${COCOA_LIBRARY}
         ${OPENGL_LIBRARY}
         ${IOKIT_LIBRARY}
