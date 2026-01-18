@@ -56,6 +56,7 @@
             glGetStringPtr = (GlGetStringFunc)glGetProcAddress("glGetString");
         }
         if (glGetStringPtr) {
+            // OpenGL returns unsigned char*; cast to char* for standard string handling
             return reinterpret_cast<const char*>(glGetStringPtr(name));
         }
         return nullptr;

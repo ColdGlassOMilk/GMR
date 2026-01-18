@@ -39,6 +39,9 @@ set(TEST_SOURCES
 
     # Unit tests - Animation
     unit/animation/test_easing.cpp
+
+    # Unit tests - Filesystem
+    unit/filesystem/test_path_validation.cpp
 )
 
 # Create test executable

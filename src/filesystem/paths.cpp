@@ -71,6 +71,51 @@ bool is_valid_path(const std::string& path) {
     return true;
 }
 
+std::string sanitize_path(const std::string& resolved, Root root) {
+#ifdef PLATFORM_WEB
+    // Web builds are sandboxed by the browser/Emscripten
+    return resolved;
+#else
+    // Get the expected root directory (absolute path)
+    fs::path root_dir;
+    switch (root) {
+        case Root::Assets:
+            root_dir = fs::current_path() / "game" / "assets";
+            break;
+        case Root::Data:
+            root_dir = fs::current_path() / "game" / "data";
+            break;
+    }
+
+    // Normalize root path (resolve any .. or symlinks in root itself)
+    std::error_code ec;
+    fs::path canonical_root = fs::weakly_canonical(root_dir, ec);
+    if (ec) {
+        canonical_root = root_dir;  // Fallback if canonicalization fails
+    }
+
+    // Normalize the resolved path (make it absolute first)
+    fs::path resolved_path = fs::current_path() / resolved;
+    fs::path canonical_resolved = fs::weakly_canonical(resolved_path, ec);
+    if (ec) {
+        canonical_resolved = resolved_path;
+    }
+
+    // Verify resolved path starts with root path (is contained within sandbox)
+    auto [root_end, resolved_it] = std::mismatch(
+        canonical_root.begin(), canonical_root.end(),
+        canonical_resolved.begin(), canonical_resolved.end()
+    );
+
+    // Path is valid if we consumed the entire root path
+    if (root_end != canonical_root.end()) {
+        return "";  // Path escapes sandbox
+    }
+
+    return canonical_resolved.string();
+#endif
+}
+
 bool ensure_directory(const std::string& path) {
 #ifdef PLATFORM_WEB
     // Web: Use Emscripten FS API to create directories

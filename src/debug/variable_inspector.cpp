@@ -27,6 +27,7 @@ std::string serialize_value(mrb_state* mrb, mrb_value val, SerializeContext& ctx
 
     // Cycle detection for non-immediate values
     if (!mrb_immediate_p(val) && mrb_type(val) != MRB_TT_SYMBOL) {
+        // Cast pointer to integer for identity-based cycle detection in visited set
         uintptr_t addr = reinterpret_cast<uintptr_t>(mrb_ptr(val));
         if (ctx.visited.count(addr)) {
             oss << "{\"type\":\"...\",\"value\":\"<circular>\"}";
@@ -108,6 +109,7 @@ std::string serialize_value(mrb_state* mrb, mrb_value val, SerializeContext& ctx
                 const char* class_name = mrb_obj_classname(mrb, val);
                 oss << "{\"type\":\"" << json_escape(class_name ? class_name : "Object") << "\"";
                 oss << ",\"value\":\"#<" << json_escape(class_name ? class_name : "Object");
+                // Cast pointer to integer for Ruby-style object identity display (#<Class:0xADDR>)
                 oss << ":0x" << std::hex << reinterpret_cast<uintptr_t>(mrb_ptr(val)) << std::dec;
                 oss << ">\"}";
             }
