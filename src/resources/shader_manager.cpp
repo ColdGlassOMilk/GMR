@@ -4,6 +4,28 @@
 
 namespace gmr {
 
+// Platform-specific shader path adjustment
+// On native Mac/Linux, use GLSL 330 shaders; on Web use GLSL ES 100
+static std::string adjust_shader_path_for_platform(const std::string& path) {
+#if defined(PLATFORM_WEB)
+    // Web uses GLSL ES 100 shaders (the default ones in shaders/)
+    return path;
+#elif defined(__APPLE__) || defined(__linux__)
+    // Mac and Linux use OpenGL 3.3 core profile which requires GLSL 330
+    // Redirect shaders/foo.fs -> shaders/glsl330/foo.fs
+    const std::string shaders_prefix = "shaders/";
+    if (path.rfind(shaders_prefix, 0) == 0 && path.find("glsl330/") == std::string::npos) {
+        // Extract filename after "shaders/"
+        std::string filename = path.substr(shaders_prefix.length());
+        return shaders_prefix + "glsl330/" + filename;
+    }
+    return path;
+#else
+    // Windows can use either, but GLSL ES 100 works in compatibility mode
+    return path;
+#endif
+}
+
 // ShaderState implementation
 
 int ShaderState::get_location(const std::string& name) {
@@ -45,12 +67,14 @@ ShaderHandle ShaderManager::load(const std::string& fragment_path,
         return handle;
     }
 
-    // Resolve paths
-    std::string resolved_frag = resolve_asset_path(fragment_path);
+    // Resolve paths (with platform-specific shader directory adjustment)
+    std::string adjusted_frag = adjust_shader_path_for_platform(fragment_path);
+    std::string resolved_frag = resolve_asset_path(adjusted_frag);
     const char* vert_ptr = nullptr;
     std::string resolved_vert;
     if (!vertex_path.empty()) {
-        resolved_vert = resolve_asset_path(vertex_path);
+        std::string adjusted_vert = adjust_shader_path_for_platform(vertex_path);
+        resolved_vert = resolve_asset_path(adjusted_vert);
         vert_ptr = resolved_vert.c_str();
     }
 

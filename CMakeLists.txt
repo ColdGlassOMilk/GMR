@@ -163,14 +163,13 @@ if(PLATFORM_WEB)
     # ===========================================
     # Emscripten / WebAssembly Build
     # ===========================================
-    
-    # Web-specific compile definitions
-    target_compile_definitions(${PROJECT_NAME} PRIVATE PLATFORM_WEB)
-    
+
+    # Web-specific compile definitions (added to gmr_core so all sources have it)
+    target_compile_definitions(gmr_core PUBLIC PLATFORM_WEB)
+
     # Emscripten compiler flags
-    target_compile_options(${PROJECT_NAME} PRIVATE
+    target_compile_options(gmr_core PUBLIC
         -Os                         # Optimize for size
-        -DPLATFORM_WEB
     )
     
     # Find raylib and mruby (must be built for Emscripten)
@@ -187,12 +186,12 @@ if(PLATFORM_WEB)
         set(MRUBY_WEB_PATH "${CMAKE_SOURCE_DIR}/deps/mruby/web")
     endif()
     
-    # Include paths for web libraries
+    # Include paths for web libraries (added to gmr_core so all sources can find headers)
     if(EXISTS "${RAYLIB_WEB_PATH}/include")
-        target_include_directories(${PROJECT_NAME} PRIVATE ${RAYLIB_WEB_PATH}/include)
+        target_include_directories(gmr_core PUBLIC ${RAYLIB_WEB_PATH}/include)
     endif()
     if(EXISTS "${MRUBY_WEB_PATH}/include")
-        target_include_directories(${PROJECT_NAME} PRIVATE ${MRUBY_WEB_PATH}/include)
+        target_include_directories(gmr_core PUBLIC ${MRUBY_WEB_PATH}/include)
     endif()
     
     # Library paths
@@ -486,8 +485,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR PLATFORM_WEB)
         "${COMPILED_SCRIPTS_HEADER}"
     )
 
-    # Enable compiled scripts flag
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GMR_USE_COMPILED_SCRIPTS)
+    # Enable compiled scripts flag (added to gmr_core so loader.cpp can see it)
+    target_compile_definitions(gmr_core PUBLIC GMR_USE_COMPILED_SCRIPTS)
 else()
     message(STATUS "Using runtime script loading (debug mode)")
 endif()

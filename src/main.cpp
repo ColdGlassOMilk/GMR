@@ -182,15 +182,18 @@ void game_loop(void* arg) {
             BeginDrawing();
             ClearBackground(::Color{0, 0, 0, 255});
 
-            // Use render dimensions for scaling (physical backing buffer size)
-            float scale_x = static_cast<float>(state.render_width) / state.virtual_width;
-            float scale_y = static_cast<float>(state.render_height) / state.virtual_height;
+            // Use screen dimensions (logical points) for scaling
+            // DrawTexturePro uses logical coordinates, not physical pixels
+            int screen_w = GetScreenWidth();
+            int screen_h = GetScreenHeight();
+            float scale_x = static_cast<float>(screen_w) / state.virtual_width;
+            float scale_y = static_cast<float>(screen_h) / state.virtual_height;
             float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
             int scaled_width = static_cast<int>(state.virtual_width * scale);
             int scaled_height = static_cast<int>(state.virtual_height * scale);
-            int offset_x = (state.render_width - scaled_width) / 2;
-            int offset_y = (state.render_height - scaled_height) / 2;
+            int offset_x = (screen_w - scaled_width) / 2;
+            int offset_y = (screen_h - scaled_height) / 2;
 
             Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                -static_cast<float>(state.virtual_height)};
@@ -321,6 +324,11 @@ int main(int argc, char* argv[]) {
 #else
     // Native platform initialization
     unsigned int config_flags = FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT;
+#ifdef __APPLE__
+    // Enable high-DPI support for Retina displays
+    // This ensures GetRenderWidth/Height return actual framebuffer dimensions
+    config_flags |= FLAG_WINDOW_HIGHDPI;
+#endif
     if (window_topmost) {
         config_flags |= FLAG_WINDOW_TOPMOST;
     }
@@ -339,12 +347,14 @@ int main(int argc, char* argv[]) {
 
     // Synchronize state with actual window dimensions
     // This ensures proper resize handling even when script doesn't call Window.set_size()
+    // Use GetScreenWidth/Height for logical window size (points)
+    // Use GetRenderWidth/Height for actual framebuffer size (accounts for Retina/high-DPI)
     state.windowed_width = GetScreenWidth();
     state.windowed_height = GetScreenHeight();
     state.css_width = GetScreenWidth();
     state.css_height = GetScreenHeight();
-    state.render_width = GetScreenWidth();
-    state.render_height = GetScreenHeight();
+    state.render_width = GetRenderWidth();
+    state.render_height = GetRenderHeight();
     if (!state.use_virtual_resolution) {
         state.screen_width = GetScreenWidth();
         state.screen_height = GetScreenHeight();
@@ -398,8 +408,8 @@ int main(int argc, char* argv[]) {
             state.windowed_height = GetScreenHeight();
             state.css_width = state.windowed_width;
             state.css_height = state.windowed_height;
-            state.render_width = state.windowed_width;
-            state.render_height = state.windowed_height;
+            state.render_width = GetRenderWidth();
+            state.render_height = GetRenderHeight();
             if (!state.use_virtual_resolution) {
                 state.screen_width = state.windowed_width;
                 state.screen_height = state.windowed_height;
@@ -511,15 +521,18 @@ int main(int argc, char* argv[]) {
                 BeginDrawing();
                 ClearBackground(::Color{0, 0, 0, 255});
 
-                // Use render dimensions for scaling (physical backing buffer size)
-                float scale_x = static_cast<float>(state.render_width) / state.virtual_width;
-                float scale_y = static_cast<float>(state.render_height) / state.virtual_height;
+                // Use screen dimensions (logical points) for scaling, not render dimensions
+                // On Retina displays, DrawTexturePro uses logical coordinates (points), not pixels
+                int screen_w = GetScreenWidth();
+                int screen_h = GetScreenHeight();
+                float scale_x = static_cast<float>(screen_w) / state.virtual_width;
+                float scale_y = static_cast<float>(screen_h) / state.virtual_height;
                 float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
                 int scaled_width = static_cast<int>(state.virtual_width * scale);
                 int scaled_height = static_cast<int>(state.virtual_height * scale);
-                int offset_x = (state.render_width - scaled_width) / 2;
-                int offset_y = (state.render_height - scaled_height) / 2;
+                int offset_x = (screen_w - scaled_width) / 2;
+                int offset_y = (screen_h - scaled_height) / 2;
 
                 Rectangle source = {0, 0, static_cast<float>(state.virtual_width),
                                    -static_cast<float>(state.virtual_height)};
