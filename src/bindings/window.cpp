@@ -420,6 +420,7 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
             state.screen_height = state.windowed_height;
         }
         state.is_fullscreen = false;
+        state.fullscreen_changed = true;
     } else {
         state.windowed_width = GetScreenWidth();
         state.windowed_height = GetScreenHeight();
@@ -440,6 +441,7 @@ static mrb_value mrb_window_toggle_fullscreen(mrb_state* mrb, mrb_value) {
             state.screen_height = mh;
         }
         state.is_fullscreen = true;
+        state.fullscreen_changed = true;
     }
 #endif
 
@@ -497,6 +499,7 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
             state.screen_height = mh;
         }
         state.is_fullscreen = true;
+        state.fullscreen_changed = true;
     } else if (!fullscreen && state.is_fullscreen) {
         ClearWindowState(FLAG_FULLSCREEN_MODE);
         SetWindowSize(state.windowed_width, state.windowed_height);
@@ -515,6 +518,7 @@ static mrb_value mrb_window_set_fullscreen(mrb_state* mrb, mrb_value) {
             state.screen_height = state.windowed_height;
         }
         state.is_fullscreen = false;
+        state.fullscreen_changed = true;
     }
 #endif
 

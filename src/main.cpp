@@ -382,9 +382,7 @@ int main(int argc, char* argv[]) {
 
 #if defined(GMR_DEBUG_ENABLED)
     // Start the Ruby debug server
-    if (gmr::debug::DebugServer::instance().start(5678)) {
-        printf("Ruby debugger listening on port 5678\n");
-    }
+    gmr::debug::DebugServer::instance().start(5678);
 #endif
 
     double last_time = GetTime();
@@ -401,6 +399,20 @@ int main(int argc, char* argv[]) {
 
         // Store for Ruby bindings
         state.frame_delta = static_cast<float>(dt);
+
+        // Check if fullscreen changed and notify Ruby
+        if (state.fullscreen_changed) {
+            state.fullscreen_changed = false;
+            if (state.init_called) {
+                if (auto* mrb = loader.mrb()) {
+                    std::vector<mrb_value> args = {
+                        mrb_fixnum_value(state.css_width),
+                        mrb_fixnum_value(state.css_height)
+                    };
+                    gmr::scripting::safe_call(mrb, "on_resize", args);
+                }
+            }
+        }
 
         // Update window size tracking and notify Ruby of resize
         if (IsWindowResized() && !state.is_fullscreen) {
