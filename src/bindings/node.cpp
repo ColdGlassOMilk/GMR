@@ -303,13 +303,12 @@ static mrb_value mrb_node_parent(mrb_state* mrb, mrb_value self) {
 
     Node* node = NodeManager::instance().get(data->handle);
     GMR_REQUIRE_NODE_STATE(node, data->handle);
-    if (!node->parent) return mrb_nil_value();  // Legitimate: no parent
 
-    NodeHandle parent_handle = NodeManager::instance().get_handle(node->parent);
-    if (parent_handle == INVALID_NODE_HANDLE) return mrb_nil_value();
+    // Parent is now stored as handle directly
+    if (node->parent == INVALID_NODE_HANDLE) return mrb_nil_value();
 
     // Create Ruby wrapper for existing node (no wasteful create/destroy)
-    return wrap_existing_node(mrb, parent_handle);
+    return wrap_existing_node(mrb, node->parent);
 }
 
 /// @method children
@@ -320,15 +319,11 @@ static mrb_value mrb_node_children(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
     GMR_REQUIRE_NODE_DATA(data);
 
-    Node* node = NodeManager::instance().get(data->handle);
-    GMR_REQUIRE_NODE_STATE(node, data->handle);
+    // Use handle-based child access (no raw pointer iteration)
+    auto children = NodeManager::instance().get_children(data->handle);
+    mrb_value children_array = mrb_ary_new_capa(mrb, static_cast<mrb_int>(children.size()));
 
-    mrb_value children_array = mrb_ary_new_capa(mrb, node->child_count);
-
-    for (int i = 0; i < node->child_count; ++i) {
-        NodeHandle child_handle = NodeManager::instance().get_handle(node->children[i]);
-        if (child_handle == INVALID_NODE_HANDLE) continue;
-
+    for (NodeHandle child_handle : children) {
         // Create Ruby wrapper for existing node (no wasteful create/destroy)
         mrb_value child_obj = wrap_existing_node(mrb, child_handle);
         if (!mrb_nil_p(child_obj)) {
@@ -347,10 +342,8 @@ static mrb_value mrb_node_child_count(mrb_state* mrb, mrb_value self) {
     NodeData* data = get_node_data(mrb, self);
     GMR_REQUIRE_NODE_DATA(data);
 
-    Node* node = NodeManager::instance().get(data->handle);
-    GMR_REQUIRE_NODE_STATE(node, data->handle);
-
-    return mrb_fixnum_value(node->child_count);
+    // Use handle-based count (no pointer access needed)
+    return mrb_fixnum_value(static_cast<mrb_int>(NodeManager::instance().child_count(data->handle)));
 }
 
 // ============================================================================

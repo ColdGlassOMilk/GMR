@@ -343,6 +343,39 @@ module Gmrcli
       end
     end
 
+    # === Test Command ===
+
+    desc "test [TARGET]", "Run unit tests"
+    long_desc <<~DESC
+      Build and run the GMR engine unit tests.
+
+      Targets:
+        all       - Run all tests (default)
+        math      - Run math tests (Matrix2D, Vec2)
+        node      - Run node hierarchy tests
+        transform - Run transform manager tests
+        resources - Run resource manager tests
+        draw_queue - Run draw queue tests
+        particle  - Run particle lifecycle tests
+        input     - Run input context tests
+        animation - Run animation/easing tests
+
+      Examples:
+        gmrcli test              # Run all tests
+        gmrcli test math         # Run only math tests
+        gmrcli test --rebuild    # Clean rebuild before running
+        gmrcli test --filter=easing  # Run tests with [easing] tag
+    DESC
+    option :rebuild, type: :boolean, default: false, aliases: "-r",
+                     desc: "Clean and rebuild before testing"
+    option :filter, type: :string, aliases: "-f",
+                    desc: "Run tests matching this tag"
+    def test(target = "all")
+      ErrorHandler.wrap(command: "test") do
+        Commands::Test.new(options.to_h.transform_keys(&:to_sym)).run(target)
+      end
+    end
+
     # === Info Commands ===
 
     desc "version", "Show version information"

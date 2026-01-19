@@ -62,6 +62,9 @@ std::string make_exception_event(const char* exception_class, const char* messag
 // Generate JSON for evaluate response
 std::string make_evaluate_response(bool success, const std::string& result);
 
+// Generate JSON for variables response (frame locals)
+std::string make_variables_response(const std::string& variables_json);
+
 // Generate JSON for continued event (execution resumed)
 std::string make_continued_event();
 

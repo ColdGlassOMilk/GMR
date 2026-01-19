@@ -134,6 +134,7 @@ static mrb_value mrb_fs_read_bytes(mrb_state* mrb, mrb_value self) {
     }
 
     // Return as binary string
+    // Cast uint8_t* to char* for mRuby string API; both are single-byte types
     return mrb_str_new(mrb, reinterpret_cast<const char*>(result->data()), result->size());
 }
 

@@ -4,6 +4,7 @@
 #include "gmr/types.hpp"
 #include <vector>
 #include <unordered_map>
+#include <memory>
 #include <cstdint>
 
 namespace gmr {
@@ -170,7 +171,7 @@ public:
 private:
     TilemapManager() = default;
 
-    std::vector<TilemapData*> tilemaps_;
+    std::vector<std::unique_ptr<TilemapData>> tilemaps_;
     std::vector<TilemapHandle> free_handles_;  // Recycled handles
 };
 

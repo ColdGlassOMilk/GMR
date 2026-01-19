@@ -3,6 +3,7 @@
 
 #include "gmr/types.hpp"
 #include <unordered_map>
+#include <vector>
 #include <cstdint>
 #include <cmath>
 
@@ -19,17 +20,21 @@ struct Transform {
     Vec2 scale{1.0f, 1.0f};
 };
 
-// Node - exactly as specified, no extra fields
+// Node - hierarchical transform node
+// Ownership: NodeManager owns all Node instances via nodes_ map
+// Children: Stored in NodeManager::children_ map (not in Node struct)
 struct Node {
     Transform local;
     Transform world;
-    Node* parent;
-    Node** children;
-    int child_count;
-    bool active;
+    NodeHandle parent{INVALID_NODE_HANDLE};  // Handle-based parent reference (safe)
+    bool active{true};
 };
 
 // NodeManager - singleton, owns all Node memory
+// Ownership model:
+//   - nodes_ map owns all Node instances
+//   - children_ map owns parent->children relationships
+//   - Node::parent stores parent handle (not pointer)
 class NodeManager {
 public:
     static NodeManager& instance();
@@ -37,12 +42,20 @@ public:
     // Lifecycle
     NodeHandle create();
     void destroy(NodeHandle handle);
+
+    /// Get a node by handle. Returns nullptr if handle is invalid.
+    /// IMPORTANT: The returned pointer is only valid until the next create() or destroy() call.
+    /// Do not store this pointer; re-fetch it on each use.
     Node* get(NodeHandle handle);
     bool valid(NodeHandle handle) const;
 
     // Hierarchy management
     void add_child(NodeHandle parent, NodeHandle child);
     void remove_child(NodeHandle parent, NodeHandle child);
+
+    // Child access (handle-based, safe)
+    std::vector<NodeHandle> get_children(NodeHandle handle) const;
+    size_t child_count(NodeHandle handle) const;
 
     // World transform computation (explicit, caller-controlled)
     void update_world_transforms(NodeHandle root);
@@ -54,7 +67,8 @@ public:
     using TraversalCallback = void(*)(Node* node, void* user_data);
     void traverse_depth_first(NodeHandle root, TraversalCallback callback, void* user_data);
 
-    // Get handle for a node pointer (needed for child lookups)
+    // Get handle for a node pointer (O(n) - prefer using handles directly)
+    // Kept for backwards compatibility; internal code uses handle-based access
     NodeHandle get_handle(Node* node) const;
 
     // Clear all nodes
@@ -74,6 +88,7 @@ private:
     void compute_world_transform(Node* node, const Transform* parent_world);
 
     std::unordered_map<NodeHandle, Node> nodes_;
+    std::unordered_map<NodeHandle, std::vector<NodeHandle>> children_;  // parent -> children
     NodeHandle next_id_{0};
 };
 

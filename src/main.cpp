@@ -231,6 +231,24 @@ void game_loop(void* arg) {
 int main(int argc, char* argv[]) {
     printf("INFO: GMR Engine v%s\n", GMR_VERSION);
 
+#ifndef PLATFORM_WEB
+    // Change working directory to executable location
+    // This ensures relative paths (game/scripts, game/assets, game/data) work correctly
+    // regardless of where the executable is launched from
+    {
+        std::filesystem::path exe_path(argv[0]);
+        std::filesystem::path exe_dir = exe_path.parent_path();
+        if (!exe_dir.empty()) {
+            std::error_code ec;
+            std::filesystem::current_path(exe_dir, ec);
+            if (ec) {
+                fprintf(stderr, "Warning: Could not change to executable directory: %s\n",
+                        ec.message().c_str());
+            }
+        }
+    }
+#endif
+
     auto& state = gmr::State::instance();
 
     // Parse command-line arguments
@@ -342,6 +360,15 @@ int main(int argc, char* argv[]) {
 
     auto& loader = gmr::scripting::Loader::instance();
     loader.load("game/scripts");
+
+    // Fire initial on_resize so scripts know the window dimensions after init
+    if (auto* mrb = loader.mrb()) {
+        std::vector<mrb_value> args = {
+            mrb_fixnum_value(state.css_width),
+            mrb_fixnum_value(state.css_height)
+        };
+        gmr::scripting::safe_call(mrb, "on_resize", args);
+    }
 
 #if defined(GMR_DEBUG_ENABLED)
     // Start the Ruby debug server

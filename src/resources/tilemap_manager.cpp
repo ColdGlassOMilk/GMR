@@ -8,19 +8,19 @@ TilemapManager& TilemapManager::instance() {
 }
 
 TilemapHandle TilemapManager::create(int32_t width, int32_t height, int32_t tile_width, int32_t tile_height, TextureHandle tileset) {
-    TilemapData* tilemap = new TilemapData(width, height, tile_width, tile_height, tileset);
+    auto tilemap = std::make_unique<TilemapData>(width, height, tile_width, tile_height, tileset);
 
     // Reuse a free handle if available
     if (!free_handles_.empty()) {
         TilemapHandle handle = free_handles_.back();
         free_handles_.pop_back();
-        tilemaps_[handle] = tilemap;
+        tilemaps_[handle] = std::move(tilemap);
         return handle;
     }
 
     // Otherwise allocate a new slot
     TilemapHandle handle = static_cast<TilemapHandle>(tilemaps_.size());
-    tilemaps_.push_back(tilemap);
+    tilemaps_.push_back(std::move(tilemap));
     return handle;
 }
 
@@ -28,14 +28,14 @@ TilemapData* TilemapManager::get(TilemapHandle handle) {
     if (handle < 0 || handle >= static_cast<TilemapHandle>(tilemaps_.size())) {
         return nullptr;
     }
-    return tilemaps_[handle];
+    return tilemaps_[handle].get();
 }
 
 const TilemapData* TilemapManager::get(TilemapHandle handle) const {
     if (handle < 0 || handle >= static_cast<TilemapHandle>(tilemaps_.size())) {
         return nullptr;
     }
-    return tilemaps_[handle];
+    return tilemaps_[handle].get();
 }
 
 bool TilemapManager::valid(TilemapHandle handle) const {
@@ -47,16 +47,12 @@ bool TilemapManager::valid(TilemapHandle handle) const {
 
 void TilemapManager::destroy(TilemapHandle handle) {
     if (handle >= 0 && handle < static_cast<TilemapHandle>(tilemaps_.size())) {
-        delete tilemaps_[handle];
-        tilemaps_[handle] = nullptr;
+        tilemaps_[handle].reset();
         free_handles_.push_back(handle);
     }
 }
 
 void TilemapManager::clear() {
-    for (auto* tilemap : tilemaps_) {
-        delete tilemap;
-    }
     tilemaps_.clear();
     free_handles_.clear();
 }
