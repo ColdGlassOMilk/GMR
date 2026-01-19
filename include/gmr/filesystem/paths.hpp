@@ -24,5 +24,9 @@ bool is_valid_path(const std::string& path);
 // Returns true if directory exists or was created, false on failure
 bool ensure_directory(const std::string& path);
 
+// Sanitize resolved path and verify it stays within root directory
+// Returns empty string if path would escape the sandbox
+std::string sanitize_path(const std::string& resolved, Root root);
+
 }  // namespace filesystem
 }  // namespace gmr

@@ -1,5 +1,5 @@
 #include "gmr/node.hpp"
-#include <cstdlib>
+#include <algorithm>
 
 namespace gmr {
 
@@ -13,9 +13,7 @@ NodeHandle NodeManager::create() {
     Node& node = nodes_[handle];
     node.local = Transform{};
     node.world = Transform{};
-    node.parent = nullptr;
-    node.children = nullptr;
-    node.child_count = 0;
+    node.parent = INVALID_NODE_HANDLE;
     node.active = true;
     return handle;
 }
@@ -24,23 +22,30 @@ void NodeManager::destroy(NodeHandle handle) {
     auto it = nodes_.find(handle);
     if (it == nodes_.end()) return;
 
-    Node* node = &it->second;
+    Node& node = it->second;
 
-    // Remove from parent's child array
-    if (node->parent) {
-        remove_from_parent(handle);
-    }
-
-    // Orphan all children (set their parent to nullptr)
-    for (int i = 0; i < node->child_count; ++i) {
-        if (node->children[i]) {
-            node->children[i]->parent = nullptr;
+    // Remove from parent's children list
+    if (node.parent != INVALID_NODE_HANDLE) {
+        auto parent_it = children_.find(node.parent);
+        if (parent_it != children_.end()) {
+            auto& siblings = parent_it->second;
+            siblings.erase(std::remove(siblings.begin(), siblings.end(), handle), siblings.end());
+            if (siblings.empty()) {
+                children_.erase(parent_it);
+            }
         }
     }
 
-    // Free children array
-    if (node->children) {
-        free(node->children);
+    // Orphan all children (set their parent to INVALID_NODE_HANDLE)
+    auto children_it = children_.find(handle);
+    if (children_it != children_.end()) {
+        for (NodeHandle child_handle : children_it->second) {
+            auto* child = get(child_handle);
+            if (child) {
+                child->parent = INVALID_NODE_HANDLE;
+            }
+        }
+        children_.erase(children_it);
     }
 
     nodes_.erase(it);
@@ -72,41 +77,28 @@ bool NodeManager::would_create_cycle(NodeHandle parent_handle, NodeHandle child_
         if (current == child_handle) return true;
         auto it = nodes_.find(current);
         if (it == nodes_.end()) break;
-        const Node& node = it->second;
-        if (!node.parent) break;
-        current = get_handle(node.parent);
+        current = it->second.parent;  // Direct handle access, no O(n) lookup
     }
     return false;
 }
 
 void NodeManager::remove_from_parent(NodeHandle handle) {
     Node* node = get(handle);
-    if (!node || !node->parent) return;
+    if (!node || node->parent == INVALID_NODE_HANDLE) return;
 
-    Node* parent = node->parent;
+    NodeHandle parent_handle = node->parent;
 
-    // Find this node in parent's children array and remove it
-    for (int i = 0; i < parent->child_count; ++i) {
-        if (parent->children[i] == node) {
-            // Shift remaining children down
-            for (int j = i; j < parent->child_count - 1; ++j) {
-                parent->children[j] = parent->children[j + 1];
-            }
-            parent->child_count--;
-
-            // Shrink or free array
-            if (parent->child_count == 0) {
-                free(parent->children);
-                parent->children = nullptr;
-            } else {
-                parent->children = static_cast<Node**>(
-                    realloc(parent->children, sizeof(Node*) * parent->child_count));
-            }
-            break;
+    // Remove from parent's children vector
+    auto it = children_.find(parent_handle);
+    if (it != children_.end()) {
+        auto& siblings = it->second;
+        siblings.erase(std::remove(siblings.begin(), siblings.end(), handle), siblings.end());
+        if (siblings.empty()) {
+            children_.erase(it);
         }
     }
 
-    node->parent = nullptr;
+    node->parent = INVALID_NODE_HANDLE;
 }
 
 void NodeManager::add_child(NodeHandle parent_handle, NodeHandle child_handle) {
@@ -121,24 +113,20 @@ void NodeManager::add_child(NodeHandle parent_handle, NodeHandle child_handle) {
     if (would_create_cycle(parent_handle, child_handle)) return;
 
     // Remove from previous parent if any
-    if (child->parent) {
+    if (child->parent != INVALID_NODE_HANDLE) {
         remove_from_parent(child_handle);
     }
 
-    // Add to new parent's children array
-    parent->children = static_cast<Node**>(
-        realloc(parent->children, sizeof(Node*) * (parent->child_count + 1)));
-    parent->children[parent->child_count] = child;
-    parent->child_count++;
-
-    child->parent = parent;
+    // Add to new parent's children vector
+    children_[parent_handle].push_back(child_handle);
+    child->parent = parent_handle;
 }
 
 void NodeManager::remove_child(NodeHandle parent_handle, NodeHandle child_handle) {
     Node* parent = get(parent_handle);
     Node* child = get(child_handle);
     if (!parent || !child) return;
-    if (child->parent != parent) return;
+    if (child->parent != parent_handle) return;
 
     remove_from_parent(child_handle);
 }
@@ -180,14 +168,18 @@ void NodeManager::update_world_transforms(NodeHandle root) {
     if (!node) return;
 
     // Get parent's world transform (or nullptr for root)
-    Transform* parent_world = node->parent ? &node->parent->world : nullptr;
+    Transform* parent_world = nullptr;
+    if (node->parent != INVALID_NODE_HANDLE) {
+        Node* parent = get(node->parent);
+        if (parent) parent_world = &parent->world;
+    }
 
     compute_world_transform(node, parent_world);
 
-    // Recurse to children
-    for (int i = 0; i < node->child_count; ++i) {
-        NodeHandle child_handle = get_handle(node->children[i]);
-        if (child_handle != INVALID_NODE_HANDLE) {
+    // Recurse to children using handle-based lookup
+    auto it = children_.find(root);
+    if (it != children_.end()) {
+        for (NodeHandle child_handle : it->second) {
             update_world_transforms(child_handle);
         }
     }
@@ -198,12 +190,10 @@ bool NodeManager::is_active_in_hierarchy(NodeHandle handle) const {
     while (it != nodes_.end()) {
         const Node& node = it->second;
         if (!node.active) return false;
-        if (!node.parent) return true;
+        if (node.parent == INVALID_NODE_HANDLE) return true;
 
-        // Find parent's handle and continue walking up
-        NodeHandle parent_handle = get_handle(node.parent);
-        if (parent_handle == INVALID_NODE_HANDLE) return true;
-        it = nodes_.find(parent_handle);
+        // Direct handle access, continue walking up
+        it = nodes_.find(node.parent);
     }
     return true;
 }
@@ -214,23 +204,32 @@ void NodeManager::traverse_depth_first(NodeHandle root, TraversalCallback callba
 
     callback(node, user_data);
 
-    for (int i = 0; i < node->child_count; ++i) {
-        NodeHandle child_handle = get_handle(node->children[i]);
-        if (child_handle != INVALID_NODE_HANDLE) {
+    // Recurse to children using handle-based lookup
+    auto it = children_.find(root);
+    if (it != children_.end()) {
+        for (NodeHandle child_handle : it->second) {
             traverse_depth_first(child_handle, callback, user_data);
         }
     }
 }
 
 void NodeManager::clear() {
-    // Free all children arrays
-    for (auto& [handle, node] : nodes_) {
-        if (node.children) {
-            free(node.children);
-        }
-    }
     nodes_.clear();
+    children_.clear();
     next_id_ = 0;
+}
+
+std::vector<NodeHandle> NodeManager::get_children(NodeHandle handle) const {
+    auto it = children_.find(handle);
+    if (it != children_.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+size_t NodeManager::child_count(NodeHandle handle) const {
+    auto it = children_.find(handle);
+    return (it != children_.end()) ? it->second.size() : 0;
 }
 
 } // namespace gmr

@@ -5,6 +5,24 @@ All notable changes to GMR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4]
+
+### Changed
+
+#### Engine Hardening: Memory Management
+- **Node System Refactored**: Replaced C-style memory management with RAII containers
+  - `Node` struct now uses `NodeHandle parent` instead of raw `Node* parent` pointer
+  - Children stored in `NodeManager::children_` map using `std::vector<NodeHandle>` instead of `malloc`'d `Node**` array
+  - Eliminated all `malloc`, `realloc`, `free` calls in node hierarchy management
+  - Added `get_children(handle)` and `child_count(handle)` methods for safe child access
+  - Parent/child traversal now uses direct handle access (O(1)) instead of O(n) `get_handle()` lookups
+- **TilemapManager**: Converted `std::vector<TilemapData*>` to `std::vector<std::unique_ptr<TilemapData>>`
+  - Automatic cleanup on destruction, no manual `delete` required
+- **Ownership Model Documented**: Clear ownership semantics in code structure
+  - `NodeManager::nodes_` owns all Node instances
+  - `NodeManager::children_` owns parent->children relationships
+  - `Node::parent` stores handle reference (not pointer)
+
 ## [0.3.3]
 
 ### Added
