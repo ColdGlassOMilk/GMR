@@ -8,7 +8,8 @@ class Level
       frames: 6,
       fps: 8,
       width: 118,
-      height: 128
+      height: 128,
+      columns: 6
     }
   }
 
@@ -22,17 +23,7 @@ class Level
   end
 
   def update(dt)
-    @decorations.each do |d|
-      d[:frame_time] += dt
-      if d[:frame_time] >= d[:frame_duration]
-        d[:frame_time] -= d[:frame_duration]
-        d[:frame] = (d[:frame] + 1) % d[:frame_count]
-        d[:sprite].source_rect = Graphics::Rect.new(
-          d[:frame] * d[:frame_width], 0,
-          d[:frame_width], d[:frame_height]
-        )
-      end
-    end
+    # Decoration animations are handled automatically by AnimationManager
   end
 
   def draw
@@ -96,16 +87,14 @@ class Level
       sprite = Graphics::Sprite.new(tex, t)
       sprite.source_rect = Graphics::Rect.new(0, 0, config[:width], config[:height])
 
-      # Manual animation state (no Animator)
-      @decorations << {
-        sprite: sprite,
-        frame: 0,
-        frame_time: 0.0,
-        frame_count: config[:frames],
-        frame_duration: 1.0 / config[:fps],
+      animator = Animation::Animator.new(sprite,
+        columns: config[:columns],
         frame_width: config[:width],
-        frame_height: config[:height]
-      }
+        frame_height: config[:height])
+      animator.add(:default, frames: 0...config[:frames], fps: config[:fps])
+      animator.play(:default)
+
+      @decorations << { sprite: sprite, animator: animator }
     end
   end
 

@@ -85,12 +85,12 @@ class GameScene < GMR::Scene
     # But we still note the resize happened (for when user toggles back to native)
     return if @retro_mode
 
-    # Update logical dimensions for UI positioning
-    @logical_width = Window.width
-    @logical_height = Window.height
-    # Update pixel dimensions for shaders and camera viewport
-    @screen_width = Window.actual_width
-    @screen_height = Window.actual_height
+    # Use passed dimensions (from C++ state which is already updated)
+    # Don't query Window.actual_width/height as raylib may not be updated yet
+    @logical_width = width
+    @logical_height = height
+    @screen_width = width
+    @screen_height = height
 
     # Camera viewport needs pixel dimensions
     @camera.viewport_size = Mathf::Vec2.new(@screen_width, @screen_height)
