@@ -359,7 +359,8 @@ elseif(APPLE)
     set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
     set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
 
-    target_include_directories(${PROJECT_NAME} PRIVATE
+    # Include directories for library (PUBLIC so dependent targets inherit)
+    target_include_directories(gmr_core PUBLIC
         ${RAYLIB_ROOT}/include
         ${MRUBY_ROOT}/include
     )
@@ -369,7 +370,8 @@ elseif(APPLE)
     find_library(IOKIT_LIBRARY IOKit REQUIRED)
     find_library(COREVIDEO_LIBRARY CoreVideo REQUIRED)
 
-    target_link_libraries(${PROJECT_NAME} PRIVATE
+    # Link libraries to gmr_core (PUBLIC so dependent targets inherit)
+    target_link_libraries(gmr_core PUBLIC
         ${RAYLIB_ROOT}/lib/libraylib.a
         ${MRUBY_ROOT}/lib/libmruby.a
         ${COCOA_LIBRARY}

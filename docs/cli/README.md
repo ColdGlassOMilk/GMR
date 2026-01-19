@@ -13,6 +13,7 @@ Command-line interface for GMR game development.
 | [docs](docs.md) | Generate all documentation |
 | [bump](bump.md) | Bump engine version (major|minor|patch) |
 | [dev](dev.md) | Build and run in one command |
+| [test](test.md) | Run unit tests |
 | [version](version.md) | Show version information |
 | [info](info.md) | Show environment information |
 
