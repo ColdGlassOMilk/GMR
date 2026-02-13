@@ -98,6 +98,80 @@ else
     echo -e "  ${GREEN}+ Ruby $(ruby --version | cut -d' ' -f2)${NC}"
 fi
 
+# Check if GCC/G++ is installed
+if command -v gcc &> /dev/null && command -v g++ &> /dev/null; then
+    echo -e "${GREEN}> GCC/G++ already installed${NC} ${DIM}($(gcc --version | head -1 | cut -d' ' -f4))${NC}"
+else
+    echo -e "\n${GREEN}> Installing GCC/G++ compiler toolchain...${NC}"
+
+    case $PLATFORM in
+        mingw64)
+            pacman -S --noconfirm --needed mingw-w64-x86_64-gcc > /dev/null 2>&1 || {
+                echo "  Updating pacman..."
+                pacman -Sy --noconfirm > /dev/null 2>&1
+                pacman -S --noconfirm --needed mingw-w64-x86_64-gcc
+            }
+            ;;
+        linux)
+            if command -v apt &> /dev/null; then
+                sudo apt update && sudo apt install -y build-essential
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y gcc gcc-c++ make
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm base-devel
+            elif command -v zypper &> /dev/null; then
+                sudo zypper install -y gcc gcc-c++ make
+            elif command -v apk &> /dev/null; then
+                sudo apk add build-base gcc g++ make
+            else
+                echo -e "${RED}Please install GCC/G++ manually${NC}"
+                exit 1
+            fi
+            ;;
+        macos)
+            # macOS typically has compilers from Xcode Command Line Tools
+            if ! command -v gcc &> /dev/null; then
+                echo -e "${BLUE}> Installing Xcode Command Line Tools...${NC}"
+                xcode-select --install
+                echo -e "${DIM}Please complete the Xcode installation and re-run this script${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+
+    echo -e "  ${GREEN}+ GCC $(gcc --version | head -1 | cut -d' ' -f4)${NC}"
+    if command -v g++ &> /dev/null; then
+        echo -e "  ${GREEN}+ G++ $(g++ --version | head -1 | cut -d' ' -f4)${NC}"
+    fi
+fi
+
+# Check if X11 development libraries are installed (needed for raylib/GLFW on Linux)
+if [[ "$PLATFORM" == "linux" ]]; then
+    # Check for X11 library (different paths on different distros)
+    if pkg-config --exists x11 2>/dev/null; then
+        echo -e "${GREEN}> X11 development libraries already installed${NC}"
+    else
+        echo -e "\n${GREEN}> Installing X11 development libraries...${NC}"
+
+        if command -v apt &> /dev/null; then
+            sudo apt install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -S --noconfirm libx11 libxrandr libxinerama libxcursor libxi mesa
+        elif command -v zypper &> /dev/null; then
+            sudo zypper install -y libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel Mesa-libGL-devel
+        elif command -v apk &> /dev/null; then
+            sudo apk add libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev mesa-dev
+        else
+            echo -e "${RED}Please install X11 development libraries manually${NC}"
+            exit 1
+        fi
+
+        echo -e "  ${GREEN}+ X11 development libraries installed${NC}"
+    fi
+fi
+
 # Check if CMake is installed
 if command -v cmake &> /dev/null; then
     echo -e "${GREEN}> CMake already installed${NC} ${DIM}($(cmake --version | head -1 | cut -d' ' -f3))${NC}"
@@ -212,6 +286,52 @@ if gem list bundler -i > /dev/null 2>&1; then
 else
     echo -e "\n${GREEN}> Installing bundler...${NC}"
     gem install bundler --no-document
+fi
+
+# Check if rake is installed (needed for mruby builds)
+if gem list rake -i > /dev/null 2>&1; then
+    echo -e "${GREEN}> Rake already installed${NC}"
+else
+    echo -e "\n${GREEN}> Installing rake...${NC}"
+    gem install rake --no-document
+fi
+
+# Check if bison is installed (needed for mruby parser generation)
+if [[ "$PLATFORM" == "linux" ]] || [[ "$PLATFORM" == "macos" ]]; then
+    if command -v bison &> /dev/null; then
+        echo -e "${GREEN}> Bison already installed${NC} ${DIM}($(bison --version | head -1 | cut -d' ' -f4))${NC}"
+    else
+        echo -e "\n${GREEN}> Installing bison...${NC}"
+
+        case $PLATFORM in
+            linux)
+                if command -v apt &> /dev/null; then
+                    sudo apt install -y bison
+                elif command -v dnf &> /dev/null; then
+                    sudo dnf install -y bison
+                elif command -v pacman &> /dev/null; then
+                    sudo pacman -S --noconfirm bison
+                elif command -v zypper &> /dev/null; then
+                    sudo zypper install -y bison
+                elif command -v apk &> /dev/null; then
+                    sudo apk add bison
+                else
+                    echo -e "${RED}Please install bison manually${NC}"
+                    exit 1
+                fi
+                ;;
+            macos)
+                if command -v brew &> /dev/null; then
+                    brew install bison
+                else
+                    echo -e "${RED}Please install Homebrew first${NC}"
+                    exit 1
+                fi
+                ;;
+        esac
+
+        echo -e "  ${GREEN}+ Bison $(bison --version | head -1 | cut -d' ' -f4)${NC}"
+    fi
 fi
 
 # Check if dependencies need updating (compare Gemfile.lock timestamp)
