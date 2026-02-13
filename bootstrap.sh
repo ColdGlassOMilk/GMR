@@ -114,15 +114,20 @@ else
             ;;
         linux)
             if command -v apt &> /dev/null; then
-                sudo apt update && sudo apt install -y build-essential
+                sudo apt update && sudo apt install -y build-essential \
+                    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
             elif command -v dnf &> /dev/null; then
-                sudo dnf install -y gcc gcc-c++ make
+                sudo dnf install -y gcc gcc-c++ make \
+                    libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel
             elif command -v pacman &> /dev/null; then
-                sudo pacman -S --noconfirm base-devel
+                sudo pacman -S --noconfirm base-devel \
+                    libx11 libxrandr libxinerama libxcursor libxi mesa
             elif command -v zypper &> /dev/null; then
-                sudo zypper install -y gcc gcc-c++ make
+                sudo zypper install -y gcc gcc-c++ make \
+                    libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel Mesa-libGL-devel
             elif command -v apk &> /dev/null; then
-                sudo apk add build-base gcc g++ make
+                sudo apk add build-base gcc g++ make \
+                    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev mesa-dev
             else
                 echo -e "${RED}Please install GCC/G++ manually${NC}"
                 exit 1
