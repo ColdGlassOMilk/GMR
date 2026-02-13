@@ -254,6 +254,30 @@ module Gmrcli
         "gmr#{exe_extension}"
       end
 
+      # Detect library directory (lib or lib64) for a dependency
+      # @param dep_root [String] Root directory of dependency (e.g., deps/raylib/native)
+      # @return [String] "lib" or "lib64" depending on what exists
+      def detect_libdir(dep_root)
+        lib64 = File.join(dep_root, "lib64")
+        lib = File.join(dep_root, "lib")
+
+        # Check lib64 first (more specific)
+        if Dir.exist?(lib64) && !Dir.empty?(lib64)
+          "lib64"
+        elsif Dir.exist?(lib) && !Dir.empty?(lib)
+          "lib"
+        else
+          "lib"  # Default fallback
+        end
+      end
+
+      # Get full library directory path for a dependency
+      # @param dep_root [String] Root directory of dependency
+      # @return [String] Full path to lib or lib64 directory
+      def lib_path(dep_root)
+        File.join(dep_root, detect_libdir(dep_root))
+      end
+
       # Shell to use for commands
       def shell
         if mingw64? || mingw32?

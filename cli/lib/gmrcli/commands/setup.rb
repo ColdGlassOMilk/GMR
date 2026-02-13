@@ -478,7 +478,7 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "mruby", "source")
         install_dir = File.join(Platform.deps_dir, "mruby", "native")
 
-        lib_exists = File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        lib_exists = File.exist?(File.join(Platform.lib_path(install_dir), "libmruby.a"))
         headers_exist = File.exist?(File.join(install_dir, "include", "mruby.h"))
 
         if lib_exists && headers_exist
@@ -641,7 +641,7 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "raylib", "source")
         install_dir = File.join(Platform.deps_dir, "raylib", "native")
 
-        if File.exist?(File.join(install_dir, "lib", "libraylib.a"))
+        if File.exist?(File.join(Platform.lib_path(install_dir), "libraylib.a"))
           UI.step "raylib native already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
           JsonEmitter.stage_progress(:raylib_native, 100, "Already built", substage: "cached")
@@ -675,7 +675,8 @@ module Gmrcli
           "-DBUILD_EXAMPLES=OFF",
           "-DCUSTOMIZE_BUILD=ON",
           "-DSUPPORT_MODULE_RMODELS=OFF",  # GMR is 2D-only, disable 3D models
-          "-DCMAKE_INSTALL_PREFIX=\"#{install_dir}\""
+          "-DCMAKE_INSTALL_PREFIX=\"#{install_dir}\"",
+          "-DCMAKE_INSTALL_LIBDIR=lib"
         ]
 
         # Use ninja from PATH (works with both MSYS2 and custom toolchains)
@@ -773,7 +774,7 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "raylib", "source")
         install_dir = File.join(Platform.deps_dir, "raylib", "web")
 
-        if File.exist?(File.join(install_dir, "lib", "libraylib.a"))
+        if File.exist?(File.join(Platform.lib_path(install_dir), "libraylib.a"))
           UI.step "raylib web already built (skipping)"
           UI.info "To rebuild: delete #{install_dir}"
           JsonEmitter.stage_progress(:raylib_web, 100, "Already built", substage: "cached")
@@ -803,6 +804,7 @@ module Gmrcli
 
         cmake_args = "-DCMAKE_BUILD_TYPE=Release -DPLATFORM=Web " \
                      "-DBUILD_EXAMPLES=OFF -DCMAKE_INSTALL_PREFIX=\"#{install_dir}\" " \
+                     "-DCMAKE_INSTALL_LIBDIR=lib " \
                      "-G Ninja"
         # Use ninja from PATH (works with both MSYS2 and custom toolchains)
         if Platform.mingw64? && Platform.command_exists?("ninja")
@@ -839,7 +841,7 @@ module Gmrcli
         src_dir = File.join(Platform.deps_dir, "mruby", "source")
         install_dir = File.join(Platform.deps_dir, "mruby", "web")
 
-        lib_exists = File.exist?(File.join(install_dir, "lib", "libmruby.a"))
+        lib_exists = File.exist?(File.join(Platform.lib_path(install_dir), "libmruby.a"))
         headers_exist = File.exist?(File.join(install_dir, "include", "mruby.h"))
 
         if lib_exists && headers_exist
@@ -1079,13 +1081,16 @@ module Gmrcli
           checks << verify_tool("g++")
           checks << verify_tool("cmake")
           checks << verify_tool("ninja")
-          checks << verify_file("raylib-native", File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a"))
+          raylib_native = File.join(Platform.deps_dir, "raylib", "native")
+          checks << verify_file("raylib-native", File.join(Platform.lib_path(raylib_native), "libraylib.a"))
           checks << verify_file("mruby", mruby_native_path)
         end
 
         unless skip_web?
-          checks << verify_file("raylib-web", File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a"))
-          checks << verify_file("mruby-web", File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a"))
+          raylib_web = File.join(Platform.deps_dir, "raylib", "web")
+          checks << verify_file("raylib-web", File.join(Platform.lib_path(raylib_web), "libraylib.a"))
+          mruby_web = File.join(Platform.deps_dir, "mruby", "web")
+          checks << verify_file("mruby-web", File.join(Platform.lib_path(mruby_web), "libmruby.a"))
         end
 
         failed = checks.count { |c| !c }
@@ -1117,7 +1122,8 @@ module Gmrcli
 
       def mruby_native_path
         # Use locally built mruby from deps directory
-        File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")
+        mruby_root = File.join(Platform.deps_dir, "mruby", "native")
+        File.join(Platform.lib_path(mruby_root), "libmruby.a")
       end
 
       # === Completion ===

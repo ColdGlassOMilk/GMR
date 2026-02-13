@@ -90,16 +90,24 @@ module Gmrcli
         end
 
         # Check for raylib (tests link against gmr_core which needs raylib)
-        raylib_lib = File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a")
+        raylib_root = File.join(Platform.deps_dir, "raylib", "native")
+        raylib_lib = File.join(Platform.lib_path(raylib_root), "libraylib.a")
         unless File.exist?(raylib_lib)
           errors << "raylib not built"
         end
 
         # Check for mruby
-        mruby_lib = File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")
+        mruby_root = File.join(Platform.deps_dir, "mruby", "native")
+        mruby_lib = File.join(Platform.lib_path(mruby_root), "libmruby.a")
         unless File.exist?(mruby_lib)
-          system_mruby = Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"
-          unless File.exist?(system_mruby)
+          # Check system paths with lib64 support
+          system_paths = if Platform.mingw64?
+            ["/mingw64/lib/libmruby.a"]
+          else
+            ["/usr/local/lib/libmruby.a", "/usr/local/lib64/libmruby.a"]
+          end
+
+          unless system_paths.any? { |p| File.exist?(p) }
             errors << "mruby not installed"
           end
         end

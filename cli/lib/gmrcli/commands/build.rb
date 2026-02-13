@@ -420,17 +420,24 @@ module Gmrcli
           errors << "ninja not found"
         end
 
-        raylib_lib = File.join(Platform.deps_dir, "raylib", "native", "lib", "libraylib.a")
+        raylib_root = File.join(Platform.deps_dir, "raylib", "native")
+        raylib_lib = File.join(Platform.lib_path(raylib_root), "libraylib.a")
         unless File.exist?(raylib_lib)
           errors << "raylib not built"
         end
 
         # Check for mruby in deps directory first (portable/IDE setup), then system paths
-        mruby_lib = File.join(Platform.deps_dir, "mruby", "native", "lib", "libmruby.a")
+        mruby_root = File.join(Platform.deps_dir, "mruby", "native")
+        mruby_lib = File.join(Platform.lib_path(mruby_root), "libmruby.a")
         unless File.exist?(mruby_lib)
-          # Fallback to system paths for MSYS2/system installs
-          system_mruby = Platform.mingw64? ? "/mingw64/lib/libmruby.a" : "/usr/local/lib/libmruby.a"
-          unless File.exist?(system_mruby)
+          # Fallback to system paths (support both lib and lib64)
+          system_paths = if Platform.mingw64?
+            ["/mingw64/lib/libmruby.a"]
+          else
+            ["/usr/local/lib/libmruby.a", "/usr/local/lib64/libmruby.a"]
+          end
+
+          unless system_paths.any? { |p| File.exist?(p) }
             errors << "mruby not installed"
           end
         end
@@ -558,12 +565,14 @@ module Gmrcli
           errors << "emcc not found"
         end
 
-        raylib_lib = File.join(Platform.deps_dir, "raylib", "web", "lib", "libraylib.a")
+        raylib_root = File.join(Platform.deps_dir, "raylib", "web")
+        raylib_lib = File.join(Platform.lib_path(raylib_root), "libraylib.a")
         unless File.exist?(raylib_lib)
           errors << "raylib-web not built"
         end
 
-        mruby_lib = File.join(Platform.deps_dir, "mruby", "web", "lib", "libmruby.a")
+        mruby_root = File.join(Platform.deps_dir, "mruby", "web")
+        mruby_lib = File.join(Platform.lib_path(mruby_root), "libmruby.a")
         unless File.exist?(mruby_lib)
           errors << "mruby-web not built"
         end
