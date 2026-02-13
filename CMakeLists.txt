@@ -14,6 +14,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Include script compilation utilities
 include(cmake/CompileScripts.cmake)
 
+# Helper function to detect lib or lib64 directory
+function(detect_lib_dir dep_root output_var)
+    # Look for .a files in lib64 first (more specific)
+    file(GLOB lib64_files "${dep_root}/lib64/*.a")
+    if(lib64_files)
+        set(${output_var} "${dep_root}/lib64" PARENT_SCOPE)
+        message(STATUS "Detected lib64 for ${dep_root}")
+    else()
+        # Default to lib
+        set(${output_var} "${dep_root}/lib" PARENT_SCOPE)
+        message(STATUS "Using lib for ${dep_root}")
+    endif()
+endfunction()
+
 # API documentation generation option (disabled by default - use 'gmrcli setup' instead)
 option(GMR_GENERATE_API_DOCS "Generate API documentation during build (normally handled by gmrcli setup)" OFF)
 
@@ -193,13 +207,17 @@ if(PLATFORM_WEB)
     if(EXISTS "${MRUBY_WEB_PATH}/include")
         target_include_directories(gmr_core PUBLIC ${MRUBY_WEB_PATH}/include)
     endif()
-    
+
+    # Detect library directories (lib or lib64)
+    detect_lib_dir("${RAYLIB_WEB_PATH}" RAYLIB_WEB_LIB_DIR)
+    detect_lib_dir("${MRUBY_WEB_PATH}" MRUBY_WEB_LIB_DIR)
+
     # Library paths
-    if(EXISTS "${RAYLIB_WEB_PATH}/lib")
-        target_link_directories(${PROJECT_NAME} PRIVATE ${RAYLIB_WEB_PATH}/lib)
+    if(EXISTS "${RAYLIB_WEB_LIB_DIR}")
+        target_link_directories(${PROJECT_NAME} PRIVATE ${RAYLIB_WEB_LIB_DIR})
     endif()
-    if(EXISTS "${MRUBY_WEB_PATH}/lib")
-        target_link_directories(${PROJECT_NAME} PRIVATE ${MRUBY_WEB_PATH}/lib)
+    if(EXISTS "${MRUBY_WEB_LIB_DIR}")
+        target_link_directories(${PROJECT_NAME} PRIVATE ${MRUBY_WEB_LIB_DIR})
     endif()
     
     # Calculate shell file path - check project dir first, fall back to engine
@@ -296,6 +314,10 @@ elseif(WIN32)
     set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
     set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
 
+    # Detect library directories
+    detect_lib_dir("${RAYLIB_ROOT}" RAYLIB_LIB_DIR)
+    detect_lib_dir("${MRUBY_ROOT}" MRUBY_LIB_DIR)
+
     # Include directories for library (PUBLIC so tests can also access)
     target_include_directories(gmr_core PUBLIC
         ${RAYLIB_ROOT}/include
@@ -304,8 +326,8 @@ elseif(WIN32)
 
     # Link libraries to gmr_core (PUBLIC so dependent targets inherit)
     target_link_libraries(gmr_core PUBLIC
-        ${RAYLIB_ROOT}/lib/libraylib.a
-        ${MRUBY_ROOT}/lib/libmruby.a
+        ${RAYLIB_LIB_DIR}/libraylib.a
+        ${MRUBY_LIB_DIR}/libmruby.a
 
         winmm
         gdi32
@@ -358,6 +380,10 @@ elseif(APPLE)
     set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
     set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
 
+    # Detect library directories
+    detect_lib_dir("${RAYLIB_ROOT}" RAYLIB_LIB_DIR)
+    detect_lib_dir("${MRUBY_ROOT}" MRUBY_LIB_DIR)
+
     # Include directories for library (PUBLIC so dependent targets inherit)
     target_include_directories(gmr_core PUBLIC
         ${RAYLIB_ROOT}/include
@@ -371,8 +397,8 @@ elseif(APPLE)
 
     # Link libraries to gmr_core (PUBLIC so dependent targets inherit)
     target_link_libraries(gmr_core PUBLIC
-        ${RAYLIB_ROOT}/lib/libraylib.a
-        ${MRUBY_ROOT}/lib/libmruby.a
+        ${RAYLIB_LIB_DIR}/libraylib.a
+        ${MRUBY_LIB_DIR}/libmruby.a
         ${COCOA_LIBRARY}
         ${OPENGL_LIBRARY}
         ${IOKIT_LIBRARY}

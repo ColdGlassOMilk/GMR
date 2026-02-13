@@ -89,13 +89,93 @@ else
             if command -v brew &> /dev/null; then
                 brew install ruby
             else
-                echo -e "${RED}Please install Homebrew or Ruby manually${NC}"
+                echo -e "${RED}Please install Homebrew${NC}"
                 exit 1
             fi
             ;;
     esac
 
     echo -e "  ${GREEN}+ Ruby $(ruby --version | cut -d' ' -f2)${NC}"
+fi
+
+# Check if CMake is installed
+if command -v cmake &> /dev/null; then
+    echo -e "${GREEN}> CMake already installed${NC} ${DIM}($(cmake --version | head -1 | cut -d' ' -f3))${NC}"
+else
+    echo -e "\n${GREEN}> Installing CMake...${NC}"
+
+    case $PLATFORM in
+        mingw64)
+            pacman -S --noconfirm --needed mingw-w64-x86_64-cmake > /dev/null 2>&1 || {
+                echo "  Updating pacman..."
+                pacman -Sy --noconfirm > /dev/null 2>&1
+                pacman -S --noconfirm --needed mingw-w64-x86_64-cmake
+            }
+            ;;
+        linux)
+            if command -v apt &> /dev/null; then
+                sudo apt update && sudo apt install -y cmake
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y cmake
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm cmake
+            else
+                echo -e "${RED}Please install CMake manually${NC}"
+                exit 1
+            fi
+            ;;
+        macos)
+            if command -v brew &> /dev/null; then
+                brew install cmake
+            else
+                echo -e "${RED}Please install Homebrew first${NC}"
+                echo -e "${DIM}Visit: https://brew.sh${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+
+    echo -e "  ${GREEN}+ CMake $(cmake --version | head -1 | cut -d' ' -f3)${NC}"
+fi
+
+# Check if Ninja is installed
+if command -v ninja &> /dev/null; then
+    echo -e "${GREEN}> Ninja already installed${NC} ${DIM}($(ninja --version))${NC}"
+else
+    echo -e "\n${GREEN}> Installing Ninja...${NC}"
+
+    case $PLATFORM in
+        mingw64)
+            pacman -S --noconfirm --needed mingw-w64-x86_64-ninja > /dev/null 2>&1 || {
+                echo "  Updating pacman..."
+                pacman -Sy --noconfirm > /dev/null 2>&1
+                pacman -S --noconfirm --needed mingw-w64-x86_64-ninja
+            }
+            ;;
+        linux)
+            if command -v apt &> /dev/null; then
+                sudo apt update && sudo apt install -y ninja-build
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y ninja-build
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm ninja
+            else
+                echo -e "${RED}Please install Ninja manually${NC}"
+                exit 1
+            fi
+            ;;
+        macos)
+            if command -v brew &> /dev/null; then
+                brew install ninja
+            else
+                echo -e "${RED}Please install Homebrew first${NC}"
+                echo -e "${DIM}Visit: https://brew.sh${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+
+    echo -e "  ${GREEN}+ Ninja $(ninja --version)${NC}"
 fi
 
 # Get the gem bin directory and add to PATH early (suppresses warning)
