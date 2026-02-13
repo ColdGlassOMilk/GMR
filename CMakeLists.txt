@@ -409,9 +409,23 @@ else()
     # ===========================================
     # Linux
     # ===========================================
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        raylib
-        mruby
+    set(RAYLIB_ROOT "${CMAKE_SOURCE_DIR}/deps/raylib/native")
+    set(MRUBY_ROOT "${CMAKE_SOURCE_DIR}/deps/mruby/native")
+
+    # Detect library directories (lib or lib64)
+    detect_lib_dir("${RAYLIB_ROOT}" RAYLIB_LIB_DIR)
+    detect_lib_dir("${MRUBY_ROOT}" MRUBY_LIB_DIR)
+
+    # Include directories for library (PUBLIC so dependent targets inherit)
+    target_include_directories(gmr_core PUBLIC
+        ${RAYLIB_ROOT}/include
+        ${MRUBY_ROOT}/include
+    )
+
+    # Link libraries to gmr_core (PUBLIC so dependent targets inherit)
+    target_link_libraries(gmr_core PUBLIC
+        ${RAYLIB_LIB_DIR}/libraylib.a
+        ${MRUBY_LIB_DIR}/libmruby.a
         m
         pthread
         dl
