@@ -98,6 +98,53 @@ else
     echo -e "  ${GREEN}+ Ruby $(ruby --version | cut -d' ' -f2)${NC}"
 fi
 
+# Check if GCC/G++ is installed
+if command -v gcc &> /dev/null && command -v g++ &> /dev/null; then
+    echo -e "${GREEN}> GCC/G++ already installed${NC} ${DIM}($(gcc --version | head -1 | cut -d' ' -f4))${NC}"
+else
+    echo -e "\n${GREEN}> Installing GCC/G++ compiler toolchain...${NC}"
+
+    case $PLATFORM in
+        mingw64)
+            pacman -S --noconfirm --needed mingw-w64-x86_64-gcc > /dev/null 2>&1 || {
+                echo "  Updating pacman..."
+                pacman -Sy --noconfirm > /dev/null 2>&1
+                pacman -S --noconfirm --needed mingw-w64-x86_64-gcc
+            }
+            ;;
+        linux)
+            if command -v apt &> /dev/null; then
+                sudo apt update && sudo apt install -y build-essential
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y gcc gcc-c++ make
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -S --noconfirm base-devel
+            elif command -v zypper &> /dev/null; then
+                sudo zypper install -y gcc gcc-c++ make
+            elif command -v apk &> /dev/null; then
+                sudo apk add build-base gcc g++ make
+            else
+                echo -e "${RED}Please install GCC/G++ manually${NC}"
+                exit 1
+            fi
+            ;;
+        macos)
+            # macOS typically has compilers from Xcode Command Line Tools
+            if ! command -v gcc &> /dev/null; then
+                echo -e "${BLUE}> Installing Xcode Command Line Tools...${NC}"
+                xcode-select --install
+                echo -e "${DIM}Please complete the Xcode installation and re-run this script${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+
+    echo -e "  ${GREEN}+ GCC $(gcc --version | head -1 | cut -d' ' -f4)${NC}"
+    if command -v g++ &> /dev/null; then
+        echo -e "  ${GREEN}+ G++ $(g++ --version | head -1 | cut -d' ' -f4)${NC}"
+    fi
+fi
+
 # Check if CMake is installed
 if command -v cmake &> /dev/null; then
     echo -e "${GREEN}> CMake already installed${NC} ${DIM}($(cmake --version | head -1 | cut -d' ' -f3))${NC}"
