@@ -114,20 +114,15 @@ else
             ;;
         linux)
             if command -v apt &> /dev/null; then
-                sudo apt update && sudo apt install -y build-essential \
-                    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
+                sudo apt update && sudo apt install -y build-essential
             elif command -v dnf &> /dev/null; then
-                sudo dnf install -y gcc gcc-c++ make \
-                    libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel
+                sudo dnf install -y gcc gcc-c++ make
             elif command -v pacman &> /dev/null; then
-                sudo pacman -S --noconfirm base-devel \
-                    libx11 libxrandr libxinerama libxcursor libxi mesa
+                sudo pacman -S --noconfirm base-devel
             elif command -v zypper &> /dev/null; then
-                sudo zypper install -y gcc gcc-c++ make \
-                    libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel Mesa-libGL-devel
+                sudo zypper install -y gcc gcc-c++ make
             elif command -v apk &> /dev/null; then
-                sudo apk add build-base gcc g++ make \
-                    libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev mesa-dev
+                sudo apk add build-base gcc g++ make
             else
                 echo -e "${RED}Please install GCC/G++ manually${NC}"
                 exit 1
@@ -147,6 +142,33 @@ else
     echo -e "  ${GREEN}+ GCC $(gcc --version | head -1 | cut -d' ' -f4)${NC}"
     if command -v g++ &> /dev/null; then
         echo -e "  ${GREEN}+ G++ $(g++ --version | head -1 | cut -d' ' -f4)${NC}"
+    fi
+fi
+
+# Check if X11 development libraries are installed (needed for raylib/GLFW on Linux)
+if [[ "$PLATFORM" == "linux" ]]; then
+    # Check for X11 library (different paths on different distros)
+    if pkg-config --exists x11 2>/dev/null; then
+        echo -e "${GREEN}> X11 development libraries already installed${NC}"
+    else
+        echo -e "\n${GREEN}> Installing X11 development libraries...${NC}"
+
+        if command -v apt &> /dev/null; then
+            sudo apt install -y libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libgl1-mesa-dev
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel mesa-libGL-devel
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -S --noconfirm libx11 libxrandr libxinerama libxcursor libxi mesa
+        elif command -v zypper &> /dev/null; then
+            sudo zypper install -y libX11-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel Mesa-libGL-devel
+        elif command -v apk &> /dev/null; then
+            sudo apk add libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev mesa-dev
+        else
+            echo -e "${RED}Please install X11 development libraries manually${NC}"
+            exit 1
+        fi
+
+        echo -e "  ${GREEN}+ X11 development libraries installed${NC}"
     fi
 fi
 
