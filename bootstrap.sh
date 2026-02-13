@@ -288,6 +288,52 @@ else
     gem install bundler --no-document
 fi
 
+# Check if rake is installed (needed for mruby builds)
+if gem list rake -i > /dev/null 2>&1; then
+    echo -e "${GREEN}> Rake already installed${NC}"
+else
+    echo -e "\n${GREEN}> Installing rake...${NC}"
+    gem install rake --no-document
+fi
+
+# Check if bison is installed (needed for mruby parser generation)
+if [[ "$PLATFORM" == "linux" ]] || [[ "$PLATFORM" == "macos" ]]; then
+    if command -v bison &> /dev/null; then
+        echo -e "${GREEN}> Bison already installed${NC} ${DIM}($(bison --version | head -1 | cut -d' ' -f4))${NC}"
+    else
+        echo -e "\n${GREEN}> Installing bison...${NC}"
+
+        case $PLATFORM in
+            linux)
+                if command -v apt &> /dev/null; then
+                    sudo apt install -y bison
+                elif command -v dnf &> /dev/null; then
+                    sudo dnf install -y bison
+                elif command -v pacman &> /dev/null; then
+                    sudo pacman -S --noconfirm bison
+                elif command -v zypper &> /dev/null; then
+                    sudo zypper install -y bison
+                elif command -v apk &> /dev/null; then
+                    sudo apk add bison
+                else
+                    echo -e "${RED}Please install bison manually${NC}"
+                    exit 1
+                fi
+                ;;
+            macos)
+                if command -v brew &> /dev/null; then
+                    brew install bison
+                else
+                    echo -e "${RED}Please install Homebrew first${NC}"
+                    exit 1
+                fi
+                ;;
+        esac
+
+        echo -e "  ${GREEN}+ Bison $(bison --version | head -1 | cut -d' ' -f4)${NC}"
+    fi
+fi
+
 # Check if dependencies need updating (compare Gemfile.lock timestamp)
 NEEDS_BUNDLE=false
 if [[ ! -f "Gemfile.lock" ]]; then
