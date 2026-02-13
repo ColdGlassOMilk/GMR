@@ -935,10 +935,15 @@ module Gmrcli
         # so clang can find system headers like stdio.h
         host_config = if Platform.macos?
                         sdk_path = `xcrun --show-sdk-path 2>/dev/null`.strip
+                        clang_path = `xcrun --find clang 2>/dev/null`.strip
+                        clangxx_path = `xcrun --find clang++ 2>/dev/null`.strip
                         sdk_flag = sdk_path.empty? ? "" : "-isysroot #{sdk_path}"
                         <<~HOST
                           MRuby::Build.new('host') do |conf|
                             toolchain :clang
+                            # Use system clang, not Emscripten's clang (which has target 'unknown')
+                            conf.cc.command = "#{clang_path}"
+                            conf.cxx.command = "#{clangxx_path}"
                             conf.cc.flags << "#{sdk_flag}"
                             conf.cxx.flags << "#{sdk_flag}"
                             # Linker also needs SDK path to find libSystem
