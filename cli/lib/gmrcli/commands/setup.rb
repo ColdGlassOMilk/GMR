@@ -714,25 +714,38 @@ module Gmrcli
         emsdk_dir = File.join(Platform.deps_dir, "emsdk")
         emscripten_path = File.join(emsdk_dir, "upstream", "emscripten")
 
-        # Clone emsdk if needed
+        # On Windows, emsdk's Python may detect ARM64 hardware via
+        # GetNativeSystemInfo(), even when running x86_64 MINGW64 under emulation.
+        # This causes emsdk to filter out x86_64 SDK packages. Force x86_64 since
+        # MINGW64 always runs x86_64 binaries.
+        emsdk_env = {}
+        if Platform.mingw64?
+          emsdk_env["EMSDK_ARCH"] = "x86_64"
+        end
+
+        # Clone emsdk if needed, or update existing clone
         unless Dir.exist?(emsdk_dir)
           JsonEmitter.stage_progress(:emscripten, 10, "Cloning emsdk repository", substage: "clone")
           UI.spinner("Cloning emsdk") do
             Shell.git_clone(emscripten_git_repo, emsdk_dir, verbose: verbose?)
           end
         else
-          JsonEmitter.stage_progress(:emscripten, 10, "emsdk already cloned", substage: "clone")
+          # Update existing clone so release manifests are current
+          JsonEmitter.stage_progress(:emscripten, 10, "Updating emsdk repository", substage: "update")
+          UI.spinner("Updating emsdk") do
+            Shell.run("git pull", chdir: emsdk_dir, verbose: verbose?)
+          end
         end
 
         # Install emscripten if needed
         unless Dir.exist?(emscripten_path)
           JsonEmitter.stage_progress(:emscripten, 30, "Installing Emscripten SDK #{emsdk_ver}", substage: "install")
           UI.spinner("Installing Emscripten #{emscripten_version_display} (this takes a while)") do
-            Shell.run!("./emsdk install #{emsdk_ver}", chdir: emsdk_dir, verbose: verbose?)
+            Shell.run!("./emsdk install #{emsdk_ver}", chdir: emsdk_dir, env: emsdk_env, verbose: verbose?)
           end
           JsonEmitter.stage_progress(:emscripten, 70, "Activating Emscripten", substage: "activate")
           UI.spinner("Activating Emscripten") do
-            Shell.run!("./emsdk activate #{emsdk_ver}", chdir: emsdk_dir, verbose: verbose?)
+            Shell.run!("./emsdk activate #{emsdk_ver}", chdir: emsdk_dir, env: emsdk_env, verbose: verbose?)
           end
         else
           JsonEmitter.stage_progress(:emscripten, 70, "Emscripten already installed", substage: "cached")
