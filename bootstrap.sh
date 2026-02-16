@@ -278,15 +278,29 @@ elif [[ -f ~/.bash_profile ]]; then
     PROFILE_FILE=~/.bash_profile
 fi
 
-if [[ -n "$PROFILE_FILE" ]] && ! grep -q "Ruby gem binaries" "$PROFILE_FILE" 2>/dev/null; then
-    echo "" >> "$PROFILE_FILE"
-    echo "# Ruby gem binaries" >> "$PROFILE_FILE"
+if [[ -n "$PROFILE_FILE" ]]; then
+    # Determine the correct PATH line for this platform
     if [[ "$PLATFORM" == "mingw64" ]]; then
-        echo 'export PATH="$(ruby -e '\''puts Gem.user_dir'\'')/bin:$PATH"' >> "$PROFILE_FILE"
+        GEM_PATH_LINE='export PATH="$(ruby -e '\''puts Gem.user_dir'\'')/bin:$PATH"'
     else
-        echo 'export PATH="$(ruby -e '\''puts Gem.bindir'\''):$PATH"' >> "$PROFILE_FILE"
+        GEM_PATH_LINE='export PATH="$(ruby -e '\''puts Gem.bindir'\''):$PATH"'
     fi
-    echo -e "${GREEN}> Added gem bin to $PROFILE_FILE${NC}"
+
+    if ! grep -q "Ruby gem binaries" "$PROFILE_FILE" 2>/dev/null; then
+        # No entry yet — add it
+        echo "" >> "$PROFILE_FILE"
+        echo "# Ruby gem binaries" >> "$PROFILE_FILE"
+        echo "$GEM_PATH_LINE" >> "$PROFILE_FILE"
+        echo -e "${GREEN}> Added gem bin to $PROFILE_FILE${NC}"
+    elif ! grep -qF "$GEM_PATH_LINE" "$PROFILE_FILE" 2>/dev/null; then
+        # Entry exists but with wrong/stale path — remove old block and re-add
+        grep -v "# Ruby gem binaries" "$PROFILE_FILE" | grep -v 'Gem\.bindir' | grep -v 'Gem\.user_dir' > "${PROFILE_FILE}.tmp"
+        mv "${PROFILE_FILE}.tmp" "$PROFILE_FILE"
+        echo "" >> "$PROFILE_FILE"
+        echo "# Ruby gem binaries" >> "$PROFILE_FILE"
+        echo "$GEM_PATH_LINE" >> "$PROFILE_FILE"
+        echo -e "${GREEN}> Updated gem bin path in $PROFILE_FILE${NC}"
+    fi
 fi
 
 cd "$SCRIPT_DIR/cli"
@@ -367,7 +381,11 @@ GEMSPEC_VERSION=$(grep -E 'VERSION\s*=' lib/gmrcli/version.rb 2>/dev/null | sed 
 echo -e "${GREEN}> Building and installing gmrcli...${NC}"
 gem uninstall gmrcli --quiet --executables 2>/dev/null || true
 gem build gmrcli.gemspec --quiet 2>/dev/null || gem build gmrcli.gemspec
-gem install ./gmrcli-*.gem --no-document
+if [[ "$PLATFORM" == "mingw64" ]]; then
+    gem install ./gmrcli-*.gem --no-document --user-install
+else
+    gem install ./gmrcli-*.gem --no-document
+fi
 rm -f gmrcli-*.gem
 echo -e "  ${GREEN}+ gmrcli ${GEMSPEC_VERSION}${NC}"
 
