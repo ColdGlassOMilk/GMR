@@ -604,8 +604,13 @@ int main(int argc, char* argv[]) {
         gmr::input::InputManager::instance().clear(mrb);
         gmr::event::EventQueue::instance().clear(mrb);
         gmr::SceneManager::instance().clear(mrb);
+        gmr::transition::TransitionManager::instance().clear();  // Must clear while mrb alive (may have callback)
     }
-    gmr::transition::TransitionManager::instance().clear();
+
+    // CRITICAL: Close mruby explicitly while all managers are still alive
+    // This prevents mrb_close() from running during static destruction when managers may be destroyed
+    loader.close();
+
     gmr::bindings::cleanup_window();
     gmr::SpriteManager::instance().clear();
     gmr::TransformManager::instance().clear();

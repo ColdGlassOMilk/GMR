@@ -75,9 +75,23 @@ Loader& Loader::instance() {
     return instance;
 }
 
-Loader::~Loader() {
+// Explicit shutdown - MUST be called from main() before return
+// This ensures mrb_close() runs while all managers are still alive
+void Loader::close() {
     if (mrb_) {
         mrb_close(mrb_);
+        mrb_ = nullptr;
+    }
+}
+
+// Destructor runs during static destruction phase (after main returns)
+// CRITICAL: We CANNOT safely access other managers here - they may already be destroyed
+// All cleanup MUST happen in explicit close() call in main.cpp before return
+Loader::~Loader() {
+    // mrb_close() should have been called in close() - this is just a safety check
+    if (mrb_) {
+        // Should never reach here if close() was called properly
+        mrb_ = nullptr;  // Don't call mrb_close - managers may be destroyed
     }
 }
 

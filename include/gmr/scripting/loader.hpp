@@ -26,6 +26,9 @@ public:
     mrb_state* mrb() { return mrb_; }
     bool has_error() const { return mrb_ == nullptr; }
 
+    // Explicit shutdown - must be called before managers are destroyed
+    void close();
+
     // Error state queries
     bool in_error_state() const { return in_error_state_; }
     const std::optional<ScriptError>& last_error() const { return last_error_; }
