@@ -253,8 +253,15 @@ else
 fi
 
 # Get the gem bin directory and add to PATH early (suppresses warning)
-# Use Gem.bindir for the actual bin location where executables are installed
-GEM_BIN=$(ruby -e 'puts Gem.bindir')
+# mingw64 installs gems to user dir; macOS/Linux use system gem bindir
+case $PLATFORM in
+    mingw64)
+        GEM_BIN=$(ruby -e 'puts Gem.user_dir')/bin
+        ;;
+    *)
+        GEM_BIN=$(ruby -e 'puts Gem.bindir')
+        ;;
+esac
 export PATH="$GEM_BIN:$PATH"
 
 # Add to shell profile for persistence (only if not already added)
@@ -274,7 +281,11 @@ fi
 if [[ -n "$PROFILE_FILE" ]] && ! grep -q "Ruby gem binaries" "$PROFILE_FILE" 2>/dev/null; then
     echo "" >> "$PROFILE_FILE"
     echo "# Ruby gem binaries" >> "$PROFILE_FILE"
-    echo 'export PATH="$(ruby -e '\''puts Gem.bindir'\''):$PATH"' >> "$PROFILE_FILE"
+    if [[ "$PLATFORM" == "mingw64" ]]; then
+        echo 'export PATH="$(ruby -e '\''puts Gem.user_dir'\'')/bin:$PATH"' >> "$PROFILE_FILE"
+    else
+        echo 'export PATH="$(ruby -e '\''puts Gem.bindir'\''):$PATH"' >> "$PROFILE_FILE"
+    fi
     echo -e "${GREEN}> Added gem bin to $PROFILE_FILE${NC}"
 fi
 
